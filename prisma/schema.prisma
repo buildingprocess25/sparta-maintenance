@@ -1,0 +1,127 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Ingat konfigurasi URL ada di prisma.config.ts
+}
+
+// =========================================
+// ENUMS
+// =========================================
+
+enum UserRole {
+  BMS
+  BMC
+  ADMIN
+}
+
+enum ReportStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+}
+
+enum ItemCondition {
+  BAIK
+  RUSAK
+  TIDAK_ADA
+}
+
+enum HandlerType {
+  BMS
+  REKANAN
+}
+
+// =========================================
+// MODELS
+// =========================================
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  password      String?       
+  name          String
+  role          UserRole      @default(BMS)
+  branchName    String?       
+  
+  reports       Report[]      @relation("CreatedReports")
+  approvals     ApprovalLog[] 
+  
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Report {
+  id            String        @id @default(uuid())
+  
+  ticketNumber  String        @unique 
+  branchCode    String        
+  branchName    String        
+  contactNumber String        
+  
+  status        ReportStatus  @default(DRAFT)
+  totalEstimation Decimal     @default(0) @db.Decimal(15, 2)
+  
+  createdById   String
+  createdBy     User          @relation("CreatedReports", fields: [createdById], references: [id])
+  
+  items         ReportItem[]
+  logs          ApprovalLog[]
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model ReportItem {
+  id            String        @id @default(uuid())
+  reportId      String
+  
+  // KITA UBAH DISINI: Tidak pakai relasi MasterItem
+  // Kita simpan ID dan Nama dari file checklist-data.ts sebagai "Snapshot"
+  itemId        String        // Contoh: "A1"
+  itemName      String        // Contoh: "Bahu Jalan"
+  categoryName  String        // Contoh: "A. Bagian Depan Bangunan"
+  
+  condition     ItemCondition
+  photoUrl      String?       
+  handler       HandlerType?  
+  
+  report        Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  estimations   MaterialEstimation[] 
+
+  // Unik: Satu report tidak boleh punya dua item dengan ID "A1"
+  @@unique([reportId, itemId]) 
+}
+
+model MaterialEstimation {
+  id            String    @id @default(uuid())
+  reportItemId  String
+  
+  itemName      String    
+  quantity      Int
+  unit          String    
+  price         Decimal   @db.Decimal(15, 2)
+  totalPrice    Decimal   @db.Decimal(15, 2)
+  
+  reportItem    ReportItem @relation(fields: [reportItemId], references: [id], onDelete: Cascade)
+}
+
+model ApprovalLog {
+  id            String    @id @default(uuid())
+  reportId      String
+  approverId    String    
+  
+  status        ReportStatus 
+  notes         String?      
+  
+  report        Report    @relation(fields: [reportId], references: [id])
+  approver      User      @relation(fields: [approverId], references: [id])
+  
+  createdAt     DateTime  @default(now())
+}
