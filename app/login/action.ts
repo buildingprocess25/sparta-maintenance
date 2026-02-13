@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { createSession } from "@/lib/session";
+import { getDbErrorMessage } from "@/lib/db-error";
 import { redirect } from "next/navigation";
 
 // State awal untuk useFormState
@@ -63,9 +64,10 @@ export async function loginAction(
         await createSession(user.id, user.role);
     } catch (error) {
         console.error("Login Error:", error);
+        const message = getDbErrorMessage(error);
         return {
             errors: {
-                form: ["Terjadi kesalahan pada server. Silakan coba lagi."],
+                form: [message],
             },
         };
     }

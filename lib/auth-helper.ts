@@ -2,6 +2,7 @@ import "server-only";
 import { getSession } from "./session";
 import prisma from "./prisma";
 import { redirect } from "next/navigation";
+import { isConnectionError } from "./db-error";
 
 export async function getCurrentUser() {
     const session = await getSession();
@@ -25,6 +26,12 @@ export async function getCurrentUser() {
 
         return user;
     } catch (error) {
+        // Throw connection errors agar ditangkap oleh error.tsx boundary
+        if (isConnectionError(error)) {
+            throw new Error(
+                "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda.",
+            );
+        }
         console.error("Error fetching user:", error);
         return null;
     }
