@@ -7,6 +7,8 @@ const nextConfig: NextConfig = {
                 "localhost:3000",
                 "*.devtunnels.ms",
                 "*.devtunnels.ms:*",
+                "*.ngrok-free.dev",
+                "*.ngrok-free.dev:*",
             ],
         },
     },

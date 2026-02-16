@@ -33,6 +33,11 @@ enum ItemCondition {
   TIDAK_ADA
 }
 
+enum PreventiveCondition {
+  OK
+  NOT_OK
+}
+
 enum HandlerType {
   BMS
   REKANAN
@@ -57,13 +62,32 @@ model User {
   updatedAt     DateTime      @updatedAt
 }
 
+model Store {
+  id         String   @id @default(uuid())
+  code       String   @unique       // Kode toko (e.g. "ALF-CKL-001")
+  name       String                 // "Alfamart Cikokol Raya"
+  address    String
+  branchName String                 // Nama cabang (link ke User.branchName)
+  
+  reports    Report[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([branchName])
+}
+
 model Report {
   id            String        @id @default(uuid())
   
   ticketNumber  String        @unique 
   branchCode    String        
   branchName    String        
+  storeName     String        @default("")
   contactNumber String        
+  
+  storeId       String?       
+  store         Store?        @relation(fields: [storeId], references: [id])
   
   status        ReportStatus  @default(DRAFT)
   totalEstimation Decimal     @default(0) @db.Decimal(15, 2)
@@ -88,7 +112,8 @@ model ReportItem {
   itemName      String        // Contoh: "Bahu Jalan"
   categoryName  String        // Contoh: "A. Bagian Depan Bangunan"
   
-  condition     ItemCondition
+  condition     ItemCondition?
+  preventiveCondition PreventiveCondition?
   photoUrl      String?       
   handler       HandlerType?  
   

@@ -1,0 +1,424 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Header } from "@/components/layout/header";
+import { Footer } from "@/components/layout/footer";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Empty,
+    EmptyHeader,
+    EmptyMedia,
+    EmptyTitle,
+    EmptyDescription,
+} from "@/components/ui/empty";
+import {
+    Search,
+    Plus,
+    MapPin,
+    Calendar,
+    Filter,
+    FileText,
+    Clock,
+    ArrowUpDown,
+    X,
+    Check,
+    Eye,
+    Pencil,
+    FileEdit,
+} from "lucide-react";
+import Link from "next/link";
+
+// Type for report data from server
+export type ReportData = {
+    id: string;
+    ticketNumber: string;
+    storeName: string;
+    branchName: string;
+    status: string;
+    totalEstimation: number;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: {
+        items: number;
+    };
+};
+
+type ReportsListProps = {
+    reports: ReportData[];
+    total: number;
+};
+
+export default function ReportsList({ reports, total }: ReportsListProps) {
+    const router = useRouter();
+    const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all");
+
+    // Client-side filter (for now — server-side filtering can be added later)
+    const filteredReports = reports.filter((report) => {
+        const matchesSearch =
+            report.storeName
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase()) ||
+            report.ticketNumber
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase());
+        const matchesStatus =
+            statusFilter === "all" ||
+            report.status === statusFilter.toUpperCase();
+
+        return matchesSearch && matchesStatus;
+    });
+
+    const getStatusBadge = (status: string) => {
+        switch (status) {
+            case "DRAFT":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-gray-200 shadow-none"
+                    >
+                        <FileEdit className="h-3 w-3" /> Draft
+                    </Badge>
+                );
+            case "PENDING_APPROVAL":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
+                    >
+                        <Clock className="h-3 w-3" /> Menunggu Persetujuan
+                    </Badge>
+                );
+            case "APPROVED":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
+                    >
+                        <Check className="h-3 w-3" /> Disetujui
+                    </Badge>
+                );
+            case "REJECTED":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
+                    >
+                        <X className="h-3 w-3" /> Ditolak
+                    </Badge>
+                );
+            default:
+                return <Badge variant="outline">{status}</Badge>;
+        }
+    };
+
+    const getActionButton = (report: ReportData) => {
+        switch (report.status) {
+            case "PENDING_APPROVAL":
+            case "APPROVED":
+                return (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        asChild
+                    >
+                        <Link href={`/reports/${report.id}`}>
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Lihat Detail</span>
+                        </Link>
+                    </Button>
+                );
+            case "DRAFT":
+            case "REJECTED":
+                return (
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        asChild
+                    >
+                        <Link href={`/reports/edit/${report.id}`}>
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit Laporan</span>
+                        </Link>
+                    </Button>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const getMobileActionButton = (report: ReportData) => {
+        switch (report.status) {
+            case "PENDING_APPROVAL":
+            case "APPROVED":
+                return (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        asChild
+                    >
+                        <Link href={`/reports/${report.id}`}>
+                            <Eye className="h-3.5 w-3.5" />
+                            Lihat Detail
+                        </Link>
+                    </Button>
+                );
+            case "DRAFT":
+            case "REJECTED":
+                return (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-xs"
+                        asChild
+                    >
+                        <Link href={`/reports/edit/${report.id}`}>
+                            <Pencil className="h-3.5 w-3.5" />
+                            Edit Laporan
+                        </Link>
+                    </Button>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const formatDate = (date: Date) => {
+        return new Date(date).toLocaleDateString("id-ID", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    };
+
+    const formatCurrency = (amount: number) => {
+        return `Rp ${Number(amount).toLocaleString("id-ID")}`;
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col bg-background">
+            <Header
+                variant="dashboard"
+                title="Laporan Saya"
+                description={`${total} laporan — Kelola dan pantau status laporan kerusakan`}
+                showBackButton
+                backHref="/dashboard"
+            />
+
+            <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
+                {/* Action Bar: Search, Filter, Create */}
+                <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
+                    <div className="flex flex-1 gap-2">
+                        <div className="relative flex-1 md:max-w-sm">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                placeholder="Cari toko atau ID laporan..."
+                                className="pl-9 bg-background"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-auto bg-background">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="h-4 w-4 text-muted-foreground" />
+                                    <SelectValue placeholder="Status" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua</SelectItem>
+                                <SelectItem value="draft">Draft</SelectItem>
+                                <SelectItem value="pending_approval">
+                                    Menunggu Persetujuan
+                                </SelectItem>
+                                <SelectItem value="approved">
+                                    Disetujui
+                                </SelectItem>
+                                <SelectItem value="rejected">
+                                    Ditolak
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
+                    <Button
+                        onClick={() => router.push("/reports/create")}
+                        className="w-full md:w-auto gap-2 shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
+                        <span className="hidden md:inline">Buat Laporan</span>
+                        <span className="md:hidden">Laporan Baru</span>
+                    </Button>
+                </div>
+
+                {filteredReports.length > 0 ? (
+                    <>
+                        {/* --- MOBILE VIEW: CARD LIST --- */}
+                        <div className="space-y-3 md:hidden">
+                            {filteredReports.map((report) => (
+                                <Card key={report.id} className="shadow-sm">
+                                    <CardContent>
+                                        <div className="flex justify-between items-start mb-3">
+                                            <div>
+                                                <h3 className="font-semibold text-sm line-clamp-1">
+                                                    {report.storeName || "—"}
+                                                </h3>
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-mono">
+                                                    {report.ticketNumber}
+                                                </p>
+                                            </div>
+                                            {getStatusBadge(report.status)}
+                                        </div>
+
+                                        <div className="grid gap-1 text-sm text-muted-foreground">
+                                            <div className="flex items-center gap-2">
+                                                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                                <span className="truncate">
+                                                    {report.branchName}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                                                <span>
+                                                    {formatDate(
+                                                        report.createdAt,
+                                                    )}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <Clock className="h-3.5 w-3.5 shrink-0" />
+                                                <span>
+                                                    {formatCurrency(
+                                                        report.totalEstimation,
+                                                    )}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Mobile Action Button */}
+                                        <div className="mt-3 pt-3 border-t flex justify-end">
+                                            {getMobileActionButton(report)}
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+
+                        {/* --- DESKTOP VIEW: DATA TABLE --- */}
+                        <div className="hidden md:block border rounded-lg shadow-sm bg-card">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                        <TableHead className="w-25">
+                                            ID Laporan
+                                        </TableHead>
+                                        <TableHead className="min-w-50">
+                                            Toko & Cabang
+                                        </TableHead>
+                                        <TableHead>
+                                            <div className="flex items-center gap-1 cursor-pointer hover:text-foreground">
+                                                Tanggal{" "}
+                                                <ArrowUpDown className="h-3 w-3" />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead>Status</TableHead>
+                                        <TableHead className="text-right">
+                                            Estimasi
+                                        </TableHead>
+                                        <TableHead className="w-17.5 text-center">
+                                            Aksi
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredReports.map((report) => (
+                                        <TableRow
+                                            key={report.id}
+                                            className="group"
+                                        >
+                                            <TableCell className="font-mono text-xs font-medium text-muted-foreground">
+                                                {report.ticketNumber}
+                                            </TableCell>
+                                            <TableCell>
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-medium text-sm">
+                                                        {report.storeName ||
+                                                            "—"}
+                                                    </span>
+                                                    <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                        <MapPin className="h-3 w-3" />{" "}
+                                                        {report.branchName}
+                                                    </span>
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {formatDate(report.createdAt)}
+                                            </TableCell>
+                                            <TableCell>
+                                                {getStatusBadge(report.status)}
+                                            </TableCell>
+                                            <TableCell className="text-right font-mono text-sm">
+                                                {formatCurrency(
+                                                    report.totalEstimation,
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                {getActionButton(report)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
+                ) : (
+                    /* Empty State */
+                    <div className="bg-card border rounded-lg border-dashed">
+                        <Empty className="py-16">
+                            <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                    <FileText className="h-10 w-10 text-muted-foreground" />
+                                </EmptyMedia>
+                                <EmptyTitle>
+                                    Tidak ada laporan ditemukan
+                                </EmptyTitle>
+                                <EmptyDescription>
+                                    {searchQuery
+                                        ? "Coba ubah kata kunci pencarian atau filter Anda."
+                                        : "Anda belum membuat laporan kerusakan apapun."}
+                                </EmptyDescription>
+                            </EmptyHeader>
+                        </Empty>
+                    </div>
+                )}
+            </main>
+
+            <Footer />
+        </div>
+    );
+}
