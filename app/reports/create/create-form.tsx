@@ -169,6 +169,7 @@ export default function CreateReportForm({
                 if (lastDate) {
                     const cooldownMs = 3 * 30 * 24 * 60 * 60 * 1000;
                     const lastTime = new Date(lastDate).getTime();
+                    // eslint-disable-next-line react-hooks/purity
                     const now = Date.now();
                     const cooling = now - lastTime < cooldownMs;
                     setIsCategoryICoolingDown(cooling);
@@ -411,7 +412,7 @@ export default function CreateReportForm({
         const newChecklist = new Map<string, ChecklistItem>();
         let itemIndex = 0;
 
-        for (const category of checklistCategories) {
+        for (const category of activeCategories) {
             for (const item of category.items) {
                 itemIndex++;
                 // Alternate between conditions: baik, rusak, tidak-ada
@@ -664,37 +665,46 @@ export default function CreateReportForm({
             return false;
         }
 
-        const totalItems = activeCategories.reduce(
-            (sum, cat) => sum + cat.items.length,
-            0,
-        );
+        for (const cat of activeCategories) {
+            for (const item of cat.items) {
+                const checkedItem = checklist.get(item.id);
 
-        if (checklist.size !== totalItems) {
-            toast.error("Semua item wajib diisi kondisinya");
-            return false;
-        }
-
-        for (const item of checklist.values()) {
-            if (!item.condition) {
-                toast.error("Semua item wajib diisi kondisinya");
-                return false;
-            }
-            if (item.condition === "baik") {
-                if (!item.photo) {
-                    toast.error(`Item "${item.name}" wajib upload foto bukti`);
-                    return false;
-                }
-            }
-            if (item.condition === "rusak") {
-                if (!item.photo) {
-                    toast.error(`Item "${item.name}" rusak wajib upload foto`);
-                    return false;
-                }
-                if (!item.handler) {
+                if (!checkedItem || !checkedItem.condition) {
                     toast.error(
-                        `Item "${item.name}" rusak wajib pilih handler`,
+                        `Item "${item.name}" di kategori "${cat.title}" wajib diisi`,
                     );
+                    // Expand category if closed
+                    if (!openCategories.has(cat.id)) {
+                        toggleCategory(cat.id);
+                    }
                     return false;
+                }
+
+                if (checkedItem.condition === "baik") {
+                    if (!checkedItem.photo) {
+                        toast.error(
+                            `Item "${item.name}" wajib upload foto bukti`,
+                        );
+                        if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        return false;
+                    }
+                }
+
+                if (checkedItem.condition === "rusak") {
+                    if (!checkedItem.photo) {
+                        toast.error(
+                            `Item "${item.name}" rusak wajib upload foto`,
+                        );
+                        if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        return false;
+                    }
+                    if (!checkedItem.handler) {
+                        toast.error(
+                            `Item "${item.name}" rusak wajib pilih handler`,
+                        );
+                        if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        return false;
+                    }
                 }
             }
         }
@@ -853,11 +863,17 @@ export default function CreateReportForm({
 
     // Fungsi untuk membuat DraftData dari state saat ini
     const buildDraftData = useCallback((): DraftData => {
+        // Create Set of valid item IDs from active categories
+        const validItemIds = new Set<string>();
+        activeCategories.forEach((cat) =>
+            cat.items.forEach((item) => validItemIds.add(item.id)),
+        );
+
         const checklistItems = Array.from(checklist.values())
-            .filter((item) => item.condition)
+            .filter((item) => item.condition && validItemIds.has(item.id))
             .map((item) => {
                 let categoryName = "";
-                for (const cat of checklistCategories) {
+                for (const cat of activeCategories) {
                     if (cat.items.some((i) => i.id === item.id)) {
                         categoryName = cat.title;
                         break;
@@ -917,6 +933,7 @@ export default function CreateReportForm({
         userBranchCode,
         userBranchName,
         userContactNumber,
+        activeCategories,
         grandTotalBms,
     ]);
 
@@ -1122,483 +1139,504 @@ export default function CreateReportForm({
 
                         {/* Kolom Kanan: Checklist */}
                         <div className="md:col-span-8 md:order-2">
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        Checklist Kondisi
-                                    </CardTitle>
-                                    <CardDescription className="text-xs">
-                                        Total{" "}
-                                        {activeCategories.reduce(
-                                            (sum, cat) =>
-                                                sum + cat.items.length,
-                                            0,
-                                        )}{" "}
-                                        item
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {activeCategories.map((category) => {
-                                        const isOpen = openCategories.has(
-                                            category.id,
-                                        );
-                                        const categoryItems =
-                                            category.items.map((item) => ({
-                                                ...item,
-                                                ...checklist.get(item.id),
-                                            }));
-                                        const completedCount =
-                                            categoryItems.filter(
-                                                (item) => item.condition,
-                                            ).length;
-                                        const totalCount =
-                                            category.items.length;
-                                        const isCompleted =
-                                            completedCount === totalCount;
+                            {!selectedStoreId ? (
+                                <Card className="h-full flex flex-col items-center justify-center p-8 border-dashed bg-muted/30">
+                                    <Store className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                    <h3 className="text-lg font-medium text-muted-foreground">
+                                        Pilih Toko Terlebih Dahulu
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Silakan pilih toko di sebelah kiri untuk
+                                        memuat checklist.
+                                    </p>
+                                </Card>
+                            ) : (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">
+                                            Checklist Kondisi
+                                        </CardTitle>
+                                        <CardDescription className="text-xs">
+                                            Total{" "}
+                                            {activeCategories.reduce(
+                                                (sum, cat) =>
+                                                    sum + cat.items.length,
+                                                0,
+                                            )}{" "}
+                                            item
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {activeCategories.map((category) => {
+                                            const isOpen = openCategories.has(
+                                                category.id,
+                                            );
+                                            const categoryItems =
+                                                category.items.map((item) => ({
+                                                    ...item,
+                                                    ...checklist.get(item.id),
+                                                }));
+                                            const completedCount =
+                                                categoryItems.filter(
+                                                    (item) => item.condition,
+                                                ).length;
+                                            const totalCount =
+                                                category.items.length;
+                                            const isCompleted =
+                                                completedCount === totalCount;
 
-                                        return (
-                                            <Collapsible
-                                                key={category.id}
-                                                open={isOpen}
-                                                onOpenChange={() =>
-                                                    toggleCategory(category.id)
-                                                }
-                                            >
-                                                <CollapsibleTrigger asChild>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="w-full justify-between"
-                                                    >
-                                                        <div className="flex items-center gap-2">
-                                                            {isCompleted ? (
-                                                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                                            ) : (
-                                                                <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                                            )}
-                                                            <span className="font-medium">
-                                                                {category.title}
-                                                            </span>
-                                                            <span className="text-xs text-muted-foreground">
-                                                                (
-                                                                {completedCount}
-                                                                /{totalCount})
-                                                            </span>
-                                                        </div>
-                                                        <ChevronDown
-                                                            className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                                                        />
-                                                    </Button>
-                                                </CollapsibleTrigger>
-                                                <CollapsibleContent className="pt-2">
-                                                    <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                                                        {category.items.map(
-                                                            (item) => {
-                                                                const itemData =
-                                                                    checklist.get(
-                                                                        item.id,
-                                                                    );
-                                                                const condition =
-                                                                    itemData?.condition ||
-                                                                    "";
-                                                                const handler =
-                                                                    itemData?.handler ||
-                                                                    "";
-                                                                const photo =
-                                                                    itemData?.photo;
+                                            return (
+                                                <Collapsible
+                                                    key={category.id}
+                                                    open={isOpen}
+                                                    onOpenChange={() =>
+                                                        toggleCategory(
+                                                            category.id,
+                                                        )
+                                                    }
+                                                >
+                                                    <CollapsibleTrigger asChild>
+                                                        <Button
+                                                            variant="outline"
+                                                            className="w-full justify-between"
+                                                        >
+                                                            <div className="flex items-center gap-2">
+                                                                {isCompleted ? (
+                                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                                ) : (
+                                                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
+                                                                )}
+                                                                <span className="font-medium">
+                                                                    {
+                                                                        category.title
+                                                                    }
+                                                                </span>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    (
+                                                                    {
+                                                                        completedCount
+                                                                    }
+                                                                    /
+                                                                    {totalCount}
+                                                                    )
+                                                                </span>
+                                                            </div>
+                                                            <ChevronDown
+                                                                className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
+                                                            />
+                                                        </Button>
+                                                    </CollapsibleTrigger>
+                                                    <CollapsibleContent className="pt-2">
+                                                        <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                                                            {category.items.map(
+                                                                (item) => {
+                                                                    const itemData =
+                                                                        checklist.get(
+                                                                            item.id,
+                                                                        );
+                                                                    const condition =
+                                                                        itemData?.condition ||
+                                                                        "";
+                                                                    const handler =
+                                                                        itemData?.handler ||
+                                                                        "";
+                                                                    const photo =
+                                                                        itemData?.photo;
 
-                                                                return (
-                                                                    <div
-                                                                        key={
-                                                                            item.id
-                                                                        }
-                                                                        className="space-y-3 p-3 bg-background rounded-md border"
-                                                                    >
-                                                                        <div className="font-medium text-sm">
-                                                                            {
+                                                                    return (
+                                                                        <div
+                                                                            key={
                                                                                 item.id
                                                                             }
-                                                                            .{" "}
-                                                                            {
-                                                                                item.name
-                                                                            }
-                                                                        </div>
-                                                                        {category.isPreventive ? (
-                                                                            /* PREVENTIVE: OK / NOT OK */
-                                                                            <RadioGroup
-                                                                                value={
-                                                                                    condition
+                                                                            className="space-y-3 p-3 bg-background rounded-md border"
+                                                                        >
+                                                                            <div className="font-medium text-sm">
+                                                                                {
+                                                                                    item.id
                                                                                 }
-                                                                                onValueChange={(
-                                                                                    value,
-                                                                                ) =>
-                                                                                    updateChecklistItem(
-                                                                                        item.id,
-                                                                                        item.name,
-                                                                                        "condition",
-                                                                                        value as ChecklistCondition,
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                <div className="flex flex-wrap gap-4">
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <RadioGroupItem
-                                                                                            value="baik"
-                                                                                            id={`${item.id}-ok`}
-                                                                                        />
-                                                                                        <Label
-                                                                                            htmlFor={`${item.id}-ok`}
-                                                                                            className="cursor-pointer text-green-700"
-                                                                                        >
-                                                                                            ✓
-                                                                                            OK
-                                                                                        </Label>
-                                                                                    </div>
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <RadioGroupItem
-                                                                                            value="rusak"
-                                                                                            id={`${item.id}-not-ok`}
-                                                                                        />
-                                                                                        <Label
-                                                                                            htmlFor={`${item.id}-not-ok`}
-                                                                                            className="cursor-pointer text-red-700"
-                                                                                        >
-                                                                                            ✗
-                                                                                            Not
-                                                                                            OK
-                                                                                        </Label>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </RadioGroup>
-                                                                        ) : (
-                                                                            /* REGULAR: Baik / Rusak / Tidak Ada */
-                                                                            <RadioGroup
-                                                                                value={
-                                                                                    condition
-                                                                                }
-                                                                                onValueChange={(
-                                                                                    value,
-                                                                                ) =>
-                                                                                    updateChecklistItem(
-                                                                                        item.id,
-                                                                                        item.name,
-                                                                                        "condition",
-                                                                                        value as ChecklistCondition,
-                                                                                    )
-                                                                                }
-                                                                            >
-                                                                                <div className="flex flex-wrap gap-4">
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <RadioGroupItem
-                                                                                            value="baik"
-                                                                                            id={`${item.id}-baik`}
-                                                                                        />
-                                                                                        <Label
-                                                                                            htmlFor={`${item.id}-baik`}
-                                                                                            className="cursor-pointer"
-                                                                                        >
-                                                                                            Baik
-                                                                                        </Label>
-                                                                                    </div>
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <RadioGroupItem
-                                                                                            value="rusak"
-                                                                                            id={`${item.id}-rusak`}
-                                                                                        />
-                                                                                        <Label
-                                                                                            htmlFor={`${item.id}-rusak`}
-                                                                                            className="cursor-pointer"
-                                                                                        >
-                                                                                            Rusak
-                                                                                        </Label>
-                                                                                    </div>
-                                                                                    <div className="flex items-center space-x-2">
-                                                                                        <RadioGroupItem
-                                                                                            value="tidak-ada"
-                                                                                            id={`${item.id}-tidak-ada`}
-                                                                                        />
-                                                                                        <Label
-                                                                                            htmlFor={`${item.id}-tidak-ada`}
-                                                                                            className="cursor-pointer"
-                                                                                        >
-                                                                                            Tidak
-                                                                                            Ada
-                                                                                        </Label>
-                                                                                    </div>
-                                                                                </div>
-                                                                            </RadioGroup>
-                                                                        )}
 
-                                                                        {condition ===
-                                                                            "baik" && (
-                                                                            <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                <div>
-                                                                                    <Label className="text-sm">
-                                                                                        Foto
-                                                                                        Bukti{" "}
-                                                                                        <span className="text-red-500">
-                                                                                            *
-                                                                                        </span>
-                                                                                    </Label>
-
-                                                                                    {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
-                                                                                    {!photo ? (
-                                                                                        <Button
-                                                                                            type="button"
-                                                                                            variant="secondary"
-                                                                                            className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
-                                                                                            onClick={() =>
-                                                                                                handleOpenCamera(
-                                                                                                    item.id,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <Camera className="mr-2 h-4 w-4" />
-                                                                                            Ambil
-                                                                                            Foto
-                                                                                            /
-                                                                                            Galeri
-                                                                                        </Button>
-                                                                                    ) : (
-                                                                                        <div className="mt-2 space-y-2">
-                                                                                            {/* Thumbnail Preview */}
-                                                                                            <div
-                                                                                                className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
-                                                                                                onClick={() =>
-                                                                                                    handlePreviewPhoto(
-                                                                                                        photo,
-                                                                                                    )
-                                                                                                }
-                                                                                            >
-                                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                                                <img
-                                                                                                    src={URL.createObjectURL(
-                                                                                                        photo,
-                                                                                                    )}
-                                                                                                    alt="Preview"
-                                                                                                    className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                                                                                                />
-                                                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                                                                                                    <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
-                                                                                                        Klik
-                                                                                                        untuk
-                                                                                                        lihat
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                            {/* File Info & Actions */}
-                                                                                            <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                                                                    <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
-                                                                                                    <div className="min-w-0">
-                                                                                                        <p className="text-xs font-medium text-green-800 truncate">
-                                                                                                            {
-                                                                                                                photo.name
-                                                                                                            }
-                                                                                                        </p>
-                                                                                                        <p className="text-[10px] text-green-600">
-                                                                                                            {(
-                                                                                                                photo.size /
-                                                                                                                1024
-                                                                                                            ).toFixed(
-                                                                                                                0,
-                                                                                                            )}{" "}
-                                                                                                            KB
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                <Button
-                                                                                                    size="icon"
-                                                                                                    variant="ghost"
-                                                                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-                                                                                                    onClick={() =>
-                                                                                                        removePhoto(
-                                                                                                            item.id,
-                                                                                                            item.name,
-                                                                                                        )
-                                                                                                    }
-                                                                                                >
-                                                                                                    <Trash2 className="h-4 w-4" />
-                                                                                                </Button>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                    )}
-                                                                                </div>
+                                                                                .{" "}
+                                                                                {
+                                                                                    item.name
+                                                                                }
                                                                             </div>
-                                                                        )}
+                                                                            {category.isPreventive ? (
+                                                                                /* PREVENTIVE: OK / NOT OK */
+                                                                                <RadioGroup
+                                                                                    value={
+                                                                                        condition
+                                                                                    }
+                                                                                    onValueChange={(
+                                                                                        value,
+                                                                                    ) =>
+                                                                                        updateChecklistItem(
+                                                                                            item.id,
+                                                                                            item.name,
+                                                                                            "condition",
+                                                                                            value as ChecklistCondition,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <div className="flex flex-wrap gap-4">
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <RadioGroupItem
+                                                                                                value="baik"
+                                                                                                id={`${item.id}-ok`}
+                                                                                            />
+                                                                                            <Label
+                                                                                                htmlFor={`${item.id}-ok`}
+                                                                                                className="cursor-pointer"
+                                                                                            >
+                                                                                                OK
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <RadioGroupItem
+                                                                                                value="rusak"
+                                                                                                id={`${item.id}-not-ok`}
+                                                                                            />
+                                                                                            <Label
+                                                                                                htmlFor={`${item.id}-not-ok`}
+                                                                                                className="cursor-pointer"
+                                                                                            >
+                                                                                                Not
+                                                                                                OK
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </RadioGroup>
+                                                                            ) : (
+                                                                                /* REGULAR: Baik / Rusak / Tidak Ada */
+                                                                                <RadioGroup
+                                                                                    value={
+                                                                                        condition
+                                                                                    }
+                                                                                    onValueChange={(
+                                                                                        value,
+                                                                                    ) =>
+                                                                                        updateChecklistItem(
+                                                                                            item.id,
+                                                                                            item.name,
+                                                                                            "condition",
+                                                                                            value as ChecklistCondition,
+                                                                                        )
+                                                                                    }
+                                                                                >
+                                                                                    <div className="flex flex-wrap gap-4">
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <RadioGroupItem
+                                                                                                value="baik"
+                                                                                                id={`${item.id}-baik`}
+                                                                                            />
+                                                                                            <Label
+                                                                                                htmlFor={`${item.id}-baik`}
+                                                                                                className="cursor-pointer"
+                                                                                            >
+                                                                                                Baik
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <RadioGroupItem
+                                                                                                value="rusak"
+                                                                                                id={`${item.id}-rusak`}
+                                                                                            />
+                                                                                            <Label
+                                                                                                htmlFor={`${item.id}-rusak`}
+                                                                                                className="cursor-pointer"
+                                                                                            >
+                                                                                                Rusak
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                        <div className="flex items-center space-x-2">
+                                                                                            <RadioGroupItem
+                                                                                                value="tidak-ada"
+                                                                                                id={`${item.id}-tidak-ada`}
+                                                                                            />
+                                                                                            <Label
+                                                                                                htmlFor={`${item.id}-tidak-ada`}
+                                                                                                className="cursor-pointer"
+                                                                                            >
+                                                                                                Tidak
+                                                                                                Ada
+                                                                                            </Label>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </RadioGroup>
+                                                                            )}
 
-                                                                        {condition ===
-                                                                            "rusak" && (
-                                                                            <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                <div>
-                                                                                    <Label className="text-sm">
-                                                                                        Foto
-                                                                                        Kerusakan{" "}
-                                                                                        <span className="text-red-500">
-                                                                                            *
-                                                                                        </span>
-                                                                                    </Label>
-
-                                                                                    {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
-                                                                                    {!photo ? (
-                                                                                        <Button
-                                                                                            type="button"
-                                                                                            variant="secondary"
-                                                                                            className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
-                                                                                            onClick={() =>
-                                                                                                handleOpenCamera(
-                                                                                                    item.id,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <Camera className="mr-2 h-4 w-4" />
-                                                                                            Ambil
+                                                                            {condition ===
+                                                                                "baik" && (
+                                                                                <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
+                                                                                    <div>
+                                                                                        <Label className="text-sm">
                                                                                             Foto
-                                                                                            /
-                                                                                            Galeri
-                                                                                        </Button>
-                                                                                    ) : (
-                                                                                        <div className="mt-2 space-y-2">
-                                                                                            {/* Thumbnail Preview */}
-                                                                                            <div
-                                                                                                className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
+                                                                                            Bukti{" "}
+                                                                                            <span className="text-red-500">
+                                                                                                *
+                                                                                            </span>
+                                                                                        </Label>
+
+                                                                                        {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
+                                                                                        {!photo ? (
+                                                                                            <Button
+                                                                                                type="button"
+                                                                                                variant="secondary"
+                                                                                                className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
                                                                                                 onClick={() =>
-                                                                                                    handlePreviewPhoto(
-                                                                                                        photo,
+                                                                                                    handleOpenCamera(
+                                                                                                        item.id,
                                                                                                     )
                                                                                                 }
                                                                                             >
-                                                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                                                <img
-                                                                                                    src={URL.createObjectURL(
-                                                                                                        photo,
-                                                                                                    )}
-                                                                                                    alt="Preview"
-                                                                                                    className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                                                                                                />
-                                                                                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                                                                                                    <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
-                                                                                                        Klik
-                                                                                                        untuk
-                                                                                                        lihat
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                            {/* File Info & Actions */}
-                                                                                            <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                                                                <div className="flex items-center gap-2 overflow-hidden">
-                                                                                                    <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
-                                                                                                    <div className="min-w-0">
-                                                                                                        <p className="text-xs font-medium text-green-800 truncate">
-                                                                                                            {
-                                                                                                                photo.name
-                                                                                                            }
-                                                                                                        </p>
-                                                                                                        <p className="text-[10px] text-green-600">
-                                                                                                            {(
-                                                                                                                photo.size /
-                                                                                                                1024
-                                                                                                            ).toFixed(
-                                                                                                                0,
-                                                                                                            )}{" "}
-                                                                                                            KB
-                                                                                                        </p>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                <Button
-                                                                                                    size="icon"
-                                                                                                    variant="ghost"
-                                                                                                    className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                                                                                <Camera className="mr-2 h-4 w-4" />
+                                                                                                Ambil
+                                                                                                Foto
+                                                                                                /
+                                                                                                Galeri
+                                                                                            </Button>
+                                                                                        ) : (
+                                                                                            <div className="mt-2 space-y-2">
+                                                                                                {/* Thumbnail Preview */}
+                                                                                                <div
+                                                                                                    className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
                                                                                                     onClick={() =>
-                                                                                                        removePhoto(
-                                                                                                            item.id,
-                                                                                                            item.name,
+                                                                                                        handlePreviewPhoto(
+                                                                                                            photo,
                                                                                                         )
                                                                                                     }
                                                                                                 >
-                                                                                                    <Trash2 className="h-4 w-4" />
-                                                                                                </Button>
+                                                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                                    <img
+                                                                                                        src={URL.createObjectURL(
+                                                                                                            photo,
+                                                                                                        )}
+                                                                                                        alt="Preview"
+                                                                                                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                                                    />
+                                                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                                                                                                        <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
+                                                                                                            Klik
+                                                                                                            untuk
+                                                                                                            lihat
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                {/* File Info & Actions */}
+                                                                                                <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                                                                        <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
+                                                                                                        <div className="min-w-0">
+                                                                                                            <p className="text-xs font-medium text-green-800 truncate">
+                                                                                                                {
+                                                                                                                    photo.name
+                                                                                                                }
+                                                                                                            </p>
+                                                                                                            <p className="text-[10px] text-green-600">
+                                                                                                                {(
+                                                                                                                    photo.size /
+                                                                                                                    1024
+                                                                                                                ).toFixed(
+                                                                                                                    0,
+                                                                                                                )}{" "}
+                                                                                                                KB
+                                                                                                            </p>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <Button
+                                                                                                        size="icon"
+                                                                                                        variant="ghost"
+                                                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                                                                                        onClick={() =>
+                                                                                                            removePhoto(
+                                                                                                                item.id,
+                                                                                                                item.name,
+                                                                                                            )
+                                                                                                        }
+                                                                                                    >
+                                                                                                        <Trash2 className="h-4 w-4" />
+                                                                                                    </Button>
+                                                                                                </div>
                                                                                             </div>
-                                                                                        </div>
-                                                                                    )}
+                                                                                        )}
+                                                                                    </div>
                                                                                 </div>
+                                                                            )}
 
-                                                                                <div>
-                                                                                    <Label className="text-sm">
-                                                                                        Akan
-                                                                                        dikerjakan
-                                                                                        oleh{" "}
-                                                                                        <span className="text-red-500">
-                                                                                            *
-                                                                                        </span>
-                                                                                    </Label>
-                                                                                    <Select
-                                                                                        value={
-                                                                                            handler
-                                                                                        }
-                                                                                        onValueChange={(
-                                                                                            value,
-                                                                                        ) =>
-                                                                                            updateChecklistItem(
-                                                                                                item.id,
-                                                                                                item.name,
-                                                                                                "handler",
+                                                                            {condition ===
+                                                                                "rusak" && (
+                                                                                <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
+                                                                                    <div>
+                                                                                        <Label className="text-sm">
+                                                                                            Foto
+                                                                                            Kerusakan{" "}
+                                                                                            <span className="text-red-500">
+                                                                                                *
+                                                                                            </span>
+                                                                                        </Label>
+
+                                                                                        {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
+                                                                                        {!photo ? (
+                                                                                            <Button
+                                                                                                type="button"
+                                                                                                variant="secondary"
+                                                                                                className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                                                                                                onClick={() =>
+                                                                                                    handleOpenCamera(
+                                                                                                        item.id,
+                                                                                                    )
+                                                                                                }
+                                                                                            >
+                                                                                                <Camera className="mr-2 h-4 w-4" />
+                                                                                                Ambil
+                                                                                                Foto
+                                                                                                /
+                                                                                                Galeri
+                                                                                            </Button>
+                                                                                        ) : (
+                                                                                            <div className="mt-2 space-y-2">
+                                                                                                {/* Thumbnail Preview */}
+                                                                                                <div
+                                                                                                    className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
+                                                                                                    onClick={() =>
+                                                                                                        handlePreviewPhoto(
+                                                                                                            photo,
+                                                                                                        )
+                                                                                                    }
+                                                                                                >
+                                                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                                    <img
+                                                                                                        src={URL.createObjectURL(
+                                                                                                            photo,
+                                                                                                        )}
+                                                                                                        alt="Preview"
+                                                                                                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                                                    />
+                                                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
+                                                                                                        <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
+                                                                                                            Klik
+                                                                                                            untuk
+                                                                                                            lihat
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                </div>
+                                                                                                {/* File Info & Actions */}
+                                                                                                <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
+                                                                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                                                                        <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
+                                                                                                        <div className="min-w-0">
+                                                                                                            <p className="text-xs font-medium text-green-800 truncate">
+                                                                                                                {
+                                                                                                                    photo.name
+                                                                                                                }
+                                                                                                            </p>
+                                                                                                            <p className="text-[10px] text-green-600">
+                                                                                                                {(
+                                                                                                                    photo.size /
+                                                                                                                    1024
+                                                                                                                ).toFixed(
+                                                                                                                    0,
+                                                                                                                )}{" "}
+                                                                                                                KB
+                                                                                                            </p>
+                                                                                                        </div>
+                                                                                                    </div>
+                                                                                                    <Button
+                                                                                                        size="icon"
+                                                                                                        variant="ghost"
+                                                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
+                                                                                                        onClick={() =>
+                                                                                                            removePhoto(
+                                                                                                                item.id,
+                                                                                                                item.name,
+                                                                                                            )
+                                                                                                        }
+                                                                                                    >
+                                                                                                        <Trash2 className="h-4 w-4" />
+                                                                                                    </Button>
+                                                                                                </div>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+
+                                                                                    <div>
+                                                                                        <Label className="text-sm">
+                                                                                            Akan
+                                                                                            dikerjakan
+                                                                                            oleh{" "}
+                                                                                            <span className="text-red-500">
+                                                                                                *
+                                                                                            </span>
+                                                                                        </Label>
+                                                                                        <Select
+                                                                                            value={
+                                                                                                handler
+                                                                                            }
+                                                                                            onValueChange={(
                                                                                                 value,
-                                                                                            )
-                                                                                        }
-                                                                                    >
-                                                                                        <SelectTrigger className="mt-1">
-                                                                                            <SelectValue placeholder="Pilih handler" />
-                                                                                        </SelectTrigger>
-                                                                                        <SelectContent>
-                                                                                            <SelectItem value="BMS">
-                                                                                                BMS
-                                                                                            </SelectItem>
-                                                                                            <SelectItem value="Rekanan">
-                                                                                                Rekanan
-                                                                                            </SelectItem>
-                                                                                        </SelectContent>
-                                                                                    </Select>
+                                                                                            ) =>
+                                                                                                updateChecklistItem(
+                                                                                                    item.id,
+                                                                                                    item.name,
+                                                                                                    "handler",
+                                                                                                    value,
+                                                                                                )
+                                                                                            }
+                                                                                        >
+                                                                                            <SelectTrigger className="mt-1">
+                                                                                                <SelectValue placeholder="Pilih handler" />
+                                                                                            </SelectTrigger>
+                                                                                            <SelectContent>
+                                                                                                <SelectItem value="BMS">
+                                                                                                    BMS
+                                                                                                </SelectItem>
+                                                                                                <SelectItem value="Rekanan">
+                                                                                                    Rekanan
+                                                                                                </SelectItem>
+                                                                                            </SelectContent>
+                                                                                        </Select>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            },
-                                                        )}
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                },
+                                                            )}
+                                                        </div>
+                                                    </CollapsibleContent>
+                                                </Collapsible>
+                                            );
+                                        })}
+                                        {/* Cooldown badge untuk Category I */}
+                                        {isCategoryICoolingDown &&
+                                            categoryIAvailableDate && (
+                                                <div className="flex items-center gap-2 py-2 px-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                                                    <CalendarClock className="h-4 w-4 shrink-0" />
+                                                    <div className="text-sm">
+                                                        <span className="font-medium">
+                                                            I. Preventif
+                                                            Equipment Toko
+                                                            (setiap 3 bulan)
+                                                        </span>{" "}
+                                                        — Laporkan lagi pada{" "}
+                                                        <Badge
+                                                            variant="outline"
+                                                            className="ml-1 text-amber-700 border-amber-300"
+                                                        >
+                                                            {categoryIAvailableDate.toLocaleDateString(
+                                                                "id-ID",
+                                                                {
+                                                                    day: "numeric",
+                                                                    month: "long",
+                                                                    year: "numeric",
+                                                                },
+                                                            )}
+                                                        </Badge>
                                                     </div>
-                                                </CollapsibleContent>
-                                            </Collapsible>
-                                        );
-                                    })}
-                                    {/* Cooldown badge untuk Category I */}
-                                    {isCategoryICoolingDown &&
-                                        categoryIAvailableDate && (
-                                            <div className="flex items-center gap-2 py-2 px-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-                                                <CalendarClock className="h-4 w-4 shrink-0" />
-                                                <div className="text-sm">
-                                                    <span className="font-medium">
-                                                        I. Preventif Equipment
-                                                        Toko
-                                                    </span>{" "}
-                                                    — Tersedia lagi pada{" "}
-                                                    <Badge
-                                                        variant="outline"
-                                                        className="ml-1 text-amber-700 border-amber-300"
-                                                    >
-                                                        {categoryIAvailableDate.toLocaleDateString(
-                                                            "id-ID",
-                                                            {
-                                                                day: "numeric",
-                                                                month: "long",
-                                                                year: "numeric",
-                                                            },
-                                                        )}
-                                                    </Badge>
                                                 </div>
-                                            </div>
-                                        )}
-                                </CardContent>
-                            </Card>
+                                            )}
+                                    </CardContent>
+                                </Card>
+                            )}
                         </div>
                         {/* ... (Bagian Tombol Aksi Bawah sama) ... */}
                         <div className="md:col-span-8 md:col-start-5 md:order-3 mt-4 md:mt-0">

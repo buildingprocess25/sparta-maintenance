@@ -10,7 +10,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Plus, Trash2, Clock, MapPin } from "lucide-react";
+import { FileText, Trash2, Clock, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface DraftDialogProps {
@@ -32,7 +32,7 @@ export function DraftDialog({
 }: DraftDialogProps) {
     return (
         <AlertDialog open={open}>
-            <AlertDialogContent className="sm:max-w-[550px] gap-6">
+            <AlertDialogContent className="sm:max-w-137.5 gap-6">
                 <AlertDialogHeader className="flex flex-col sm:flex-row sm:items-start gap-4 space-y-0">
                     {/* Icon Section */}
                     <div className="mx-auto sm:mx-0 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10">
@@ -68,7 +68,7 @@ export function DraftDialog({
                                 {draftStoreName && (
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                         <MapPin className="h-3.5 w-3.5" />
-                                        <span className="truncate max-w-[280px]">
+                                        <span className="truncate max-w-70">
                                             {draftStoreName}
                                         </span>
                                     </div>
