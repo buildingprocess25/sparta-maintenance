@@ -415,13 +415,18 @@ export default function CreateReportForm({
         for (const category of activeCategories) {
             for (const item of category.items) {
                 itemIndex++;
-                // Alternate between conditions: baik, rusak, tidak-ada
-                const conditions: ChecklistCondition[] = [
+                // Determine allowed conditions based on category type
+                let allowedConditions: ChecklistCondition[] = [
                     "baik",
                     "rusak",
                     "tidak-ada",
                 ];
-                const condition = conditions[itemIndex % 3];
+                if (category.isPreventive) {
+                    allowedConditions = ["baik", "rusak"];
+                }
+
+                const condition =
+                    allowedConditions[itemIndex % allowedConditions.length];
 
                 const checklistItem: ChecklistItem = {
                     id: item.id,
@@ -677,6 +682,18 @@ export default function CreateReportForm({
                     if (!openCategories.has(cat.id)) {
                         toggleCategory(cat.id);
                     }
+                    return false;
+                }
+
+                if (
+                    cat.isPreventive &&
+                    checkedItem.condition ===
+                        ("tidak-ada" as ChecklistCondition)
+                ) {
+                    toast.error(
+                        `Item "${item.name}" di kategori "${cat.title}" tidak valid (Mode Preventive)`,
+                    );
+                    if (!openCategories.has(cat.id)) toggleCategory(cat.id);
                     return false;
                 }
 
@@ -1141,11 +1158,11 @@ export default function CreateReportForm({
                         <div className="md:col-span-8 md:order-2">
                             {!selectedStoreId ? (
                                 <Card className="h-full flex flex-col items-center justify-center p-8 border-dashed bg-muted/30">
-                                    <Store className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                                    <Store className="h-12 w-12 text-muted-foreground" />
                                     <h3 className="text-lg font-medium text-muted-foreground">
                                         Pilih Toko Terlebih Dahulu
                                     </h3>
-                                    <p className="text-sm text-muted-foreground mt-1">
+                                    <p className="text-sm text-muted-foreground">
                                         Silakan pilih toko di sebelah kiri untuk
                                         memuat checklist.
                                     </p>

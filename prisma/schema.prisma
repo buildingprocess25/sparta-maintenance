@@ -50,7 +50,7 @@ enum HandlerType {
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
-  password      String?       
+  nik           String        @unique
   name          String
   role          UserRole      @default(BMS)
   branchName    String?       

@@ -153,6 +153,18 @@ export default async function DashboardPage() {
             color: "text-red-600",
         },
     ];
+    function capitalizeEachWord(str: string): string {
+        str = str.toLowerCase();
+
+        const words = str.split(" ");
+
+        const capitalizedWords = words.map((word) => {
+            if (word.length === 0) return "";
+            return word.charAt(0).toUpperCase() + word.slice(1);
+        });
+
+        return capitalizedWords.join(" ");
+    }
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">
@@ -168,7 +180,7 @@ export default async function DashboardPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                     <div>
                         <h1 className="text-xl md:text-3xl font-bold tracking-tight text-foreground">
-                            Selamat Datang, {user.name}
+                            Selamat Datang, {capitalizeEachWord(user.name)}
                         </h1>
                         <p className="text-xs md:text-sm text-muted-foreground mt-1 flex items-center gap-2">
                             <Store className="h-3 w-3 md:h-4 md:w-4" />
