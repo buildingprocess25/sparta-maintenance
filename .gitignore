@@ -20,7 +20,7 @@
 # production
 /build
 
-.agent
+.agent/skills
 .agents
 .github/skills
 

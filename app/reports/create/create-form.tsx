@@ -1,8 +1,17 @@
 "use client";
 
-import { Fragment, useState, useCallback } from "react";
+import { Fragment, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { DraftDialog } from "./draft-dialog";
+import {
+    saveDraft,
+    deleteDraft,
+    getLastCategoryIDate,
+} from "@/app/reports/actions";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { Badge } from "@/components/ui/badge";
+import { CalendarClock } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -101,11 +110,33 @@ export type StoreOption = {
     address: string;
 };
 
+export type SerializedDraft = {
+    id: string;
+    ticketNumber: string;
+    storeName: string;
+    storeId: string;
+    branchCode: string;
+    branchName: string;
+    contactNumber: string;
+    totalEstimation: number;
+    updatedAt: string;
+    items: {
+        itemId: string;
+        itemName: string;
+        categoryName: string;
+        condition: string | null;
+        preventiveCondition: string | null;
+        handler: string | null;
+        photoUrl: string | null;
+    }[];
+};
+
 interface CreateReportFormProps {
     stores: StoreOption[];
     userBranchCode: string;
     userBranchName: string;
     userContactNumber: string;
+    existingDraft?: SerializedDraft | null;
 }
 
 export default function CreateReportForm({
@@ -113,6 +144,7 @@ export default function CreateReportForm({
     userBranchCode,
     userBranchName,
     userContactNumber,
+    existingDraft,
 }: CreateReportFormProps) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
@@ -124,12 +156,33 @@ export default function CreateReportForm({
     const [address, setAddress] = useState("");
 
     // Handler untuk memilih toko dari dropdown
-    const handleStoreChange = (storeId: string) => {
+    const handleStoreChange = async (storeId: string) => {
         const selectedStore = stores.find((s) => s.id === storeId);
         if (selectedStore) {
             setSelectedStoreId(selectedStore.id);
             setStore(selectedStore.name);
             setAddress(selectedStore.address);
+
+            // Fetch Category I cooldown for this store
+            try {
+                const lastDate = await getLastCategoryIDate(selectedStore.id);
+                if (lastDate) {
+                    const cooldownMs = 3 * 30 * 24 * 60 * 60 * 1000;
+                    const lastTime = new Date(lastDate).getTime();
+                    const now = Date.now();
+                    const cooling = now - lastTime < cooldownMs;
+                    setIsCategoryICoolingDown(cooling);
+                    setCategoryIAvailableDate(
+                        cooling ? new Date(lastTime + cooldownMs) : null,
+                    );
+                } else {
+                    setIsCategoryICoolingDown(false);
+                    setCategoryIAvailableDate(null);
+                }
+            } catch {
+                setIsCategoryICoolingDown(false);
+                setCategoryIAvailableDate(null);
+            }
         }
     };
     const [checklist, setChecklist] = useState<Map<string, ChecklistItem>>(
@@ -153,6 +206,121 @@ export default function CreateReportForm({
 
     // STATE UNTUK LOADING SUBMIT
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // STATE UNTUK DRAFT DIALOG
+    const [showDraftDialog, setShowDraftDialog] = useState(!!existingDraft);
+
+    // CATEGORY I COOLDOWN (per-toko, di-fetch saat pilih toko)
+    const [isCategoryICoolingDown, setIsCategoryICoolingDown] = useState(false);
+    const [categoryIAvailableDate, setCategoryIAvailableDate] =
+        useState<Date | null>(null);
+
+    // Categories yang aktif (filter Category I jika cooldown)
+    const activeCategories = checklistCategories.filter((cat) => {
+        if (cat.isPreventive && isCategoryICoolingDown) return false;
+        return true;
+    });
+
+    // DRAFT: Lanjutkan draft
+    const handleContinueDraft = useCallback(() => {
+        if (!existingDraft) return;
+        // Restore store
+        if (existingDraft.storeId) {
+            const s = stores.find((st) => st.id === existingDraft.storeId);
+            if (s) {
+                setSelectedStoreId(s.id);
+                setStore(s.name);
+                setAddress(s.address);
+            }
+        }
+        // Restore checklist items
+        const restored = new Map<string, ChecklistItem>();
+        for (const item of existingDraft.items) {
+            restored.set(item.itemId, {
+                id: item.itemId,
+                name: item.itemName,
+                condition:
+                    (item.condition?.toLowerCase() as ChecklistCondition) || "",
+                handler: (item.handler as "BMS" | "Rekanan" | "") || "",
+            });
+        }
+        setChecklist(restored);
+        setShowDraftDialog(false);
+        toast.success("Draft dilanjutkan");
+    }, [existingDraft, stores]);
+
+    const handleCreateNew = useCallback(async () => {
+        if (existingDraft) {
+            await deleteDraft(existingDraft.id);
+        }
+        setShowDraftDialog(false);
+        toast.info("Draft dihapus, mulai laporan baru");
+    }, [existingDraft]);
+
+    // AUTO-SAVE dengan debounce (hanya save jika sudah 2 detik tidak ada perubahan)
+    // Debounce individual values untuk avoid type inference issues
+    const debouncedChecklistSize = useDebounce(checklist.size, 2000);
+    const debouncedStoreId = useDebounce(selectedStoreId, 2000);
+
+    useEffect(() => {
+        // Jangan auto-save jika belum ada perubahan
+        if (debouncedChecklistSize === 0 && !debouncedStoreId) return;
+        if (isSubmitting) return;
+
+        const checklistItems = Array.from(checklist.values()).map((item) => {
+            let categoryName = "";
+            for (const cat of activeCategories) {
+                if (cat.items.some((i) => i.id === item.id)) {
+                    categoryName = cat.title;
+                    break;
+                }
+            }
+            return {
+                itemId: item.id,
+                itemName: item.name,
+                categoryName,
+                condition:
+                    item.condition === "baik"
+                        ? ("BAIK" as const)
+                        : item.condition === "rusak"
+                          ? ("RUSAK" as const)
+                          : item.condition === "tidak-ada"
+                            ? ("TIDAK_ADA" as const)
+                            : undefined,
+                handler:
+                    item.handler === "BMS"
+                        ? ("BMS" as const)
+                        : item.handler === "Rekanan"
+                          ? ("REKANAN" as const)
+                          : undefined,
+            };
+        });
+
+        // Async save
+        (async () => {
+            await saveDraft({
+                storeId: selectedStoreId || undefined,
+                storeName: store,
+                branchCode: userBranchCode,
+                branchName: userBranchName,
+                contactNumber: userContactNumber,
+                checklistItems,
+                bmsEstimations: {},
+                totalEstimation: 0,
+            });
+        })();
+    }, [
+        debouncedChecklistSize,
+        debouncedStoreId,
+        checklist,
+        selectedStoreId,
+        store,
+        userBranchCode,
+        userBranchName,
+        userContactNumber,
+        isSubmitting,
+        activeCategories,
+    ]);
 
     const toggleCategory = (categoryId: string) => {
         setOpenCategories((prev) => {
@@ -496,7 +664,7 @@ export default function CreateReportForm({
             return false;
         }
 
-        const totalItems = checklistCategories.reduce(
+        const totalItems = activeCategories.reduce(
             (sum, cat) => sum + cat.items.length,
             0,
         );
@@ -781,6 +949,16 @@ export default function CreateReportForm({
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
+            {/* DRAFT DIALOG */}
+            <DraftDialog
+                open={showDraftDialog}
+                draftTicketNumber={existingDraft?.ticketNumber || ""}
+                draftStoreName={existingDraft?.storeName}
+                draftUpdatedAt={existingDraft?.updatedAt || ""}
+                onContinueDraft={handleContinueDraft}
+                onCreateNew={handleCreateNew}
+            />
+
             <LoadingOverlay
                 isOpen={isSubmitting}
                 message="Membuat laporan..."
@@ -951,7 +1129,7 @@ export default function CreateReportForm({
                                     </CardTitle>
                                     <CardDescription className="text-xs">
                                         Total{" "}
-                                        {checklistCategories.reduce(
+                                        {activeCategories.reduce(
                                             (sum, cat) =>
                                                 sum + cat.items.length,
                                             0,
@@ -960,7 +1138,7 @@ export default function CreateReportForm({
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
-                                    {checklistCategories.map((category) => {
+                                    {activeCategories.map((category) => {
                                         const isOpen = openCategories.has(
                                             category.id,
                                         );
@@ -1044,61 +1222,111 @@ export default function CreateReportForm({
                                                                                 item.name
                                                                             }
                                                                         </div>
-                                                                        <RadioGroup
-                                                                            value={
-                                                                                condition
-                                                                            }
-                                                                            onValueChange={(
-                                                                                value,
-                                                                            ) =>
-                                                                                updateChecklistItem(
-                                                                                    item.id,
-                                                                                    item.name,
-                                                                                    "condition",
-                                                                                    value as ChecklistCondition,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            <div className="flex flex-wrap gap-4">
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <RadioGroupItem
-                                                                                        value="baik"
-                                                                                        id={`${item.id}-baik`}
-                                                                                    />
-                                                                                    <Label
-                                                                                        htmlFor={`${item.id}-baik`}
-                                                                                        className="cursor-pointer"
-                                                                                    >
-                                                                                        Baik
-                                                                                    </Label>
+                                                                        {category.isPreventive ? (
+                                                                            /* PREVENTIVE: OK / NOT OK */
+                                                                            <RadioGroup
+                                                                                value={
+                                                                                    condition
+                                                                                }
+                                                                                onValueChange={(
+                                                                                    value,
+                                                                                ) =>
+                                                                                    updateChecklistItem(
+                                                                                        item.id,
+                                                                                        item.name,
+                                                                                        "condition",
+                                                                                        value as ChecklistCondition,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <div className="flex flex-wrap gap-4">
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <RadioGroupItem
+                                                                                            value="baik"
+                                                                                            id={`${item.id}-ok`}
+                                                                                        />
+                                                                                        <Label
+                                                                                            htmlFor={`${item.id}-ok`}
+                                                                                            className="cursor-pointer text-green-700"
+                                                                                        >
+                                                                                            ✓
+                                                                                            OK
+                                                                                        </Label>
+                                                                                    </div>
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <RadioGroupItem
+                                                                                            value="rusak"
+                                                                                            id={`${item.id}-not-ok`}
+                                                                                        />
+                                                                                        <Label
+                                                                                            htmlFor={`${item.id}-not-ok`}
+                                                                                            className="cursor-pointer text-red-700"
+                                                                                        >
+                                                                                            ✗
+                                                                                            Not
+                                                                                            OK
+                                                                                        </Label>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <RadioGroupItem
-                                                                                        value="rusak"
-                                                                                        id={`${item.id}-rusak`}
-                                                                                    />
-                                                                                    <Label
-                                                                                        htmlFor={`${item.id}-rusak`}
-                                                                                        className="cursor-pointer"
-                                                                                    >
-                                                                                        Rusak
-                                                                                    </Label>
+                                                                            </RadioGroup>
+                                                                        ) : (
+                                                                            /* REGULAR: Baik / Rusak / Tidak Ada */
+                                                                            <RadioGroup
+                                                                                value={
+                                                                                    condition
+                                                                                }
+                                                                                onValueChange={(
+                                                                                    value,
+                                                                                ) =>
+                                                                                    updateChecklistItem(
+                                                                                        item.id,
+                                                                                        item.name,
+                                                                                        "condition",
+                                                                                        value as ChecklistCondition,
+                                                                                    )
+                                                                                }
+                                                                            >
+                                                                                <div className="flex flex-wrap gap-4">
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <RadioGroupItem
+                                                                                            value="baik"
+                                                                                            id={`${item.id}-baik`}
+                                                                                        />
+                                                                                        <Label
+                                                                                            htmlFor={`${item.id}-baik`}
+                                                                                            className="cursor-pointer"
+                                                                                        >
+                                                                                            Baik
+                                                                                        </Label>
+                                                                                    </div>
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <RadioGroupItem
+                                                                                            value="rusak"
+                                                                                            id={`${item.id}-rusak`}
+                                                                                        />
+                                                                                        <Label
+                                                                                            htmlFor={`${item.id}-rusak`}
+                                                                                            className="cursor-pointer"
+                                                                                        >
+                                                                                            Rusak
+                                                                                        </Label>
+                                                                                    </div>
+                                                                                    <div className="flex items-center space-x-2">
+                                                                                        <RadioGroupItem
+                                                                                            value="tidak-ada"
+                                                                                            id={`${item.id}-tidak-ada`}
+                                                                                        />
+                                                                                        <Label
+                                                                                            htmlFor={`${item.id}-tidak-ada`}
+                                                                                            className="cursor-pointer"
+                                                                                        >
+                                                                                            Tidak
+                                                                                            Ada
+                                                                                        </Label>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <div className="flex items-center space-x-2">
-                                                                                    <RadioGroupItem
-                                                                                        value="tidak-ada"
-                                                                                        id={`${item.id}-tidak-ada`}
-                                                                                    />
-                                                                                    <Label
-                                                                                        htmlFor={`${item.id}-tidak-ada`}
-                                                                                        className="cursor-pointer"
-                                                                                    >
-                                                                                        Tidak
-                                                                                        Ada
-                                                                                    </Label>
-                                                                                </div>
-                                                                            </div>
-                                                                        </RadioGroup>
+                                                                            </RadioGroup>
+                                                                        )}
 
                                                                         {condition ===
                                                                             "baik" && (
@@ -1342,6 +1570,33 @@ export default function CreateReportForm({
                                             </Collapsible>
                                         );
                                     })}
+                                    {/* Cooldown badge untuk Category I */}
+                                    {isCategoryICoolingDown &&
+                                        categoryIAvailableDate && (
+                                            <div className="flex items-center gap-2 py-2 px-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
+                                                <CalendarClock className="h-4 w-4 shrink-0" />
+                                                <div className="text-sm">
+                                                    <span className="font-medium">
+                                                        I. Preventif Equipment
+                                                        Toko
+                                                    </span>{" "}
+                                                    — Tersedia lagi pada{" "}
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="ml-1 text-amber-700 border-amber-300"
+                                                    >
+                                                        {categoryIAvailableDate.toLocaleDateString(
+                                                            "id-ID",
+                                                            {
+                                                                day: "numeric",
+                                                                month: "long",
+                                                                year: "numeric",
+                                                            },
+                                                        )}
+                                                    </Badge>
+                                                </div>
+                                            </div>
+                                        )}
                                 </CardContent>
                             </Card>
                         </div>

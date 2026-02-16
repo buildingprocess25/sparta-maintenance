@@ -1,17 +1,30 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { SignJWT, jwtVerify } from "jose";
 
 const SESSION_COOKIE_NAME = "bnm_session";
+const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 Jam
+
+function getSecretKey() {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) {
+        throw new Error("SESSION_SECRET env variable is not set");
+    }
+    return new TextEncoder().encode(secret);
+}
 
 export async function createSession(userId: string, role: string) {
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 Jam
-    const session = JSON.stringify({ userId, role, expiresAt });
+    const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
 
-    // Enkripsi session jika perlu, untuk sekarang kita simpan simple string/JSON
-    // Di production sebaiknya gunakan library seperti 'jose' atau 'jsonwebtoken'
+    // Sign session with HMAC-SHA256 via jose
+    const token = await new SignJWT({ userId, role })
+        .setProtectedHeader({ alg: "HS256" })
+        .setExpirationTime(expiresAt)
+        .setIssuedAt()
+        .sign(getSecretKey());
 
     const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, session, {
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         expires: expiresAt,
@@ -27,18 +40,19 @@ export async function deleteSession() {
 
 export async function getSession() {
     const cookieStore = await cookies();
-    const session = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-    if (!session) return null;
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    if (!token) return null;
 
     try {
-        const data = JSON.parse(session);
-        // Check if session expired
-        if (new Date(data.expiresAt) < new Date()) {
-            await deleteSession();
-            return null;
-        }
-        return data;
+        const { payload } = await jwtVerify(token, getSecretKey());
+        return {
+            userId: payload.userId as string,
+            role: payload.role as string,
+        };
     } catch {
+        // Token expired or invalid signature — return null.
+        // Do NOT call deleteSession() here: mutating cookies during
+        // Server Component render causes an infinite 307 redirect loop.
         return null;
     }
 }

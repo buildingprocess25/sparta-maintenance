@@ -65,9 +65,6 @@ export function SessionExpiryAlert() {
         <AlertDialog open={isExpired}>
             <AlertDialogContent className="max-w-sm">
                 <AlertDialogHeader>
-                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-2">
-                        <LogOut className="h-6 w-6 text-destructive" />
-                    </div>
                     <AlertDialogTitle className="text-center">
                         Sesi Anda Telah Berakhir
                     </AlertDialogTitle>

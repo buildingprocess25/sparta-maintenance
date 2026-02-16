@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import { generateTicketNumber } from "@/lib/report-helpers";
 import { revalidatePath } from "next/cache";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import type { Prisma } from "@prisma/client";
 
 // =========================================
 // TYPES
@@ -46,6 +48,41 @@ export type ReportFilters = {
 };
 
 // =========================================
+// HELPERS — Convert DraftData to JSON structures
+// =========================================
+
+function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
+    return data.checklistItems
+        .filter((item) => item.condition || item.preventiveCondition)
+        .map((item) => ({
+            itemId: item.itemId,
+            itemName: item.itemName,
+            categoryName: item.categoryName,
+            condition: item.condition || null,
+            preventiveCondition: item.preventiveCondition || null,
+            handler: item.handler || null,
+            photoUrl: item.photoUrl || null,
+        })) as unknown as Prisma.InputJsonValue;
+}
+
+function buildEstimationsJson(data: DraftData): Prisma.InputJsonValue {
+    const estimations: MaterialEstimationJson[] = [];
+    for (const [itemId, ests] of Object.entries(data.bmsEstimations)) {
+        for (const est of ests) {
+            estimations.push({
+                itemId,
+                materialName: est.itemName,
+                quantity: est.quantity,
+                unit: est.unit,
+                price: est.price,
+                totalPrice: est.totalPrice,
+            });
+        }
+    }
+    return estimations as unknown as Prisma.InputJsonValue;
+}
+
+// =========================================
 // STORE ACTIONS
 // =========================================
 
@@ -84,11 +121,6 @@ export async function getDraft() {
             status: "DRAFT",
         },
         include: {
-            items: {
-                include: {
-                    estimations: true,
-                },
-            },
             store: {
                 select: {
                     id: true,
@@ -110,6 +142,9 @@ export async function saveDraft(data: DraftData) {
     const session = await getSession();
     if (!session) return { error: "Sesi tidak valid" };
 
+    const itemsJson = buildItemsJson(data);
+    const estimationsJson = buildEstimationsJson(data);
+
     try {
         // Cari draft yang sudah ada
         const existingDraft = await prisma.report.findFirst({
@@ -120,12 +155,7 @@ export async function saveDraft(data: DraftData) {
         });
 
         if (existingDraft) {
-            // Update draft yang ada
-            // Hapus items lama lalu buat ulang
-            await prisma.reportItem.deleteMany({
-                where: { reportId: existingDraft.id },
-            });
-
+            // Update draft yang ada — langsung set JSON columns
             const updatedReport = await prisma.report.update({
                 where: { id: existingDraft.id },
                 data: {
@@ -135,34 +165,8 @@ export async function saveDraft(data: DraftData) {
                     branchName: data.branchName || "",
                     contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
-                    items: {
-                        create: data.checklistItems
-                            .filter(
-                                (item) =>
-                                    item.condition || item.preventiveCondition,
-                            )
-                            .map((item) => ({
-                                itemId: item.itemId,
-                                itemName: item.itemName,
-                                categoryName: item.categoryName,
-                                condition: item.condition || null,
-                                preventiveCondition:
-                                    item.preventiveCondition || null,
-                                handler: item.handler || null,
-                                photoUrl: item.photoUrl || null,
-                                estimations: {
-                                    create: (
-                                        data.bmsEstimations[item.itemId] || []
-                                    ).map((est) => ({
-                                        itemName: est.itemName,
-                                        quantity: est.quantity,
-                                        unit: est.unit,
-                                        price: est.price,
-                                        totalPrice: est.totalPrice,
-                                    })),
-                                },
-                            })),
-                    },
+                    items: itemsJson,
+                    estimations: estimationsJson,
                 },
             });
 
@@ -182,34 +186,8 @@ export async function saveDraft(data: DraftData) {
                     totalEstimation: data.totalEstimation || 0,
                     status: "DRAFT",
                     createdById: session.userId,
-                    items: {
-                        create: data.checklistItems
-                            .filter(
-                                (item) =>
-                                    item.condition || item.preventiveCondition,
-                            )
-                            .map((item) => ({
-                                itemId: item.itemId,
-                                itemName: item.itemName,
-                                categoryName: item.categoryName,
-                                condition: item.condition || null,
-                                preventiveCondition:
-                                    item.preventiveCondition || null,
-                                handler: item.handler || null,
-                                photoUrl: item.photoUrl || null,
-                                estimations: {
-                                    create: (
-                                        data.bmsEstimations[item.itemId] || []
-                                    ).map((est) => ({
-                                        itemName: est.itemName,
-                                        quantity: est.quantity,
-                                        unit: est.unit,
-                                        price: est.price,
-                                        totalPrice: est.totalPrice,
-                                    })),
-                                },
-                            })),
-                    },
+                    items: itemsJson,
+                    estimations: estimationsJson,
                 },
             });
 
@@ -254,6 +232,9 @@ export async function submitReport(data: DraftData) {
     const session = await getSession();
     if (!session) return { error: "Sesi tidak valid" };
 
+    const itemsJson = buildItemsJson(data);
+    const estimationsJson = buildEstimationsJson(data);
+
     try {
         // Cari draft yang sudah ada atau buat baru
         const existingDraft = await prisma.report.findFirst({
@@ -267,10 +248,6 @@ export async function submitReport(data: DraftData) {
 
         if (existingDraft) {
             // Update dan submit draft
-            await prisma.reportItem.deleteMany({
-                where: { reportId: existingDraft.id },
-            });
-
             await prisma.report.update({
                 where: { id: existingDraft.id },
                 data: {
@@ -281,34 +258,8 @@ export async function submitReport(data: DraftData) {
                     contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
-                    items: {
-                        create: data.checklistItems
-                            .filter(
-                                (item) =>
-                                    item.condition || item.preventiveCondition,
-                            )
-                            .map((item) => ({
-                                itemId: item.itemId,
-                                itemName: item.itemName,
-                                categoryName: item.categoryName,
-                                condition: item.condition || null,
-                                preventiveCondition:
-                                    item.preventiveCondition || null,
-                                handler: item.handler || null,
-                                photoUrl: item.photoUrl || null,
-                                estimations: {
-                                    create: (
-                                        data.bmsEstimations[item.itemId] || []
-                                    ).map((est) => ({
-                                        itemName: est.itemName,
-                                        quantity: est.quantity,
-                                        unit: est.unit,
-                                        price: est.price,
-                                        totalPrice: est.totalPrice,
-                                    })),
-                                },
-                            })),
-                    },
+                    items: itemsJson,
+                    estimations: estimationsJson,
                 },
             });
 
@@ -328,34 +279,8 @@ export async function submitReport(data: DraftData) {
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
                     createdById: session.userId,
-                    items: {
-                        create: data.checklistItems
-                            .filter(
-                                (item) =>
-                                    item.condition || item.preventiveCondition,
-                            )
-                            .map((item) => ({
-                                itemId: item.itemId,
-                                itemName: item.itemName,
-                                categoryName: item.categoryName,
-                                condition: item.condition || null,
-                                preventiveCondition:
-                                    item.preventiveCondition || null,
-                                handler: item.handler || null,
-                                photoUrl: item.photoUrl || null,
-                                estimations: {
-                                    create: (
-                                        data.bmsEstimations[item.itemId] || []
-                                    ).map((est) => ({
-                                        itemName: est.itemName,
-                                        quantity: est.quantity,
-                                        unit: est.unit,
-                                        price: est.price,
-                                        totalPrice: est.totalPrice,
-                                    })),
-                                },
-                            })),
-                    },
+                    items: itemsJson,
+                    estimations: estimationsJson,
                 },
             });
 
@@ -405,11 +330,6 @@ export async function getMyReports(filters: ReportFilters = {}) {
     const [reports, total] = await Promise.all([
         prisma.report.findMany({
             where,
-            include: {
-                _count: {
-                    select: { items: true },
-                },
-            },
             orderBy: { updatedAt: "desc" },
             skip,
             take: limit,
@@ -417,7 +337,17 @@ export async function getMyReports(filters: ReportFilters = {}) {
         prisma.report.count({ where }),
     ]);
 
-    return { reports, total };
+    // Hitung jumlah items dari JSON array
+    const reportsWithCount = reports.map((report) => ({
+        ...report,
+        _count: {
+            items: Array.isArray(report.items)
+                ? (report.items as unknown[]).length
+                : 0,
+        },
+    }));
+
+    return { reports: reportsWithCount, total };
 }
 
 /**
@@ -446,11 +376,6 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
     const [reports, total] = await Promise.all([
         prisma.report.findMany({
             where,
-            include: {
-                _count: {
-                    select: { items: true },
-                },
-            },
             orderBy: { updatedAt: "desc" },
             skip,
             take: limit,
@@ -458,7 +383,17 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
         prisma.report.count({ where }),
     ]);
 
-    return { reports, total };
+    // Hitung jumlah items dari JSON array
+    const reportsWithCount = reports.map((report) => ({
+        ...report,
+        _count: {
+            items: Array.isArray(report.items)
+                ? (report.items as unknown[]).length
+                : 0,
+        },
+    }));
+
+    return { reports: reportsWithCount, total };
 }
 
 // =========================================
@@ -466,30 +401,41 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
 // =========================================
 
 /**
- * Cek tanggal terakhir user melaporkan item Category I (Preventif)
- * Return null jika belum pernah, atau Date terakhir
+ * Cek tanggal terakhir toko tertentu melaporkan item Category I (Preventif)
+ * Sekarang baca dari kolom JSON `items` di Report
+ * Return null jika belum pernah, atau ISO string tanggal terakhir
  */
-export async function getLastCategoryIDate() {
+export async function getLastCategoryIDate(storeId: string) {
     const session = await getSession();
     if (!session) return null;
 
-    const lastReport = await prisma.reportItem.findFirst({
+    // Cari report terbaru untuk toko ini yang mengandung item Category I
+    // Gunakan Prisma raw query untuk filter JSON array
+    const reports = await prisma.report.findMany({
         where: {
-            itemId: { startsWith: "I" },
-            report: {
-                createdById: session.userId,
-                status: { not: "DRAFT" },
-            },
+            storeId: storeId,
+            status: { not: "DRAFT" },
         },
-        orderBy: {
-            report: { createdAt: "desc" },
-        },
+        orderBy: { createdAt: "desc" },
         select: {
-            report: {
-                select: { createdAt: true },
-            },
+            createdAt: true,
+            items: true,
         },
+        take: 10, // Ambil 10 terbaru, filter di app layer
     });
 
-    return lastReport?.report?.createdAt || null;
+    // Cek apakah ada report yang mengandung item dengan itemId dimulai "I"
+    for (const report of reports) {
+        const items = report.items as ReportItemJson[] | null;
+        if (items && Array.isArray(items)) {
+            const hasCategoryI = items.some((item) =>
+                item.itemId.startsWith("I"),
+            );
+            if (hasCategoryI) {
+                return report.createdAt.toISOString();
+            }
+        }
+    }
+
+    return null;
 }

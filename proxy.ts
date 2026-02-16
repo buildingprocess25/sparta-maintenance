@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { jwtVerify } from "jose";
 
 const SESSION_COOKIE_NAME = "bnm_session";
 
-// Routes that don't require authentication
-const publicRoutes = ["/", "/login", "/user-manual"];
-
 // Route prefixes that require authentication
 const protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"];
+
+function getSecretKey() {
+    const secret = process.env.SESSION_SECRET;
+    if (!secret) return null;
+    return new TextEncoder().encode(secret);
+}
 
 export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -18,18 +22,21 @@ export default async function proxy(request: NextRequest) {
     );
     const isLoginRoute = pathname === "/login";
 
-    // Read and parse session cookie (optimistic check — no DB call)
+    // Read and verify JWT session cookie (optimistic check — no DB call)
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     let isAuthenticated = false;
 
     if (sessionCookie) {
         try {
-            const session = JSON.parse(sessionCookie);
-            if (session.userId && new Date(session.expiresAt) > new Date()) {
-                isAuthenticated = true;
+            const key = getSecretKey();
+            if (key) {
+                const { payload } = await jwtVerify(sessionCookie, key);
+                if (payload.userId) {
+                    isAuthenticated = true;
+                }
             }
         } catch {
-            // Invalid cookie — treat as unauthenticated
+            // Invalid or expired token — treat as unauthenticated
         }
     }
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { SessionExpiryAlert } from "@/components/session-expiry-alert";
+import { SessionInterceptor } from "@/components/session-interceptor";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -32,8 +32,7 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                {children}
-                <SessionExpiryAlert />
+                <SessionInterceptor>{children}</SessionInterceptor>
                 <Toaster />
             </body>
         </html>

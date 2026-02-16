@@ -95,46 +95,14 @@ model Report {
   createdById   String
   createdBy     User          @relation("CreatedReports", fields: [createdById], references: [id])
   
-  items         ReportItem[]
+  // JSONB columns — replaces ReportItem[] and MaterialEstimation[]
+  items         Json          @default("[]")
+  estimations   Json          @default("[]")
+  
   logs          ApprovalLog[]
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-}
-
-model ReportItem {
-  id            String        @id @default(uuid())
-  reportId      String
-  
-  // KITA UBAH DISINI: Tidak pakai relasi MasterItem
-  // Kita simpan ID dan Nama dari file checklist-data.ts sebagai "Snapshot"
-  itemId        String        // Contoh: "A1"
-  itemName      String        // Contoh: "Bahu Jalan"
-  categoryName  String        // Contoh: "A. Bagian Depan Bangunan"
-  
-  condition     ItemCondition?
-  preventiveCondition PreventiveCondition?
-  photoUrl      String?       
-  handler       HandlerType?  
-  
-  report        Report        @relation(fields: [reportId], references: [id], onDelete: Cascade)
-  estimations   MaterialEstimation[] 
-
-  // Unik: Satu report tidak boleh punya dua item dengan ID "A1"
-  @@unique([reportId, itemId]) 
-}
-
-model MaterialEstimation {
-  id            String    @id @default(uuid())
-  reportItemId  String
-  
-  itemName      String    
-  quantity      Int
-  unit          String    
-  price         Decimal   @db.Decimal(15, 2)
-  totalPrice    Decimal   @db.Decimal(15, 2)
-  
-  reportItem    ReportItem @relation(fields: [reportItemId], references: [id], onDelete: Cascade)
 }
 
 model ApprovalLog {
