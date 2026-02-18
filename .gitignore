@@ -23,6 +23,7 @@
 .agent
 .agents
 .github/skills
+.vscode/mcp.json
 
 # misc
 .DS_Store

@@ -1,14 +1,9 @@
-import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth-helper";
+import { requireRole } from "@/lib/authorization";
 import { getFinishedReports } from "@/app/reports/actions";
 import FinishedList from "./finished-list";
 
 export default async function FinishedReportsPage() {
-    const user = await requireAuth();
-
-    if (!user) {
-        redirect("/login");
-    }
+    await requireRole("BMS");
 
     const { reports, total } = await getFinishedReports();
 

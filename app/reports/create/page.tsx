@@ -1,15 +1,10 @@
-import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth-helper";
+import { requireRole } from "@/lib/authorization";
 import { getStoresByBranch, getDraft } from "@/app/reports/actions";
 import type { ReportItemJson } from "@/types/report";
 import CreateReportForm from "./create-form";
 
 export default async function CreateReportPage() {
-    const user = await requireAuth();
-
-    if (!user) {
-        redirect("/login");
-    }
+    const user = await requireRole("BMS");
 
     // Fetch stores and draft in parallel
     const [stores, draft] = await Promise.all([

@@ -26,7 +26,7 @@ export default function UserManualPage() {
             <Header
                 variant="dashboard"
                 title="User Manual"
-                description="Panduan Lengkap Sparta Maintenance"
+                description="Panduan Lengkap SPARTA Maintenance"
                 showBackButton
                 backHref="/"
             />
@@ -35,7 +35,7 @@ export default function UserManualPage() {
                 {/* Introduction */}
                 <div className="mb-8">
                     <h2 className="text-3xl font-bold text-foreground mb-4">
-                        Panduan Penggunaan Sistem Sparta Maintenance
+                        Panduan Penggunaan Sistem SPARTA Maintenance
                     </h2>
                     <p className="text-muted-foreground text-lg">
                         Panduan lengkap untuk menggunakan sistem manajemen

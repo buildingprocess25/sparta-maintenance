@@ -49,7 +49,7 @@ export default async function DashboardPage() {
                             variant: "outline" as const,
                         },
                         {
-                            title: "Riwayat",
+                            title: "Riwayat Perbaikan",
                             description: "Riwayat laporan yang sudah selesai",
                             icon: FileClock,
                             href: "/reports/finished",

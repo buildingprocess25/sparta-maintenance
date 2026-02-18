@@ -12,6 +12,7 @@ import {
     validateCSRF,
 } from "@/lib/authorization";
 import { headers } from "next/headers";
+import { sendReportNotification } from "@/lib/email/send-report-notification";
 
 // =========================================
 // TYPES
@@ -318,6 +319,15 @@ export async function submitReport(data: DraftData) {
         }
 
         revalidatePath("/reports");
+
+        // Kirim notifikasi email ke BMC dengan lampiran PDF (graceful — tidak gagalkan submit)
+        sendReportNotification(reportId).catch((err) => {
+            console.error(
+                "[submitReport] Gagal mengirim email notifikasi:",
+                err,
+            );
+        });
+
         return { success: true, reportId };
     } catch (error) {
         console.error("Error submitting report:", error);

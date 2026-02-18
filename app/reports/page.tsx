@@ -1,14 +1,9 @@
-import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/auth-helper";
+import { requireRole } from "@/lib/authorization";
 import { getMyReports } from "@/app/reports/actions";
 import ReportsList from "./reports-list";
 
 export default async function ReportsPage() {
-    const user = await requireAuth();
-
-    if (!user) {
-        redirect("/login");
-    }
+    await requireRole("BMS");
 
     const { reports, total } = await getMyReports();
 
