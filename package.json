@@ -12,7 +12,8 @@
         "db:studio": "prisma studio",
         "create-user": "tsx scripts/create-user.ts",
         "db:seed": "tsx prisma/seed.ts",
-        "db:reset": "prisma migrate reset"
+        "db:reset": "prisma migrate reset",
+        "postinstall": "prisma generate"
     },
     "dependencies": {
         "@base-ui/react": "^1.1.0",
