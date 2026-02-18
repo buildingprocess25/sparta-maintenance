@@ -7,10 +7,9 @@ export default function CreateReportLoading() {
         <div className="min-h-screen flex flex-col bg-background">
             <Header
                 variant="dashboard"
-                title="Buat Laporan"
-                description="Laporkan kerusakan atau kebutuhan maintenance"
+                title="Checklist Perbaikan Toko"
                 showBackButton
-                backHref="/reports"
+                backHref="/dashboard"
             />
 
             <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">

@@ -1,11 +1,17 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getSession } from "@/lib/session";
 import { generateTicketNumber } from "@/lib/report-helpers";
 import { revalidatePath } from "next/cache";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import type { Prisma } from "@prisma/client";
+import {
+    requireAuth,
+    requireRole,
+    requireOwnership,
+    validateCSRF,
+} from "@/lib/authorization";
+import { headers } from "next/headers";
 
 // =========================================
 // TYPES
@@ -90,6 +96,16 @@ function buildEstimationsJson(data: DraftData): Prisma.InputJsonValue {
  * Ambil daftar toko sesuai cabang user
  */
 export async function getStoresByBranch(branchName: string) {
+    // Authorization: User must be authenticated and from the same branch
+    const user = await requireAuth();
+
+    // ADMIN can access all branches, others only their own
+    if (user.role !== "ADMIN" && user.branchName !== branchName) {
+        throw new Error(
+            "Anda hanya bisa mengakses toko dari cabang Anda sendiri",
+        );
+    }
+
     const stores = await prisma.store.findMany({
         where: { branchName },
         orderBy: { name: "asc" },
@@ -112,12 +128,12 @@ export async function getStoresByBranch(branchName: string) {
  * Ambil DRAFT report milik user (max 1)
  */
 export async function getDraft() {
-    const session = await getSession();
-    if (!session) return null;
+    // Authorization: Only BMS can create/view drafts
+    const user = await requireRole("BMS");
 
     const draft = await prisma.report.findFirst({
         where: {
-            createdById: session.userId,
+            createdById: user.id,
             status: "DRAFT",
         },
         include: {
@@ -139,8 +155,12 @@ export async function getDraft() {
  * Simpan/update DRAFT report (upsert — max 1 draft per user)
  */
 export async function saveDraft(data: DraftData) {
-    const session = await getSession();
-    if (!session) return { error: "Sesi tidak valid" };
+    // Authorization: Only BMS can save drafts
+    const user = await requireRole("BMS");
+
+    // CSRF Protection
+    const headersList = await headers();
+    await validateCSRF(headersList);
 
     const itemsJson = buildItemsJson(data);
     const estimationsJson = buildEstimationsJson(data);
@@ -149,7 +169,7 @@ export async function saveDraft(data: DraftData) {
         // Cari draft yang sudah ada
         const existingDraft = await prisma.report.findFirst({
             where: {
-                createdById: session.userId,
+                createdById: user.id,
                 status: "DRAFT",
             },
         });
@@ -185,7 +205,7 @@ export async function saveDraft(data: DraftData) {
                     contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "DRAFT",
-                    createdById: session.userId,
+                    createdById: user.id,
                     items: itemsJson,
                     estimations: estimationsJson,
                 },
@@ -203,16 +223,32 @@ export async function saveDraft(data: DraftData) {
  * Hapus DRAFT report
  */
 export async function deleteDraft(reportId: string) {
-    const session = await getSession();
-    if (!session) return { error: "Sesi tidak valid" };
+    // Authorization: Only BMS can delete drafts
+    await requireRole("BMS");
+
+    // CSRF Protection
+    const headersList = await headers();
+    await validateCSRF(headersList);
 
     try {
+        // Verify ownership before deletion
+        const report = await prisma.report.findUnique({
+            where: { id: reportId },
+            select: { createdById: true, status: true },
+        });
+
+        if (!report) {
+            return { error: "Draft tidak ditemukan" };
+        }
+
+        if (report.status !== "DRAFT") {
+            return { error: "Hanya draft yang bisa dihapus" };
+        }
+
+        await requireOwnership(report.createdById);
+
         await prisma.report.delete({
-            where: {
-                id: reportId,
-                createdById: session.userId,
-                status: "DRAFT",
-            },
+            where: { id: reportId },
         });
         return { success: true };
     } catch (error) {
@@ -229,8 +265,12 @@ export async function deleteDraft(reportId: string) {
  * Submit report — ubah status dari DRAFT ke PENDING_APPROVAL
  */
 export async function submitReport(data: DraftData) {
-    const session = await getSession();
-    if (!session) return { error: "Sesi tidak valid" };
+    // Authorization: Only BMS can submit reports
+    const user = await requireRole("BMS");
+
+    // CSRF Protection
+    const headersList = await headers();
+    await validateCSRF(headersList);
 
     const itemsJson = buildItemsJson(data);
     const estimationsJson = buildEstimationsJson(data);
@@ -239,7 +279,7 @@ export async function submitReport(data: DraftData) {
         // Cari draft yang sudah ada atau buat baru
         const existingDraft = await prisma.report.findFirst({
             where: {
-                createdById: session.userId,
+                createdById: user.id,
                 status: "DRAFT",
             },
         });
@@ -278,7 +318,7 @@ export async function submitReport(data: DraftData) {
                     contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
-                    createdById: session.userId,
+                    createdById: user.id,
                     items: itemsJson,
                     estimations: estimationsJson,
                 },
@@ -304,14 +344,14 @@ export async function submitReport(data: DraftData) {
  * Untuk halaman /reports (DRAFT, PENDING_APPROVAL, APPROVED, REJECTED)
  */
 export async function getMyReports(filters: ReportFilters = {}) {
-    const session = await getSession();
-    if (!session) return { reports: [], total: 0 };
+    // Authorization: Only BMS can view their own reports
+    const user = await requireRole("BMS");
 
     const { search, status, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-        createdById: session.userId,
+        createdById: user.id,
         status: {
             in: status
                 ? [status]
@@ -355,14 +395,14 @@ export async function getMyReports(filters: ReportFilters = {}) {
  * Untuk halaman /reports/finished
  */
 export async function getFinishedReports(filters: ReportFilters = {}) {
-    const session = await getSession();
-    if (!session) return { reports: [], total: 0 };
+    // Authorization: Only BMS can view their finished reports
+    const user = await requireRole("BMS");
 
     const { search, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-        createdById: session.userId,
+        createdById: user.id,
         status: "COMPLETED",
     };
 
@@ -406,8 +446,8 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
  * Return null jika belum pernah, atau ISO string tanggal terakhir
  */
 export async function getLastCategoryIDate(storeId: string) {
-    const session = await getSession();
-    if (!session) return null;
+    // Authorization: Only authenticated users can check cooldown
+    await requireAuth();
 
     // Cari report terbaru untuk toko ini yang mengandung item Category I
     // Gunakan Prisma raw query untuk filter JSON array

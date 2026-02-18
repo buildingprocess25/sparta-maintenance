@@ -103,6 +103,12 @@ model Report {
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+
+  @@index([createdById])
+  @@index([status])
+  @@index([storeId])
+  @@index([createdById, status])
+  @@index([storeId, status])
 }
 
 model ApprovalLog {

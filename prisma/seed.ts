@@ -56,14 +56,14 @@ const users = [
         name: "BMS User",
         role: "BMS" as const,
         branchName: "HEAD OFFICE",
-        nik: "1234567890123456",
+        nik: "12345678",
     },
     {
         email: "bmc@admin.com",
         name: "BMC User",
         role: "BMC" as const,
         branchName: "HEAD OFFICE",
-        nik: "9876543210987654",
+        nik: "98765432",
     },
 ];
 

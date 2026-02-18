@@ -1,35 +1,56 @@
 {
-	"inputs": [
-		{
-			"id": "project-ref",
-			"type": "promptString",
-			"description": "Supabase project reference ID",
-			"password": false
-		},
-		{
-			"id": "read-only",
-			"type": "promptString",
-			"description": "Enable read-only mode",
-			"password": false
-		},
-		{
-			"id": "features",
-			"type": "promptString",
-			"description": "Comma-separated list of features to enable",
-			"password": false
-		},
-		{
-			"id": "api-url",
-			"type": "promptString",
-			"description": "Custom API URL",
-			"password": false
-		},
-		{
-			"id": "SUPABASE_ACCESS_TOKEN",
-			"type": "promptString",
-			"description": "Personal access token for Supabase API",
-			"password": true
-		}
-	],
-	"servers": {}
+    "inputs": [
+        {
+            "id": "project-ref",
+            "type": "promptString",
+            "description": "Supabase project reference ID",
+            "password": false
+        },
+        {
+            "id": "read-only",
+            "type": "promptString",
+            "description": "Enable read-only mode",
+            "password": false
+        },
+        {
+            "id": "features",
+            "type": "promptString",
+            "description": "Comma-separated list of features to enable",
+            "password": false
+        },
+        {
+            "id": "api-url",
+            "type": "promptString",
+            "description": "Custom API URL",
+            "password": false
+        },
+        {
+            "id": "SUPABASE_ACCESS_TOKEN",
+            "type": "promptString",
+            "description": "Personal access token for Supabase API",
+            "password": true
+        }
+    ],
+    "servers": {
+        "supabase": {
+            "command": "npx",
+            "args": ["-y", "@supabase/mcp-server@latest"],
+            "env": {
+                "SUPABASE_ACCESS_TOKEN": "{sbp_9611340d15a1894065c5c6fc638b31dc003eba83}",
+                "SUPABASE_PROJECT_REF": "{awnxdtzmwfatyqutbids}"
+            }
+        },
+        "context7": {
+            "command": "npx",
+            "args": ["-y", "@context7/mcp-server@latest"]
+        },
+        "sequential-thinking": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+        },
+        "next-devtools": {
+            "command": "npx",
+            "args": ["-y", "next-devtools-mcp@latest"]
+        }
+    }
 }

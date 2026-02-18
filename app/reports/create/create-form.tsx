@@ -1000,7 +1000,11 @@ export default function CreateReportForm({
 
             <Header
                 variant="dashboard"
-                title={step === 1 ? "Checklist Toko" : "Ringkasan Laporan"}
+                title={
+                    step === 1
+                        ? "Checklist Perbaikan Toko"
+                        : "Ringkasan Laporan"
+                }
                 showBackButton={step === 1}
                 backHref="/dashboard"
             />
