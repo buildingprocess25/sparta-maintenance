@@ -27,9 +27,7 @@ export default async function CreateReportPage() {
               ticketNumber: draft.ticketNumber,
               storeName: draft.storeName,
               storeId: draft.storeId || "",
-              branchCode: draft.branchCode,
               branchName: draft.branchName,
-              contactNumber: draft.contactNumber,
               totalEstimation: Number(draft.totalEstimation),
               updatedAt: draft.updatedAt.toLocaleDateString("id-ID", {
                   year: "numeric",
@@ -53,9 +51,7 @@ export default async function CreateReportPage() {
     return (
         <CreateReportForm
             stores={stores}
-            userBranchCode=""
             userBranchName={user.branchName || ""}
-            userContactNumber=""
             existingDraft={serializedDraft}
         />
     );

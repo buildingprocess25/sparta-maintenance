@@ -38,9 +38,7 @@ export type BmsEstimationData = {
 export type DraftData = {
     storeId?: string;
     storeName?: string;
-    branchCode?: string;
     branchName?: string;
-    contactNumber?: string;
     checklistItems: ChecklistItemData[];
     bmsEstimations: Record<string, BmsEstimationData[]>;
     totalEstimation?: number;
@@ -181,9 +179,7 @@ export async function saveDraft(data: DraftData) {
                 data: {
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
-                    branchCode: data.branchCode || "",
                     branchName: data.branchName || "",
-                    contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     items: itemsJson,
                     estimations: estimationsJson,
@@ -200,9 +196,7 @@ export async function saveDraft(data: DraftData) {
                     ticketNumber,
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
-                    branchCode: data.branchCode || "",
                     branchName: data.branchName || "",
-                    contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "DRAFT",
                     createdById: user.id,
@@ -293,9 +287,7 @@ export async function submitReport(data: DraftData) {
                 data: {
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
-                    branchCode: data.branchCode || "",
                     branchName: data.branchName || "",
-                    contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
                     items: itemsJson,
@@ -313,9 +305,7 @@ export async function submitReport(data: DraftData) {
                     ticketNumber,
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
-                    branchCode: data.branchCode || "",
                     branchName: data.branchName || "",
-                    contactNumber: data.contactNumber || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
                     createdById: user.id,

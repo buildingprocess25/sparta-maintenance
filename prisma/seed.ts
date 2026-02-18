@@ -56,14 +56,12 @@ const users = [
         name: "BMS User",
         role: "BMS" as const,
         branchName: "HEAD OFFICE",
-        nik: "12345678",
     },
     {
         email: "bmc@admin.com",
         name: "BMC User",
         role: "BMC" as const,
         branchName: "HEAD OFFICE",
-        nik: "98765432",
     },
 ];
 
@@ -77,7 +75,6 @@ async function seed() {
                 name: user.name,
                 role: user.role,
                 branchName: user.branchName,
-                nik: user.nik,
             },
             create: user,
         });

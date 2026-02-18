@@ -50,7 +50,6 @@ enum HandlerType {
 model User {
   id            String        @id @default(uuid())
   email         String        @unique
-  nik           String        @unique
   name          String
   role          UserRole      @default(BMS)
   branchName    String?       
@@ -81,10 +80,8 @@ model Report {
   id            String        @id @default(uuid())
   
   ticketNumber  String        @unique 
-  branchCode    String        
   branchName    String        
   storeName     String        @default("")
-  contactNumber String        
   
   storeId       String?       
   store         Store?        @relation(fields: [storeId], references: [id])

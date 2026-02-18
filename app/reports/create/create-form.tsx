@@ -115,9 +115,7 @@ export type SerializedDraft = {
     ticketNumber: string;
     storeName: string;
     storeId: string;
-    branchCode: string;
     branchName: string;
-    contactNumber: string;
     totalEstimation: number;
     updatedAt: string;
     items: {
@@ -133,17 +131,13 @@ export type SerializedDraft = {
 
 interface CreateReportFormProps {
     stores: StoreOption[];
-    userBranchCode: string;
     userBranchName: string;
-    userContactNumber: string;
     existingDraft?: SerializedDraft | null;
 }
 
 export default function CreateReportForm({
     stores,
-    userBranchCode,
     userBranchName,
-    userContactNumber,
     existingDraft,
 }: CreateReportFormProps) {
     const router = useRouter();
@@ -302,9 +296,7 @@ export default function CreateReportForm({
             await saveDraft({
                 storeId: selectedStoreId || undefined,
                 storeName: store,
-                branchCode: userBranchCode,
                 branchName: userBranchName,
-                contactNumber: userContactNumber,
                 checklistItems,
                 bmsEstimations: {},
                 totalEstimation: 0,
@@ -316,9 +308,7 @@ export default function CreateReportForm({
         checklist,
         selectedStoreId,
         store,
-        userBranchCode,
         userBranchName,
-        userContactNumber,
         isSubmitting,
         activeCategories,
     ]);
@@ -935,9 +925,7 @@ export default function CreateReportForm({
         return {
             storeId: selectedStoreId || undefined,
             storeName: store,
-            branchCode: userBranchCode,
             branchName: userBranchName,
-            contactNumber: userContactNumber,
             checklistItems,
             bmsEstimations,
             totalEstimation: grandTotalBms,
@@ -947,9 +935,7 @@ export default function CreateReportForm({
         bmsItems,
         selectedStoreId,
         store,
-        userBranchCode,
         userBranchName,
-        userContactNumber,
         activeCategories,
         grandTotalBms,
     ]);
