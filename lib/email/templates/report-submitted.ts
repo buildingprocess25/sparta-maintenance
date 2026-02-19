@@ -1,10 +1,10 @@
 export type ReportEmailData = {
     reportNumber: string;
     storeName: string;
+    storeCode: string;
     branchName: string;
     submittedBy: string;
     submittedAt: string;
-    totalItems: number;
     rusakItems: number;
     bmsItems: number;
     rekananItems: number;
@@ -85,6 +85,10 @@ export function buildReportSubmittedHtml(data: ReportEmailData): string {
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:500;">${data.storeName}</td>
                 </tr>
                 <tr>
+                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;width:40%;">Kode Toko</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:500;">${data.storeCode}</td>
+                </tr>
+                <tr>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;">Cabang</td>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:500;">${data.branchName}</td>
                 </tr>
@@ -96,10 +100,7 @@ export function buildReportSubmittedHtml(data: ReportEmailData): string {
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;">Tanggal Submit</td>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:500;">${data.submittedAt}</td>
                 </tr>
-                <tr>
-                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;">Total Item Dicek</td>
-                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#111827;font-size:13px;font-weight:500;">${data.totalItems} item</td>
-                </tr>
+                
                 <tr>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;">Item Rusak</td>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#c0392b;font-size:13px;font-weight:600;">${data.rusakItems} item</td>

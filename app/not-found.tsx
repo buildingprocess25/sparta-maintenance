@@ -6,7 +6,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
-import { Home } from "lucide-react";
+import { ArrowLeft, Home } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -59,8 +59,8 @@ export default function NotFound() {
                 <CardContent>
                     <Button asChild className="w-full" size="lg">
                         <Link href="/">
-                            <Home className="mr-2 h-4 w-4" />
-                            Kembali ke Beranda
+                            <ArrowLeft className="mr-2 h-4 w-4" />
+                            Kembali
                         </Link>
                     </Button>
                 </CardContent>

@@ -168,7 +168,7 @@ function getConditionBadge(
                 variant="secondary"
                 className="bg-gray-100 text-gray-500 shadow-none text-[10px] px-1.5 py-0.5 h-5"
             >
-                N/A
+                Tidak ada
             </Badge>
         );
     return <span className="text-muted-foreground text-[10px]">—</span>;
@@ -386,10 +386,21 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                         </Card>
 
                         {/* Quick Actions (Future placeholder) */}
-                        <Button className="w-full" variant="default" size="lg">
-                            <Printer className="h-4 w-4 mr-2" />
-                            Cetak PDF
-                        </Button>
+                        <a
+                            href={`/api/reports/${report.reportNumber}/pdf`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full"
+                        >
+                            <Button
+                                className="w-full"
+                                variant="default"
+                                size="lg"
+                            >
+                                <Printer className="h-4 w-4 mr-2" />
+                                Cetak PDF
+                            </Button>
+                        </a>
                     </div>
 
                     {/* MAIN CONTENT - Tabs */}
@@ -538,11 +549,11 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                             {/* TAB: ESTIMATIONS */}
                             <TabsContent value="estimations" className="mt-0">
                                 <Card className="shadow-sm border-border/60">
-                                    <CardHeader className="py-4 border-b bg-muted/10">
+                                    <CardHeader className="bg-muted/10">
                                         <div className="flex items-center justify-between">
                                             <CardTitle className="text-base font-semibold flex items-center gap-2">
                                                 <Package className="h-4 w-4" />
-                                                Rincian Estimasi Biaya
+                                                Rincian Estimasi Biaya BMS
                                             </CardTitle>
                                             <Badge
                                                 variant="outline"
@@ -558,7 +569,7 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                     <CardContent className="p-0">
                                         {report.estimations.length === 0 ? (
                                             <div className="py-12 text-center">
-                                                <Package className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
+                                                <Package className="h-10 w-10 text-muted-foreground/30 mx-auto" />
                                                 <p className="text-muted-foreground">
                                                     Tidak ada estimasi material.
                                                 </p>

@@ -7,6 +7,8 @@ import {
     Image,
     StyleSheet,
     renderToBuffer,
+    Svg,
+    Path,
 } from "@react-pdf/renderer";
 import React from "react";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
@@ -172,6 +174,50 @@ const styles = StyleSheet.create({
         fontSize: 7,
         color: "#9ca3af",
     },
+    // Approval Styles
+    approvalCard: {
+        borderWidth: 1,
+        borderStyle: "dashed",
+        borderRadius: 4,
+        padding: 10,
+        width: "30%",
+        alignSelf: "center",
+        alignItems: "center",
+    },
+    approvalPending: {
+        borderColor: "#9ca3af",
+        backgroundColor: "#f9fafb",
+    },
+    approvalRejected: {
+        borderColor: "#ef4444",
+        backgroundColor: "#fef2f2",
+    },
+    approvalRejectedWithNotes: {
+        borderColor: "#eab308",
+        backgroundColor: "#fefce8",
+    },
+    approvalApproved: {
+        borderColor: "#22c55e",
+        backgroundColor: "#f0fdf4",
+    },
+    approvalTitle: {
+        fontSize: 10,
+        fontFamily: "Helvetica-Bold",
+        marginBottom: 4,
+        textAlign: "center",
+    },
+    approvalText: {
+        fontSize: 8,
+        color: "#374151",
+        marginBottom: 2,
+        textAlign: "center",
+    },
+    approvalNote: {
+        fontSize: 8,
+        fontFamily: "Helvetica-Oblique",
+        marginTop: 4,
+        textAlign: "center",
+    },
 });
 
 const formatCurrency = (amount: number) =>
@@ -206,6 +252,7 @@ const conditionStyle = (
 export type ReportPdfData = {
     reportNumber: string;
     storeName: string;
+    storeCode: string;
     branchName: string;
     submittedBy: string;
     submittedAt: string;
@@ -214,6 +261,12 @@ export type ReportPdfData = {
     totalEstimation: number;
     alfamartLogoBase64: string;
     buildingLogoBase64: string;
+    approval: {
+        status: "PENDING" | "APPROVED" | "REJECTED";
+        approvedBy?: string;
+        approvedAt?: string;
+        notes?: string;
+    };
 };
 
 function groupItemsByCategory(items: ReportItemJson[]) {
@@ -289,13 +342,13 @@ function buildReportDocument(data: ReportPdfData) {
                     View,
                     { style: styles.infoGrid },
                     ...[
-                        ["Nomor Tiket", data.reportNumber],
-                        ["Toko", data.storeName],
-                        ["Cabang", data.branchName],
+                        ["Nomor Laporan", data.reportNumber],
                         ["Disubmit oleh", data.submittedBy],
+                        ["Nama Toko", data.storeName],
+                        ["Cabang", data.branchName],
+                        ["Kode Toko", data.storeCode],
                         ["Tanggal Submit", data.submittedAt],
-                        ["Total Item Dicek", `${data.items.length} item`],
-                        ["Item Rusak / Not OK", `${rusakItems.length} item`],
+                        ["Item Rusak / NOK", `${rusakItems.length} item`],
                     ].map(([label, value], i) =>
                         React.createElement(
                             View,
@@ -322,7 +375,7 @@ function buildReportDocument(data: ReportPdfData) {
                 React.createElement(
                     Text,
                     { style: styles.sectionTitle },
-                    "Checklist Perbaikan",
+                    "Checklist Kondisi Toko",
                 ),
                 React.createElement(
                     View,
@@ -339,7 +392,7 @@ function buildReportDocument(data: ReportPdfData) {
                                     width: "5%",
                                 },
                             },
-                            "No",
+                            "Kode",
                         ),
                         React.createElement(
                             Text,
@@ -503,7 +556,7 @@ function buildReportDocument(data: ReportPdfData) {
                                           width: "5%",
                                       },
                                   },
-                                  "No",
+                                  "Kode",
                               ),
                               React.createElement(
                                   Text,
@@ -678,6 +731,110 @@ function buildReportDocument(data: ReportPdfData) {
                       ),
                   )
                 : null,
+
+            // Approval Section
+            React.createElement(
+                View,
+                { style: styles.section },
+                React.createElement(
+                    Text,
+                    { style: styles.sectionTitle },
+                    "Persetujuan",
+                ),
+            ),
+            React.createElement(
+                View,
+                {
+                    style: [
+                        styles.approvalCard,
+                        data.approval.status === "PENDING"
+                            ? styles.approvalPending
+                            : data.approval.status === "APPROVED"
+                              ? styles.approvalApproved
+                              : data.approval.status === "REJECTED" &&
+                                  data.approval.notes
+                                ? styles.approvalRejectedWithNotes
+                                : styles.approvalRejected,
+                    ],
+                },
+                // Icon based on status
+                React.createElement(
+                    Svg,
+                    {
+                        width: 24,
+                        height: 24,
+                        viewBox: "0 0 24 24",
+                        style: { marginBottom: 8 },
+                    },
+                    React.createElement(Path, {
+                        d:
+                            data.approval.status === "APPROVED"
+                                ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" // Check Circle
+                                : data.approval.status === "REJECTED"
+                                  ? data.approval.notes
+                                      ? "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" // Alert Triangle
+                                      : "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" // X Circle
+                                  : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", // Clock
+                        stroke:
+                            data.approval.status === "PENDING"
+                                ? "#9ca3af"
+                                : data.approval.status === "APPROVED"
+                                  ? "#16a34a"
+                                  : data.approval.status === "REJECTED" &&
+                                      data.approval.notes
+                                    ? "#ca8a04"
+                                    : "#ef4444",
+                        strokeWidth: 2,
+                        fill: "none",
+                        strokeLinecap: "round",
+                        strokeLinejoin: "round",
+                    }),
+                ),
+                React.createElement(
+                    Text,
+                    {
+                        style: [
+                            styles.approvalTitle,
+                            {
+                                color:
+                                    data.approval.status === "PENDING"
+                                        ? "#6b7280"
+                                        : data.approval.status === "APPROVED"
+                                          ? "#16a34a"
+                                          : data.approval.status ===
+                                                  "REJECTED" &&
+                                              data.approval.notes
+                                            ? "#ca8a04"
+                                            : "#dc2626",
+                            },
+                        ],
+                    },
+                    data.approval.status === "PENDING"
+                        ? "Menunggu Persetujuan BMC"
+                        : data.approval.status === "APPROVED"
+                          ? "Disetujui oleh BMC"
+                          : data.approval.status === "REJECTED" &&
+                              data.approval.notes
+                            ? "Ditolak oleh BMC (perlu revisi)"
+                            : "Ditolak oleh BMC",
+                ),
+                data.approval.status !== "PENDING" &&
+                    data.approval.approvedBy &&
+                    data.approval.approvedAt
+                    ? [
+                          React.createElement(
+                              Text,
+                              { key: "date", style: styles.approvalText },
+                              data.approval.approvedAt,
+                          ),
+                          React.createElement(
+                              Text,
+                              { key: "by", style: styles.approvalText },
+                              `Oleh: ${data.approval.approvedBy}`,
+                          ),
+                      ]
+                    : null,
+            ),
 
             // Footer
             React.createElement(

@@ -15,7 +15,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
                 select: { name: true, email: true },
             },
             store: {
-                select: { name: true },
+                select: { name: true, code: true },
             },
         },
     });
@@ -71,7 +71,8 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     // Generate PDF
     const pdfBuffer = await generateReportPdf({
         reportNumber: report.reportNumber,
-        storeName: report.storeName,
+        storeName: report.store ? report.store.name : report.storeName,
+        storeCode: report.store ? report.store.code : "-",
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
         submittedAt,
@@ -80,16 +81,19 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         totalEstimation: Number(report.totalEstimation),
         alfamartLogoBase64,
         buildingLogoBase64,
+        approval: {
+            status: "PENDING",
+        },
     });
 
     // Build HTML email
     const html = buildReportSubmittedHtml({
         reportNumber: report.reportNumber,
         storeName: report.storeName,
+        storeCode: report.store ? report.store.code : "-",
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
         submittedAt,
-        totalItems: items.length,
         rusakItems: rusakItems.length,
         bmsItems: bmsItems.length,
         rekananItems: rekananItems.length,
