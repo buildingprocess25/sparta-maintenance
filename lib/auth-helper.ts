@@ -41,7 +41,7 @@ export async function requireAuth() {
     const user = await getCurrentUser();
 
     if (!user) {
-        redirect("/login");
+        redirect("/login?logout=1");
     }
 
     return user;

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,13 +44,23 @@ import {
     Eye,
     Pencil,
     FileEdit,
+    Loader2,
 } from "lucide-react";
 import Link from "next/link";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationEllipsis,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 
 // Type for report data from server
 export type ReportData = {
     id: string;
-    ticketNumber: string;
+    reportNumber: string;
     storeName: string;
     branchName: string;
     status: string;
@@ -65,28 +75,67 @@ export type ReportData = {
 type ReportsListProps = {
     reports: ReportData[];
     total: number;
+    totalPages: number;
+    currentPage: number;
 };
 
-export default function ReportsList({ reports, total }: ReportsListProps) {
+export default function ReportsList({
+    reports,
+    total,
+    totalPages,
+    currentPage,
+}: ReportsListProps) {
     const router = useRouter();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const [isPending, startTransition] = useTransition();
 
-    // Client-side filter (for now — server-side filtering can be added later)
-    const filteredReports = reports.filter((report) => {
-        const matchesSearch =
-            report.storeName
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase()) ||
-            report.ticketNumber
-                .toLowerCase()
-                .includes(searchQuery.toLowerCase());
-        const matchesStatus =
-            statusFilter === "all" ||
-            report.status === statusFilter.toUpperCase();
+    // Initialize state from URL params
+    const [searchQuery, setSearchQuery] = useState(
+        searchParams.get("search") || "",
+    );
+    const [statusFilter, setStatusFilter] = useState(
+        searchParams.get("status")?.toLowerCase() || "all",
+    );
 
-        return matchesSearch && matchesStatus;
-    });
+    // Debounce search update
+    const handleSearch = (term: string) => {
+        setSearchQuery(term);
+        const params = new URLSearchParams(searchParams.toString());
+        if (term) {
+            params.set("search", term);
+        } else {
+            params.delete("search");
+        }
+        params.set("page", "1"); // Reset to page 1 on search
+        startTransition(() => {
+            router.replace(`${pathname}?${params.toString()}`);
+        });
+    };
+
+    // Handle status filter change
+    const handleStatusChange = (status: string) => {
+        setStatusFilter(status);
+        const params = new URLSearchParams(searchParams.toString());
+        if (status && status !== "all") {
+            params.set("status", status);
+        } else {
+            params.delete("status");
+        }
+        params.set("page", "1"); // Reset to page 1 on filter
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    };
+
+    // Handle pagination
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("page", page.toString());
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -142,7 +191,7 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         asChild
                     >
-                        <Link href={`/reports/${report.id}`}>
+                        <Link href={`/reports/${report.reportNumber}`}>
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">Lihat Detail</span>
                         </Link>
@@ -179,7 +228,7 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                         className="gap-1.5 text-xs"
                         asChild
                     >
-                        <Link href={`/reports/${report.id}`}>
+                        <Link href={`/reports/${report.reportNumber}`}>
                             <Eye className="h-3.5 w-3.5" />
                             Lihat Detail
                         </Link>
@@ -234,15 +283,15 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                         <div className="relative flex-1 md:max-w-sm">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Cari toko atau ID laporan..."
+                                placeholder="Cari toko atau nomor laporan..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={(e) => handleSearch(e.target.value)}
                             />
                         </div>
                         <Select
                             value={statusFilter}
-                            onValueChange={setStatusFilter}
+                            onValueChange={handleStatusChange}
                         >
                             <SelectTrigger className="w-auto bg-background">
                                 <div className="flex items-center gap-2">
@@ -276,11 +325,16 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                     </Button>
                 </div>
 
-                {filteredReports.length > 0 ? (
+                {reports.length > 0 ? (
                     <>
                         {/* --- MOBILE VIEW: CARD LIST --- */}
-                        <div className="space-y-3 md:hidden">
-                            {filteredReports.map((report) => (
+                        <div className="space-y-3 md:hidden relative">
+                            {isPending && (
+                                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            )}
+                            {reports.map((report) => (
                                 <Card key={report.id} className="shadow-sm">
                                     <CardContent>
                                         <div className="flex justify-between items-start mb-3">
@@ -289,7 +343,7 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                                                     {report.storeName || "—"}
                                                 </h3>
                                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-mono">
-                                                    {report.ticketNumber}
+                                                    {report.reportNumber}
                                                 </p>
                                             </div>
                                             {getStatusBadge(report.status)}
@@ -330,12 +384,17 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                         </div>
 
                         {/* --- DESKTOP VIEW: DATA TABLE --- */}
-                        <div className="hidden md:block border rounded-lg shadow-sm bg-card">
+                        <div className="hidden md:block border rounded-lg shadow-sm bg-card relative">
+                            {isPending && (
+                                <div className="absolute inset-x-0 bottom-0 top-12 bg-background z-50 flex items-center justify-center rounded-b-lg">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                </div>
+                            )}
                             <Table>
                                 <TableHeader>
                                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                                         <TableHead className="w-25">
-                                            ID Laporan
+                                            Nomor Laporan
                                         </TableHead>
                                         <TableHead className="min-w-50">
                                             Toko & Cabang
@@ -356,13 +415,13 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredReports.map((report) => (
+                                    {reports.map((report) => (
                                         <TableRow
                                             key={report.id}
                                             className="group"
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                                                {report.ticketNumber}
+                                                {report.reportNumber}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">
@@ -395,6 +454,111 @@ export default function ReportsList({ reports, total }: ReportsListProps) {
                                 </TableBody>
                             </Table>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {totalPages > 1 && (
+                            <div className="relative flex items-center justify-center">
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (currentPage > 1)
+                                                        handlePageChange(
+                                                            currentPage - 1,
+                                                        );
+                                                }}
+                                                className={
+                                                    currentPage <= 1
+                                                        ? "pointer-events-none opacity-50"
+                                                        : "cursor-pointer"
+                                                }
+                                            />
+                                        </PaginationItem>
+
+                                        {/* Generate page numbers */}
+                                        {Array.from({
+                                            length: totalPages,
+                                        }).map((_, i) => {
+                                            const page = i + 1;
+                                            // Simple logic: show all for now, can be optimized for large pages later
+                                            // Or simplified: show current, first, last, and surrounding
+                                            if (
+                                                totalPages <= 7 ||
+                                                page === 1 ||
+                                                page === totalPages ||
+                                                (page >= currentPage - 1 &&
+                                                    page <= currentPage + 1)
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationLink
+                                                            href="#"
+                                                            isActive={
+                                                                page ===
+                                                                currentPage
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handlePageChange(
+                                                                    page,
+                                                                );
+                                                            }}
+                                                        >
+                                                            {page}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                );
+                                            } else if (
+                                                (page === currentPage - 2 &&
+                                                    currentPage > 3) ||
+                                                (page === currentPage + 2 &&
+                                                    currentPage <
+                                                        totalPages - 2)
+                                            ) {
+                                                return (
+                                                    <PaginationItem
+                                                        key={`ellipsis-${page}`}
+                                                    >
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+                                            return null;
+                                        })}
+
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href="#"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (
+                                                        currentPage < totalPages
+                                                    )
+                                                        handlePageChange(
+                                                            currentPage + 1,
+                                                        );
+                                                }}
+                                                className={
+                                                    currentPage >= totalPages
+                                                        ? "pointer-events-none opacity-50"
+                                                        : "cursor-pointer"
+                                                }
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+
+                                <div className="hidden md:block absolute right-0 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                                    Total {total} laporan
+                                </div>
+                                <div className="md:hidden mt-4 text-center text-xs text-muted-foreground w-full">
+                                    Total {total} laporan
+                                </div>
+                            </div>
+                        )}
                     </>
                 ) : (
                     /* Empty State */

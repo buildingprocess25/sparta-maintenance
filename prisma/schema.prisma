@@ -79,7 +79,7 @@ model Store {
 model Report {
   id            String        @id @default(uuid())
   
-  ticketNumber  String        @unique 
+  reportNumber  String        @unique 
   branchName    String        
   storeName     String        @default("")
   

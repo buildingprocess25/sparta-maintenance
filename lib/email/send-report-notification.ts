@@ -70,7 +70,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
 
     // Generate PDF
     const pdfBuffer = await generateReportPdf({
-        ticketNumber: report.ticketNumber,
+        reportNumber: report.reportNumber,
         storeName: report.storeName,
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
@@ -84,7 +84,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
 
     // Build HTML email
     const html = buildReportSubmittedHtml({
-        ticketNumber: report.ticketNumber,
+        reportNumber: report.reportNumber,
         storeName: report.storeName,
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
@@ -98,11 +98,11 @@ export async function sendReportNotification(reportId: string): Promise<void> {
 
     await sendEmail({
         to: recipientEmail,
-        subject: `[SPARTA MAINTENANCE] Laporan Baru: ${report.ticketNumber} — ${report.storeName}`,
+        subject: `[SPARTA MAINTENANCE] Laporan Baru: ${report.reportNumber} — ${report.storeName}`,
         html,
         attachments: [
             {
-                filename: `Laporan-${report.ticketNumber}.pdf`,
+                filename: `Laporan-${report.reportNumber}.pdf`,
                 content: pdfBuffer,
                 contentType: "application/pdf",
             },
@@ -110,6 +110,6 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     });
 
     console.log(
-        `[sendReportNotification] Email sent for report ${report.ticketNumber} to ${recipientEmail}`,
+        `[sendReportNotification] Email sent for report ${report.reportNumber} to ${recipientEmail}`,
     );
 }

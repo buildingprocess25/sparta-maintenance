@@ -204,7 +204,7 @@ const conditionStyle = (
 };
 
 export type ReportPdfData = {
-    ticketNumber: string;
+    reportNumber: string;
     storeName: string;
     branchName: string;
     submittedBy: string;
@@ -289,7 +289,7 @@ function buildReportDocument(data: ReportPdfData) {
                     View,
                     { style: styles.infoGrid },
                     ...[
-                        ["Nomor Tiket", data.ticketNumber],
+                        ["Nomor Tiket", data.reportNumber],
                         ["Toko", data.storeName],
                         ["Cabang", data.branchName],
                         ["Disubmit oleh", data.submittedBy],
@@ -686,7 +686,7 @@ function buildReportDocument(data: ReportPdfData) {
                 React.createElement(
                     Text,
                     { style: styles.footerText },
-                    `SPARTA Maintenance — ${data.ticketNumber}`,
+                    `SPARTA Maintenance — ${data.reportNumber}`,
                 ),
                 React.createElement(Text, {
                     style: styles.footerText,

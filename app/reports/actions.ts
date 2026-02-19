@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { generateTicketNumber } from "@/lib/report-helpers";
+import { generateReportNumber } from "@/lib/report-helpers";
 import { revalidatePath } from "next/cache";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import type { Prisma } from "@prisma/client";
@@ -190,11 +190,17 @@ export async function saveDraft(data: DraftData) {
             return { reportId: updatedReport.id };
         } else {
             // Buat draft baru
-            const ticketNumber = await generateTicketNumber();
+            const store = data.storeId
+                ? await prisma.store.findUnique({
+                      where: { id: data.storeId },
+                      select: { code: true },
+                  })
+                : null;
+            const reportNumber = await generateReportNumber(store?.code);
 
             const newReport = await prisma.report.create({
                 data: {
-                    ticketNumber,
+                    reportNumber,
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
@@ -299,11 +305,17 @@ export async function submitReport(data: DraftData) {
             reportId = existingDraft.id;
         } else {
             // Buat baru langsung submit
-            const ticketNumber = await generateTicketNumber();
+            const store2 = data.storeId
+                ? await prisma.store.findUnique({
+                      where: { id: data.storeId },
+                      select: { code: true },
+                  })
+                : null;
+            const reportNumber2 = await generateReportNumber(store2?.code);
 
             const newReport = await prisma.report.create({
                 data: {
-                    ticketNumber,
+                    reportNumber: reportNumber2,
                     storeId: data.storeId || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
@@ -361,7 +373,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
 
     if (search) {
         where.OR = [
-            { ticketNumber: { contains: search, mode: "insensitive" } },
+            { reportNumber: { contains: search, mode: "insensitive" } },
             { storeName: { contains: search, mode: "insensitive" } },
             { branchName: { contains: search, mode: "insensitive" } },
         ];
@@ -408,7 +420,7 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
 
     if (search) {
         where.OR = [
-            { ticketNumber: { contains: search, mode: "insensitive" } },
+            { reportNumber: { contains: search, mode: "insensitive" } },
             { storeName: { contains: search, mode: "insensitive" } },
         ];
     }

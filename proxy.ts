@@ -22,6 +22,13 @@ export default async function proxy(request: NextRequest) {
     );
     const isLoginRoute = pathname === "/login";
 
+    // Clear session cookie FIRST — before any auth check — when user not found in DB
+    if (isLoginRoute && request.nextUrl.searchParams.get("logout") === "1") {
+        const response = NextResponse.redirect(new URL("/login", request.url));
+        response.cookies.delete(SESSION_COOKIE_NAME);
+        return response;
+    }
+
     // Read and verify JWT session cookie (optimistic check — no DB call)
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     let isAuthenticated = false;

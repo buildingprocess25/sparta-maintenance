@@ -19,7 +19,7 @@ export default async function CreateReportPage() {
     const serializedDraft = draft
         ? {
               id: draft.id,
-              ticketNumber: draft.ticketNumber,
+              reportNumber: draft.reportNumber,
               storeName: draft.storeName,
               storeId: draft.storeId || "",
               branchName: draft.branchName,

@@ -4,6 +4,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionInterceptor } from "@/components/session-interceptor";
 
+import { SessionExpiryAlert } from "@/components/session-expiry-alert";
+
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
 const geistSans = Geist({
@@ -33,6 +35,7 @@ export default function RootLayout({
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
                 <SessionInterceptor>{children}</SessionInterceptor>
+                <SessionExpiryAlert />
                 <Toaster />
             </body>
         </html>

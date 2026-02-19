@@ -112,7 +112,7 @@ export type StoreOption = {
 
 export type SerializedDraft = {
     id: string;
-    ticketNumber: string;
+    reportNumber: string;
     storeName: string;
     storeId: string;
     branchName: string;
@@ -972,7 +972,7 @@ export default function CreateReportForm({
             {/* DRAFT DIALOG */}
             <DraftDialog
                 open={showDraftDialog}
-                draftTicketNumber={existingDraft?.ticketNumber || ""}
+                draftReportNumber={existingDraft?.reportNumber || ""}
                 draftStoreName={existingDraft?.storeName}
                 draftUpdatedAt={existingDraft?.updatedAt || ""}
                 onContinueDraft={handleContinueDraft}

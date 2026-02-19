@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface DraftDialogProps {
     open: boolean;
-    draftTicketNumber: string;
+    draftReportNumber: string;
     draftStoreName?: string;
     draftUpdatedAt: string;
     onContinueDraft: () => void;
@@ -24,7 +24,7 @@ interface DraftDialogProps {
 
 export function DraftDialog({
     open,
-    draftTicketNumber,
+    draftReportNumber,
     draftStoreName,
     draftUpdatedAt,
     onContinueDraft,
@@ -55,7 +55,7 @@ export function DraftDialog({
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
                                     <span className="font-semibold text-foreground flex items-center gap-2">
-                                        {draftTicketNumber}
+                                        {draftReportNumber}
                                     </span>
                                     <Badge
                                         variant="outline"

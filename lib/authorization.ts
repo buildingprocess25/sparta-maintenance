@@ -17,7 +17,9 @@ export type AuthUser = {
  * Authorization error - thrown when user doesn't have required permissions
  */
 export class AuthorizationError extends Error {
-    constructor(message: string = "Anda tidak memiliki akses untuk melakukan aksi ini") {
+    constructor(
+        message: string = "Anda tidak memiliki akses untuk melakukan aksi ini",
+    ) {
         super(message);
         this.name = "AuthorizationError";
     }
@@ -58,7 +60,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 export async function requireAuth(): Promise<AuthUser> {
     const user = await getAuthUser();
     if (!user) {
-        redirect("/login");
+        redirect("/login?logout=1");
     }
     return user;
 }
@@ -98,7 +100,8 @@ export async function requireOwnership(
 
     if (user.id !== resourceUserId) {
         throw new AuthorizationError(
-            errorMessage || "Anda hanya bisa mengakses resource milik Anda sendiri",
+            errorMessage ||
+                "Anda hanya bisa mengakses resource milik Anda sendiri",
         );
     }
 
@@ -121,7 +124,8 @@ export async function requireBranchAccess(
 
     if (user.branchName !== branchName) {
         throw new AuthorizationError(
-            errorMessage || "Anda hanya bisa mengakses data dari cabang Anda sendiri",
+            errorMessage ||
+                "Anda hanya bisa mengakses data dari cabang Anda sendiri",
         );
     }
 
@@ -155,7 +159,9 @@ export async function validateCSRF(headers: Headers): Promise<void> {
         const isAllowedOrigin =
             origin &&
             (allowedOrigins.includes(origin) ||
-                devTunnelPatterns.some((pattern) => pattern.test(new URL(origin).hostname)));
+                devTunnelPatterns.some((pattern) =>
+                    pattern.test(new URL(origin).hostname),
+                ));
 
         if (!isAllowedOrigin) {
             console.warn("CSRF validation failed:", { origin, host });

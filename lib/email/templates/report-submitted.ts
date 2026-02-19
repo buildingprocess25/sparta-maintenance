@@ -1,5 +1,5 @@
 export type ReportEmailData = {
-    ticketNumber: string;
+    reportNumber: string;
     storeName: string;
     branchName: string;
     submittedBy: string;
@@ -77,8 +77,8 @@ export function buildReportSubmittedHtml(data: ReportEmailData): string {
                   </td>
                 </tr>
                 <tr>
-                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;width:40%;">Nomor Tiket</td>
-                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#c0392b;font-size:13px;font-weight:700;letter-spacing:0.5px;">${data.ticketNumber}</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;width:40%;">Nomor Laporan</td>
+                  <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#c0392b;font-size:13px;font-weight:700;letter-spacing:0.5px;">${data.reportNumber}</td>
                 </tr>
                 <tr>
                   <td style="padding:12px 16px;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:13px;width:40%;">Toko</td>

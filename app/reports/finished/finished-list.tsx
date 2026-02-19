@@ -37,7 +37,7 @@ import Link from "next/link";
 // Same type as ReportData in reports-list
 type ReportData = {
     id: string;
-    ticketNumber: string;
+    reportNumber: string;
     storeName: string;
     branchName: string;
     status: string;
@@ -62,7 +62,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
             report.storeName
                 .toLowerCase()
                 .includes(searchQuery.toLowerCase()) ||
-            report.ticketNumber
+            report.reportNumber
                 .toLowerCase()
                 .includes(searchQuery.toLowerCase());
         return matchesSearch;
@@ -97,7 +97,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                         <div className="relative flex-1 md:max-w-sm">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                             <Input
-                                placeholder="Cari toko atau ID laporan..."
+                                placeholder="Cari toko atau nomor laporan..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -119,7 +119,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                                     {report.storeName || "—"}
                                                 </h3>
                                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-mono">
-                                                    {report.ticketNumber}
+                                                    {report.reportNumber}
                                                 </p>
                                             </div>
                                             <Badge
@@ -165,7 +165,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                                 asChild
                                             >
                                                 <Link
-                                                    href={`/reports/${report.id}`}
+                                                    href={`/reports/${report.reportNumber}`}
                                                 >
                                                     <Eye className="h-3.5 w-3.5" />
                                                     Lihat Detail
@@ -183,7 +183,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                 <TableHeader>
                                     <TableRow className="bg-muted/50 hover:bg-muted/50">
                                         <TableHead className="w-25">
-                                            ID Laporan
+                                            Nomor Laporan
                                         </TableHead>
                                         <TableHead className="min-w-50">
                                             Toko & Cabang
@@ -210,7 +210,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                             className="group"
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                                                {report.ticketNumber}
+                                                {report.reportNumber}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">
