@@ -2,6 +2,7 @@ import "server-only";
 import { getSession } from "./session";
 import prisma from "./prisma";
 import { redirect } from "next/navigation";
+import { isConnectionError } from "./db-error";
 
 export type UserRole = "BMS" | "BMC" | "ADMIN";
 
@@ -177,5 +178,88 @@ export async function validateCSRF(headers: Headers): Promise<void> {
     const originHost = new URL(origin).host;
     if (originHost !== host) {
         throw new Error("CSRF validation failed: origin mismatch");
+    }
+}
+
+/**
+ * Get current user with safe error handling (moved from auth-helper.ts)
+ */
+export async function getCurrentUser() {
+    const session = await getSession();
+
+    if (!session || !session.userId) {
+        return null;
+    }
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: { id: session.userId },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                role: true,
+                branchName: true,
+                createdAt: true,
+            },
+        });
+
+        return user;
+    } catch (error) {
+        // Throw connection errors agar ditangkap oleh error.tsx boundary
+        if (isConnectionError(error)) {
+            throw new Error(
+                "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda.",
+            );
+        }
+        console.error("Error fetching user:", error);
+        return null;
+    }
+}
+
+/**
+ * Get user statistics for dashboard (moved from auth-helper.ts)
+ */
+export async function getUserStats(userId: string) {
+    try {
+        const [totalReports, pendingReports, approvedReports, rejectedReports] =
+            await Promise.all([
+                prisma.report.count({
+                    where: { createdById: userId },
+                }),
+                prisma.report.count({
+                    where: {
+                        createdById: userId,
+                        status: "PENDING_APPROVAL",
+                    },
+                }),
+                prisma.report.count({
+                    where: {
+                        createdById: userId,
+                        status: "APPROVED",
+                    },
+                }),
+                prisma.report.count({
+                    where: {
+                        createdById: userId,
+                        status: "REJECTED",
+                    },
+                }),
+            ]);
+
+        return {
+            totalReports,
+            pendingReports,
+            approvedReports,
+            rejectedReports,
+        };
+    } catch (error) {
+        console.error("Error fetching user stats:", error);
+        return {
+            totalReports: 0,
+            pendingReports: 0,
+            approvedReports: 0,
+            rejectedReports: 0,
+        };
     }
 }

@@ -432,7 +432,7 @@ function buildReportDocument(data: ReportPdfData) {
                                     width: "20%",
                                 },
                             },
-                            "Keterangan",
+                            "Catatan",
                         ),
                     ),
                     // Table Rows grouped by category

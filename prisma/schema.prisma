@@ -63,7 +63,7 @@ model User {
 
 model Store {
   id         String   @id @default(uuid())
-  code       String   @unique       // Kode toko (e.g. "ALF-CKL-001")
+  code       String   @unique       // Kode toko (4 karakter random alphanumeric)
   name       String                 // "Alfamart Cikokol Raya"
   address    String
   branchName String                 // Nama cabang (link ke User.branchName)

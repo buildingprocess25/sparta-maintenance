@@ -3,6 +3,7 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
+import { checklistCategories } from "@/lib/checklist-data";
 import {
     Card,
     CardContent,
@@ -33,9 +34,16 @@ import {
     FileText,
     Calendar,
     User,
+    ChevronDown,
+    Image as ImageIcon,
 } from "lucide-react";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { Button } from "@/components/ui/button";
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 import { cn } from "@/lib/utils";
 
@@ -140,62 +148,6 @@ function StatusTimeline({ status }: { status: string }) {
     );
 }
 
-function getConditionBadge(
-    condition: string | null,
-    preventive: string | null,
-) {
-    if (condition === "RUSAK" || preventive === "NOT_OK")
-        return (
-            <Badge
-                variant="destructive"
-                className="shadow-none text-[10px] px-1.5 py-0.5 h-5"
-            >
-                {condition === "RUSAK" ? "Rusak" : "Not OK"}
-            </Badge>
-        );
-    if (condition === "BAIK" || preventive === "OK")
-        return (
-            <Badge
-                variant="outline"
-                className="border-green-600/20 bg-green-50 text-green-700 shadow-none text-[10px] px-1.5 py-0.5 h-5"
-            >
-                {condition === "BAIK" ? "Baik" : "OK"}
-            </Badge>
-        );
-    if (condition === "TIDAK_ADA")
-        return (
-            <Badge
-                variant="secondary"
-                className="bg-gray-100 text-gray-500 shadow-none text-[10px] px-1.5 py-0.5 h-5"
-            >
-                Tidak ada
-            </Badge>
-        );
-    return <span className="text-muted-foreground text-[10px]">—</span>;
-}
-
-function getHandlerBadge(handler: string | null) {
-    if (handler === "BMS")
-        return (
-            <Badge
-                variant="outline"
-                className="bg-background text-foreground/80 font-normal text-[10px] px-1.5 py-0.5 h-5"
-            >
-                BMS
-            </Badge>
-        );
-    if (handler === "REKANAN")
-        return (
-            <Badge
-                variant="outline"
-                className="border-blue-200 bg-blue-50 text-blue-700 font-normal text-[10px] px-1.5 py-0.5 h-5"
-            >
-                Rekanan
-            </Badge>
-        );
-    return <span className="text-muted-foreground text-[10px]">—</span>;
-}
-
 function getStatusBadge(status: string) {
     switch (status) {
         case "PENDING_APPROVAL":
@@ -254,16 +206,6 @@ export function ReportDetailView({ report }: ReportDetailProps) {
             minimumFractionDigits: 0,
             maximumFractionDigits: 0,
         }).format(amount);
-
-    // Group items by category
-    const groupedItems = report.items.reduce<Record<string, ReportItemJson[]>>(
-        (acc, item) => {
-            if (!acc[item.categoryName]) acc[item.categoryName] = [];
-            acc[item.categoryName].push(item);
-            return acc;
-        },
-        {},
-    );
 
     const rusakCount = report.items.filter(
         (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
@@ -440,109 +382,279 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                 value="checklist"
                                 className="space-y-4 mt-0"
                             >
-                                {Object.keys(groupedItems).length === 0 ? (
+                                {checklistCategories.length === 0 ? (
                                     <Card>
                                         <CardContent className="py-10 text-center text-muted-foreground">
-                                            Tidak ada item checklist dalam
-                                            laporan ini.
+                                            Tidak ada data checklist.
                                         </CardContent>
                                     </Card>
                                 ) : (
-                                    Object.entries(groupedItems).map(
-                                        ([category, items]) => (
-                                            <Card key={category}>
-                                                <CardHeader className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                                    <Layers className="h-3.5 w-3.5" />
-                                                    {category}
-                                                </CardHeader>
-                                                <div className="hidden md:block ">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow className="bg-muted/30">
-                                                                <TableHead className="w-12 text-center text-xs h-9">
-                                                                    No
-                                                                </TableHead>
-                                                                <TableHead className="text-xs h-9">
-                                                                    Nama Item
-                                                                </TableHead>
-                                                                <TableHead className="w-32 text-xs h-9">
-                                                                    Kondisi
-                                                                </TableHead>
-                                                                <TableHead className="w-28 text-xs h-9">
-                                                                    Handler
-                                                                </TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                            {items.map(
-                                                                (item, i) => (
-                                                                    <TableRow
-                                                                        key={
-                                                                            item.itemId
-                                                                        }
-                                                                        className="hover:bg-muted/20 border-b-border/40"
+                                    <div className="space-y-4">
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle className="text-base">
+                                                    Checklist Kondisi
+                                                </CardTitle>
+                                                <CardDescription className="text-xs">
+                                                    Total{" "}
+                                                    {checklistCategories.reduce(
+                                                        (acc, cat) =>
+                                                            acc +
+                                                            cat.items.length,
+                                                        0,
+                                                    )}{" "}
+                                                    item
+                                                </CardDescription>
+                                            </CardHeader>
+                                            <CardContent className="space-y-4">
+                                                {checklistCategories.map(
+                                                    (category) => {
+                                                        // Calculate stats for this category based on report items
+                                                        const categoryReportItems =
+                                                            report.items.filter(
+                                                                (i) =>
+                                                                    i.itemId.startsWith(
+                                                                        category.id,
+                                                                    ),
+                                                            );
+                                                        const totalItems =
+                                                            category.items
+                                                                .length;
+                                                        const filledItems =
+                                                            categoryReportItems.filter(
+                                                                (i) =>
+                                                                    i.condition ||
+                                                                    i.preventiveCondition,
+                                                            ).length;
+
+                                                        return (
+                                                            <Collapsible
+                                                                key={
+                                                                    category.id
+                                                                }
+                                                                defaultOpen={
+                                                                    filledItems >
+                                                                    0
+                                                                }
+                                                                className="border rounded-lg shadow-sm bg-card"
+                                                            >
+                                                                <CollapsibleTrigger
+                                                                    asChild
+                                                                >
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        className="w-full flex items-center justify-between p-4 h-auto hover:bg-muted/50"
                                                                     >
-                                                                        <TableCell className="text-center text-xs text-muted-foreground py-2.5">
-                                                                            {i +
-                                                                                1}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-sm font-medium py-2.5">
-                                                                            {
-                                                                                item.itemName
-                                                                            }
-                                                                        </TableCell>
-                                                                        <TableCell className="py-2.5">
-                                                                            {getConditionBadge(
-                                                                                item.condition,
-                                                                                item.preventiveCondition,
-                                                                            )}
-                                                                        </TableCell>
-                                                                        <TableCell className="py-2.5">
-                                                                            {getHandlerBadge(
-                                                                                item.handler,
-                                                                            )}
-                                                                        </TableCell>
-                                                                    </TableRow>
-                                                                ),
-                                                            )}
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                                {/* Mobile List View */}
-                                                <div className="md:hidden divide-y divide-border/40">
-                                                    {items.map((item) => (
-                                                        <div
-                                                            key={item.itemId}
-                                                            className="px-4 py-3 flex items-start justify-between gap-3"
-                                                        >
-                                                            <div className="min-w-0">
-                                                                <p className="text-sm font-medium leading-tight mb-1.5">
-                                                                    {
-                                                                        item.itemName
-                                                                    }
-                                                                </p>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-[10px] text-muted-foreground bg-muted/50 px-1.5 rounded">
-                                                                        Handler:{" "}
-                                                                        {item.handler ===
-                                                                        "REKANAN"
-                                                                            ? "Rekanan"
-                                                                            : "BMS"}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                            <div className="shrink-0">
-                                                                {getConditionBadge(
-                                                                    item.condition,
-                                                                    item.preventiveCondition,
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </Card>
-                                        ),
-                                    )
+                                                                        <div className="flex items-center gap-3">
+                                                                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-sm">
+                                                                                {
+                                                                                    category.id
+                                                                                }
+                                                                            </div>
+                                                                            <div className="flex flex-col items-start gap-1">
+                                                                                <span className="font-semibold text-left">
+                                                                                    {category.title.split(
+                                                                                        ". ",
+                                                                                    )[1] ||
+                                                                                        category.title}
+                                                                                </span>
+                                                                                <span className="text-xs text-muted-foreground">
+                                                                                    (
+                                                                                    {
+                                                                                        filledItems
+                                                                                    }
+
+                                                                                    /
+                                                                                    {
+                                                                                        totalItems
+                                                                                    }{" "}
+                                                                                    Item)
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <ChevronDown className="h-4 w-4 opacity-50 transition-transform duration-200" />
+                                                                    </Button>
+                                                                </CollapsibleTrigger>
+                                                                <CollapsibleContent>
+                                                                    <div className="p-4 pt-0 space-y-4">
+                                                                        <Separator className="mb-4" />
+                                                                        {category.items.map(
+                                                                            (
+                                                                                checklistItem,
+                                                                            ) => {
+                                                                                const reportItem =
+                                                                                    report.items.find(
+                                                                                        (
+                                                                                            i,
+                                                                                        ) =>
+                                                                                            i.itemId ===
+                                                                                            checklistItem.id,
+                                                                                    );
+
+                                                                                // Helper to get status color and label
+                                                                                const getStatusBadge =
+                                                                                    () => {
+                                                                                        const condition =
+                                                                                            reportItem?.condition;
+                                                                                        const preventive =
+                                                                                            reportItem?.preventiveCondition;
+
+                                                                                        if (
+                                                                                            preventive ===
+                                                                                            "OK"
+                                                                                        )
+                                                                                            return (
+                                                                                                <Badge className="bg-green-600 hover:bg-green-700">
+                                                                                                    OK
+                                                                                                </Badge>
+                                                                                            );
+                                                                                        if (
+                                                                                            preventive ===
+                                                                                            "NOT_OK"
+                                                                                        )
+                                                                                            return (
+                                                                                                <Badge variant="destructive">
+                                                                                                    NOT
+                                                                                                    OK
+                                                                                                </Badge>
+                                                                                            );
+
+                                                                                        if (
+                                                                                            condition ===
+                                                                                            "BAIK"
+                                                                                        )
+                                                                                            return (
+                                                                                                <Badge className="bg-green-600 hover:bg-green-700">
+                                                                                                    Baik
+                                                                                                </Badge>
+                                                                                            );
+                                                                                        if (
+                                                                                            condition ===
+                                                                                            "RUSAK"
+                                                                                        )
+                                                                                            return (
+                                                                                                <Badge variant="destructive">
+                                                                                                    Rusak
+                                                                                                </Badge>
+                                                                                            );
+                                                                                        if (
+                                                                                            condition ===
+                                                                                            "TIDAK_ADA"
+                                                                                        )
+                                                                                            return (
+                                                                                                <Badge
+                                                                                                    variant="secondary"
+                                                                                                    className="text-muted-foreground"
+                                                                                                >
+                                                                                                    Tidak
+                                                                                                    Ada
+                                                                                                </Badge>
+                                                                                            );
+
+                                                                                        return (
+                                                                                            <Badge
+                                                                                                variant="outline"
+                                                                                                className="text-muted-foreground"
+                                                                                            >
+                                                                                                -
+                                                                                            </Badge>
+                                                                                        );
+                                                                                    };
+
+                                                                                const hasPhoto =
+                                                                                    (reportItem?.images &&
+                                                                                        reportItem
+                                                                                            .images
+                                                                                            .length >
+                                                                                            0) ||
+                                                                                    reportItem?.photoUrl;
+                                                                                const isDamaged =
+                                                                                    reportItem?.condition ===
+                                                                                        "RUSAK" ||
+                                                                                    reportItem?.preventiveCondition ===
+                                                                                        "NOT_OK";
+
+                                                                                return (
+                                                                                    <div
+                                                                                        key={
+                                                                                            checklistItem.id
+                                                                                        }
+                                                                                        className="p-3 bg-muted/20 rounded-lg border border-border/50"
+                                                                                    >
+                                                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                                                                            <div className="flex items-start gap-3">
+                                                                                                <span className="font-mono text-sm font-medium text-muted-foreground min-w-[2rem] pt-0.5">
+                                                                                                    {
+                                                                                                        checklistItem.id
+                                                                                                    }
+                                                                                                </span>
+                                                                                                <span className="text-sm font-medium pt-0.5">
+                                                                                                    {
+                                                                                                        checklistItem.name
+                                                                                                    }
+                                                                                                </span>
+                                                                                            </div>
+                                                                                            <div className="flex items-center gap-2 pl-11 sm:pl-0">
+                                                                                                {getStatusBadge()}
+                                                                                                {reportItem?.handler && (
+                                                                                                    <Badge variant="outline">
+                                                                                                        Handler:{" "}
+                                                                                                        {reportItem.handler ===
+                                                                                                        "REKANAN"
+                                                                                                            ? "Rekanan"
+                                                                                                            : reportItem.handler}
+                                                                                                    </Badge>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        </div>
+
+                                                                                        {/* Photo Section - Only show if photo exists OR if it is damaged/OK (to show missing photo placeholder) */}
+                                                                                        {(hasPhoto ||
+                                                                                            isDamaged ||
+                                                                                            reportItem?.condition ===
+                                                                                                "BAIK" ||
+                                                                                            reportItem?.preventiveCondition ===
+                                                                                                "OK") && (
+                                                                                            <div className="mt-3 pl-11">
+                                                                                                {hasPhoto ? (
+                                                                                                    <div className="relative group overflow-hidden rounded-md border bg-muted w-32 h-32">
+                                                                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                                                        <img
+                                                                                                            src={
+                                                                                                                reportItem
+                                                                                                                    .images?.[0] ||
+                                                                                                                reportItem.photoUrl ||
+                                                                                                                ""
+                                                                                                            }
+                                                                                                            alt={`Foto ${checklistItem.name}`}
+                                                                                                            className="w-full h-full object-cover transition-transform hover:scale-105 cursor-pointer"
+                                                                                                        />
+                                                                                                    </div>
+                                                                                                ) : isDamaged ? (
+                                                                                                    <div className="inline-flex items-center gap-2 px-3 py-2 bg-destructive/10 text-destructive text-xs rounded-md border border-destructive/20">
+                                                                                                        <ImageIcon className="h-3 w-3" />
+                                                                                                        <span>
+                                                                                                            Foto
+                                                                                                            wajib
+                                                                                                            dilampirkan
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                ) : null}
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            },
+                                                                        )}
+                                                                    </div>
+                                                                </CollapsibleContent>
+                                                            </Collapsible>
+                                                        );
+                                                    },
+                                                )}
+                                            </CardContent>
+                                        </Card>
+                                    </div>
                                 )}
                             </TabsContent>
 
@@ -725,7 +837,7 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                                             {/* Timeline Dot */}
                                                             <div
                                                                 className={cn(
-                                                                    "absolute -left-[5px] top-1 h-2.5 w-2.5 rounded-full border-2 bg-background transition-colors",
+                                                                    "absolute -left-1.25 top-1 h-2.5 w-2.5 rounded-full border-2 bg-background transition-colors",
                                                                     isApproved
                                                                         ? "border-green-500 bg-green-50"
                                                                         : isRejected

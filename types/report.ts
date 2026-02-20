@@ -10,7 +10,8 @@ export interface ReportItemJson {
     condition: "BAIK" | "RUSAK" | "TIDAK_ADA" | null;
     preventiveCondition: "OK" | "NOT_OK" | null;
     handler: "BMS" | "REKANAN" | null;
-    photoUrl: string | null;
+    photoUrl?: string | null; // Deprecated, use images
+    images?: string[]; // New standard for multiple images
 }
 
 export interface MaterialEstimationJson {

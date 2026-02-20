@@ -126,6 +126,7 @@ export type SerializedDraft = {
         preventiveCondition: string | null;
         handler: string | null;
         photoUrl: string | null;
+        images?: string[];
     }[];
 };
 

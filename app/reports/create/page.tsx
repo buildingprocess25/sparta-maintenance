@@ -38,7 +38,8 @@ export default async function CreateReportPage() {
                   condition: item.condition,
                   preventiveCondition: item.preventiveCondition,
                   handler: item.handler,
-                  photoUrl: item.photoUrl,
+                  photoUrl: item.photoUrl ?? null,
+                  images: item.images ?? [],
               })),
           }
         : null;

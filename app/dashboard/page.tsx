@@ -19,7 +19,7 @@ import {
     FileClock,
 } from "lucide-react";
 import Link from "next/link";
-import { requireAuth, getUserStats } from "@/lib/auth-helper";
+import { requireAuth, getUserStats } from "@/lib/authorization";
 import { LogoutButton } from "./logout-button";
 import type { UserRole } from "@prisma/client";
 

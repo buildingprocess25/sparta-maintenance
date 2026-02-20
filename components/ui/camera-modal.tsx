@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { X, Image as ImageIcon, RotateCcw, SwitchCamera } from "lucide-react";
+import { X, Image as ImageIcon, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 

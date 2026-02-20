@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Card, CardContent } from "@/components/ui/card";
+
 import {
     Table,
     TableBody,
@@ -34,7 +34,6 @@ import {
     Search,
     Plus,
     MapPin,
-    Calendar,
     Filter,
     FileText,
     Clock,
@@ -56,6 +55,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
+import { ReportsListMobile } from "./reports-list-mobile";
 
 // Type for report data from server
 export type ReportData = {
@@ -217,43 +217,6 @@ export default function ReportsList({
         }
     };
 
-    const getMobileActionButton = (report: ReportData) => {
-        switch (report.status) {
-            case "PENDING_APPROVAL":
-            case "APPROVED":
-                return (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        asChild
-                    >
-                        <Link href={`/reports/${report.reportNumber}`}>
-                            <Eye className="h-3.5 w-3.5" />
-                            Lihat Detail
-                        </Link>
-                    </Button>
-                );
-            case "DRAFT":
-            case "REJECTED":
-                return (
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-xs"
-                        asChild
-                    >
-                        <Link href={`/reports/edit/${report.id}`}>
-                            <Pencil className="h-3.5 w-3.5" />
-                            Edit Laporan
-                        </Link>
-                    </Button>
-                );
-            default:
-                return null;
-        }
-    };
-
     const formatDate = (date: Date) => {
         return new Date(date).toLocaleDateString("id-ID", {
             year: "numeric",
@@ -328,59 +291,13 @@ export default function ReportsList({
                 {reports.length > 0 ? (
                     <>
                         {/* --- MOBILE VIEW: CARD LIST --- */}
-                        <div className="space-y-3 md:hidden relative">
+                        <div className="relative md:hidden">
                             {isPending && (
-                                <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+                                <div className="absolute inset-0 bg-background z-50 flex items-center justify-center rounded-lg">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
                             )}
-                            {reports.map((report) => (
-                                <Card key={report.id} className="shadow-sm">
-                                    <CardContent>
-                                        <div className="flex justify-between items-start mb-3">
-                                            <div>
-                                                <h3 className="font-semibold text-sm line-clamp-1">
-                                                    {report.storeName || "—"}
-                                                </h3>
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1 font-mono">
-                                                    {report.reportNumber}
-                                                </p>
-                                            </div>
-                                            {getStatusBadge(report.status)}
-                                        </div>
-
-                                        <div className="grid gap-1 text-sm text-muted-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                                                <span className="truncate">
-                                                    {report.branchName}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Calendar className="h-3.5 w-3.5 shrink-0" />
-                                                <span>
-                                                    {formatDate(
-                                                        report.createdAt,
-                                                    )}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <Clock className="h-3.5 w-3.5 shrink-0" />
-                                                <span>
-                                                    {formatCurrency(
-                                                        report.totalEstimation,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Mobile Action Button */}
-                                        <div className="mt-3 pt-3 border-t flex justify-end">
-                                            {getMobileActionButton(report)}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
+                            <ReportsListMobile reports={reports} />
                         </div>
 
                         {/* --- DESKTOP VIEW: DATA TABLE --- */}

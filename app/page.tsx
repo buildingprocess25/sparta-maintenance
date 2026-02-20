@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
-import { BookOpen, LogIn, CheckCircle } from "lucide-react";
+import { BookOpen, LogIn } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";

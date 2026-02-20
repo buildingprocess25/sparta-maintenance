@@ -11,7 +11,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut } from "lucide-react";
 
 // Halaman publik yang tidak perlu cek sesi
 const PUBLIC_PATHS = ["/", "/login", "/user-manual"];
