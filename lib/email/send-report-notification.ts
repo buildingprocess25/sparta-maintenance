@@ -9,13 +9,10 @@ import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 export async function sendReportNotification(reportId: string): Promise<void> {
     const report = await prisma.report.findUnique({
-        where: { id: reportId },
+        where: { reportNumber: reportId },
         include: {
             createdBy: {
                 select: { name: true, email: true },
-            },
-            store: {
-                select: { name: true, code: true },
             },
         },
     });
@@ -71,8 +68,8 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     // Generate PDF
     const pdfBuffer = await generateReportPdf({
         reportNumber: report.reportNumber,
-        storeName: report.store ? report.store.name : report.storeName,
-        storeCode: report.store ? report.store.code : "-",
+        storeName: report.storeName,
+        storeCode: report.storeCode || "-",
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
         submittedAt,
@@ -90,7 +87,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     const html = buildReportSubmittedHtml({
         reportNumber: report.reportNumber,
         storeName: report.storeName,
-        storeCode: report.store ? report.store.code : "-",
+        storeCode: report.storeCode || "-",
         branchName: report.branchName,
         submittedBy: report.createdBy.name,
         submittedAt,

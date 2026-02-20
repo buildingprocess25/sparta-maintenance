@@ -36,7 +36,6 @@ import Link from "next/link";
 
 // Same type as ReportData in reports-list
 type ReportData = {
-    id: string;
     reportNumber: string;
     storeName: string;
     branchName: string;
@@ -111,7 +110,10 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                         {/* --- MOBILE VIEW: CARD LIST --- */}
                         <div className="space-y-3 md:hidden">
                             {filteredReports.map((report) => (
-                                <Card key={report.id} className="shadow-sm">
+                                <Card
+                                    key={report.reportNumber}
+                                    className="shadow-sm"
+                                >
                                     <CardContent>
                                         <div className="flex justify-between items-start mb-3">
                                             <div>
@@ -206,7 +208,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                 <TableBody>
                                     {filteredReports.map((report) => (
                                         <TableRow
-                                            key={report.id}
+                                            key={report.reportNumber}
                                             className="group"
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
@@ -249,7 +251,7 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                                     asChild
                                                 >
                                                     <Link
-                                                        href={`/reports/${report.id}`}
+                                                        href={`/reports/${report.reportNumber}`}
                                                     >
                                                         <Eye className="h-4 w-4" />
                                                         <span className="sr-only">

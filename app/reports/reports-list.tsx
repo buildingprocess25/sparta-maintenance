@@ -59,7 +59,6 @@ import { ReportsListMobile } from "./reports-list-mobile";
 
 // Type for report data from server
 export type ReportData = {
-    id: string;
     reportNumber: string;
     storeName: string;
     branchName: string;
@@ -206,7 +205,7 @@ export default function ReportsList({
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         asChild
                     >
-                        <Link href={`/reports/edit/${report.id}`}>
+                        <Link href={`/reports/edit/${report.reportNumber}`}>
                             <Pencil className="h-4 w-4" />
                             <span className="sr-only">Edit Laporan</span>
                         </Link>
@@ -334,7 +333,7 @@ export default function ReportsList({
                                 <TableBody>
                                     {reports.map((report) => (
                                         <TableRow
-                                            key={report.id}
+                                            key={report.reportNumber}
                                             className="group"
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">

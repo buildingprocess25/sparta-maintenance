@@ -12,6 +12,7 @@ export interface ReportItemJson {
     handler: "BMS" | "REKANAN" | null;
     photoUrl?: string | null; // Deprecated, use images
     images?: string[]; // New standard for multiple images
+    notes?: string | null;
 }
 
 export interface MaterialEstimationJson {

@@ -73,7 +73,7 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
 
     const getActionUrl = (report: ReportData) => {
         if (report.status === "DRAFT" || report.status === "REJECTED") {
-            return `/reports/edit/${report.id}`;
+            return `/reports/edit/${report.reportNumber}`;
         }
         return `/reports/${report.reportNumber}`;
     };
@@ -81,7 +81,10 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
     return (
         <div className="space-y-3 md:hidden">
             {reports.map((report) => (
-                <Card key={report.id} className="shadow-sm overflow-hidden">
+                <Card
+                    key={report.reportNumber}
+                    className="shadow-sm overflow-hidden"
+                >
                     <CardContent>
                         {/* Header: Report # & Status */}
                         <div className="flex justify-between items-start mb-2">

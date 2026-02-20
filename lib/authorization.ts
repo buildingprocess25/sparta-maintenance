@@ -7,7 +7,7 @@ import { isConnectionError } from "./db-error";
 export type UserRole = "BMS" | "BMC" | "ADMIN";
 
 export type AuthUser = {
-    id: string;
+    NIK: string;
     email: string;
     name: string;
     role: UserRole;
@@ -36,9 +36,9 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 
     try {
         const user = await prisma.user.findUnique({
-            where: { id: session.userId },
+            where: { NIK: session.userId },
             select: {
-                id: true,
+                NIK: true,
                 email: true,
                 name: true,
                 role: true,
@@ -99,7 +99,7 @@ export async function requireOwnership(
         return user;
     }
 
-    if (user.id !== resourceUserId) {
+    if (user.NIK !== resourceUserId) {
         throw new AuthorizationError(
             errorMessage ||
                 "Anda hanya bisa mengakses resource milik Anda sendiri",
@@ -193,14 +193,13 @@ export async function getCurrentUser() {
 
     try {
         const user = await prisma.user.findUnique({
-            where: { id: session.userId },
+            where: { NIK: session.userId },
             select: {
-                id: true,
+                NIK: true,
                 email: true,
                 name: true,
                 role: true,
                 branchName: true,
-                createdAt: true,
             },
         });
 
@@ -225,23 +224,23 @@ export async function getUserStats(userId: string) {
         const [totalReports, pendingReports, approvedReports, rejectedReports] =
             await Promise.all([
                 prisma.report.count({
-                    where: { createdById: userId },
+                    where: { createdByNIK: userId },
                 }),
                 prisma.report.count({
                     where: {
-                        createdById: userId,
+                        createdByNIK: userId,
                         status: "PENDING_APPROVAL",
                     },
                 }),
                 prisma.report.count({
                     where: {
-                        createdById: userId,
+                        createdByNIK: userId,
                         status: "APPROVED",
                     },
                 }),
                 prisma.report.count({
                     where: {
-                        createdById: userId,
+                        createdByNIK: userId,
                         status: "REJECTED",
                     },
                 }),

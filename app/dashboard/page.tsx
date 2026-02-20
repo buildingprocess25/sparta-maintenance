@@ -25,7 +25,7 @@ import type { UserRole } from "@prisma/client";
 
 export default async function DashboardPage() {
     const user = await requireAuth();
-    const stats = await getUserStats(user.id);
+    const stats = await getUserStats(user.NIK);
 
     const getMenuByRole = (role: UserRole) => {
         switch (role) {

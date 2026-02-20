@@ -52,12 +52,14 @@ const stores = [
 
 const users = [
     {
+        NIK: "12345",
         email: "bms@admin.com",
         name: "BMS User",
         role: "BMS" as const,
         branchName: "HEAD OFFICE",
     },
     {
+        NIK: "67890",
         email: "bmc@admin.com",
         name: "BMC User",
         role: "BMC" as const,
@@ -150,14 +152,14 @@ async function seed() {
 
     console.log(`\n🌱 Seeding stores...`);
 
-    const seededStores: { id: string; code: string }[] = [];
+    const seededStores: { code: string }[] = [];
     for (const store of stores) {
         const s = await prisma.store.upsert({
             where: { code: store.code },
             update: store,
             create: store,
         });
-        seededStores.push({ id: s.id, code: s.code });
+        seededStores.push({ code: s.code });
         console.log(`   ✅ ${store.code} — ${store.name}`);
     }
 
@@ -187,35 +189,35 @@ async function seed() {
     const reportSeeds = [
         {
             reportNumber: `${extractCode(seededStores[0].code)}-${yy}${mm}-001`,
-            storeId: seededStores[0].id,
+            storeCode: seededStores[0].code,
             storeName: stores[0].name,
             status: "PENDING_APPROVAL" as const,
             totalEstimation: 2755000,
         },
         {
             reportNumber: `${extractCode(seededStores[1].code)}-${yy}${mm}-002`,
-            storeId: seededStores[1].id,
+            storeCode: seededStores[1].code,
             storeName: stores[1].name,
             status: "APPROVED" as const,
             totalEstimation: 1200000,
         },
         {
             reportNumber: `${extractCode(seededStores[2].code)}-${yy}${mm}-003`,
-            storeId: seededStores[2].id,
+            storeCode: seededStores[2].code,
             storeName: stores[2].name,
             status: "REJECTED" as const,
             totalEstimation: 500000,
         },
         {
             reportNumber: `${extractCode(seededStores[3].code)}-${yy}${mm}-004`,
-            storeId: seededStores[3].id,
+            storeCode: seededStores[3].code,
             storeName: stores[3].name,
             status: "DRAFT" as const,
             totalEstimation: 0,
         },
         {
             reportNumber: `${extractCode(seededStores[4].code)}-${yy}${mm}-005`,
-            storeId: seededStores[4].id,
+            storeCode: seededStores[4].code,
             storeName: stores[4].name,
             status: "COMPLETED" as const,
             totalEstimation: 3000000,
@@ -228,12 +230,12 @@ async function seed() {
             update: {},
             create: {
                 reportNumber: r.reportNumber,
-                storeId: r.storeId,
+                storeCode: r.storeCode,
                 storeName: r.storeName,
                 branchName: "HEAD OFFICE",
                 status: r.status,
                 totalEstimation: r.totalEstimation,
-                createdById: bmsUser.id,
+                createdByNIK: bmsUser.NIK,
                 items: mockItems,
                 estimations: r.status === "DRAFT" ? [] : mockEstimations,
             },

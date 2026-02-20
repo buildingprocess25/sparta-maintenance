@@ -36,7 +36,7 @@ export default function RootLayout({
             >
                 <SessionInterceptor>{children}</SessionInterceptor>
                 <SessionExpiryAlert />
-                <Toaster />
+                <Toaster position="top-center" />
             </body>
         </html>
     );

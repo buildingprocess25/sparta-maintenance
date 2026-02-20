@@ -56,7 +56,6 @@ type LogEntry = {
 
 type ReportDetailProps = {
     report: {
-        id: string;
         reportNumber: string;
         storeName: string;
         branchName: string;

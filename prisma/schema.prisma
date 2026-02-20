@@ -48,7 +48,7 @@ enum HandlerType {
 // =========================================
 
 model User {
-  id            String        @id @default(uuid())
+  NIK           String        @id
   email         String        @unique
   name          String
   role          UserRole      @default(BMS)
@@ -56,41 +56,31 @@ model User {
   
   reports       Report[]      @relation("CreatedReports")
   approvals     ApprovalLog[] 
-  
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
 }
 
 model Store {
-  id         String   @id @default(uuid())
-  code       String   @unique       // Kode toko (4 karakter random alphanumeric)
+  code       String   @id @unique // Kode toko (4 karakter random alphanumeric)
   name       String                 // "Alfamart Cikokol Raya"
-  address    String
   branchName String                 // Nama cabang (link ke User.branchName)
   
   reports    Report[]
   
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
   @@index([branchName])
 }
 
 model Report {
-  id            String        @id @default(uuid())
-  
-  reportNumber  String        @unique 
+  reportNumber  String        @id @unique 
   branchName    String        
   storeName     String        @default("")
   
-  storeId       String?       
-  store         Store?        @relation(fields: [storeId], references: [id])
+  storeCode     String?       
+  store         Store?        @relation(fields: [storeCode], references: [code])
   
   status        ReportStatus  @default(DRAFT)
   totalEstimation Decimal     @default(0) @db.Decimal(15, 2)
   
-  createdById   String
-  createdBy     User          @relation("CreatedReports", fields: [createdById], references: [id])
+  createdByNIK  String
+  createdBy     User          @relation("CreatedReports", fields: [createdByNIK], references: [NIK])
   
   // JSONB columns — replaces ReportItem[] and MaterialEstimation[]
   items         Json          @default("[]")
@@ -101,23 +91,23 @@ model Report {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  @@index([createdById])
+  @@index([createdByNIK])
   @@index([status])
-  @@index([storeId])
-  @@index([createdById, status])
-  @@index([storeId, status])
+  @@index([storeCode])
+  @@index([createdByNIK, status])
+  @@index([storeCode, status])
 }
 
 model ApprovalLog {
   id            String    @id @default(uuid())
-  reportId      String
-  approverId    String    
+  reportNumber  String
+  approverNIK   String    
   
   status        ReportStatus 
   notes         String?      
   
-  report        Report    @relation(fields: [reportId], references: [id])
-  approver      User      @relation(fields: [approverId], references: [id])
+  report        Report    @relation(fields: [reportNumber], references: [reportNumber])
+  approver      User      @relation(fields: [approverNIK], references: [NIK])
   
   createdAt     DateTime  @default(now())
 }

@@ -5,7 +5,7 @@ export default async function EditReportPage({
 }: {
     params: Promise<{ id: string }>;
 }) {
-    const { id } = await params;
+    await params;
 
     // TODO: Implement edit report page
     // For now, redirect to reports list

@@ -6,7 +6,9 @@ export interface ChecklistItem {
     name: string;
     condition: ChecklistCondition;
     photo?: File;
+    photoUrl?: string;
     handler?: "BMS" | "Rekanan" | "";
+    notes?: string;
 }
 
 export interface ChecklistCategory {
@@ -202,4 +204,28 @@ export const checklistCategories: ChecklistCategory[] = [
             },
         ],
     },
+];
+
+export const unitOptions = [
+    "Meter",
+    "m²",
+    "m³",
+    "Pcs",
+    "Buah",
+    "Unit",
+    "Lembar",
+    "Karung",
+    "Zak",
+    "Kg",
+    "Ton",
+    "Kaleng",
+    "Pail",
+    "Roll",
+    "Btg",
+    "Ls",
+    "Set",
+    "Box",
+    "Ltr",
+    "Tube",
+    "Batang",
 ];

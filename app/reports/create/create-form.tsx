@@ -3,6 +3,8 @@
 import { Fragment, useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import imageCompression from "browser-image-compression";
+import { supabase } from "@/lib/supabase";
 import { DraftDialog } from "./draft-dialog";
 import {
     saveDraft,
@@ -40,6 +42,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import {
     Table,
     TableBody,
@@ -63,6 +66,7 @@ import {
 } from "lucide-react";
 import {
     checklistCategories,
+    unitOptions,
     type ChecklistItem,
     type ChecklistCondition,
     type ChecklistCategory,
@@ -104,17 +108,14 @@ type BmsItemGroup = {
 };
 
 export type StoreOption = {
-    id: string;
     code: string;
     name: string;
-    address: string;
 };
 
 export type SerializedDraft = {
-    id: string;
     reportNumber: string;
     storeName: string;
-    storeId: string;
+    storeCode: string;
     branchName: string;
     totalEstimation: number;
     updatedAt: string;
@@ -127,6 +128,7 @@ export type SerializedDraft = {
         handler: string | null;
         photoUrl: string | null;
         images?: string[];
+        notes?: string | null;
     }[];
 };
 
@@ -134,6 +136,37 @@ interface CreateReportFormProps {
     stores: StoreOption[];
     userBranchName: string;
     existingDraft?: SerializedDraft | null;
+}
+
+/**
+ * Textarea dengan local state supaya setiap karakter tidak memicu
+ * update ke global checklist Map (dan re-render semua item).
+ * Sync ke parent hanya saat focus keluar (onBlur).
+ */
+function LocalNotesTextarea({
+    initialValue,
+    onCommit,
+}: {
+    initialValue: string;
+    onCommit: (value: string) => void;
+}) {
+    const [localValue, setLocalValue] = useState(initialValue);
+
+    // Kalau initialValue berubah dari luar (misal draft restore), ikuti
+    useEffect(() => {
+        setLocalValue(initialValue);
+    }, [initialValue]);
+
+    return (
+        <Textarea
+            placeholder="Tambahkan catatan..."
+            value={localValue}
+            onChange={(e) => setLocalValue(e.target.value)}
+            onBlur={() => onCommit(localValue)}
+            className="resize-none"
+            rows={2}
+        />
+    );
 }
 
 export default function CreateReportForm({
@@ -146,25 +179,25 @@ export default function CreateReportForm({
     const [openCategories, setOpenCategories] = useState<Set<string>>(
         new Set(),
     );
-    const [selectedStoreId, setSelectedStoreId] = useState("");
+    const [selectedStoreCode, setSelectedStoreCode] = useState("");
     const [store, setStore] = useState("");
-    const [address, setAddress] = useState("");
+    const [draftReportId, setDraftReportId] = useState<string | null>(
+        existingDraft?.reportNumber || null,
+    );
 
     // Handler untuk memilih toko dari dropdown
-    const handleStoreChange = async (storeId: string) => {
-        const selectedStore = stores.find((s) => s.id === storeId);
+    const handleStoreChange = async (storeCode: string) => {
+        const selectedStore = stores.find((s) => s.code === storeCode);
         if (selectedStore) {
-            setSelectedStoreId(selectedStore.id);
+            setSelectedStoreCode(selectedStore.code);
             setStore(selectedStore.name);
-            setAddress(selectedStore.address);
 
             // Fetch Category I cooldown for this store
             try {
-                const lastDate = await getLastCategoryIDate(selectedStore.id);
+                const lastDate = await getLastCategoryIDate(selectedStore.code);
                 if (lastDate) {
                     const cooldownMs = 3 * 30 * 24 * 60 * 60 * 1000;
                     const lastTime = new Date(lastDate).getTime();
-                    // eslint-disable-next-line react-hooks/purity
                     const now = Date.now();
                     const cooling = now - lastTime < cooldownMs;
                     setIsCategoryICoolingDown(cooling);
@@ -218,26 +251,54 @@ export default function CreateReportForm({
     });
 
     // DRAFT: Lanjutkan draft
-    const handleContinueDraft = useCallback(() => {
+    const handleContinueDraft = useCallback(async () => {
         if (!existingDraft) return;
         // Restore store
-        if (existingDraft.storeId) {
-            const s = stores.find((st) => st.id === existingDraft.storeId);
+        if (existingDraft.storeCode) {
+            const s = stores.find((st) => st.code === existingDraft.storeCode);
             if (s) {
-                setSelectedStoreId(s.id);
+                setSelectedStoreCode(s.code);
                 setStore(s.name);
-                setAddress(s.address);
             }
         }
         // Restore checklist items
         const restored = new Map<string, ChecklistItem>();
         for (const item of existingDraft.items) {
+            let restoredFile: File | undefined = undefined;
+            if (
+                item.photoUrl &&
+                (item.photoUrl.startsWith("data:image") ||
+                    item.photoUrl.startsWith("http"))
+            ) {
+                try {
+                    const res = await fetch(item.photoUrl);
+                    const blob = await res.blob();
+                    restoredFile = new File([blob], `${item.itemName}.jpg`, {
+                        type: "image/jpeg",
+                    });
+                } catch (e) {
+                    console.error("Gagal restore file dari draft", e);
+                }
+            }
+
             restored.set(item.itemId, {
                 id: item.itemId,
                 name: item.itemName,
                 condition:
-                    (item.condition?.toLowerCase() as ChecklistCondition) || "",
-                handler: (item.handler as "BMS" | "Rekanan" | "") || "",
+                    item.condition === "TIDAK_ADA"
+                        ? "tidak-ada"
+                        : ((item.condition?.toLowerCase() ||
+                              "") as ChecklistCondition),
+                handler:
+                    item.handler === "BMS"
+                        ? "BMS"
+                        : item.handler === "REKANAN" ||
+                            item.handler === "Rekanan"
+                          ? "Rekanan"
+                          : "",
+                photoUrl: item.photoUrl || undefined,
+                photo: restoredFile,
+                notes: item.notes || undefined,
             });
         }
         setChecklist(restored);
@@ -247,71 +308,76 @@ export default function CreateReportForm({
 
     const handleCreateNew = useCallback(async () => {
         if (existingDraft) {
-            await deleteDraft(existingDraft.id);
+            await deleteDraft(existingDraft.reportNumber);
         }
         setShowDraftDialog(false);
         toast.info("Draft dihapus, mulai laporan baru");
     }, [existingDraft]);
 
     // AUTO-SAVE dengan debounce (hanya save jika sudah 2 detik tidak ada perubahan)
-    // Debounce individual values untuk avoid type inference issues
-    const debouncedChecklistSize = useDebounce(checklist.size, 2000);
-    const debouncedStoreId = useDebounce(selectedStoreId, 2000);
+    const debouncedChecklist = useDebounce(checklist, 2000);
+    const debouncedStoreCode = useDebounce(selectedStoreCode, 2000);
 
     useEffect(() => {
         // Jangan auto-save jika belum ada perubahan
-        if (debouncedChecklistSize === 0 && !debouncedStoreId) return;
+        if (debouncedChecklist.size === 0 && !debouncedStoreCode) return;
         if (isSubmitting) return;
 
-        const checklistItems = Array.from(checklist.values()).map((item) => {
-            let categoryName = "";
-            for (const cat of activeCategories) {
-                if (cat.items.some((i) => i.id === item.id)) {
-                    categoryName = cat.title;
-                    break;
+        const checklistItems = Array.from(debouncedChecklist.values()).map(
+            (item) => {
+                let categoryName = "";
+                for (const cat of activeCategories) {
+                    if (cat.items.some((i) => i.id === item.id)) {
+                        categoryName = cat.title;
+                        break;
+                    }
                 }
-            }
-            return {
-                itemId: item.id,
-                itemName: item.name,
-                categoryName,
-                condition:
-                    item.condition === "baik"
-                        ? ("BAIK" as const)
-                        : item.condition === "rusak"
-                          ? ("RUSAK" as const)
-                          : item.condition === "tidak-ada"
-                            ? ("TIDAK_ADA" as const)
-                            : undefined,
-                handler:
-                    item.handler === "BMS"
-                        ? ("BMS" as const)
-                        : item.handler === "Rekanan"
-                          ? ("REKANAN" as const)
-                          : undefined,
-            };
-        });
+                return {
+                    itemId: item.id,
+                    itemName: item.name,
+                    categoryName,
+                    condition:
+                        item.condition === "baik"
+                            ? ("BAIK" as const)
+                            : item.condition === "rusak"
+                              ? ("RUSAK" as const)
+                              : item.condition === "tidak-ada"
+                                ? ("TIDAK_ADA" as const)
+                                : undefined,
+                    handler:
+                        item.handler === "BMS"
+                            ? ("BMS" as const)
+                            : item.handler === "Rekanan"
+                              ? ("REKANAN" as const)
+                              : undefined,
+                    photoUrl: item.photoUrl,
+                    notes: item.notes,
+                };
+            },
+        );
 
         // Async save
         (async () => {
-            await saveDraft({
-                storeId: selectedStoreId || undefined,
+            const res = await saveDraft({
+                storeCode: debouncedStoreCode || undefined,
                 storeName: store,
                 branchName: userBranchName,
                 checklistItems,
                 bmsEstimations: {},
                 totalEstimation: 0,
             });
+            if (res.reportId && res.reportId !== draftReportId) {
+                setDraftReportId(res.reportId);
+            }
         })();
     }, [
-        debouncedChecklistSize,
-        debouncedStoreId,
-        checklist,
-        selectedStoreId,
+        debouncedChecklist,
+        debouncedStoreCode,
         store,
         userBranchName,
         isSubmitting,
         activeCategories,
+        draftReportId,
     ]);
 
     const toggleCategory = (categoryId: string) => {
@@ -346,31 +412,153 @@ export default function CreateReportForm({
     };
 
     // Fungsi membuka modal kamera
-    const handleOpenCamera = (itemId: string) => {
+    const handleOpenCamera = async (itemId: string) => {
+        if (!selectedStoreCode) {
+            toast.error(
+                "Harap pilih toko terlebih dahulu sebelum mengambil foto",
+            );
+            return;
+        }
+
+        let currentDraftId = draftReportId;
+        if (!currentDraftId) {
+            const loadingToast = toast.loading("Mereservasi sesi laporan...");
+            try {
+                const res = await saveDraft({
+                    storeCode: selectedStoreCode,
+                    storeName: store,
+                    branchName: userBranchName,
+                    checklistItems: [],
+                    bmsEstimations: {},
+                    totalEstimation: 0,
+                });
+                if (res.reportId) {
+                    setDraftReportId(res.reportId);
+                    currentDraftId = res.reportId;
+                    toast.dismiss(loadingToast);
+                } else {
+                    toast.error("Gagal membuat sesi laporan, coba lagi", {
+                        id: loadingToast,
+                    });
+                    return;
+                }
+            } catch {
+                toast.error("Gagal membuat sesi laporan", { id: loadingToast });
+                return;
+            }
+        }
+
         setActivePhotoItemId(itemId);
         setIsCameraOpen(true);
     };
 
     // Callback saat foto diambil dari modal
-    const handlePhotoCaptured = (file: File) => {
-        if (activePhotoItemId) {
-            // Cari nama item berdasarkan ID (opsional, hanya untuk state update)
-            let itemName = "";
-            for (const cat of checklistCategories) {
-                const found = cat.items.find((i) => i.id === activePhotoItemId);
-                if (found) {
-                    itemName = found.name;
-                    break;
-                }
-            }
-            updateChecklistItem(activePhotoItemId, itemName, "photo", file);
-            toast.success("Foto berhasil diupload");
+    const handlePhotoCaptured = async (file: File) => {
+        if (!activePhotoItemId || !draftReportId || !selectedStoreCode) {
+            toast.error("Sesi tidak valid untuk unggah foto");
+            return;
         }
+
+        let itemName = "";
+        for (const cat of checklistCategories) {
+            const found = cat.items.find((i) => i.id === activePhotoItemId);
+            if (found) {
+                itemName = found.name;
+                break;
+            }
+        }
+
+        const uploadingToastId = toast.loading("Mengunggah foto...");
+
+        try {
+            // Kompresi image sebelum upload
+            const compressedFile = await imageCompression(file, {
+                maxSizeMB: 0.1,
+                maxWidthOrHeight: 1280,
+                useWebWorker: true,
+            });
+
+            const fileExt = file.name.split(".").pop() || "jpg";
+            // Sanitize item name for URL/File system safety
+            const safeItemName = itemName
+                .replace(/[^a-zA-Z0-9]/g, "_")
+                .toLowerCase();
+            const filePath = `${userBranchName}/${selectedStoreCode}/${draftReportId}/${activePhotoItemId}_${safeItemName}.${fileExt}`;
+
+            const { data: uploadData, error: uploadError } =
+                await supabase.storage
+                    .from("reports")
+                    .upload(filePath, compressedFile, {
+                        upsert: true,
+                    });
+
+            if (uploadError) throw uploadError;
+
+            const {
+                data: { publicUrl },
+            } = supabase.storage.from("reports").getPublicUrl(uploadData.path);
+
+            setChecklist((prev) => {
+                const next = new Map(prev);
+                const existing = next.get(activePhotoItemId!) || {
+                    id: activePhotoItemId!,
+                    name: itemName,
+                    condition: "" as ChecklistCondition,
+                    handler: "",
+                };
+                next.set(activePhotoItemId!, {
+                    ...existing,
+                    photo: compressedFile, // Tahan File untuk context preview di memori
+                    photoUrl: publicUrl, // URL Supabase langsung yang akan tersimpan di draft JSON
+                });
+                return next;
+            });
+            toast.success("Foto berhasil diunggah", { id: uploadingToastId });
+        } catch (error) {
+            console.error("Upload error:", error);
+            toast.error("Gagal unggah foto ke server", {
+                id: uploadingToastId,
+            });
+        }
+
         setActivePhotoItemId(null);
     };
 
-    const removePhoto = (itemId: string, itemName: string) => {
-        updateChecklistItem(itemId, itemName, "photo", undefined);
+    const removePhoto = async (itemId: string) => {
+        const item = checklist.get(itemId);
+        if (!item) return;
+
+        const photoUrl = item.photoUrl;
+
+        // Kosongkan dari UI segera (optimistic UI)
+        setChecklist((prev) => {
+            const next = new Map(prev);
+            const existing = next.get(itemId);
+            if (existing) {
+                next.set(itemId, {
+                    ...existing,
+                    photo: undefined,
+                    photoUrl: undefined,
+                });
+            }
+            return next;
+        });
+
+        // Hapus dari Supabase Storage jika URL-nya adalah Supabase URL
+        if (photoUrl && photoUrl.includes("supabase.co")) {
+            try {
+                const urlObj = new URL(photoUrl);
+                // Ekstrak path setelah "/reports/"
+                const pathParts = urlObj.pathname.split("/reports/")[1];
+                if (pathParts) {
+                    await supabase.storage
+                        .from("reports")
+                        .remove([decodeURIComponent(pathParts)]);
+                }
+            } catch (e) {
+                console.error("Gagal menghapus foto dari storage", e);
+            }
+        }
     };
 
     // Fungsi untuk preview foto
@@ -391,9 +579,8 @@ export default function CreateReportForm({
         // Fill store info - random store
         const randomStore = stores[Math.floor(Math.random() * stores.length)];
         if (!randomStore) return;
-        setSelectedStoreId(randomStore.id);
+        setSelectedStoreCode(randomStore.code);
         setStore(randomStore.name);
-        setAddress(randomStore.address);
 
         // Open all categories
         const allCategoryIds = checklistCategories.map((cat) => cat.id);
@@ -469,7 +656,7 @@ export default function CreateReportForm({
                                             resolve(
                                                 new File(
                                                     [blob],
-                                                    `foto_${item.id}.jpg`,
+                                                    `foto_${item.name}.jpg`,
                                                     { type: "image/jpeg" },
                                                 ),
                                             );
@@ -654,10 +841,6 @@ export default function CreateReportForm({
     const validateStep1 = (): boolean => {
         if (!store.trim()) {
             toast.error("Toko wajib diisi");
-            return false;
-        }
-        if (!address.trim() || address.length < 5) {
-            toast.error("Alamat minimal 5 karakter");
             return false;
         }
 
@@ -905,7 +1088,8 @@ export default function CreateReportForm({
                             : item.handler === "Rekanan"
                               ? ("REKANAN" as const)
                               : undefined,
-                    // photoUrl will be handled after file upload is implemented
+                    photoUrl: item.photoUrl,
+                    notes: item.notes,
                 };
             });
 
@@ -924,7 +1108,7 @@ export default function CreateReportForm({
         }
 
         return {
-            storeId: selectedStoreId || undefined,
+            storeCode: selectedStoreCode || undefined,
             storeName: store,
             branchName: userBranchName,
             checklistItems,
@@ -934,7 +1118,7 @@ export default function CreateReportForm({
     }, [
         checklist,
         bmsItems,
-        selectedStoreId,
+        selectedStoreCode,
         store,
         userBranchName,
         activeCategories,
@@ -949,7 +1133,32 @@ export default function CreateReportForm({
 
         try {
             const draftData = buildDraftData();
-            const result = await submitReport(draftData);
+
+            // 1. Get or Generate reportNumber by saving draft first
+            const saveResult = await saveDraft(draftData);
+            if (saveResult.error) {
+                throw new Error(saveResult.error);
+            }
+            const reportNumber = saveResult.reportId;
+            if (!reportNumber) throw new Error("Gagal memperoleh ID Laporan");
+
+            // Karena foto sekarang sudah langsung di-\"upload\" pada saat onClick \"Ambil Foto\",
+            // kita tidak perlu lagi convert Base64 ke Blob di handleSubmit.
+            // Draft data sudah memegang `photoUrl` berisi URL Supabase.
+            const updatedChecklistItems = [...draftData.checklistItems];
+            for (const item of updatedChecklistItems) {
+                const checkedItem = checklist.get(item.itemId);
+                if (checkedItem && checkedItem.photoUrl) {
+                    item.photoUrl = checkedItem.photoUrl;
+                }
+            }
+
+            const finalDraftData = {
+                ...draftData,
+                checklistItems: updatedChecklistItems,
+            };
+
+            const result = await submitReport(finalDraftData);
 
             if (result.error) {
                 toast.error(result.error);
@@ -959,10 +1168,12 @@ export default function CreateReportForm({
 
             toast.success("Laporan berhasil dibuat!");
             router.push("/reports");
-        } catch {
+        } catch (err) {
+            const error = err as Error;
             setIsSubmitting(false);
             toast.error("Gagal membuat laporan", {
                 description:
+                    error.message ||
                     "Terjadi kesalahan saat membuat laporan. Silakan coba lagi.",
             });
         }
@@ -1110,7 +1321,7 @@ export default function CreateReportForm({
                                                 onValueChange={
                                                     handleStoreChange
                                                 }
-                                                value={selectedStoreId}
+                                                value={selectedStoreCode}
                                             >
                                                 <SelectTrigger className="mt-2 w-full">
                                                     <SelectValue placeholder="Pilih toko..." />
@@ -1118,27 +1329,14 @@ export default function CreateReportForm({
                                                 <SelectContent>
                                                     {stores.map((s) => (
                                                         <SelectItem
-                                                            key={s.id}
-                                                            value={s.id}
+                                                            key={s.code}
+                                                            value={s.code}
                                                         >
                                                             {s.name}
                                                         </SelectItem>
                                                     ))}
                                                 </SelectContent>
                                             </Select>
-                                        </div>
-                                        <div>
-                                            <Label htmlFor="address">
-                                                Alamat{" "}
-                                            </Label>
-                                            <div className="mt-2 p-3 bg-muted rounded-md border text-sm">
-                                                {address || (
-                                                    <span className="text-muted-foreground">
-                                                        Pilih toko untuk melihat
-                                                        alamat
-                                                    </span>
-                                                )}
-                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -1147,7 +1345,7 @@ export default function CreateReportForm({
 
                         {/* Kolom Kanan: Checklist */}
                         <div className="md:col-span-8 md:order-2">
-                            {!selectedStoreId ? (
+                            {!selectedStoreCode ? (
                                 <Card className="h-full flex flex-col items-center justify-center p-8 border-dashed bg-muted/30">
                                     <Store className="h-12 w-12 text-muted-foreground" />
                                     <h3 className="text-lg font-medium text-muted-foreground">
@@ -1372,6 +1570,31 @@ export default function CreateReportForm({
                                                                                 </RadioGroup>
                                                                             )}
 
+                                                                            {condition && (
+                                                                                <div className="space-y-2 pt-2 border-t animate-in slide-in-from-top-2">
+                                                                                    <Label className="text-sm text-muted-foreground">
+                                                                                        Catatan
+                                                                                        (Opsional)
+                                                                                    </Label>
+                                                                                    <LocalNotesTextarea
+                                                                                        initialValue={
+                                                                                            itemData?.notes ||
+                                                                                            ""
+                                                                                        }
+                                                                                        onCommit={(
+                                                                                            val,
+                                                                                        ) =>
+                                                                                            updateChecklistItem(
+                                                                                                item.id,
+                                                                                                item.name,
+                                                                                                "notes",
+                                                                                                val,
+                                                                                            )
+                                                                                        }
+                                                                                    />
+                                                                                </div>
+                                                                            )}
+
                                                                             {condition ===
                                                                                 "baik" && (
                                                                                 <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
@@ -1457,7 +1680,6 @@ export default function CreateReportForm({
                                                                                                         onClick={() =>
                                                                                                             removePhoto(
                                                                                                                 item.id,
-                                                                                                                item.name,
                                                                                                             )
                                                                                                         }
                                                                                                     >
@@ -1555,7 +1777,6 @@ export default function CreateReportForm({
                                                                                                         onClick={() =>
                                                                                                             removePhoto(
                                                                                                                 item.id,
-                                                                                                                item.name,
                                                                                                             )
                                                                                                         }
                                                                                                     >
@@ -1687,14 +1908,6 @@ export default function CreateReportForm({
                                             </span>{" "}
                                             <span className="font-medium">
                                                 {store}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">
-                                                Alamat:
-                                            </span>{" "}
-                                            <span className="font-medium">
-                                                {address}
                                             </span>
                                         </div>
                                         <div>
@@ -1864,17 +2077,7 @@ export default function CreateReportForm({
                                                                                         </Button>
                                                                                     </DropdownMenuTrigger>
                                                                                     <DropdownMenuContent>
-                                                                                        {[
-                                                                                            "m1",
-                                                                                            "m2",
-                                                                                            "pcs",
-                                                                                            "unit",
-                                                                                            "lembar",
-                                                                                            "karung",
-                                                                                            "zak",
-                                                                                            "kg",
-                                                                                            "kaleng",
-                                                                                        ].map(
+                                                                                        {unitOptions.map(
                                                                                             (
                                                                                                 unitOption,
                                                                                             ) => (

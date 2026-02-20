@@ -61,7 +61,7 @@ export async function loginAction(
         }
 
         // 4. Buat Sesi Login
-        await createSession(user.id, user.role);
+        await createSession(user.NIK, user.role);
     } catch (error) {
         console.error("Login Error:", error);
         const message = getDbErrorMessage(error);

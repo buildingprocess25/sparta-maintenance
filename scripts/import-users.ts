@@ -25,28 +25,30 @@ async function main() {
         }
 
         const branchName = parts[0].trim();
-        // const nik = parts[1].trim(); // NIK column ignored
+        const nik = parts[1].trim(); // Extract NIK
         const name = parts[2].trim();
         let email = parts[3].trim();
 
         // Clean email (remove quotes and extra spaces)
         email = email.replace(/['"]+/g, "").trim();
 
-        if (!email) {
-            console.warn(`Skipping user ${name} - No Email`);
+        if (!email || !nik) {
+            console.warn(`Skipping user ${name} - Missing Email or NIK`);
             failCount++;
             continue;
         }
 
         try {
             await prisma.user.upsert({
-                where: { email: email },
+                where: { NIK: nik },
                 update: {
+                    email: email,
                     name: name,
                     branchName: branchName,
                     role: "BMS", // Default role
                 },
                 create: {
+                    NIK: nik,
                     email: email,
                     name: name,
                     branchName: branchName,

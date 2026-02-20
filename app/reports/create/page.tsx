@@ -18,10 +18,9 @@ export default async function CreateReportPage() {
 
     const serializedDraft = draft
         ? {
-              id: draft.id,
               reportNumber: draft.reportNumber,
               storeName: draft.storeName,
-              storeId: draft.storeId || "",
+              storeCode: draft.storeCode || "",
               branchName: draft.branchName,
               totalEstimation: Number(draft.totalEstimation),
               updatedAt: draft.updatedAt.toLocaleDateString("id-ID", {
@@ -40,6 +39,7 @@ export default async function CreateReportPage() {
                   handler: item.handler,
                   photoUrl: item.photoUrl ?? null,
                   images: item.images ?? [],
+                  notes: item.notes ?? null,
               })),
           }
         : null;

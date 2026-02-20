@@ -15,7 +15,7 @@ export default async function ReportDetailPage({ params }: Props) {
     const report = await prisma.report.findUnique({
         where: { reportNumber },
         include: {
-            createdBy: { select: { id: true, name: true } },
+            createdBy: { select: { NIK: true, name: true } },
             logs: {
                 orderBy: { createdAt: "asc" },
                 include: { approver: { select: { name: true } } },
@@ -26,15 +26,15 @@ export default async function ReportDetailPage({ params }: Props) {
     if (!report) notFound();
 
     // BMS can only view their own reports
-    if (report.createdById !== user.id) redirect("/reports");
+    if (report.createdByNIK !== user.NIK) redirect("/reports");
 
     const items = (report.items ?? []) as unknown as ReportItemJson[];
-    const estimations = (report.estimations ?? []) as unknown as MaterialEstimationJson[];
+    const estimations = (report.estimations ??
+        []) as unknown as MaterialEstimationJson[];
 
     return (
         <ReportDetailView
             report={{
-                id: report.id,
                 reportNumber: report.reportNumber,
                 storeName: report.storeName,
                 branchName: report.branchName,

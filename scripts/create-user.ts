@@ -28,6 +28,7 @@ async function createUser() {
         const name = getArg("name") || "Admin";
         const role = (getArg("role") || "ADMIN") as UserRole;
         const branchName = getArg("branch") || "Head Office";
+        const NIK = getArg("nik") || "ADMIN001";
 
         console.log("Creating user with branchName as password...");
 
@@ -52,6 +53,7 @@ async function createUser() {
         // Buat user baru (password akan divalidasi dengan branchName)
         const user = await prisma.user.create({
             data: {
+                NIK,
                 email,
                 name,
                 role,
@@ -61,6 +63,7 @@ async function createUser() {
 
         console.log("\n✅ User berhasil dibuat!");
         console.log("=".repeat(50));
+        console.log("🆔 NIK:", user.NIK);
         console.log("📧 Email:", user.email);
         console.log("👤 Nama:", user.name);
         console.log("🔑 Role:", user.role);

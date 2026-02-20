@@ -26,6 +26,7 @@ export type ChecklistItemData = {
     preventiveCondition?: "OK" | "NOT_OK";
     handler?: "BMS" | "REKANAN";
     photoUrl?: string;
+    notes?: string;
 };
 
 export type BmsEstimationData = {
@@ -37,7 +38,7 @@ export type BmsEstimationData = {
 };
 
 export type DraftData = {
-    storeId?: string;
+    storeCode?: string;
     storeName?: string;
     branchName?: string;
     checklistItems: ChecklistItemData[];
@@ -67,6 +68,7 @@ function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
             preventiveCondition: item.preventiveCondition || null,
             handler: item.handler || null,
             photoUrl: item.photoUrl || null,
+            notes: item.notes || null,
         })) as unknown as Prisma.InputJsonValue;
 }
 
@@ -109,10 +111,8 @@ export async function getStoresByBranch(branchName: string) {
         where: { branchName },
         orderBy: { name: "asc" },
         select: {
-            id: true,
             code: true,
             name: true,
-            address: true,
         },
     });
 
@@ -132,15 +132,14 @@ export async function getDraft() {
 
     const draft = await prisma.report.findFirst({
         where: {
-            createdById: user.id,
+            createdByNIK: user.NIK,
             status: "DRAFT",
         },
         include: {
             store: {
                 select: {
-                    id: true,
+                    code: true,
                     name: true,
-                    address: true,
                 },
             },
         },
@@ -168,7 +167,7 @@ export async function saveDraft(data: DraftData) {
         // Cari draft yang sudah ada
         const existingDraft = await prisma.report.findFirst({
             where: {
-                createdById: user.id,
+                createdByNIK: user.NIK,
                 status: "DRAFT",
             },
         });
@@ -176,9 +175,9 @@ export async function saveDraft(data: DraftData) {
         if (existingDraft) {
             // Update draft yang ada — langsung set JSON columns
             const updatedReport = await prisma.report.update({
-                where: { id: existingDraft.id },
+                where: { reportNumber: existingDraft.reportNumber },
                 data: {
-                    storeId: data.storeId || null,
+                    storeCode: data.storeCode || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
@@ -187,12 +186,12 @@ export async function saveDraft(data: DraftData) {
                 },
             });
 
-            return { reportId: updatedReport.id };
+            return { reportId: updatedReport.reportNumber };
         } else {
             // Buat draft baru
-            const store = data.storeId
+            const store = data.storeCode
                 ? await prisma.store.findUnique({
-                      where: { id: data.storeId },
+                      where: { code: data.storeCode },
                       select: { code: true },
                   })
                 : null;
@@ -201,18 +200,18 @@ export async function saveDraft(data: DraftData) {
             const newReport = await prisma.report.create({
                 data: {
                     reportNumber,
-                    storeId: data.storeId || null,
+                    storeCode: data.storeCode || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "DRAFT",
-                    createdById: user.id,
+                    createdByNIK: user.NIK,
                     items: itemsJson,
                     estimations: estimationsJson,
                 },
             });
 
-            return { reportId: newReport.id };
+            return { reportId: newReport.reportNumber };
         }
     } catch (error) {
         console.error("Error saving draft:", error);
@@ -223,7 +222,7 @@ export async function saveDraft(data: DraftData) {
 /**
  * Hapus DRAFT report
  */
-export async function deleteDraft(reportId: string) {
+export async function deleteDraft(reportNumber: string) {
     // Authorization: Only BMS can delete drafts
     await requireRole("BMS");
 
@@ -234,8 +233,8 @@ export async function deleteDraft(reportId: string) {
     try {
         // Verify ownership before deletion
         const report = await prisma.report.findUnique({
-            where: { id: reportId },
-            select: { createdById: true, status: true },
+            where: { reportNumber },
+            select: { createdByNIK: true, status: true },
         });
 
         if (!report) {
@@ -246,10 +245,10 @@ export async function deleteDraft(reportId: string) {
             return { error: "Hanya draft yang bisa dihapus" };
         }
 
-        await requireOwnership(report.createdById);
+        await requireOwnership(report.createdByNIK);
 
         await prisma.report.delete({
-            where: { id: reportId },
+            where: { reportNumber },
         });
         return { success: true };
     } catch (error) {
@@ -280,7 +279,7 @@ export async function submitReport(data: DraftData) {
         // Cari draft yang sudah ada atau buat baru
         const existingDraft = await prisma.report.findFirst({
             where: {
-                createdById: user.id,
+                createdByNIK: user.NIK,
                 status: "DRAFT",
             },
         });
@@ -290,9 +289,9 @@ export async function submitReport(data: DraftData) {
         if (existingDraft) {
             // Update dan submit draft
             await prisma.report.update({
-                where: { id: existingDraft.id },
+                where: { reportNumber: existingDraft.reportNumber },
                 data: {
-                    storeId: data.storeId || null,
+                    storeCode: data.storeCode || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
@@ -302,12 +301,12 @@ export async function submitReport(data: DraftData) {
                 },
             });
 
-            reportId = existingDraft.id;
+            reportId = existingDraft.reportNumber;
         } else {
             // Buat baru langsung submit
-            const store2 = data.storeId
+            const store2 = data.storeCode
                 ? await prisma.store.findUnique({
-                      where: { id: data.storeId },
+                      where: { code: data.storeCode },
                       select: { code: true },
                   })
                 : null;
@@ -316,18 +315,18 @@ export async function submitReport(data: DraftData) {
             const newReport = await prisma.report.create({
                 data: {
                     reportNumber: reportNumber2,
-                    storeId: data.storeId || null,
+                    storeCode: data.storeCode || null,
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
                     status: "PENDING_APPROVAL",
-                    createdById: user.id,
+                    createdByNIK: user.NIK,
                     items: itemsJson,
                     estimations: estimationsJson,
                 },
             });
 
-            reportId = newReport.id;
+            reportId = newReport.reportNumber;
         }
 
         revalidatePath("/reports");
@@ -363,7 +362,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-        createdById: user.id,
+        createdByNIK: user.NIK,
         status: {
             in: status
                 ? [status]
@@ -414,7 +413,7 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
-        createdById: user.id,
+        createdByNIK: user.NIK,
         status: "COMPLETED",
     };
 
@@ -457,7 +456,7 @@ export async function getFinishedReports(filters: ReportFilters = {}) {
  * Sekarang baca dari kolom JSON `items` di Report
  * Return null jika belum pernah, atau ISO string tanggal terakhir
  */
-export async function getLastCategoryIDate(storeId: string) {
+export async function getLastCategoryIDate(storeCode: string) {
     // Authorization: Only authenticated users can check cooldown
     await requireAuth();
 
@@ -465,7 +464,7 @@ export async function getLastCategoryIDate(storeId: string) {
     // Gunakan Prisma raw query untuk filter JSON array
     const reports = await prisma.report.findMany({
         where: {
-            storeId: storeId,
+            storeCode: storeCode,
             status: { not: "DRAFT" },
         },
         orderBy: { createdAt: "desc" },
