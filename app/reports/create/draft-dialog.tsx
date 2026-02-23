@@ -10,7 +10,7 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FileText, Trash2, Clock, MapPin } from "lucide-react";
+import { FileText, Trash2, Clock, MapPin, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface DraftDialogProps {
@@ -18,6 +18,7 @@ interface DraftDialogProps {
     draftReportNumber: string;
     draftStoreName?: string;
     draftUpdatedAt: string;
+    isLoading?: boolean;
     onContinueDraft: () => void;
     onCreateNew: () => void;
 }
@@ -27,6 +28,7 @@ export function DraftDialog({
     draftReportNumber,
     draftStoreName,
     draftUpdatedAt,
+    isLoading = false,
     onContinueDraft,
     onCreateNew,
 }: DraftDialogProps) {
@@ -89,6 +91,7 @@ export function DraftDialog({
                     {/* Secondary Action (Left on Desktop) */}
                     <AlertDialogCancel
                         onClick={onCreateNew}
+                        disabled={isLoading}
                         className="w-full sm:w-auto mt-2 sm:mt-0 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
                     >
                         <Trash2 className="mr-2 h-4 w-4" />
@@ -98,10 +101,20 @@ export function DraftDialog({
                     {/* Primary Action (Right on Desktop) */}
                     <AlertDialogAction
                         onClick={onContinueDraft}
+                        disabled={isLoading}
                         className="w-full sm:w-auto"
                     >
-                        <FileText className="mr-2 h-4 w-4" />
-                        Lanjutkan Draft
+                        {isLoading ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Memuat Draft...
+                            </>
+                        ) : (
+                            <>
+                                <FileText className="mr-2 h-4 w-4" />
+                                Lanjutkan Draft
+                            </>
+                        )}
                     </AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>

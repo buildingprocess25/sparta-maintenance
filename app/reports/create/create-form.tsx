@@ -136,6 +136,12 @@ interface CreateReportFormProps {
     stores: StoreOption[];
     userBranchName: string;
     existingDraft?: SerializedDraft | null;
+    userInfo: {
+        name: string;
+        nik: string;
+        role: string;
+        branch: string;
+    };
 }
 
 /**
@@ -173,6 +179,7 @@ export default function CreateReportForm({
     stores,
     userBranchName,
     existingDraft,
+    userInfo,
 }: CreateReportFormProps) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
@@ -238,6 +245,7 @@ export default function CreateReportForm({
 
     // STATE UNTUK DRAFT DIALOG
     const [showDraftDialog, setShowDraftDialog] = useState(!!existingDraft);
+    const [isRestoringDraft, setIsRestoringDraft] = useState(false);
 
     // CATEGORY I COOLDOWN (per-toko, di-fetch saat pilih toko)
     const [isCategoryICoolingDown, setIsCategoryICoolingDown] = useState(false);
@@ -253,57 +261,76 @@ export default function CreateReportForm({
     // DRAFT: Lanjutkan draft
     const handleContinueDraft = useCallback(async () => {
         if (!existingDraft) return;
-        // Restore store
-        if (existingDraft.storeCode) {
-            const s = stores.find((st) => st.code === existingDraft.storeCode);
-            if (s) {
-                setSelectedStoreCode(s.code);
-                setStore(s.name);
+        setIsRestoringDraft(true);
+        try {
+            // Restore store
+            if (existingDraft.storeCode) {
+                const s = stores.find(
+                    (st) => st.code === existingDraft.storeCode,
+                );
+                if (s) {
+                    setSelectedStoreCode(s.code);
+                    setStore(s.name);
+                }
             }
-        }
-        // Restore checklist items
-        const restored = new Map<string, ChecklistItem>();
-        for (const item of existingDraft.items) {
-            let restoredFile: File | undefined = undefined;
-            if (
-                item.photoUrl &&
-                (item.photoUrl.startsWith("data:image") ||
-                    item.photoUrl.startsWith("http"))
-            ) {
+
+            // Fetch semua foto secara paralel
+            const fetchPhoto = async (
+                item: (typeof existingDraft.items)[number],
+            ): Promise<File | undefined> => {
+                if (
+                    !item.photoUrl ||
+                    (!item.photoUrl.startsWith("data:image") &&
+                        !item.photoUrl.startsWith("http"))
+                )
+                    return undefined;
                 try {
                     const res = await fetch(item.photoUrl);
                     const blob = await res.blob();
-                    restoredFile = new File([blob], `${item.itemName}.jpg`, {
+                    return new File([blob], `${item.itemName}.jpg`, {
                         type: "image/jpeg",
                     });
                 } catch (e) {
                     console.error("Gagal restore file dari draft", e);
+                    return undefined;
                 }
-            }
+            };
 
-            restored.set(item.itemId, {
-                id: item.itemId,
-                name: item.itemName,
-                condition:
-                    item.condition === "TIDAK_ADA"
-                        ? "tidak-ada"
-                        : ((item.condition?.toLowerCase() ||
-                              "") as ChecklistCondition),
-                handler:
-                    item.handler === "BMS"
-                        ? "BMS"
-                        : item.handler === "REKANAN" ||
-                            item.handler === "Rekanan"
-                          ? "Rekanan"
-                          : "",
-                photoUrl: item.photoUrl || undefined,
-                photo: restoredFile,
-                notes: item.notes || undefined,
+            // Semua fetch berjalan bersamaan (parallel)
+            const restoredFiles = await Promise.all(
+                existingDraft.items.map(fetchPhoto),
+            );
+
+            // Restore checklist items
+            const restored = new Map<string, ChecklistItem>();
+            existingDraft.items.forEach((item, i) => {
+                restored.set(item.itemId, {
+                    id: item.itemId,
+                    name: item.itemName,
+                    condition:
+                        item.condition === "TIDAK_ADA"
+                            ? "tidak-ada"
+                            : ((item.condition?.toLowerCase() ||
+                                  "") as ChecklistCondition),
+                    handler:
+                        item.handler === "BMS"
+                            ? "BMS"
+                            : item.handler === "REKANAN" ||
+                                item.handler === "Rekanan"
+                              ? "Rekanan"
+                              : "",
+                    photoUrl: item.photoUrl || undefined,
+                    photo: restoredFiles[i],
+                    notes: item.notes || undefined,
+                });
             });
+
+            setChecklist(restored);
+            setShowDraftDialog(false);
+            toast.success("Draft dilanjutkan");
+        } finally {
+            setIsRestoringDraft(false);
         }
-        setChecklist(restored);
-        setShowDraftDialog(false);
-        toast.success("Draft dilanjutkan");
     }, [existingDraft, stores]);
 
     const handleCreateNew = useCallback(async () => {
@@ -737,6 +764,17 @@ export default function CreateReportForm({
             for (const item of cat.items) {
                 const checkedItem = checklist.get(item.id);
 
+                const scrollToItem = () => {
+                    setTimeout(() => {
+                        document
+                            .getElementById(`item-${item.id}`)
+                            ?.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center",
+                            });
+                    }, 150); // slight delay to allow category expansion
+                };
+
                 if (!checkedItem || !checkedItem.condition) {
                     toast.error(
                         `Item "${item.name}" di kategori "${cat.title}" wajib diisi`,
@@ -745,6 +783,7 @@ export default function CreateReportForm({
                     if (!openCategories.has(cat.id)) {
                         toggleCategory(cat.id);
                     }
+                    scrollToItem();
                     return false;
                 }
 
@@ -757,6 +796,7 @@ export default function CreateReportForm({
                         `Item "${item.name}" di kategori "${cat.title}" tidak valid (Mode Preventive)`,
                     );
                     if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                    scrollToItem();
                     return false;
                 }
 
@@ -766,6 +806,7 @@ export default function CreateReportForm({
                             `Item "${item.name}" wajib upload foto bukti`,
                         );
                         if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        scrollToItem();
                         return false;
                     }
                 }
@@ -776,6 +817,7 @@ export default function CreateReportForm({
                             `Item "${item.name}" rusak wajib upload foto`,
                         );
                         if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        scrollToItem();
                         return false;
                     }
                     if (!checkedItem.handler) {
@@ -783,6 +825,7 @@ export default function CreateReportForm({
                             `Item "${item.name}" rusak wajib pilih handler`,
                         );
                         if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                        scrollToItem();
                         return false;
                     }
                 }
@@ -901,11 +944,21 @@ export default function CreateReportForm({
     };
 
     const validateStep2 = (): boolean => {
-        for (const itemGroup of bmsItems.values()) {
+        for (const [itemId, itemGroup] of Array.from(bmsItems.entries())) {
+            const scrollToBmsEntry = (entryId?: string) => {
+                setTimeout(() => {
+                    const el = document.getElementById(
+                        entryId ? `bms-${itemId}-${entryId}` : `bms-${itemId}`,
+                    );
+                    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                }, 100);
+            };
+
             if (itemGroup.entries.length === 0) {
                 toast.error(
                     `Item "${itemGroup.checklistItem.name}" harus memiliki minimal 1 barang`,
                 );
+                scrollToBmsEntry();
                 return false;
             }
 
@@ -914,16 +967,19 @@ export default function CreateReportForm({
                     toast.error(
                         `Nama barang untuk "${itemGroup.checklistItem.name}" wajib diisi`,
                     );
+                    scrollToBmsEntry(entry.id);
                     return false;
                 }
                 if (entry.quantity <= 0) {
                     toast.error(
                         `Quantity untuk "${entry.itemName}" wajib diisi`,
                     );
+                    scrollToBmsEntry(entry.id);
                     return false;
                 }
                 if (entry.price <= 0) {
                     toast.error(`Harga untuk "${entry.itemName}" wajib diisi`);
+                    scrollToBmsEntry(entry.id);
                     return false;
                 }
             }
@@ -1076,6 +1132,7 @@ export default function CreateReportForm({
                 draftReportNumber={existingDraft?.reportNumber || ""}
                 draftStoreName={existingDraft?.storeName}
                 draftUpdatedAt={existingDraft?.updatedAt || ""}
+                isLoading={isRestoringDraft}
                 onContinueDraft={handleContinueDraft}
                 onCreateNew={handleCreateNew}
             />
@@ -1094,6 +1151,7 @@ export default function CreateReportForm({
                 }
                 showBackButton={step === 1}
                 backHref="/dashboard"
+                logo={false}
             />
 
             {/* MODAL KAMERA FULLSCREEN */}
@@ -1101,6 +1159,12 @@ export default function CreateReportForm({
                 isOpen={isCameraOpen}
                 onClose={() => setIsCameraOpen(false)}
                 onCapture={handlePhotoCaptured}
+                watermarkInfo={{
+                    name: userInfo.name,
+                    nik: userInfo.nik,
+                    role: userInfo.role,
+                    storeInfo: `Toko: ${store || "Belum Dipilih"}${draftReportId ? ` | ${draftReportId}` : ""}`,
+                }}
             />
 
             {/* MODAL PREVIEW FOTO */}
@@ -1343,6 +1407,7 @@ export default function CreateReportForm({
                                                                             key={
                                                                                 item.id
                                                                             }
+                                                                            id={`item-${item.id}`}
                                                                             className="space-y-3 p-3 bg-background rounded-md border"
                                                                         >
                                                                             <div className="font-medium text-sm">
@@ -1862,7 +1927,10 @@ export default function CreateReportForm({
                                                                 key={itemId}
                                                             >
                                                                 {/* Item Header Row */}
-                                                                <TableRow className="bg-primary/5 hover:bg-primary/10">
+                                                                <TableRow
+                                                                    id={`bms-${itemId}`}
+                                                                    className="bg-primary/5 hover:bg-primary/10"
+                                                                >
                                                                     <TableCell className="font-bold">
                                                                         {idx +
                                                                             1}
@@ -1900,6 +1968,7 @@ export default function CreateReportForm({
                                                                             key={
                                                                                 entry.id
                                                                             }
+                                                                            id={`bms-${itemId}-${entry.id}`}
                                                                         >
                                                                             <TableCell></TableCell>
                                                                             <TableCell>

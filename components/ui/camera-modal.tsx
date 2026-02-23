@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { X, Image as ImageIcon, SwitchCamera } from "lucide-react";
+import { X, SwitchCamera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -9,12 +9,22 @@ interface CameraModalProps {
     isOpen: boolean;
     onClose: () => void;
     onCapture: (file: File) => void;
+    watermarkInfo?: {
+        name: string;
+        nik: string;
+        role: string;
+        storeInfo: string;
+    };
 }
 
-export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
+export function CameraModal({
+    isOpen,
+    onClose,
+    onCapture,
+    watermarkInfo,
+}: CameraModalProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [facingMode, setFacingMode] = useState<"user" | "environment">(
@@ -93,6 +103,117 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
 
                 context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+                // Revert flip after image drawing so text isn't mirrored!
+                if (facingMode === "user") {
+                    context.scale(-1, 1);
+                    context.translate(-canvas.width, 0);
+                }
+
+                // ==============================
+                // DRAW WATERMARK
+                // ==============================
+                const padding = Math.max(20, Math.floor(canvas.width * 0.02));
+                const fontSize = Math.max(16, Math.floor(canvas.width * 0.035)); // responsive font
+                context.textBaseline = "bottom";
+
+                const textAppName = "SPARTA Maintenance";
+                const textTime = new Date().toLocaleString("id-ID", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                    second: "2-digit",
+                });
+
+                let textUser = "";
+                let textLocation = "";
+
+                if (watermarkInfo) {
+                    textUser = `Oleh: ${watermarkInfo.name} (${watermarkInfo.nik}) - ${watermarkInfo.role}`;
+                    textLocation = watermarkInfo.storeInfo;
+                }
+
+                // Set font to measure texts
+                context.font = `bold ${fontSize}px sans-serif`;
+                let maxWidth = context.measureText(textAppName).width;
+
+                context.font = `normal ${Math.floor(fontSize * 0.8)}px sans-serif`;
+                maxWidth = Math.max(
+                    maxWidth,
+                    context.measureText(textTime).width,
+                );
+                if (textUser)
+                    maxWidth = Math.max(
+                        maxWidth,
+                        context.measureText(textUser).width,
+                    );
+                if (textLocation)
+                    maxWidth = Math.max(
+                        maxWidth,
+                        context.measureText(textLocation).width,
+                    );
+
+                const textHeight = fontSize;
+                const lineGap = textHeight * 0.4;
+
+                // Calculate total height based on number of lines
+                let lineCount = 2; // App Name + Time
+                if (textUser) lineCount++;
+                if (textLocation) lineCount++;
+
+                const totalHeight =
+                    textHeight * 0.8 * (lineCount - 1) +
+                    textHeight +
+                    lineGap * (lineCount - 1);
+
+                // Box dimensions
+                const boxWidth = maxWidth + padding * 2;
+                const boxHeight = totalHeight + padding * 2;
+                const boxX = canvas.width - boxWidth;
+                const boxY = canvas.height - boxHeight;
+
+                // Draw background (semi-transparent black)
+                context.fillStyle = "rgba(0, 0, 0, 0.6)";
+                context.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+                // Draw texts
+                context.textAlign = "right";
+                context.fillStyle = "#ffffff";
+
+                let currentY = canvas.height - padding;
+                const smallerFont = Math.floor(fontSize * 0.8);
+
+                // Draw from bottom to top
+                context.font = `normal ${smallerFont}px sans-serif`;
+                if (textLocation) {
+                    context.fillText(
+                        textLocation,
+                        canvas.width - padding,
+                        currentY,
+                    );
+                    currentY -= smallerFont + lineGap;
+                }
+
+                if (textUser) {
+                    context.fillText(
+                        textUser,
+                        canvas.width - padding,
+                        currentY,
+                    );
+                    currentY -= smallerFont + lineGap;
+                }
+
+                context.fillText(textTime, canvas.width - padding, currentY);
+                currentY -= smallerFont + lineGap;
+
+                context.font = `bold ${fontSize}px sans-serif`;
+                context.fillText(
+                    textAppName,
+                    canvas.width - padding,
+                    currentY + (fontSize - smallerFont),
+                );
+
                 // Convert to File
                 canvas.toBlob(
                     (blob) => {
@@ -110,15 +231,6 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
                     0.8,
                 );
             }
-        }
-    };
-
-    // Handle Gallery Selection
-    const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (file) {
-            onCapture(file);
-            onClose();
         }
     };
 
@@ -160,11 +272,8 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
                         <p className="mb-4">
                             Akses kamera ditolak atau tidak tersedia.
                         </p>
-                        <Button
-                            onClick={() => fileInputRef.current?.click()}
-                            variant="secondary"
-                        >
-                            Upload dari Galeri Saja
+                        <Button onClick={onClose} variant="secondary">
+                            Tutup Kamera
                         </Button>
                     </div>
                 ) : (
@@ -182,22 +291,7 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
 
             {/* Bottom Controls */}
             <div className="bg-black/80 p-6 pb-8 backdrop-blur-sm">
-                <div className="flex items-center justify-around max-w-md mx-auto">
-                    {/* Gallery Button */}
-                    <div className="flex flex-col items-center gap-1">
-                        <Button
-                            variant="secondary"
-                            size="icon"
-                            className="h-12 w-12 rounded-xl bg-gray-800 border border-gray-700 text-white hover:bg-gray-700"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            <ImageIcon className="h-6 w-6" />
-                        </Button>
-                        <span className="text-[10px] text-gray-400 font-medium">
-                            Galeri
-                        </span>
-                    </div>
-
+                <div className="flex items-center justify-center max-w-md mx-auto">
                     {/* Shutter Button */}
                     <div className="relative group">
                         <button
@@ -207,20 +301,8 @@ export function CameraModal({ isOpen, onClose, onCapture }: CameraModalProps) {
                             <div className="h-16 w-16 bg-white rounded-full" />
                         </button>
                     </div>
-
-                    {/* Spacer to balance layout (or add another feature like Flash later) */}
-                    <div className="w-12 h-12" />
                 </div>
             </div>
-
-            {/* Hidden Input for Gallery */}
-            <input
-                type="file"
-                ref={fileInputRef}
-                accept="image/*"
-                className="hidden"
-                onChange={handleGallerySelect}
-            />
         </div>
     );
 }

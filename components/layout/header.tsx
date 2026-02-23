@@ -13,6 +13,7 @@ interface HeaderProps {
     showBackButton?: boolean;
     backHref?: string;
     className?: string;
+    logo?: boolean;
 }
 
 export function Header({
@@ -22,6 +23,7 @@ export function Header({
     showBackButton = false,
     backHref = "/",
     className,
+    logo = true,
 }: HeaderProps) {
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
@@ -84,40 +86,42 @@ export function Header({
                         </div>
 
                         {/* RIGHT: Branding Logos */}
-                        <div className="flex items-center gap-3 shrink-0">
-                            {/* Logo Container with Glass Effect */}
-                            <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
-                                <Image
-                                    src="/assets/Alfamart-Emblem.png"
-                                    alt="Alfamart"
-                                    width={120}
-                                    height={120}
-                                    className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
-                                    priority
-                                />
-
-                                <div className="h-4 md:h-5 w-px bg-white/20 rounded-full" />
-
-                                <div className="flex items-center gap-2">
+                        {logo && (
+                            <div className="items-center gap-3 shrink-0 flex">
+                                {/* Logo Container with Glass Effect */}
+                                <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
                                     <Image
-                                        src="/assets/Building-Logo.png"
-                                        alt="SPARTA Logo"
-                                        width={60}
-                                        height={60}
+                                        src="/assets/Alfamart-Emblem.png"
+                                        alt="Alfamart"
+                                        width={120}
+                                        height={120}
                                         className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
                                         priority
                                     />
-                                    <div className="flex flex-col items-end leading-none text-white">
-                                        <span className="font-bold text-sm tracking-wider">
-                                            SPARTA
-                                        </span>
-                                        <span className="text-[10px] opacity-80 font-light">
-                                            Maintenance
-                                        </span>
+
+                                    <div className="h-4 md:h-5 w-px bg-white/20 rounded-full" />
+
+                                    <div className="flex items-center gap-2">
+                                        <Image
+                                            src="/assets/Building-Logo.png"
+                                            alt="SPARTA Logo"
+                                            width={60}
+                                            height={60}
+                                            className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
+                                            priority
+                                        />
+                                        <div className="flex flex-col items-end leading-none text-white">
+                                            <span className="font-bold text-sm tracking-wider">
+                                                SPARTA
+                                            </span>
+                                            <span className="text-[10px] opacity-80 font-light">
+                                                Maintenance
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </header>

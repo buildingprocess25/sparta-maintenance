@@ -48,6 +48,12 @@ export default async function CreateReportPage() {
         <CreateReportForm
             stores={stores}
             userBranchName={user.branchNames[0] || ""}
+            userInfo={{
+                name: user.name,
+                nik: user.NIK,
+                role: user.role,
+                branch: user.branchNames[0] || "",
+            }}
             existingDraft={serializedDraft}
         />
     );

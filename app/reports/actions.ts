@@ -220,7 +220,7 @@ export async function saveDraft(data: DraftData) {
 }
 
 /**
- * Hapus DRAFT report
+ * Hapus DRAFT report beserta foto di Supabase Storage
  */
 export async function deleteDraft(reportNumber: string) {
     // Authorization: Only BMS can delete drafts
@@ -231,10 +231,10 @@ export async function deleteDraft(reportNumber: string) {
     await validateCSRF(headersList);
 
     try {
-        // Verify ownership before deletion
+        // Verify ownership before deletion — include items for photo cleanup
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { createdByNIK: true, status: true },
+            select: { createdByNIK: true, status: true, items: true },
         });
 
         if (!report) {
@@ -246,6 +246,48 @@ export async function deleteDraft(reportNumber: string) {
         }
 
         await requireOwnership(report.createdByNIK);
+
+        // Hapus foto dari Supabase Storage
+        if (report.items && Array.isArray(report.items)) {
+            const items = report.items as unknown as ReportItemJson[];
+            const storagePaths: string[] = [];
+
+            for (const item of items) {
+                if (item.photoUrl && item.photoUrl.includes("supabase.co")) {
+                    try {
+                        const urlObj = new URL(item.photoUrl);
+                        const pathAfterBucket =
+                            urlObj.pathname.split("/reports/")[1];
+                        if (pathAfterBucket) {
+                            storagePaths.push(
+                                decodeURIComponent(pathAfterBucket),
+                            );
+                        }
+                    } catch {
+                        // Skip URL yang tidak valid
+                    }
+                }
+            }
+
+            if (storagePaths.length > 0) {
+                const { createClient } = await import("@supabase/supabase-js");
+                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+                const supabase = createClient(supabaseUrl, supabaseKey);
+
+                const { error: storageError } = await supabase.storage
+                    .from("reports")
+                    .remove(storagePaths);
+
+                if (storageError) {
+                    console.error(
+                        "Gagal menghapus foto dari storage:",
+                        storageError,
+                    );
+                    // Lanjut hapus draft meskipun foto gagal dihapus
+                }
+            }
+        }
 
         await prisma.report.delete({
             where: { reportNumber },
