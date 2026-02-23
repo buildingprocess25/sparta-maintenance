@@ -27,7 +27,12 @@ async function createUser() {
         const email = getArg("email") || "admin@sparta.com";
         const name = getArg("name") || "Admin";
         const role = (getArg("role") || "ADMIN") as UserRole;
-        const branchName = getArg("branch") || "Head Office";
+        // Parse branches as comma-separated list → array
+        const branchArg = getArg("branch") || "Head Office";
+        const branchNames = branchArg
+            .split(",")
+            .map((b) => b.trim())
+            .filter(Boolean);
         const NIK = getArg("nik") || "ADMIN001";
 
         console.log("Creating user with branchName as password...");
@@ -40,24 +45,24 @@ async function createUser() {
         if (existingUser) {
             console.log(`User dengan email ${email} sudah ada!`);
 
-            // Update branchName jika user sudah ada
+            // Update branchNames jika user sudah ada
             await prisma.user.update({
                 where: { email },
-                data: { branchName },
+                data: { branchNames },
             });
 
-            console.log(`✅ Branch name untuk ${email} berhasil diupdate!`);
+            console.log(`✅ Branch names untuk ${email} berhasil diupdate!`);
             return;
         }
 
-        // Buat user baru (password akan divalidasi dengan branchName)
+        // Buat user baru (password akan divalidasi dengan salah satu branchNames)
         const user = await prisma.user.create({
             data: {
                 NIK,
                 email,
                 name,
                 role,
-                branchName,
+                branchNames,
             },
         });
 
@@ -67,12 +72,12 @@ async function createUser() {
         console.log("📧 Email:", user.email);
         console.log("👤 Nama:", user.name);
         console.log("🔑 Role:", user.role);
-        console.log("🏢 Cabang:", user.branchName);
+        console.log("🏢 Cabang:", user.branchNames.join(", "));
         console.log("=".repeat(50));
         console.log("\n💡 Gunakan kredensial ini untuk login:");
         console.log(`   Email: ${email}`);
         console.log(
-            `   Password: ${branchName.toUpperCase()} (Nama Cabang dalam huruf kapital)`,
+            `   Password: salah satu dari [${branchNames.map((b) => b.toUpperCase()).join(", ")}]`,
         );
     } catch (error) {
         console.error("❌ Error:", error);

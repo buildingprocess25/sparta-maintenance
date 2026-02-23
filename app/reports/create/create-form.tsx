@@ -574,7 +574,7 @@ export default function CreateReportForm({
         setPreviewPhoto(null);
     };
 
-    // DEVELOPMENT ONLY: Auto-fill semua field
+    // DEVELOPMENT ONLY: Auto-fill semua field (Step 1)
     const autoFillForDevelopment = async () => {
         // Fill store info - random store
         const randomStore = stores[Math.floor(Math.random() * stores.length)];
@@ -586,6 +586,19 @@ export default function CreateReportForm({
         const allCategoryIds = checklistCategories.map((cat) => cat.id);
         setOpenCategories(new Set(allCategoryIds));
 
+        // URL gambar dummy untuk semua item
+        const DUMMY_IMAGE_URL =
+            "https://placehold.co/640x480/10B981/white?text=Dev+Photo";
+
+        // Fetch once, reuse the blob for all items
+        let dummyFileBlob: Blob | null = null;
+        try {
+            const res = await fetch(DUMMY_IMAGE_URL);
+            dummyFileBlob = await res.blob();
+        } catch {
+            console.warn("Gagal fetch dummy image, foto tidak akan diisi");
+        }
+
         // Fill checklist items
         const newChecklist = new Map<string, ChecklistItem>();
         let itemIndex = 0;
@@ -593,7 +606,7 @@ export default function CreateReportForm({
         for (const category of activeCategories) {
             for (const item of category.items) {
                 itemIndex++;
-                // Determine allowed conditions based on category type
+
                 let allowedConditions: ChecklistCondition[] = [
                     "baik",
                     "rusak",
@@ -613,64 +626,16 @@ export default function CreateReportForm({
                     handler: "",
                 };
 
-                // If baik or rusak, add photo
-                if (condition === "baik" || condition === "rusak") {
-                    try {
-                        const dummyPhoto = await new Promise<File>(
-                            (resolve) => {
-                                const canvas = document.createElement("canvas");
-                                canvas.width = 640;
-                                canvas.height = 480;
-                                const ctx = canvas.getContext("2d");
-                                if (ctx) {
-                                    ctx.fillStyle =
-                                        condition === "baik"
-                                            ? "#10B981"
-                                            : "#4F46E5";
-                                    ctx.fillRect(
-                                        0,
-                                        0,
-                                        canvas.width,
-                                        canvas.height,
-                                    );
-                                    ctx.fillStyle = "white";
-                                    ctx.font = "bold 32px Arial";
-                                    ctx.textAlign = "center";
-                                    ctx.fillText(
-                                        `FOTO: ${item.name}`,
-                                        canvas.width / 2,
-                                        canvas.height / 2 - 20,
-                                    );
-                                    ctx.font = "20px Arial";
-                                    ctx.fillText(
-                                        condition === "baik"
-                                            ? "(Foto Bukti)"
-                                            : "(Dummy Photo)",
-                                        canvas.width / 2,
-                                        canvas.height / 2 + 20,
-                                    );
-                                }
-                                canvas.toBlob(
-                                    (blob) => {
-                                        if (blob) {
-                                            resolve(
-                                                new File(
-                                                    [blob],
-                                                    `foto_${item.name}.jpg`,
-                                                    { type: "image/jpeg" },
-                                                ),
-                                            );
-                                        }
-                                    },
-                                    "image/jpeg",
-                                    0.8,
-                                );
-                            },
-                        );
-                        checklistItem.photo = dummyPhoto;
-                    } catch (error) {
-                        console.error("Error creating dummy photo:", error);
-                    }
+                // Attach dummy photo from URL
+                if (
+                    dummyFileBlob &&
+                    (condition === "baik" || condition === "rusak")
+                ) {
+                    checklistItem.photo = new File(
+                        [dummyFileBlob],
+                        `foto_${item.id}.jpg`,
+                        { type: "image/jpeg" },
+                    );
                 }
 
                 // If rusak, add handler
@@ -684,95 +649,21 @@ export default function CreateReportForm({
         }
 
         setChecklist(newChecklist);
-
-        // Auto-populate BMS items with sample entries (for step 2)
-        const bmsMap = new Map<string, BmsItemGroup>();
-        for (const [id, item] of newChecklist) {
-            if (item.condition === "rusak" && item.handler === "BMS") {
-                let categoryData: ChecklistCategory | undefined;
-                for (const cat of checklistCategories) {
-                    if (cat.items.some((i) => i.id === id)) {
-                        categoryData = cat;
-                        break;
-                    }
-                }
-
-                if (categoryData) {
-                    // Add 2 sample entries per damaged item
-                    const entries: BmsItemEntry[] = [];
-                    for (let i = 1; i <= 2; i++) {
-                        entries.push({
-                            id: `entry_${id}_${i}_${Date.now()}`,
-                            categoryId: categoryData.id,
-                            categoryTitle: categoryData.title,
-                            itemName: `Barang Contoh ${i}`,
-                            quantity: Math.floor(Math.random() * 10) + 1,
-                            unit: "pcs",
-                            price: (Math.floor(Math.random() * 10) + 1) * 50000,
-                            total: 0,
-                        });
-                        // Calculate total
-                        const lastEntry = entries[entries.length - 1];
-                        lastEntry.total = lastEntry.quantity * lastEntry.price;
-                    }
-
-                    bmsMap.set(id, {
-                        checklistItem: item,
-                        categoryTitle: categoryData.title,
-                        entries: entries,
-                    });
-                }
-            }
-        }
-        setBmsItems(bmsMap);
-
-        toast.success("Form berhasil diisi otomatis!");
+        toast.success("Form Step 1 berhasil diisi otomatis!");
     };
 
     const autoFillSummaryForDevelopment = () => {
         const sampleItems = [
-            {
-                name: "Cat Tembok",
-                units: ["kaleng", "liter"],
-                priceRange: [50000, 150000],
-            },
-            { name: "Paku", units: ["kg", "pack"], priceRange: [25000, 75000] },
-            {
-                name: "Semen",
-                units: ["sak", "kg"],
-                priceRange: [60000, 100000],
-            },
-            {
-                name: "Pasir",
-                units: ["kubik", "truk"],
-                priceRange: [200000, 500000],
-            },
-            {
-                name: "Papan Kayu",
-                units: ["batang", "lembar"],
-                priceRange: [80000, 200000],
-            },
-            {
-                name: "Gypsum",
-                units: ["lembar", "m2"],
-                priceRange: [40000, 120000],
-            },
-            {
-                name: "Kabel Listrik",
-                units: ["meter", "roll"],
-                priceRange: [15000, 80000],
-            },
-            {
-                name: "Pipa PVC",
-                units: ["batang", "meter"],
-                priceRange: [30000, 100000],
-            },
-            {
-                name: "Keramik",
-                units: ["dus", "m2"],
-                priceRange: [100000, 300000],
-            },
-            { name: "Lem", units: ["kg", "tube"], priceRange: [20000, 60000] },
+            { name: "Cat Tembok", priceRange: [50000, 150000] },
+            { name: "Paku", priceRange: [25000, 75000] },
+            { name: "Semen", priceRange: [60000, 100000] },
+            { name: "Pasir", priceRange: [200000, 500000] },
+            { name: "Papan Kayu", priceRange: [80000, 200000] },
+            { name: "Gypsum", priceRange: [40000, 120000] },
+            { name: "Kabel Listrik", priceRange: [15000, 80000] },
+            { name: "Pipa PVC", priceRange: [30000, 100000] },
+            { name: "Keramik", priceRange: [100000, 300000] },
+            { name: "Lem", priceRange: [20000, 60000] },
         ];
 
         const newBmsItems = new Map(bmsItems);
@@ -800,9 +691,7 @@ export default function CreateReportForm({
                 const sampleItem =
                     sampleItems[Math.floor(Math.random() * sampleItems.length)];
                 const unit =
-                    sampleItem.units[
-                        Math.floor(Math.random() * sampleItem.units.length)
-                    ];
+                    unitOptions[Math.floor(Math.random() * unitOptions.length)];
                 const quantity = Math.floor(Math.random() * 10) + 1; // 1-10
                 const priceBase =
                     Math.floor(

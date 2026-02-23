@@ -16,36 +16,26 @@ const stores = [
     {
         code: "CKOL",
         name: "Alfamart Cikokol Raya",
-        address:
-            "Jl. Moh Toha No. 36, Cikokol, Kec. Tangerang, Kota Tangerang, Banten 15117",
         branchName: "HEAD OFFICE",
     },
     {
         code: "HSYM",
         name: "Alfamart Hasyim Ashari",
-        address:
-            "Jl. KH. Hasyim Ashari No. 120, Cipondoh, Kota Tangerang, Banten 15148",
         branchName: "HEAD OFFICE",
     },
     {
         code: "SRPG",
         name: "Alfamart Serpong Utara",
-        address:
-            "Jl. BSD Raya No. 88, Serpong Utara, Kota Tangerang Selatan, Banten 15310",
         branchName: "HEAD OFFICE",
     },
     {
         code: "KLDU",
         name: "Alfamart Kelapa Dua",
-        address:
-            "Jl. Kelapa Dua Raya No. 15, Kelapa Dua, Kab. Tangerang, Banten 15810",
         branchName: "HEAD OFFICE",
     },
     {
         code: "ALMS",
         name: "Alfamart Alam Sutera",
-        address:
-            "Jl. Alam Sutera Boulevard No. 27, Kota Tangerang Selatan, Banten 15325",
         branchName: "HEAD OFFICE",
     },
 ];
@@ -56,14 +46,14 @@ const users = [
         email: "bms@admin.com",
         name: "BMS User",
         role: "BMS" as const,
-        branchName: "HEAD OFFICE",
+        branchNames: ["HEAD OFFICE"],
     },
     {
         NIK: "67890",
         email: "bmc@admin.com",
         name: "BMC User",
         role: "BMC" as const,
-        branchName: "HEAD OFFICE",
+        branchNames: ["HEAD OFFICE"],
     },
 ];
 
@@ -143,7 +133,7 @@ async function seed() {
             update: {
                 name: user.name,
                 role: user.role,
-                branchName: user.branchName,
+                branchNames: user.branchNames,
             },
             create: user,
         });

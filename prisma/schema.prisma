@@ -52,16 +52,16 @@ model User {
   email         String        @unique
   name          String
   role          UserRole      @default(BMS)
-  branchName    String?       
+  branchNames   String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
   
   reports       Report[]      @relation("CreatedReports")
   approvals     ApprovalLog[] 
 }
 
 model Store {
-  code       String   @id @unique // Kode toko (4 karakter random alphanumeric)
-  name       String                 // "Alfamart Cikokol Raya"
-  branchName String                 // Nama cabang (link ke User.branchName)
+  code       String   @id @unique 
+  name       String                 
+  branchName String                 
   
   reports    Report[]
   

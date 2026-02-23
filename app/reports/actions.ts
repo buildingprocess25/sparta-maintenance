@@ -101,7 +101,7 @@ export async function getStoresByBranch(branchName: string) {
     const user = await requireAuth();
 
     // ADMIN can access all branches, others only their own
-    if (user.role !== "ADMIN" && user.branchName !== branchName) {
+    if (user.role !== "ADMIN" && !user.branchNames.includes(branchName)) {
         throw new Error(
             "Anda hanya bisa mengakses toko dari cabang Anda sendiri",
         );

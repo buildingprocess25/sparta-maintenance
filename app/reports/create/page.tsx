@@ -8,7 +8,7 @@ export default async function CreateReportPage() {
 
     // Fetch stores and draft in parallel
     const [stores, draft] = await Promise.all([
-        getStoresByBranch(user.branchName || ""),
+        getStoresByBranch(user.branchNames[0] || ""),
         getDraft(),
     ]);
 
@@ -47,7 +47,7 @@ export default async function CreateReportPage() {
     return (
         <CreateReportForm
             stores={stores}
-            userBranchName={user.branchName || ""}
+            userBranchName={user.branchNames[0] || ""}
             existingDraft={serializedDraft}
         />
     );

@@ -184,7 +184,7 @@ export default async function DashboardPage() {
                         </h1>
                         <p className="text-xs md:text-sm text-muted-foreground mt-1 flex items-center gap-2">
                             <Store className="h-3 w-3 md:h-4 md:w-4" />
-                            {user.branchName || "No Branch"}
+                            {user.branchNames.join(", ") || "No Branch"}
                             <span className="hidden md:inline text-muted-foreground/50">
                                 |
                             </span>

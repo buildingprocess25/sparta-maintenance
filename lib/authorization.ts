@@ -11,7 +11,7 @@ export type AuthUser = {
     email: string;
     name: string;
     role: UserRole;
-    branchName: string | null;
+    branchNames: string[];
 };
 
 /**
@@ -42,7 +42,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
                 email: true,
                 name: true,
                 role: true,
-                branchName: true,
+                branchNames: true,
             },
         });
 
@@ -123,7 +123,7 @@ export async function requireBranchAccess(
         return user;
     }
 
-    if (user.branchName !== branchName) {
+    if (!user.branchNames.includes(branchName)) {
         throw new AuthorizationError(
             errorMessage ||
                 "Anda hanya bisa mengakses data dari cabang Anda sendiri",
@@ -199,7 +199,7 @@ export async function getCurrentUser() {
                 email: true,
                 name: true,
                 role: true,
-                branchName: true,
+                branchNames: true,
             },
         });
 

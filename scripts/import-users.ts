@@ -44,14 +44,14 @@ async function main() {
                 update: {
                     email: email,
                     name: name,
-                    branchName: branchName,
+                    branchNames: [branchName],
                     role: "BMS", // Default role
                 },
                 create: {
                     NIK: nik,
                     email: email,
                     name: name,
-                    branchName: branchName,
+                    branchNames: [branchName],
                     role: "BMS",
                 },
             });

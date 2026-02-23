@@ -46,11 +46,14 @@ export async function loginAction(
         }
 
         // 3. Validasi Password
-        // Password harus sama dengan branchName (uppercase, case-insensitive)
+        // Password harus sama dengan salah satu branchName yang dimiliki user (case-insensitive)
         const isPasswordValid =
-            user.branchName &&
-            user.branchName.trim().toUpperCase() ===
-                password.trim().toUpperCase();
+            user.branchNames.length > 0 &&
+            user.branchNames.some(
+                (branch) =>
+                    branch.trim().toUpperCase() ===
+                    password.trim().toUpperCase(),
+            );
 
         if (!isPasswordValid) {
             return {
