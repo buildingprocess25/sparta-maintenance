@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
@@ -12,58 +12,12 @@ import {
     getLastCategoryIDate,
 } from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
-import { Badge } from "@/components/ui/badge";
-import { CalendarClock } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
 import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import {
-    Camera,
-    ChevronDown,
-    Store,
-    CheckCircle2,
-    AlertCircle,
-    Trash2,
-    X,
-    Zap,
-    Plus,
-    CheckCircle,
-    AlertTriangle,
-} from "lucide-react";
+import { Zap } from "lucide-react";
 import {
     checklistCategories,
     unitOptions,
@@ -72,133 +26,19 @@ import {
     type ChecklistCategory,
 } from "@/lib/checklist-data";
 import { submitReport, type DraftData } from "@/app/reports/actions";
-import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 
-type BmsItemEntry = {
-    id: string;
-    categoryId: string;
-    categoryTitle: string;
-    itemName: string;
-    quantity: number;
-    unit: string;
-    price: number;
-    total: number;
-};
-
-type BmsItemGroup = {
-    checklistItem: ChecklistItem;
-    categoryTitle: string;
-    entries: BmsItemEntry[];
-};
-
-export type StoreOption = {
-    code: string;
-    name: string;
-};
-
-export type SerializedDraft = {
-    reportNumber: string;
-    storeName: string;
-    storeCode: string;
-    branchName: string;
-    totalEstimation: number;
-    updatedAt: string;
-    items: {
-        itemId: string;
-        itemName: string;
-        categoryName: string;
-        condition: string | null;
-        preventiveCondition: string | null;
-        handler: string | null;
-        photoUrl: string | null;
-        images?: string[];
-        notes?: string | null;
-    }[];
-};
-
-interface CreateReportFormProps {
-    stores: StoreOption[];
-    userBranchName: string;
-    existingDraft?: SerializedDraft | null;
-    userInfo: {
-        name: string;
-        nik: string;
-        role: string;
-        branch: string;
-    };
-}
-
-/**
- * Textarea dengan local state supaya setiap karakter tidak memicu
- * update ke global checklist Map (dan re-render semua item).
- * Sync ke parent hanya saat focus keluar (onBlur).
- */
-function LocalNotesTextarea({
-    initialValue,
-    onCommit,
-}: {
-    initialValue: string;
-    onCommit: (value: string) => void;
-}) {
-    const [localValue, setLocalValue] = useState(initialValue);
-    const [prevInitial, setPrevInitial] = useState(initialValue);
-    const [isEditing, setIsEditing] = useState(!!initialValue);
-
-    // Sync initialValue jika berubah dari luar (misal dari draft)
-    if (initialValue !== prevInitial) {
-        setLocalValue(initialValue);
-        setPrevInitial(initialValue);
-        if (initialValue) setIsEditing(true);
-    }
-
-    if (!isEditing) {
-        return (
-            <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-full border-dashed text-muted-foreground bg-transparent hover:bg-muted/50 justify-start h-9"
-                onClick={() => setIsEditing(true)}
-            >
-                <Plus className="h-4 w-4 mr-2" />
-                Tambah Catatan (opsional)
-            </Button>
-        );
-    }
-
-    return (
-        <Textarea
-            autoFocus
-            placeholder="Tambahkan catatan..."
-            value={localValue}
-            onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={() => {
-                onCommit(localValue);
-                if (!localValue.trim()) {
-                    setIsEditing(false);
-                }
-            }}
-            className="resize-none"
-            rows={2}
-        />
-    );
-}
+// Extracted components
+import type {
+    BmsItemEntry,
+    BmsItemGroup,
+    CreateReportFormProps,
+} from "./components/types";
+export type { StoreOption, SerializedDraft } from "./components/types";
+import { StoreSelectDialog } from "./components/store-select-dialog";
+import { PhotoPreviewOverlay } from "./components/photo-preview-overlay";
+import { ProgressBar } from "./components/progress-bar";
+import { ChecklistStep } from "./components/checklist-step";
+import { BmsEstimationStep } from "./components/bms-estimation-step";
 
 export default function CreateReportForm({
     stores,
@@ -351,6 +191,51 @@ export default function CreateReportForm({
             });
 
             setChecklist(restored);
+
+            // Restore BMS estimations jika ada
+            if (
+                existingDraft.estimations &&
+                existingDraft.estimations.length > 0
+            ) {
+                const restoredBms = new Map<string, BmsItemGroup>();
+                for (const est of existingDraft.estimations) {
+                    const checklistItem = restored.get(est.itemId);
+                    if (!checklistItem) continue;
+
+                    // Find category for this item
+                    let categoryTitle = "";
+                    for (const cat of checklistCategories) {
+                        if (cat.items.some((i) => i.id === est.itemId)) {
+                            categoryTitle = cat.title;
+                            break;
+                        }
+                    }
+
+                    const existing = restoredBms.get(est.itemId);
+                    const entry: BmsItemEntry = {
+                        id: `entry_${Date.now()}_${Math.random()}`,
+                        categoryId: "",
+                        categoryTitle,
+                        itemName: est.materialName,
+                        quantity: est.quantity,
+                        unit: est.unit,
+                        price: est.price,
+                        total: est.totalPrice,
+                    };
+
+                    if (existing) {
+                        existing.entries.push(entry);
+                    } else {
+                        restoredBms.set(est.itemId, {
+                            checklistItem,
+                            categoryTitle,
+                            entries: [entry],
+                        });
+                    }
+                }
+                setBmsItems(restoredBms);
+            }
+
             setShowDraftDialog(false);
             toast.success("Draft dilanjutkan");
         } finally {
@@ -368,6 +253,7 @@ export default function CreateReportForm({
 
     // AUTO-SAVE dengan debounce (hanya save jika sudah 2 detik tidak ada perubahan)
     const debouncedChecklist = useDebounce(checklist, 2000);
+    const debouncedBmsItems = useDebounce(bmsItems, 2000);
     const debouncedStoreCode = useDebounce(selectedStoreCode, 2000);
 
     useEffect(() => {
@@ -408,6 +294,32 @@ export default function CreateReportForm({
             },
         );
 
+        // Build BMS estimations from current state
+        const bmsEstimations: Record<
+            string,
+            {
+                itemName: string;
+                quantity: number;
+                unit: string;
+                price: number;
+                totalPrice: number;
+            }[]
+        > = {};
+        for (const [itemId, group] of debouncedBmsItems) {
+            bmsEstimations[itemId] = group.entries.map((entry) => ({
+                itemName: entry.itemName,
+                quantity: entry.quantity,
+                unit: entry.unit,
+                price: entry.price,
+                totalPrice: entry.total,
+            }));
+        }
+
+        const totalEstimation = Array.from(debouncedBmsItems.values()).reduce(
+            (sum, item) => sum + item.entries.reduce((s, e) => s + e.total, 0),
+            0,
+        );
+
         // Async save
         (async () => {
             const res = await saveDraft({
@@ -415,8 +327,8 @@ export default function CreateReportForm({
                 storeName: store,
                 branchName: userBranchName,
                 checklistItems,
-                bmsEstimations: {},
-                totalEstimation: 0,
+                bmsEstimations,
+                totalEstimation,
             });
             if (res.reportId && res.reportId !== draftReportId) {
                 setDraftReportId(res.reportId);
@@ -424,6 +336,7 @@ export default function CreateReportForm({
         })();
     }, [
         debouncedChecklist,
+        debouncedBmsItems,
         debouncedStoreCode,
         store,
         userBranchName,
@@ -628,12 +541,6 @@ export default function CreateReportForm({
 
     // DEVELOPMENT ONLY: Auto-fill semua field (Step 1)
     const autoFillForDevelopment = async () => {
-        // Fill store info - random store
-        const randomStore = stores[Math.floor(Math.random() * stores.length)];
-        if (!randomStore) return;
-        setSelectedStoreCode(randomStore.code);
-        setStore(randomStore.name);
-
         // Open all categories
         const allCategoryIds = checklistCategories.map((cat) => cat.id);
         setOpenCategories(new Set(allCategoryIds));
@@ -862,7 +769,7 @@ export default function CreateReportForm({
     const handleNextStep = () => {
         if (!validateStep1()) return;
 
-        // Create BMS items map (each damaged item gets its own entry)
+        // Create BMS items map — preserve existing entries from restored draft
         const bmsMap = new Map<string, BmsItemGroup>();
 
         for (const [id, item] of checklist) {
@@ -877,10 +784,12 @@ export default function CreateReportForm({
                 }
 
                 if (categoryData) {
+                    // Preserve existing entries if already restored from draft
+                    const existingGroup = bmsItems.get(id);
                     bmsMap.set(id, {
                         checklistItem: item,
                         categoryTitle: categoryData.title,
-                        entries: [],
+                        entries: existingGroup?.entries ?? [],
                     });
                 }
             }
@@ -1112,7 +1021,7 @@ export default function CreateReportForm({
             const reportNumber = saveResult.reportId;
             if (!reportNumber) throw new Error("Gagal memperoleh ID Laporan");
 
-            // Karena foto sekarang sudah langsung di-\"upload\" pada saat onClick \"Ambil Foto\",
+            // Karena foto sekarang sudah langsung di-"upload" pada saat onClick "Ambil Foto",
             // kita tidak perlu lagi convert Base64 ke Blob di handleSubmit.
             // Draft data sudah memegang `photoUrl` berisi URL Supabase.
             const updatedChecklistItems = [...draftData.checklistItems];
@@ -1163,48 +1072,13 @@ export default function CreateReportForm({
             />
 
             {/* PILIH TOKO DIALOG */}
-            <AlertDialog open={!selectedStoreCode && !showDraftDialog}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Pilih Toko</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Pilih toko yang akan diinspeksi untuk memulai
-                            laporan baru.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="py-4">
-                        <Label htmlFor="store-dialog" className="text-sm">
-                            Toko <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                            onValueChange={handleStoreChange}
-                            value={selectedStoreCode}
-                        >
-                            <SelectTrigger
-                                className="mt-2 w-full"
-                                id="store-dialog"
-                            >
-                                <SelectValue placeholder="Pilih toko..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {stores.map((s) => (
-                                    <SelectItem key={s.code} value={s.code}>
-                                        {s.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <AlertDialogFooter>
-                        <Button
-                            variant="outline"
-                            onClick={() => router.push("/dashboard")}
-                        >
-                            Batal
-                        </Button>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+            <StoreSelectDialog
+                open={!selectedStoreCode && !showDraftDialog}
+                stores={stores}
+                selectedStoreCode={selectedStoreCode}
+                onStoreChange={handleStoreChange}
+                onCancel={() => router.push("/dashboard")}
+            />
 
             <LoadingOverlay
                 isOpen={isSubmitting}
@@ -1237,57 +1111,13 @@ export default function CreateReportForm({
             />
 
             {/* MODAL PREVIEW FOTO */}
-            {previewPhoto && (
-                <div
-                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
-                    onClick={closePreview}
-                >
-                    <div className="relative max-w-4xl max-h-full">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="absolute -top-12 right-0 text-white hover:bg-white/20 rounded-full"
-                            onClick={closePreview}
-                        >
-                            <X className="h-6 w-6" />
-                        </Button>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={previewPhoto}
-                            alt="Preview"
-                            className="max-w-full max-h-[85vh] object-contain rounded-lg"
-                            onClick={(e) => e.stopPropagation()}
-                        />
-                    </div>
-                </div>
-            )}
+            <PhotoPreviewOverlay
+                previewPhoto={previewPhoto}
+                onClose={closePreview}
+            />
 
             <main className="flex-1 container mx-auto px-4 md:px-4 py-4 md:py-8 max-w-7xl content-wrapper">
-                {/* ... (Bagian Progress Bar dan Header sama seperti sebelumnya) ... */}
-                <div className="flex items-center justify-center gap-2 mb-6 md:mb-8">
-                    {/* ... Progress Bar Code (tidak berubah) ... */}
-                    <div
-                        className={`flex items-center gap-2 ${step === 1 ? "text-primary" : "text-muted-foreground"}`}
-                    >
-                        <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 1 ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                        >
-                            1
-                        </div>
-                        <span className="text-sm font-medium">Checklist</span>
-                    </div>
-                    <div className="w-16 h-0.5 bg-border" />
-                    <div
-                        className={`flex items-center gap-2 ${step === 2 ? "text-primary" : "text-muted-foreground"}`}
-                    >
-                        <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${step === 2 ? "bg-primary text-primary-foreground" : "bg-muted"}`}
-                        >
-                            2
-                        </div>
-                        <span className="text-sm font-medium">Ringkasan</span>
-                    </div>
-                </div>
+                <ProgressBar step={step} />
 
                 {/* DEVELOPMENT ONLY: Auto Fill Button */}
                 {process.env.NODE_ENV === "development" && step === 1 && (
@@ -1320,995 +1150,60 @@ export default function CreateReportForm({
                 )}
 
                 {step === 1 ? (
-                    <div className="flex flex-col max-w-5xl mx-auto w-full gap-4 md:gap-8">
-                        {/* Checklist */}
-                        <div className="w-full">
-                            {selectedStoreCode && (
-                                <Card className="py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
-                                    <CardHeader className="px-1 md:px-6 flex flex-row items-center justify-between">
-                                        <div>
-                                            <CardTitle className="text-base flex items-center gap-2">
-                                                <Store className="h-4 w-4 text-primary" />
-                                                {store || "Checklist Kondisi"}
-                                            </CardTitle>
-                                            <CardDescription className="text-xs mt-1">
-                                                Checklist Kondisi Toko | Total{" "}
-                                                {activeCategories.reduce(
-                                                    (sum, cat) =>
-                                                        sum + cat.items.length,
-                                                    0,
-                                                )}{" "}
-                                                item
-                                            </CardDescription>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="space-y-3 px-1 md:px-6 pb-0 md:pb-6">
-                                        {activeCategories.map((category) => {
-                                            const isOpen = openCategories.has(
-                                                category.id,
-                                            );
-                                            const categoryItems =
-                                                category.items.map((item) => ({
-                                                    ...item,
-                                                    ...checklist.get(item.id),
-                                                }));
-                                            const completedCount =
-                                                categoryItems.filter(
-                                                    (item) => item.condition,
-                                                ).length;
-                                            const totalCount =
-                                                category.items.length;
-                                            const isCompleted =
-                                                completedCount === totalCount;
-
-                                            return (
-                                                <Collapsible
-                                                    key={category.id}
-                                                    open={isOpen}
-                                                    onOpenChange={() =>
-                                                        toggleCategory(
-                                                            category.id,
-                                                        )
-                                                    }
-                                                >
-                                                    <CollapsibleTrigger asChild>
-                                                        <Button
-                                                            variant="outline"
-                                                            className="w-full justify-between"
-                                                        >
-                                                            <div className="flex items-center gap-2">
-                                                                {isCompleted ? (
-                                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                                                ) : (
-                                                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                                                )}
-                                                                <span className="font-medium">
-                                                                    {
-                                                                        category.title
-                                                                    }
-                                                                </span>
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    (
-                                                                    {
-                                                                        completedCount
-                                                                    }
-                                                                    /
-                                                                    {totalCount}
-                                                                    )
-                                                                </span>
-                                                            </div>
-                                                            <ChevronDown
-                                                                className={`h-4 w-4 transition-transform ${isOpen ? "rotate-180" : ""}`}
-                                                            />
-                                                        </Button>
-                                                    </CollapsibleTrigger>
-                                                    <CollapsibleContent className="pt-2">
-                                                        <div className="space-y-4 md:p-4 md:border-l-0 md:border md:rounded-lg bg-transparent md:bg-muted/30">
-                                                            {category.items.map(
-                                                                (item) => {
-                                                                    const itemData =
-                                                                        checklist.get(
-                                                                            item.id,
-                                                                        );
-                                                                    const condition =
-                                                                        itemData?.condition ||
-                                                                        "";
-                                                                    const handler =
-                                                                        itemData?.handler ||
-                                                                        "";
-                                                                    const photo =
-                                                                        itemData?.photo;
-
-                                                                    return (
-                                                                        <div
-                                                                            key={
-                                                                                item.id
-                                                                            }
-                                                                            id={`item-${item.id}`}
-                                                                            className="space-y-3 p-3 bg-background rounded-md border transition-all duration-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/20"
-                                                                        >
-                                                                            <div className="font-medium text-sm">
-                                                                                {
-                                                                                    item.id
-                                                                                }
-
-                                                                                .{" "}
-                                                                                {
-                                                                                    item.name
-                                                                                }
-                                                                            </div>
-                                                                            {category.isPreventive ? (
-                                                                                /* PREVENTIVE: OK / NOT OK */
-                                                                                <RadioGroup
-                                                                                    value={
-                                                                                        condition
-                                                                                    }
-                                                                                    onValueChange={(
-                                                                                        value,
-                                                                                    ) =>
-                                                                                        updateChecklistItem(
-                                                                                            item.id,
-                                                                                            item.name,
-                                                                                            "condition",
-                                                                                            value as ChecklistCondition,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <div className="flex flex-wrap gap-4">
-                                                                                        <div className="flex items-center space-x-2">
-                                                                                            <RadioGroupItem
-                                                                                                value="baik"
-                                                                                                id={`${item.id}-ok`}
-                                                                                            />
-                                                                                            <Label
-                                                                                                htmlFor={`${item.id}-ok`}
-                                                                                                className="cursor-pointer"
-                                                                                            >
-                                                                                                OK
-                                                                                            </Label>
-                                                                                        </div>
-                                                                                        <div className="flex items-center space-x-2">
-                                                                                            <RadioGroupItem
-                                                                                                value="rusak"
-                                                                                                id={`${item.id}-not-ok`}
-                                                                                            />
-                                                                                            <Label
-                                                                                                htmlFor={`${item.id}-not-ok`}
-                                                                                                className="cursor-pointer"
-                                                                                            >
-                                                                                                Not
-                                                                                                OK
-                                                                                            </Label>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </RadioGroup>
-                                                                            ) : (
-                                                                                /* REGULAR: Baik / Rusak / Tidak Ada */
-                                                                                <RadioGroup
-                                                                                    value={
-                                                                                        condition
-                                                                                    }
-                                                                                    onValueChange={(
-                                                                                        value,
-                                                                                    ) =>
-                                                                                        updateChecklistItem(
-                                                                                            item.id,
-                                                                                            item.name,
-                                                                                            "condition",
-                                                                                            value as ChecklistCondition,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <div className="flex flex-wrap gap-4">
-                                                                                        <div className="flex items-center space-x-2">
-                                                                                            <RadioGroupItem
-                                                                                                value="baik"
-                                                                                                id={`${item.id}-baik`}
-                                                                                            />
-                                                                                            <Label
-                                                                                                htmlFor={`${item.id}-baik`}
-                                                                                                className="cursor-pointer"
-                                                                                            >
-                                                                                                Baik
-                                                                                            </Label>
-                                                                                        </div>
-                                                                                        <div className="flex items-center space-x-2">
-                                                                                            <RadioGroupItem
-                                                                                                value="rusak"
-                                                                                                id={`${item.id}-rusak`}
-                                                                                            />
-                                                                                            <Label
-                                                                                                htmlFor={`${item.id}-rusak`}
-                                                                                                className="cursor-pointer"
-                                                                                            >
-                                                                                                Rusak
-                                                                                            </Label>
-                                                                                        </div>
-                                                                                        <div className="flex items-center space-x-2">
-                                                                                            <RadioGroupItem
-                                                                                                value="tidak-ada"
-                                                                                                id={`${item.id}-tidak-ada`}
-                                                                                            />
-                                                                                            <Label
-                                                                                                htmlFor={`${item.id}-tidak-ada`}
-                                                                                                className="cursor-pointer"
-                                                                                            >
-                                                                                                Tidak
-                                                                                                Ada
-                                                                                            </Label>
-                                                                                        </div>
-                                                                                    </div>
-                                                                                </RadioGroup>
-                                                                            )}
-
-                                                                            {condition && (
-                                                                                <div className="space-y-2 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <LocalNotesTextarea
-                                                                                        initialValue={
-                                                                                            itemData?.notes ||
-                                                                                            ""
-                                                                                        }
-                                                                                        onCommit={(
-                                                                                            val,
-                                                                                        ) =>
-                                                                                            updateChecklistItem(
-                                                                                                item.id,
-                                                                                                item.name,
-                                                                                                "notes",
-                                                                                                val,
-                                                                                            )
-                                                                                        }
-                                                                                    />
-                                                                                </div>
-                                                                            )}
-
-                                                                            {condition ===
-                                                                                "baik" && (
-                                                                                <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <div className="flex gap-2">
-                                                                                        <Label className="text-sm">
-                                                                                            Foto
-                                                                                            Bukti{" "}
-                                                                                            <span className="text-red-500">
-                                                                                                *
-                                                                                            </span>
-                                                                                        </Label>
-
-                                                                                        {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
-                                                                                        {!photo ? (
-                                                                                            <Button
-                                                                                                type="button"
-                                                                                                variant="ghost"
-                                                                                                className=" bg-blue-500/10 hover:ring-blue-500/80 text-blue-500 hover:text-blue-500/80"
-                                                                                                onClick={() =>
-                                                                                                    handleOpenCamera(
-                                                                                                        item.id,
-                                                                                                    )
-                                                                                                }
-                                                                                            >
-                                                                                                <Camera className="mr-2 h-4 w-4" />
-                                                                                                Buka
-                                                                                                Kamera
-                                                                                            </Button>
-                                                                                        ) : (
-                                                                                            <div className="mt-2 space-y-2">
-                                                                                                {/* Thumbnail Preview */}
-                                                                                                <div
-                                                                                                    className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
-                                                                                                    onClick={() =>
-                                                                                                        handlePreviewPhoto(
-                                                                                                            photo,
-                                                                                                        )
-                                                                                                    }
-                                                                                                >
-                                                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                                                    <img
-                                                                                                        src={URL.createObjectURL(
-                                                                                                            photo,
-                                                                                                        )}
-                                                                                                        alt="Preview"
-                                                                                                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                                                                                                    />
-                                                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                                                                                                        <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
-                                                                                                            Klik
-                                                                                                            untuk
-                                                                                                            lihat
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                {/* File Info & Actions */}
-                                                                                                <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                                                                    <div className="flex items-center gap-2 overflow-hidden">
-                                                                                                        <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
-                                                                                                        <div className="min-w-0">
-                                                                                                            <p className="text-xs font-medium text-green-800 truncate">
-                                                                                                                {
-                                                                                                                    photo.name
-                                                                                                                }
-                                                                                                            </p>
-                                                                                                            <p className="text-[10px] text-green-600">
-                                                                                                                {(
-                                                                                                                    photo.size /
-                                                                                                                    1024
-                                                                                                                ).toFixed(
-                                                                                                                    0,
-                                                                                                                )}{" "}
-                                                                                                                KB
-                                                                                                            </p>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <Button
-                                                                                                        size="icon"
-                                                                                                        variant="ghost"
-                                                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-                                                                                                        onClick={() =>
-                                                                                                            removePhoto(
-                                                                                                                item.id,
-                                                                                                            )
-                                                                                                        }
-                                                                                                    >
-                                                                                                        <Trash2 className="h-4 w-4" />
-                                                                                                    </Button>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-
-                                                                            {condition ===
-                                                                                "rusak" && (
-                                                                                <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <div className="flex gap-2">
-                                                                                        <Label className="text-sm">
-                                                                                            Foto
-                                                                                            Kerusakan{" "}
-                                                                                            <span className="text-red-500">
-                                                                                                *
-                                                                                            </span>
-                                                                                        </Label>
-
-                                                                                        {/* TOMBOL UNTUK MEMBUKA COMPONENT KAMERA BARU */}
-                                                                                        {!photo ? (
-                                                                                            <Button
-                                                                                                type="button"
-                                                                                                variant="ghost"
-                                                                                                className=" bg-blue-500/10 hover:ring-blue-500/80 text-blue-500 hover:text-blue-500/80"
-                                                                                                onClick={() =>
-                                                                                                    handleOpenCamera(
-                                                                                                        item.id,
-                                                                                                    )
-                                                                                                }
-                                                                                            >
-                                                                                                <Camera className="mr-2 h-4 w-4" />
-                                                                                                Buka
-                                                                                                Kamera
-                                                                                            </Button>
-                                                                                        ) : (
-                                                                                            <div className="mt-2 space-y-2">
-                                                                                                {/* Thumbnail Preview */}
-                                                                                                <div
-                                                                                                    className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
-                                                                                                    onClick={() =>
-                                                                                                        handlePreviewPhoto(
-                                                                                                            photo,
-                                                                                                        )
-                                                                                                    }
-                                                                                                >
-                                                                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                                                                    <img
-                                                                                                        src={URL.createObjectURL(
-                                                                                                            photo,
-                                                                                                        )}
-                                                                                                        alt="Preview"
-                                                                                                        className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
-                                                                                                    />
-                                                                                                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200 flex items-center justify-center">
-                                                                                                        <div className="bg-white/90 px-3 py-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium">
-                                                                                                            Klik
-                                                                                                            untuk
-                                                                                                            lihat
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                </div>
-                                                                                                {/* File Info & Actions */}
-                                                                                                <div className="flex items-center justify-between p-2 bg-green-50 border border-green-200 rounded-lg">
-                                                                                                    <div className="flex items-center gap-2 overflow-hidden">
-                                                                                                        <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
-                                                                                                        <div className="min-w-0">
-                                                                                                            <p className="text-xs font-medium text-green-800 truncate">
-                                                                                                                {
-                                                                                                                    photo.name
-                                                                                                                }
-                                                                                                            </p>
-                                                                                                            <p className="text-[10px] text-green-600">
-                                                                                                                {(
-                                                                                                                    photo.size /
-                                                                                                                    1024
-                                                                                                                ).toFixed(
-                                                                                                                    0,
-                                                                                                                )}{" "}
-                                                                                                                KB
-                                                                                                            </p>
-                                                                                                        </div>
-                                                                                                    </div>
-                                                                                                    <Button
-                                                                                                        size="icon"
-                                                                                                        variant="ghost"
-                                                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 shrink-0"
-                                                                                                        onClick={() =>
-                                                                                                            removePhoto(
-                                                                                                                item.id,
-                                                                                                            )
-                                                                                                        }
-                                                                                                    >
-                                                                                                        <Trash2 className="h-4 w-4" />
-                                                                                                    </Button>
-                                                                                                </div>
-                                                                                            </div>
-                                                                                        )}
-                                                                                    </div>
-
-                                                                                    <div className="flex gap-2 w-full">
-                                                                                        <Label className="text-sm">
-                                                                                            Akan
-                                                                                            dikerjakan
-                                                                                            oleh{" "}
-                                                                                            <span className="text-red-500">
-                                                                                                *
-                                                                                            </span>
-                                                                                        </Label>
-                                                                                        <Select
-                                                                                            value={
-                                                                                                handler
-                                                                                            }
-                                                                                            onValueChange={(
-                                                                                                value,
-                                                                                            ) =>
-                                                                                                updateChecklistItem(
-                                                                                                    item.id,
-                                                                                                    item.name,
-                                                                                                    "handler",
-                                                                                                    value,
-                                                                                                )
-                                                                                            }
-                                                                                        >
-                                                                                            <SelectTrigger className="mt-1">
-                                                                                                <SelectValue placeholder="Pilih handler" />
-                                                                                            </SelectTrigger>
-                                                                                            <SelectContent>
-                                                                                                <SelectItem value="BMS">
-                                                                                                    BMS
-                                                                                                </SelectItem>
-                                                                                                <SelectItem value="Rekanan">
-                                                                                                    Rekanan
-                                                                                                </SelectItem>
-                                                                                            </SelectContent>
-                                                                                        </Select>
-                                                                                    </div>
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    );
-                                                                },
-                                                            )}
-                                                        </div>
-                                                    </CollapsibleContent>
-                                                </Collapsible>
-                                            );
-                                        })}
-                                        {/* Cooldown badge untuk Category I */}
-                                        {isCategoryICoolingDown &&
-                                            categoryIAvailableDate && (
-                                                <div className="flex items-center gap-2 py-2 px-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800">
-                                                    <CalendarClock className="h-4 w-4 shrink-0" />
-                                                    <div className="text-sm">
-                                                        <span className="font-medium">
-                                                            I. Preventif
-                                                            Equipment Toko
-                                                            (setiap 3 bulan)
-                                                        </span>{" "}
-                                                        — Laporkan lagi pada{" "}
-                                                        <Badge
-                                                            variant="outline"
-                                                            className="ml-1 text-amber-700 border-amber-300"
-                                                        >
-                                                            {categoryIAvailableDate.toLocaleDateString(
-                                                                "id-ID",
-                                                                {
-                                                                    day: "numeric",
-                                                                    month: "long",
-                                                                    year: "numeric",
-                                                                },
-                                                            )}
-                                                        </Badge>
-                                                    </div>
-                                                </div>
-                                            )}
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                        {/* ... (Bagian Tombol Aksi Bawah sama) ... */}
-                        <div className="w-full mt-4 md:mt-0">
-                            <ButtonGroup
-                                className="w-full"
-                                orientation="horizontal"
-                            >
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => router.back()}
-                                >
-                                    Batal
-                                </Button>
-                                <Button
-                                    type="button"
-                                    className="flex-1"
-                                    onClick={handleNextStep}
-                                >
-                                    Lanjut ke Ringkasan
-                                </Button>
-                            </ButtonGroup>
-                        </div>
-                    </div>
+                    <ChecklistStep
+                        storeCode={selectedStoreCode}
+                        storeName={store}
+                        activeCategories={activeCategories}
+                        openCategories={openCategories}
+                        checklist={checklist}
+                        isCategoryICoolingDown={isCategoryICoolingDown}
+                        categoryIAvailableDate={categoryIAvailableDate}
+                        onToggleCategory={toggleCategory}
+                        onConditionChange={(itemId, itemName, value) =>
+                            updateChecklistItem(
+                                itemId,
+                                itemName,
+                                "condition",
+                                value,
+                            )
+                        }
+                        onNotesChange={(itemId, itemName, value) =>
+                            updateChecklistItem(
+                                itemId,
+                                itemName,
+                                "notes",
+                                value,
+                            )
+                        }
+                        onHandlerChange={(itemId, itemName, value) =>
+                            updateChecklistItem(
+                                itemId,
+                                itemName,
+                                "handler",
+                                value,
+                            )
+                        }
+                        onOpenCamera={handleOpenCamera}
+                        onPreviewPhoto={handlePreviewPhoto}
+                        onRemovePhoto={removePhoto}
+                        onBack={() => router.back()}
+                        onNext={handleNextStep}
+                    />
                 ) : (
-                    <div className="flex flex-col max-w-4xl mx-auto w-full gap-4 md:gap-8">
-                        <div className="w-full space-y-6">
-                            {bmsItems.size > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            Estimasi Harga BMS (
-                                            {bmsItemsList.length} item)
-                                        </CardTitle>
-                                        <CardDescription className="text-xs">
-                                            Tambahkan barang untuk setiap item
-                                            rusak
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="border rounded-lg overflow-hidden">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow className="bg-muted/30">
-                                                        <TableHead className="min-w-8">
-                                                            No
-                                                        </TableHead>
-                                                        <TableHead className="min-w-60">
-                                                            Item
-                                                        </TableHead>
-                                                        <TableHead className="min-w-16">
-                                                            Jml
-                                                        </TableHead>
-                                                        <TableHead className="min-w-32">
-                                                            Satuan
-                                                        </TableHead>
-                                                        <TableHead className="min-w-30">
-                                                            Harga
-                                                        </TableHead>
-                                                        <TableHead className="min-w-32">
-                                                            Total
-                                                        </TableHead>
-                                                        <TableHead className="min-w-12"></TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {Array.from(
-                                                        bmsItems.entries(),
-                                                    ).map(
-                                                        (
-                                                            [itemId, itemGroup],
-                                                            idx,
-                                                        ) => (
-                                                            <Fragment
-                                                                key={itemId}
-                                                            >
-                                                                {/* Item Header Row */}
-                                                                <TableRow
-                                                                    id={`bms-${itemId}`}
-                                                                    className="bg-primary/5 hover:bg-primary/10"
-                                                                >
-                                                                    <TableCell className="font-bold">
-                                                                        {idx +
-                                                                            1}
-                                                                    </TableCell>
-                                                                    <TableCell
-                                                                        colSpan={
-                                                                            6
-                                                                        }
-                                                                        className="font-bold"
-                                                                    >
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span>
-                                                                                {
-                                                                                    itemGroup
-                                                                                        .checklistItem
-                                                                                        .name
-                                                                                }
-                                                                            </span>
-                                                                            <span className="text-xs font-normal text-muted-foreground">
-                                                                                (
-                                                                                {
-                                                                                    itemGroup.categoryTitle
-                                                                                }
-
-                                                                                )
-                                                                            </span>
-                                                                        </div>
-                                                                    </TableCell>
-                                                                </TableRow>
-
-                                                                {/* BMS Entries */}
-                                                                {itemGroup.entries.map(
-                                                                    (entry) => (
-                                                                        <TableRow
-                                                                            key={
-                                                                                entry.id
-                                                                            }
-                                                                            id={`bms-${itemId}-${entry.id}`}
-                                                                        >
-                                                                            <TableCell></TableCell>
-                                                                            <TableCell>
-                                                                                <Input
-                                                                                    type="text"
-                                                                                    placeholder="Nama barang"
-                                                                                    value={
-                                                                                        entry.itemName
-                                                                                    }
-                                                                                    onChange={(
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        updateBmsEntry(
-                                                                                            itemId,
-                                                                                            entry.id,
-                                                                                            "itemName",
-                                                                                            e
-                                                                                                .target
-                                                                                                .value,
-                                                                                        )
-                                                                                    }
-                                                                                    className="h-8"
-                                                                                />
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    placeholder="0"
-                                                                                    value={
-                                                                                        entry.quantity ||
-                                                                                        ""
-                                                                                    }
-                                                                                    onChange={(
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        updateBmsEntry(
-                                                                                            itemId,
-                                                                                            entry.id,
-                                                                                            "quantity",
-                                                                                            parseFloat(
-                                                                                                e
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                            ) ||
-                                                                                                0,
-                                                                                        )
-                                                                                    }
-                                                                                    className="h-8"
-                                                                                />
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                <DropdownMenu>
-                                                                                    <DropdownMenuTrigger
-                                                                                        asChild
-                                                                                    >
-                                                                                        <Button
-                                                                                            variant="outline"
-                                                                                            className="h-8 w-full justify-between text-left"
-                                                                                        >
-                                                                                            {entry.unit ||
-                                                                                                "Pilih satuan"}
-                                                                                            <ChevronDown />
-                                                                                        </Button>
-                                                                                    </DropdownMenuTrigger>
-                                                                                    <DropdownMenuContent>
-                                                                                        {unitOptions.map(
-                                                                                            (
-                                                                                                unitOption,
-                                                                                            ) => (
-                                                                                                <DropdownMenuItem
-                                                                                                    key={
-                                                                                                        unitOption
-                                                                                                    }
-                                                                                                    onSelect={() =>
-                                                                                                        updateBmsEntry(
-                                                                                                            itemId,
-                                                                                                            entry.id,
-                                                                                                            "unit",
-                                                                                                            unitOption,
-                                                                                                        )
-                                                                                                    }
-                                                                                                >
-                                                                                                    {
-                                                                                                        unitOption
-                                                                                                    }
-                                                                                                </DropdownMenuItem>
-                                                                                            ),
-                                                                                        )}
-                                                                                    </DropdownMenuContent>
-                                                                                </DropdownMenu>
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    min="0"
-                                                                                    placeholder="0"
-                                                                                    value={
-                                                                                        entry.price ||
-                                                                                        ""
-                                                                                    }
-                                                                                    onChange={(
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        updateBmsEntry(
-                                                                                            itemId,
-                                                                                            entry.id,
-                                                                                            "price",
-                                                                                            parseFloat(
-                                                                                                e
-                                                                                                    .target
-                                                                                                    .value,
-                                                                                            ) ||
-                                                                                                0,
-                                                                                        )
-                                                                                    }
-                                                                                    className="h-8"
-                                                                                />
-                                                                            </TableCell>
-                                                                            <TableCell className="text-right font-medium">
-                                                                                Rp{" "}
-                                                                                {entry.total.toLocaleString(
-                                                                                    "id-ID",
-                                                                                )}
-                                                                            </TableCell>
-                                                                            <TableCell>
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    size="icon"
-                                                                                    variant="ghost"
-                                                                                    className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                                    onClick={() =>
-                                                                                        removeBmsEntry(
-                                                                                            itemId,
-                                                                                            entry.id,
-                                                                                        )
-                                                                                    }
-                                                                                >
-                                                                                    <Trash2 className="h-4 w-4" />
-                                                                                </Button>
-                                                                            </TableCell>
-                                                                        </TableRow>
-                                                                    ),
-                                                                )}
-
-                                                                {/* Add Item Button Row */}
-                                                                <TableRow className="hover:bg-muted/30">
-                                                                    <TableCell></TableCell>
-                                                                    <TableCell
-                                                                        colSpan={
-                                                                            6
-                                                                        }
-                                                                        className="pl-8"
-                                                                    >
-                                                                        <Button
-                                                                            type="button"
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="text-primary hover:text-primary hover:bg-primary/10"
-                                                                            onClick={() =>
-                                                                                addBmsEntry(
-                                                                                    itemId,
-                                                                                )
-                                                                            }
-                                                                        >
-                                                                            <Plus className="h-4 w-4 mr-1" />
-                                                                            Tambah
-                                                                            barang
-                                                                        </Button>
-                                                                    </TableCell>
-                                                                </TableRow>
-
-                                                                {/* Item Subtotal */}
-                                                                {itemGroup
-                                                                    .entries
-                                                                    .length >
-                                                                    0 && (
-                                                                    <TableRow className="bg-muted/20">
-                                                                        <TableCell></TableCell>
-                                                                        <TableCell
-                                                                            colSpan={
-                                                                                4
-                                                                            }
-                                                                            className="text-right font-semibold"
-                                                                        >
-                                                                            Subtotal:
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right font-semibold text-primary">
-                                                                            Rp{" "}
-                                                                            {itemGroup.entries
-                                                                                .reduce(
-                                                                                    (
-                                                                                        sum,
-                                                                                        e,
-                                                                                    ) =>
-                                                                                        sum +
-                                                                                        e.total,
-                                                                                    0,
-                                                                                )
-                                                                                .toLocaleString(
-                                                                                    "id-ID",
-                                                                                )}
-                                                                        </TableCell>
-                                                                        <TableCell></TableCell>
-                                                                    </TableRow>
-                                                                )}
-                                                            </Fragment>
-                                                        ),
-                                                    )}
-
-                                                    {/* Grand Total */}
-                                                    <TableRow className="bg-primary/10 font-bold">
-                                                        <TableCell></TableCell>
-                                                        <TableCell
-                                                            colSpan={4}
-                                                            className="text-right text-base"
-                                                        >
-                                                            Total Keseluruhan:
-                                                        </TableCell>
-                                                        <TableCell className="text-right text-base text-primary">
-                                                            Rp{" "}
-                                                            {grandTotalBms.toLocaleString(
-                                                                "id-ID",
-                                                            )}
-                                                        </TableCell>
-                                                        <TableCell></TableCell>
-                                                    </TableRow>
-                                                </TableBody>
-                                            </Table>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            )}
-                            {rekananItems.length > 0 && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            Item Rekanan ({rekananItems.length})
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Table>
-                                            <TableBody>
-                                                {rekananItems.map((item, i) => (
-                                                    <TableRow key={item.id}>
-                                                        <TableCell>
-                                                            {i + 1}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {item.name}
-                                                        </TableCell>
-                                                    </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </div>
-                        <div className="md:col-span-8 md:col-start-5 md:order-3 mt-4 md:mt-0">
-                            <ButtonGroup className="w-full">
-                                <Button
-                                    variant="outline"
-                                    className="flex-1"
-                                    onClick={() => setStep(1)}
-                                >
-                                    Kembali
-                                </Button>
-                                <AlertDialog
-                                    open={isSubmitDialogOpen}
-                                    onOpenChange={setIsSubmitDialogOpen}
-                                >
-                                    <AlertDialogTrigger asChild>
-                                        <Button className="flex-1">
-                                            Submit Laporan
-                                        </Button>
-                                    </AlertDialogTrigger>
-                                    <AlertDialogContent>
-                                        <AlertDialogHeader>
-                                            <AlertDialogTitle className="flex items-center gap-2">
-                                                <AlertTriangle className="h-5 w-5 text-primary" />
-                                                Konfirmasi Submit Laporan
-                                            </AlertDialogTitle>
-                                            <AlertDialogDescription>
-                                                Apakah Anda yakin ingin submit
-                                                laporan ini?
-                                            </AlertDialogDescription>
-                                        </AlertDialogHeader>
-                                        <div className="space-y-3">
-                                            <div className="bg-muted p-3 rounded-md space-y-2 text-sm">
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">
-                                                        Toko:
-                                                    </span>
-                                                    <span className="font-medium text-foreground">
-                                                        {store}
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">
-                                                        Item Rusak:
-                                                    </span>
-                                                    <span className="font-medium text-red-600">
-                                                        {rusakItems.length} item
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">
-                                                        Handler BMS:
-                                                    </span>
-                                                    <span className="font-medium text-foreground">
-                                                        {bmsItemsList.length}{" "}
-                                                        item
-                                                    </span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-muted-foreground">
-                                                        Handler Rekanan:
-                                                    </span>
-                                                    <span className="font-medium text-foreground">
-                                                        {rekananItems.length}{" "}
-                                                        item
-                                                    </span>
-                                                </div>
-                                                {grandTotalBms > 0 && (
-                                                    <div className="flex justify-between pt-2 border-t">
-                                                        <span className="text-muted-foreground">
-                                                            Total Biaya BMS:
-                                                        </span>
-                                                        <span className="font-bold text-primary">
-                                                            Rp{" "}
-                                                            {grandTotalBms.toLocaleString(
-                                                                "id-ID",
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-muted-foreground">
-                                                Setelah submit, laporan akan
-                                                dikirim untuk proses approval.
-                                            </p>
-                                        </div>
-                                        <AlertDialogFooter>
-                                            <AlertDialogCancel>
-                                                Batal
-                                            </AlertDialogCancel>
-                                            <AlertDialogAction
-                                                onClick={handleSubmit}
-                                                className="bg-primary"
-                                            >
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                Ya, Submit
-                                            </AlertDialogAction>
-                                        </AlertDialogFooter>
-                                    </AlertDialogContent>
-                                </AlertDialog>
-                            </ButtonGroup>
-                        </div>
-                    </div>
+                    <BmsEstimationStep
+                        bmsItems={bmsItems}
+                        bmsItemsList={bmsItemsList}
+                        rekananItems={rekananItems}
+                        grandTotalBms={grandTotalBms}
+                        store={store}
+                        isSubmitDialogOpen={isSubmitDialogOpen}
+                        setIsSubmitDialogOpen={setIsSubmitDialogOpen}
+                        onAddBmsEntry={addBmsEntry}
+                        onUpdateBmsEntry={updateBmsEntry}
+                        onRemoveBmsEntry={removeBmsEntry}
+                        onBack={() => setStep(1)}
+                        onSubmit={handleSubmit}
+                    />
                 )}
             </main>
             <Footer />

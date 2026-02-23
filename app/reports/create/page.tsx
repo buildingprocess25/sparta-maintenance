@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import { getStoresByBranch, getDraft } from "@/app/reports/actions";
-import type { ReportItemJson } from "@/types/report";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "./create-form";
 
 export default async function CreateReportPage() {
@@ -15,6 +15,8 @@ export default async function CreateReportPage() {
     // Serialize draft for client component
     // items is now a Json column (plain array), not a Prisma relation
     const draftItems = (draft?.items ?? []) as unknown as ReportItemJson[];
+    const draftEstimations = (draft?.estimations ??
+        []) as unknown as MaterialEstimationJson[];
 
     const serializedDraft = draft
         ? {
@@ -40,6 +42,14 @@ export default async function CreateReportPage() {
                   photoUrl: item.photoUrl ?? null,
                   images: item.images ?? [],
                   notes: item.notes ?? null,
+              })),
+              estimations: draftEstimations.map((est) => ({
+                  itemId: est.itemId,
+                  materialName: est.materialName,
+                  quantity: est.quantity,
+                  unit: est.unit,
+                  price: est.price,
+                  totalPrice: est.totalPrice,
               })),
           }
         : null;

@@ -10,6 +10,7 @@ export default function CreateReportLoading() {
                 title="Checklist Perbaikan Toko"
                 showBackButton
                 backHref="/dashboard"
+                logo={false}
             />
 
             <main className="flex-1 container mx-auto px-4 py-6 max-w-4xl space-y-6">
