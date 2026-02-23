@@ -157,18 +157,43 @@ function LocalNotesTextarea({
     onCommit: (value: string) => void;
 }) {
     const [localValue, setLocalValue] = useState(initialValue);
+    const [prevInitial, setPrevInitial] = useState(initialValue);
+    const [isEditing, setIsEditing] = useState(!!initialValue);
 
-    // Kalau initialValue berubah dari luar (misal draft restore), ikuti
-    useEffect(() => {
+    // Sync initialValue jika berubah dari luar (misal dari draft)
+    if (initialValue !== prevInitial) {
         setLocalValue(initialValue);
-    }, [initialValue]);
+        setPrevInitial(initialValue);
+        if (initialValue) setIsEditing(true);
+    }
+
+    if (!isEditing) {
+        return (
+            <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-dashed text-muted-foreground bg-transparent hover:bg-muted/50 justify-start h-9"
+                onClick={() => setIsEditing(true)}
+            >
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah Catatan (opsional)
+            </Button>
+        );
+    }
 
     return (
         <Textarea
+            autoFocus
             placeholder="Tambahkan catatan..."
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
-            onBlur={() => onCommit(localValue)}
+            onBlur={() => {
+                onCommit(localValue);
+                if (!localValue.trim()) {
+                    setIsEditing(false);
+                }
+            }}
             className="resize-none"
             rows={2}
         />
@@ -1137,6 +1162,50 @@ export default function CreateReportForm({
                 onCreateNew={handleCreateNew}
             />
 
+            {/* PILIH TOKO DIALOG */}
+            <AlertDialog open={!selectedStoreCode && !showDraftDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Pilih Toko</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Pilih toko yang akan diinspeksi untuk memulai
+                            laporan baru.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="py-4">
+                        <Label htmlFor="store-dialog" className="text-sm">
+                            Toko <span className="text-red-500">*</span>
+                        </Label>
+                        <Select
+                            onValueChange={handleStoreChange}
+                            value={selectedStoreCode}
+                        >
+                            <SelectTrigger
+                                className="mt-2 w-full"
+                                id="store-dialog"
+                            >
+                                <SelectValue placeholder="Pilih toko..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {stores.map((s) => (
+                                    <SelectItem key={s.code} value={s.code}>
+                                        {s.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <AlertDialogFooter>
+                        <Button
+                            variant="outline"
+                            onClick={() => router.push("/dashboard")}
+                        >
+                            Batal
+                        </Button>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
             <LoadingOverlay
                 isOpen={isSubmitting}
                 message="Membuat laporan..."
@@ -1193,7 +1262,7 @@ export default function CreateReportForm({
                 </div>
             )}
 
-            <main className="flex-1 container mx-auto px-4 py-4 md:py-8 max-w-7xl">
+            <main className="flex-1 container mx-auto px-4 md:px-4 py-4 md:py-8 max-w-7xl content-wrapper">
                 {/* ... (Bagian Progress Bar dan Header sama seperti sebelumnya) ... */}
                 <div className="flex items-center justify-center gap-2 mb-6 md:mb-8">
                     {/* ... Progress Bar Code (tidak berubah) ... */}
@@ -1222,7 +1291,7 @@ export default function CreateReportForm({
 
                 {/* DEVELOPMENT ONLY: Auto Fill Button */}
                 {process.env.NODE_ENV === "development" && step === 1 && (
-                    <div className="mb-4 flex justify-center">
+                    <div className="flex justify-center">
                         <Button
                             type="button"
                             variant="outline"
@@ -1236,7 +1305,7 @@ export default function CreateReportForm({
                     </div>
                 )}
                 {process.env.NODE_ENV === "development" && step === 2 && (
-                    <div className="mb-4 flex justify-center">
+                    <div className="flex justify-center">
                         <Button
                             type="button"
                             variant="outline"
@@ -1251,81 +1320,29 @@ export default function CreateReportForm({
                 )}
 
                 {step === 1 ? (
-                    <div className="flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8">
-                        {/* Kolom Kiri: Info Toko */}
-                        <div className="md:col-span-4 md:order-1">
-                            <div className="md:sticky md:top-24">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base flex items-center gap-2">
-                                            <Store className="h-4 w-4 text-primary" />
-                                            Informasi Toko
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-4">
+                    <div className="flex flex-col max-w-5xl mx-auto w-full gap-4 md:gap-8">
+                        {/* Checklist */}
+                        <div className="w-full">
+                            {selectedStoreCode && (
+                                <Card className="py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
+                                    <CardHeader className="px-1 md:px-6 flex flex-row items-center justify-between">
                                         <div>
-                                            <Label htmlFor="store">
-                                                Pilih Toko{" "}
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <Select
-                                                onValueChange={
-                                                    handleStoreChange
-                                                }
-                                                value={selectedStoreCode}
-                                            >
-                                                <SelectTrigger className="mt-2 w-full">
-                                                    <SelectValue placeholder="Pilih toko..." />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    {stores.map((s) => (
-                                                        <SelectItem
-                                                            key={s.code}
-                                                            value={s.code}
-                                                        >
-                                                            {s.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
+                                            <CardTitle className="text-base flex items-center gap-2">
+                                                <Store className="h-4 w-4 text-primary" />
+                                                {store || "Checklist Kondisi"}
+                                            </CardTitle>
+                                            <CardDescription className="text-xs mt-1">
+                                                Checklist Kondisi Toko | Total{" "}
+                                                {activeCategories.reduce(
+                                                    (sum, cat) =>
+                                                        sum + cat.items.length,
+                                                    0,
+                                                )}{" "}
+                                                item
+                                            </CardDescription>
                                         </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </div>
-
-                        {/* Kolom Kanan: Checklist */}
-                        <div className="md:col-span-8 md:order-2">
-                            {!selectedStoreCode ? (
-                                <Card className="h-full flex flex-col items-center justify-center p-8 border-dashed bg-muted/30">
-                                    <Store className="h-12 w-12 text-muted-foreground" />
-                                    <h3 className="text-lg font-medium text-muted-foreground">
-                                        Pilih Toko Terlebih Dahulu
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        Silakan pilih toko di sebelah kiri untuk
-                                        memuat checklist.
-                                    </p>
-                                </Card>
-                            ) : (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            Checklist Kondisi
-                                        </CardTitle>
-                                        <CardDescription className="text-xs">
-                                            Total{" "}
-                                            {activeCategories.reduce(
-                                                (sum, cat) =>
-                                                    sum + cat.items.length,
-                                                0,
-                                            )}{" "}
-                                            item
-                                        </CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-2">
+                                    <CardContent className="space-y-3 px-1 md:px-6 pb-0 md:pb-6">
                                         {activeCategories.map((category) => {
                                             const isOpen = openCategories.has(
                                                 category.id,
@@ -1386,7 +1403,7 @@ export default function CreateReportForm({
                                                         </Button>
                                                     </CollapsibleTrigger>
                                                     <CollapsibleContent className="pt-2">
-                                                        <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                                                        <div className="space-y-4 md:p-4 md:border-l-0 md:border md:rounded-lg bg-transparent md:bg-muted/30">
                                                             {category.items.map(
                                                                 (item) => {
                                                                     const itemData =
@@ -1408,7 +1425,7 @@ export default function CreateReportForm({
                                                                                 item.id
                                                                             }
                                                                             id={`item-${item.id}`}
-                                                                            className="space-y-3 p-3 bg-background rounded-md border"
+                                                                            className="space-y-3 p-3 bg-background rounded-md border transition-all duration-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/20"
                                                                         >
                                                                             <div className="font-medium text-sm">
                                                                                 {
@@ -1526,10 +1543,6 @@ export default function CreateReportForm({
 
                                                                             {condition && (
                                                                                 <div className="space-y-2 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <Label className="text-sm text-muted-foreground">
-                                                                                        Catatan
-                                                                                        (Opsional)
-                                                                                    </Label>
                                                                                     <LocalNotesTextarea
                                                                                         initialValue={
                                                                                             itemData?.notes ||
@@ -1552,7 +1565,7 @@ export default function CreateReportForm({
                                                                             {condition ===
                                                                                 "baik" && (
                                                                                 <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <div>
+                                                                                    <div className="flex gap-2">
                                                                                         <Label className="text-sm">
                                                                                             Foto
                                                                                             Bukti{" "}
@@ -1565,8 +1578,8 @@ export default function CreateReportForm({
                                                                                         {!photo ? (
                                                                                             <Button
                                                                                                 type="button"
-                                                                                                variant="secondary"
-                                                                                                className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                                                                                                variant="ghost"
+                                                                                                className=" bg-blue-500/10 hover:ring-blue-500/80 text-blue-500 hover:text-blue-500/80"
                                                                                                 onClick={() =>
                                                                                                     handleOpenCamera(
                                                                                                         item.id,
@@ -1574,10 +1587,8 @@ export default function CreateReportForm({
                                                                                                 }
                                                                                             >
                                                                                                 <Camera className="mr-2 h-4 w-4" />
-                                                                                                Ambil
-                                                                                                Foto
-                                                                                                /
-                                                                                                Galeri
+                                                                                                Buka
+                                                                                                Kamera
                                                                                             </Button>
                                                                                         ) : (
                                                                                             <div className="mt-2 space-y-2">
@@ -1649,7 +1660,7 @@ export default function CreateReportForm({
                                                                             {condition ===
                                                                                 "rusak" && (
                                                                                 <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                                                                                    <div>
+                                                                                    <div className="flex gap-2">
                                                                                         <Label className="text-sm">
                                                                                             Foto
                                                                                             Kerusakan{" "}
@@ -1662,8 +1673,8 @@ export default function CreateReportForm({
                                                                                         {!photo ? (
                                                                                             <Button
                                                                                                 type="button"
-                                                                                                variant="secondary"
-                                                                                                className="w-full mt-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200"
+                                                                                                variant="ghost"
+                                                                                                className=" bg-blue-500/10 hover:ring-blue-500/80 text-blue-500 hover:text-blue-500/80"
                                                                                                 onClick={() =>
                                                                                                     handleOpenCamera(
                                                                                                         item.id,
@@ -1671,10 +1682,8 @@ export default function CreateReportForm({
                                                                                                 }
                                                                                             >
                                                                                                 <Camera className="mr-2 h-4 w-4" />
-                                                                                                Ambil
-                                                                                                Foto
-                                                                                                /
-                                                                                                Galeri
+                                                                                                Buka
+                                                                                                Kamera
                                                                                             </Button>
                                                                                         ) : (
                                                                                             <div className="mt-2 space-y-2">
@@ -1741,7 +1750,7 @@ export default function CreateReportForm({
                                                                                         )}
                                                                                     </div>
 
-                                                                                    <div>
+                                                                                    <div className="flex gap-2 w-full">
                                                                                         <Label className="text-sm">
                                                                                             Akan
                                                                                             dikerjakan
@@ -1822,7 +1831,7 @@ export default function CreateReportForm({
                             )}
                         </div>
                         {/* ... (Bagian Tombol Aksi Bawah sama) ... */}
-                        <div className="md:col-span-8 md:col-start-5 md:order-3 mt-4 md:mt-0">
+                        <div className="w-full mt-4 md:mt-0">
                             <ButtonGroup
                                 className="w-full"
                                 orientation="horizontal"
@@ -1846,37 +1855,8 @@ export default function CreateReportForm({
                         </div>
                     </div>
                 ) : (
-                    <div className="flex flex-col md:grid md:grid-cols-12 gap-4 md:gap-8">
-                        <div className="md:col-span-4 md:order-1">
-                            <div className="md:sticky md:top-24">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">
-                                            Informasi Toko
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2 text-sm">
-                                        <div>
-                                            <span className="text-muted-foreground">
-                                                Nama:
-                                            </span>{" "}
-                                            <span className="font-medium">
-                                                {store}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-muted-foreground">
-                                                Total Item Rusak:
-                                            </span>{" "}
-                                            <span className="font-medium text-red-600">
-                                                {rusakItems.length} item
-                                            </span>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        </div>
-                        <div className="md:col-span-8 md:order-2 space-y-6">
+                    <div className="flex flex-col max-w-4xl mx-auto w-full gap-4 md:gap-8">
+                        <div className="w-full space-y-6">
                             {bmsItems.size > 0 && (
                                 <Card>
                                     <CardHeader>
