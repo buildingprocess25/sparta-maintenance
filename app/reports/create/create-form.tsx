@@ -1196,6 +1196,7 @@ export default function CreateReportForm({
                         rekananItems={rekananItems}
                         grandTotalBms={grandTotalBms}
                         store={store}
+                        storeCode={selectedStoreCode}
                         isSubmitDialogOpen={isSubmitDialogOpen}
                         setIsSubmitDialogOpen={setIsSubmitDialogOpen}
                         onAddBmsEntry={addBmsEntry}

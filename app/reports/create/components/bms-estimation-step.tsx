@@ -102,6 +102,7 @@ interface BmsEstimationStepProps {
     rekananItems: ChecklistItem[];
     grandTotalBms: number;
     store: string;
+    storeCode: string;
     isSubmitDialogOpen: boolean;
     setIsSubmitDialogOpen: (open: boolean) => void;
     onAddBmsEntry: (itemId: string) => void;
@@ -122,6 +123,7 @@ export function BmsEstimationStep({
     rekananItems,
     grandTotalBms,
     store,
+    storeCode,
     isSubmitDialogOpen,
     setIsSubmitDialogOpen,
     onAddBmsEntry,
@@ -476,7 +478,7 @@ export function BmsEstimationStep({
                                     <AlertTriangle className="h-5 w-5 text-primary" />
                                     Konfirmasi Submit Laporan
                                 </AlertDialogTitle>
-                                <AlertDialogDescription>
+                                <AlertDialogDescription className="text-nowrap mt-1 md:mt-0">
                                     Apakah Anda yakin ingin submit laporan ini?
                                 </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -487,7 +489,7 @@ export function BmsEstimationStep({
                                             Toko:
                                         </span>
                                         <span className="font-medium text-foreground">
-                                            {store}
+                                            {storeCode} - {store}
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
@@ -535,7 +537,7 @@ export function BmsEstimationStep({
                                     proses approval.
                                 </p>
                             </div>
-                            <AlertDialogFooter>
+                            <AlertDialogFooter className="flex-row justify-end grid grid-cols-2 gap-2">
                                 <AlertDialogCancel>Batal</AlertDialogCancel>
                                 <AlertDialogAction
                                     onClick={onSubmit}

@@ -523,7 +523,7 @@ function buildReportDocument(data: ReportPdfData) {
                                                 width: "20%",
                                             },
                                         },
-                                        "-",
+                                        item.notes || "-",
                                     ),
                                 );
                             }),

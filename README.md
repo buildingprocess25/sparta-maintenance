@@ -1,5 +1,14 @@
 # SPARTA Maintenance
 
+![Next.js](https://img.shields.io/badge/Next.js-16.1-black?logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
+![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=fff)
+![Vercel](https://img.shields.io/badge/Vercel-%23000000.svg?logo=vercel&logoColor=white)
+![License](https://img.shields.io/badge/License-Proprietary-red)
+
 **Sistem Pelaporan dan Tracking Aset — Maintenance**
 
 Platform terpusat untuk pelaporan kerusakan, monitoring perbaikan, dan pengelolaan estimasi biaya maintenance di seluruh store.
@@ -221,6 +230,12 @@ erDiagram
 | `npm run create-user` | Create a new user via CLI            |
 
 ---
+
+## Teams
+
+<a href="https://github.com/buildingprocess25/sparta-maintenance/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=buildingprocess25/sparta-maintenance" />
+</a>
 
 ## License
 
