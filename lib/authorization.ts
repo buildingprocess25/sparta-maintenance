@@ -177,10 +177,10 @@ export async function validateCSRF(headers: Headers): Promise<void> {
         if (!isAllowedOrigin) {
             logger.warn(
                 { operation: "validateCSRF", origin, host },
-                "CSRF validation failed",
+                "CSRF validation skipped in development — origin not in allowlist",
             );
         }
-        return; // Don't block in development
+        return;
     }
 
     // In production, strictly validate origin matches host
@@ -198,28 +198,37 @@ export async function validateCSRF(headers: Headers): Promise<void> {
  * Get user statistics for dashboard (moved from auth-helper.ts)
  */
 export async function getUserStats(userId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     try {
         const [totalReports, pendingReports, approvedReports, rejectedReports] =
             await Promise.all([
                 prisma.report.count({
-                    where: { createdByNIK: userId },
+                    where: {
+                        createdByNIK: userId,
+                        createdAt: { gte: startOfMonth },
+                    },
                 }),
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
                         status: "PENDING_APPROVAL",
+                        createdAt: { gte: startOfMonth },
                     },
                 }),
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
                         status: "APPROVED",
+                        createdAt: { gte: startOfMonth },
                     },
                 }),
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
                         status: "REJECTED",
+                        createdAt: { gte: startOfMonth },
                     },
                 }),
             ]);
@@ -236,11 +245,6 @@ export async function getUserStats(userId: string) {
             "Failed to fetch user stats",
             error,
         );
-        return {
-            totalReports: 0,
-            pendingReports: 0,
-            approvedReports: 0,
-            rejectedReports: 0,
-        };
+        throw error;
     }
 }

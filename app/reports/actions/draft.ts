@@ -13,6 +13,7 @@ import {
 } from "@/lib/authorization";
 import { headers } from "next/headers";
 import type { DraftData } from "./types";
+import { draftDataSchema, deleteDraftSchema } from "./types";
 
 function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
     return data.checklistItems
@@ -69,6 +70,14 @@ export async function getDraft() {
 }
 
 export async function saveDraft(data: DraftData) {
+    const parsed = draftDataSchema.safeParse(data);
+    if (!parsed.success) {
+        return {
+            error: "Data draft tidak valid",
+            detail: parsed.error.message,
+        };
+    }
+
     try {
         const user = await requireRole("BMS");
 
@@ -134,6 +143,14 @@ export async function saveDraft(data: DraftData) {
 }
 
 export async function deleteDraft(reportNumber: string) {
+    const parsed = deleteDraftSchema.safeParse({ reportNumber });
+    if (!parsed.success) {
+        return {
+            error: "Report number tidak valid",
+            detail: parsed.error.message,
+        };
+    }
+
     try {
         await requireRole("BMS");
 

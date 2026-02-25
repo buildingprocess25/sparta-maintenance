@@ -19,7 +19,7 @@ const prismaClientSingleton = () => {
     // Create PostgreSQL adapter for Supabase with optimized connection pool
     const pool = new Pool({
         connectionString: databaseUrl,
-        max: 20, // Maximum pool size
+        max: 5, // Keep low for serverless (Supabase free tier ~60 total)
         idleTimeoutMillis: 30000, // Close idle connections after 30s
         connectionTimeoutMillis: 10000, // Timeout for acquiring connection
         allowExitOnIdle: true, // Allow process to exit when all connections idle

@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { requireAuth, getUserStats } from "@/lib/authorization";
+import { capitalizeEachWord } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 import type { UserRole } from "@prisma/client";
 
@@ -153,18 +154,6 @@ export default async function DashboardPage() {
             color: "text-red-600",
         },
     ];
-    function capitalizeEachWord(str: string): string {
-        str = str.toLowerCase();
-
-        const words = str.split(" ");
-
-        const capitalizedWords = words.map((word) => {
-            if (word.length === 0) return "";
-            return word.charAt(0).toUpperCase() + word.slice(1);
-        });
-
-        return capitalizedWords.join(" ");
-    }
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">

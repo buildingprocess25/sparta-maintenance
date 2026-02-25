@@ -11,6 +11,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sendReportNotification } from "@/lib/email/send-report-notification";
 import type { DraftData } from "./types";
+import { draftDataSchema } from "./types";
 
 function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
     return data.checklistItems
@@ -45,6 +46,14 @@ function buildEstimationsJson(data: DraftData): Prisma.InputJsonValue {
 }
 
 export async function submitReport(data: DraftData) {
+    const parsed = draftDataSchema.safeParse(data);
+    if (!parsed.success) {
+        return {
+            error: "Data laporan tidak valid",
+            detail: parsed.error.message,
+        };
+    }
+
     try {
         const user = await requireRole("BMS");
 
