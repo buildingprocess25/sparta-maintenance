@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 import { getDbErrorMessage } from "@/lib/db-error";
+import { logger } from "@/lib/logger";
 import { redirect } from "next/navigation";
 
 // State awal untuk useFormState
@@ -66,7 +67,7 @@ export async function loginAction(
         // 4. Buat Sesi Login
         await createSession(user.NIK, user.role);
     } catch (error) {
-        console.error("Login Error:", error);
+        logger.error({ operation: "login" }, "Login failed", error);
         const message = getDbErrorMessage(error);
         return {
             errors: {

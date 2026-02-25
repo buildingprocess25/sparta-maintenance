@@ -152,7 +152,9 @@ export default function CreateReportForm({
             });
 
             if (result.error) {
-                toast.error(result.error);
+                toast.error(result.error, {
+                    description: result.detail,
+                });
                 setIsSubmitting(false);
                 return;
             }
@@ -163,9 +165,7 @@ export default function CreateReportForm({
             const error = err as Error;
             setIsSubmitting(false);
             toast.error("Gagal membuat laporan", {
-                description:
-                    error.message ||
-                    "Terjadi kesalahan saat membuat laporan. Silakan coba lagi.",
+                description: error.message,
             });
         }
     };

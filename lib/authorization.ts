@@ -1,6 +1,7 @@
 import "server-only";
 import { getSession } from "./session";
 import prisma from "./prisma";
+import { logger } from "./logger";
 import { redirect } from "next/navigation";
 import { isConnectionError } from "./db-error";
 
@@ -55,7 +56,11 @@ export async function getAuthUser(): Promise<AuthUser | null> {
                 "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda.",
             );
         }
-        console.error("Error fetching auth user:", error);
+        logger.error(
+            { operation: "getAuthUser" },
+            "Failed to fetch auth user",
+            error,
+        );
         return null;
     }
 }
@@ -170,7 +175,10 @@ export async function validateCSRF(headers: Headers): Promise<void> {
                 ));
 
         if (!isAllowedOrigin) {
-            console.warn("CSRF validation failed:", { origin, host });
+            logger.warn(
+                { operation: "validateCSRF", origin, host },
+                "CSRF validation failed",
+            );
         }
         return; // Don't block in development
     }
@@ -223,7 +231,11 @@ export async function getUserStats(userId: string) {
             rejectedReports,
         };
     } catch (error) {
-        console.error("Error fetching user stats:", error);
+        logger.error(
+            { operation: "getUserStats" },
+            "Failed to fetch user stats",
+            error,
+        );
         return {
             totalReports: 0,
             pendingReports: 0,

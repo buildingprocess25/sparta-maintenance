@@ -52,6 +52,21 @@ export default function GlobalError({
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
+                    {error.message && !isNetworkError && (
+                        <div className="rounded-md bg-muted p-3 text-left">
+                            <p className="text-xs font-medium text-muted-foreground mb-1">
+                                Detail error (laporkan ke developer):
+                            </p>
+                            <p className="text-sm text-foreground wrap-break-word font-mono">
+                                {error.message}
+                            </p>
+                            {error.digest && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    ID: {error.digest}
+                                </p>
+                            )}
+                        </div>
+                    )}
                     <Button onClick={reset} className="w-full" size="lg">
                         <RefreshCw className="mr-2 h-4 w-4" />
                         Coba Lagi

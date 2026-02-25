@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { sendEmail } from "@/lib/email/mailer";
 import { buildReportSubmittedHtml } from "@/lib/email/templates/report-submitted";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
+import { logger } from "@/lib/logger";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 export async function sendReportNotification(reportId: string): Promise<void> {
@@ -18,7 +19,10 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     });
 
     if (!report) {
-        console.error(`[sendReportNotification] Report not found: ${reportId}`);
+        logger.error(
+            { operation: "sendReportNotification", reportId },
+            "Report not found",
+        );
         return;
     }
 
@@ -51,8 +55,9 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     const recipientEmail = process.env.DEV_EMAIL_RECIPIENT;
 
     if (!recipientEmail) {
-        console.error(
-            "[sendReportNotification] No recipient email configured. Set DEV_EMAIL_RECIPIENT in .env",
+        logger.error(
+            { operation: "sendReportNotification" },
+            "No recipient email configured",
         );
         return;
     }
@@ -110,7 +115,12 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         ],
     });
 
-    console.log(
-        `[sendReportNotification] Email sent for report ${report.reportNumber} to ${recipientEmail}`,
+    logger.info(
+        {
+            operation: "sendReportNotification",
+            reportId: report.reportNumber,
+            recipientEmail,
+        },
+        "Email sent",
     );
 }

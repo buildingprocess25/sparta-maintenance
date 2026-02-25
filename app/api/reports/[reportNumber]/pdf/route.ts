@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import prisma from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
@@ -66,7 +67,11 @@ export async function GET(
                 .readFileSync(path.join(assetsDir, "Building-Logo.png"))
                 .toString("base64");
         } catch (e) {
-            console.error("Failed to load logo assets:", e);
+            logger.error(
+                { operation: "generatePdf", reportNumber },
+                "Failed to load logo assets",
+                e,
+            );
             // Fallback to empty string or a placeholder if needed,
             // but generateReportPdf might rely on them.
             // We'll proceed, assuming they exist as checked in previous steps.
@@ -151,7 +156,11 @@ export async function GET(
             },
         });
     } catch (error) {
-        console.error("PDF Generate Error:", error);
+        logger.error(
+            { operation: "generatePdf", reportNumber },
+            "Failed to generate PDF",
+            error,
+        );
         return NextResponse.json(
             { error: "Failed to generate PDF" },
             { status: 500 },

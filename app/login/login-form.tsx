@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useActionState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
     Card,
@@ -36,14 +35,7 @@ export function LoginForm() {
         initialState,
     );
 
-    // Show error toast when form errors occur
-    useEffect(() => {
-        if (state.errors?.form) {
-            toast.error("Login Gagal", {
-                description: state.errors.form[0],
-            });
-        }
-    }, [state.errors]);
+    // Inline form errors handle display — no duplicate toast needed
 
     // Handle password input - convert to uppercase
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -150,6 +142,13 @@ export function LoginForm() {
                                     </p>
                                 )}
                             </div>
+
+                            {/* Form-level error (server error, invalid credentials) */}
+                            {state.errors?.form && (
+                                <div className="rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                                    {state.errors.form[0]}
+                                </div>
+                            )}
 
                             {/* Submit Button */}
                             <ButtonGroup className="w-full mt-2">

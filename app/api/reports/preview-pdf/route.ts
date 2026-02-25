@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 import {
     generateReportPdf,
     ReportPdfData,
@@ -84,7 +85,11 @@ export async function GET() {
             },
         });
     } catch (error) {
-        console.error("PDF Generate Error:", error);
+        logger.error(
+            { operation: "previewPdf" },
+            "Failed to generate PDF preview",
+            error,
+        );
         return NextResponse.json(
             { error: "Gagal membuat PDF preview" },
             { status: 500 },
