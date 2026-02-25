@@ -112,8 +112,18 @@ export function CameraModal({
                 // ==============================
                 // DRAW WATERMARK
                 // ==============================
-                const padding = Math.max(20, Math.floor(canvas.width * 0.02));
-                const fontSize = Math.max(16, Math.floor(canvas.width * 0.035)); // responsive font
+                const isLandscape = canvas.width > canvas.height;
+                const fontScale = isLandscape ? 0.02 : 0.035;
+                const paddingScale = isLandscape ? 0.012 : 0.02;
+
+                const padding = Math.max(
+                    12,
+                    Math.floor(canvas.width * paddingScale),
+                );
+                const fontSize = Math.max(
+                    12,
+                    Math.floor(canvas.width * fontScale),
+                );
                 context.textBaseline = "bottom";
 
                 const textAppName = "SPARTA Maintenance";
@@ -134,84 +144,70 @@ export function CameraModal({
                     textLocation = watermarkInfo.storeInfo;
                 }
 
-                // Set font to measure texts
-                context.font = `bold ${fontSize}px sans-serif`;
-                let maxWidth = context.measureText(textAppName).width;
+                const smallerFont = Math.floor(fontSize * 0.8);
+                const lineGap = fontSize * (isLandscape ? 0.25 : 0.4);
+                const outlineWidth = Math.max(1, Math.floor(fontSize * 0.08));
 
-                context.font = `normal ${Math.floor(fontSize * 0.8)}px sans-serif`;
-                maxWidth = Math.max(
-                    maxWidth,
-                    context.measureText(textTime).width,
-                );
-                if (textUser)
-                    maxWidth = Math.max(
-                        maxWidth,
-                        context.measureText(textUser).width,
-                    );
-                if (textLocation)
-                    maxWidth = Math.max(
-                        maxWidth,
-                        context.measureText(textLocation).width,
-                    );
-
-                const textHeight = fontSize;
-                const lineGap = textHeight * 0.4;
-
-                // Calculate total height based on number of lines
-                let lineCount = 2; // App Name + Time
-                if (textUser) lineCount++;
-                if (textLocation) lineCount++;
-
-                const totalHeight =
-                    textHeight * 0.8 * (lineCount - 1) +
-                    textHeight +
-                    lineGap * (lineCount - 1);
-
-                // Box dimensions
-                const boxWidth = maxWidth + padding * 2;
-                const boxHeight = totalHeight + padding * 2;
-                const boxX = canvas.width - boxWidth;
-                const boxY = canvas.height - boxHeight;
-
-                // Draw background (semi-transparent black)
-                context.fillStyle = "rgba(0, 0, 0, 0.6)";
-                context.fillRect(boxX, boxY, boxWidth, boxHeight);
-
-                // Draw texts
-                context.textAlign = "right";
-                context.fillStyle = "#ffffff";
+                // Helper: draw text with outline for readability
+                const drawOutlinedText = (
+                    text: string,
+                    x: number,
+                    y: number,
+                    font: string,
+                ) => {
+                    context.font = font;
+                    context.textAlign = "right";
+                    context.lineWidth = outlineWidth;
+                    context.strokeStyle = "rgba(0, 0, 0, 0.7)";
+                    context.lineJoin = "round";
+                    context.shadowColor = "rgba(0, 0, 0, 0.5)";
+                    context.shadowBlur = fontSize * 0.3;
+                    context.shadowOffsetX = 1;
+                    context.shadowOffsetY = 1;
+                    context.strokeText(text, x, y);
+                    context.shadowBlur = 0;
+                    context.shadowOffsetX = 0;
+                    context.shadowOffsetY = 0;
+                    context.fillStyle = "#ffffff";
+                    context.fillText(text, x, y);
+                };
 
                 let currentY = canvas.height - padding;
-                const smallerFont = Math.floor(fontSize * 0.8);
+                const textX = canvas.width - padding;
 
-                // Draw from bottom to top
-                context.font = `normal ${smallerFont}px sans-serif`;
                 if (textLocation) {
-                    context.fillText(
+                    drawOutlinedText(
                         textLocation,
-                        canvas.width - padding,
+                        textX,
                         currentY,
+                        `normal ${smallerFont}px sans-serif`,
                     );
                     currentY -= smallerFont + lineGap;
                 }
 
                 if (textUser) {
-                    context.fillText(
+                    drawOutlinedText(
                         textUser,
-                        canvas.width - padding,
+                        textX,
                         currentY,
+                        `normal ${smallerFont}px sans-serif`,
                     );
                     currentY -= smallerFont + lineGap;
                 }
 
-                context.fillText(textTime, canvas.width - padding, currentY);
+                drawOutlinedText(
+                    textTime,
+                    textX,
+                    currentY,
+                    `normal ${smallerFont}px sans-serif`,
+                );
                 currentY -= smallerFont + lineGap;
 
-                context.font = `bold ${fontSize}px sans-serif`;
-                context.fillText(
+                drawOutlinedText(
                     textAppName,
-                    canvas.width - padding,
+                    textX,
                     currentY + (fontSize - smallerFont),
+                    `bold ${fontSize}px sans-serif`,
                 );
 
                 // Convert to File
@@ -240,30 +236,62 @@ export function CameraModal({
         );
     };
 
+    const [isLandscape, setIsLandscape] = useState(false);
+
+    useEffect(() => {
+        const mql = window.matchMedia("(orientation: landscape)");
+        setIsLandscape(mql.matches);
+        const handler = (e: MediaQueryListEvent) => setIsLandscape(e.matches);
+        mql.addEventListener("change", handler);
+        return () => mql.removeEventListener("change", handler);
+    }, []);
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-100 bg-black flex flex-col">
-            {/* Header Controls */}
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-linear-to-b from-black/50 to-transparent">
-                <Button
-                    variant="ghost"
-                    size="icon-lg"
-                    className="text-white hover:bg-white/20 rounded-full"
-                    onClick={onClose}
-                >
-                    <X className="h-15 w-15" />
-                </Button>
-
-                <Button
-                    variant="ghost"
-                    size="icon-lg"
-                    className="text-white hover:bg-white/20 rounded-full"
-                    onClick={toggleCamera}
-                >
-                    <SwitchCamera className="h-15 w-15" />
-                </Button>
-            </div>
+        <div
+            className={`fixed inset-0 z-100 bg-black flex ${isLandscape ? "flex-row" : "flex-col"}`}
+        >
+            {/* Left sidebar (landscape) / Top bar (portrait) — Close & Switch */}
+            {isLandscape ? (
+                <div className="w-16 flex flex-col items-center justify-center gap-6 bg-black/80 backdrop-blur-sm z-10">
+                    <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="text-white hover:bg-white/20 rounded-full"
+                        onClick={onClose}
+                    >
+                        <X className="h-8 w-8" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="text-white hover:bg-white/20 rounded-full"
+                        onClick={toggleCamera}
+                    >
+                        <SwitchCamera className="h-8 w-8" />
+                    </Button>
+                </div>
+            ) : (
+                <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-linear-to-b from-black/50 to-transparent">
+                    <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="text-white hover:bg-white/20 rounded-full"
+                        onClick={onClose}
+                    >
+                        <X className="h-15 w-15" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        className="text-white hover:bg-white/20 rounded-full"
+                        onClick={toggleCamera}
+                    >
+                        <SwitchCamera className="h-15 w-15" />
+                    </Button>
+                </div>
+            )}
 
             {/* Main Camera View */}
             <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
@@ -285,24 +313,35 @@ export function CameraModal({
                         className={`w-full h-full object-cover ${facingMode === "user" ? "scale-x-[-1]" : ""}`}
                     />
                 )}
-                {/* Hidden Canvas for capture processing */}
                 <canvas ref={canvasRef} className="hidden" />
             </div>
 
-            {/* Bottom Controls */}
-            <div className="bg-black/80 p-6 pb-8 backdrop-blur-sm">
-                <div className="flex items-center justify-center max-w-md mx-auto">
-                    {/* Shutter Button */}
+            {/* Right sidebar (landscape) / Bottom bar (portrait) — Shutter */}
+            {isLandscape ? (
+                <div className="w-24 flex items-center justify-center bg-black/80 backdrop-blur-sm">
                     <div className="relative group">
                         <button
                             onClick={handleCapture}
-                            className="h-20 w-20 rounded-full border-4 border-white flex items-center justify-center transition-all active:scale-95 group-hover:bg-white/10"
+                            className="h-16 w-16 rounded-full border-4 border-white flex items-center justify-center transition-all active:scale-95 group-hover:bg-white/10"
                         >
-                            <div className="h-16 w-16 bg-white rounded-full" />
+                            <div className="h-12 w-12 bg-white rounded-full" />
                         </button>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-black/80 p-6 pb-8 backdrop-blur-sm">
+                    <div className="flex items-center justify-center max-w-md mx-auto">
+                        <div className="relative group">
+                            <button
+                                onClick={handleCapture}
+                                className="h-20 w-20 rounded-full border-4 border-white flex items-center justify-center transition-all active:scale-95 group-hover:bg-white/10"
+                            >
+                                <div className="h-16 w-16 bg-white rounded-full" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

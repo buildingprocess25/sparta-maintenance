@@ -270,13 +270,10 @@ export async function deleteDraft(reportNumber: string) {
             }
 
             if (storagePaths.length > 0) {
-                const { createClient } = await import("@supabase/supabase-js");
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-                const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-                const supabase = createClient(supabaseUrl, supabaseKey);
+                const { getSupabaseClient } = await import("@/lib/supabase");
 
-                const { error: storageError } = await supabase.storage
-                    .from("reports")
+                const { error: storageError } = await getSupabaseClient()
+                    .storage.from("reports")
                     .remove(storagePaths);
 
                 if (storageError) {
@@ -284,7 +281,6 @@ export async function deleteDraft(reportNumber: string) {
                         "Gagal menghapus foto dari storage:",
                         storageError,
                     );
-                    // Lanjut hapus draft meskipun foto gagal dihapus
                 }
             }
         }

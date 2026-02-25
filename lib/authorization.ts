@@ -50,6 +50,11 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 
         return user as AuthUser;
     } catch (error) {
+        if (isConnectionError(error)) {
+            throw new Error(
+                "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda.",
+            );
+        }
         console.error("Error fetching auth user:", error);
         return null;
     }
@@ -178,41 +183,6 @@ export async function validateCSRF(headers: Headers): Promise<void> {
     const originHost = new URL(origin).host;
     if (originHost !== host) {
         throw new Error("CSRF validation failed: origin mismatch");
-    }
-}
-
-/**
- * Get current user with safe error handling (moved from auth-helper.ts)
- */
-export async function getCurrentUser() {
-    const session = await getSession();
-
-    if (!session || !session.userId) {
-        return null;
-    }
-
-    try {
-        const user = await prisma.user.findUnique({
-            where: { NIK: session.userId },
-            select: {
-                NIK: true,
-                email: true,
-                name: true,
-                role: true,
-                branchNames: true,
-            },
-        });
-
-        return user;
-    } catch (error) {
-        // Throw connection errors agar ditangkap oleh error.tsx boundary
-        if (isConnectionError(error)) {
-            throw new Error(
-                "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda.",
-            );
-        }
-        console.error("Error fetching user:", error);
-        return null;
     }
 }
 

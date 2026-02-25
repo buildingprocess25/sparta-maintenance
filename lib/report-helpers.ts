@@ -1,6 +1,11 @@
 import "server-only";
 import prisma from "./prisma";
+import { Prisma } from "@prisma/client";
 
+/**
+ * Generate a unique, sequential report number atomically.
+ * Format: `{STORE_CODE}-{YYMM}-{SEQ}` (e.g. `ALF1-2602-001`)
+ */
 export async function generateReportNumber(
     storeCode?: string,
 ): Promise<string> {
@@ -10,18 +15,33 @@ export async function generateReportNumber(
     const kode = storeCode ? storeCode.toUpperCase() : "XXXX";
     const prefix = `${kode}-${yy}${mm}-`;
 
-    // Ambil semua nomor laporan dengan prefix ini, cari sequence tertinggi
-    const existing = await prisma.report.findMany({
-        where: { reportNumber: { startsWith: prefix } },
-        select: { reportNumber: true },
+    const lockKey = hashCode(prefix);
+
+    return prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock($1)`, lockKey);
+
+        // Find the current max sequence number in one query.
+        const result = await tx.$queryRaw<{ max_seq: number | null }[]>(
+            Prisma.sql`
+                SELECT MAX(
+                    CAST(SUBSTRING("reportNumber" FROM ${prefix.length + 1}) AS INTEGER)
+                ) AS max_seq
+                FROM "Report"
+                WHERE "reportNumber" LIKE ${prefix + "%"}
+            `,
+        );
+
+        const maxSeq = result[0]?.max_seq ?? 0;
+        const nextNumber = (maxSeq + 1).toString().padStart(3, "0");
+
+        return `${prefix}${nextNumber}`;
     });
+}
 
-    let maxSeq = 0;
-    for (const r of existing) {
-        const seq = parseInt(r.reportNumber.slice(prefix.length), 10);
-        if (!isNaN(seq) && seq > maxSeq) maxSeq = seq;
+function hashCode(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (Math.imul(31, hash) + str.charCodeAt(i)) | 0;
     }
-
-    const nextNumber = (maxSeq + 1).toString().padStart(3, "0");
-    return `${prefix}${nextNumber}`;
+    return hash;
 }

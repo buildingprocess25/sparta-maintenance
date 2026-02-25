@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { X } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogContent,
@@ -11,14 +13,6 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-    Combobox,
-    ComboboxInput,
-    ComboboxContent,
-    ComboboxList,
-    ComboboxItem,
-    ComboboxEmpty,
-} from "@/components/ui/combobox";
 import type { StoreOption } from "./types";
 
 interface StoreSelectDialogProps {
@@ -40,8 +34,8 @@ export function StoreSelectDialog({
     const [localSelectedCode, setLocalSelectedCode] =
         useState(selectedStoreCode);
     const [prevOpen, setPrevOpen] = useState(open);
+    const inputRef = useRef<HTMLInputElement>(null);
 
-    // Reset state when dialog transitions from closed to open
     if (open && !prevOpen) {
         setSearchQuery("");
         setLocalSelectedCode(selectedStoreCode);
@@ -60,12 +54,23 @@ export function StoreSelectDialog({
         );
     }, [stores, searchQuery]);
 
-    const selectedObject = useMemo(() => {
-        if (!localSelectedCode) return null;
+    const selectedLabel = useMemo(() => {
+        if (!localSelectedCode) return "";
         const store = stores.find((s) => s.code === localSelectedCode);
-        if (!store) return null;
-        return { value: store.code, label: `${store.code} - ${store.name}` };
+        return store ? `${store.code} - ${store.name}` : "";
     }, [localSelectedCode, stores]);
+
+    const handleSelect = (code: string) => {
+        setLocalSelectedCode(code);
+        const store = stores.find((s) => s.code === code);
+        if (store) setSearchQuery(`${store.code} - ${store.name}`);
+    };
+
+    const handleClear = () => {
+        setSearchQuery("");
+        setLocalSelectedCode("");
+        inputRef.current?.focus();
+    };
 
     const handleConfirm = () => {
         if (localSelectedCode) {
@@ -75,7 +80,7 @@ export function StoreSelectDialog({
 
     return (
         <AlertDialog open={open}>
-            <AlertDialogContent className="sm:max-w-md overflow-visible">
+            <AlertDialogContent className="sm:max-w-md">
                 <AlertDialogHeader>
                     <AlertDialogTitle>Pilih Toko</AlertDialogTitle>
                     <AlertDialogDescription>
@@ -83,57 +88,57 @@ export function StoreSelectDialog({
                         menyimpan pilihan.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
-                <div className="py-4">
+                <div>
                     <div className="space-y-2">
                         <Label>
                             Toko <span className="text-red-500">*</span>
                         </Label>
-                        <Combobox
-                            value={selectedObject}
-                            onValueChange={(
-                                val: { value: string; label: string } | null,
-                            ) => {
-                                if (val) {
-                                    setLocalSelectedCode(val.value);
-                                }
-                            }}
-                            inputValue={searchQuery}
-                            onInputValueChange={(val) => setSearchQuery(val)}
-                            isItemEqualToValue={(item, selected) =>
-                                item?.value === selected?.value
-                            }
-                        >
-                            <ComboboxInput
+                        <div className="relative">
+                            <Input
+                                ref={inputRef}
                                 placeholder="Ketik kode atau nama toko..."
-                                className="w-full"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    if (!e.target.value.trim()) {
+                                        setLocalSelectedCode("");
+                                    }
+                                }}
+                                className="pr-9"
                             />
-                            <ComboboxContent
-                                align="start"
-                                sideOffset={4}
-                                className="w-[--anchor-width]"
-                            >
-                                <ComboboxList>
-                                    {filteredStores.map((store) => (
-                                        <ComboboxItem
-                                            key={store.code}
-                                            value={{
-                                                value: store.code,
-                                                label: `${store.code} - ${store.name}`,
-                                            }}
-                                        >
-                                            {store.code} - {store.name}
-                                        </ComboboxItem>
-                                    ))}
-                                    {filteredStores.length === 0 && (
-                                        <ComboboxEmpty className="py-6 text-center">
-                                            {!searchQuery.trim()
-                                                ? "Ketik beberapa huruf untuk mulai mencari"
-                                                : "Toko tidak ditemukan"}
-                                        </ComboboxEmpty>
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={handleClear}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+
+                            {searchQuery.trim() && !localSelectedCode && (
+                                <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+                                    {filteredStores.length > 0 ? (
+                                        filteredStores.map((store) => (
+                                            <button
+                                                key={store.code}
+                                                type="button"
+                                                onClick={() =>
+                                                    handleSelect(store.code)
+                                                }
+                                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                            >
+                                                {store.code} - {store.name}
+                                            </button>
+                                        ))
+                                    ) : (
+                                        <p className="py-6 text-center text-sm text-muted-foreground">
+                                            Toko tidak ditemukan
+                                        </p>
                                     )}
-                                </ComboboxList>
-                            </ComboboxContent>
-                        </Combobox>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
                 <AlertDialogFooter>
