@@ -27,7 +27,7 @@ export default async function Page() {
         <div className="min-h-screen bg-background flex flex-col">
             <Header variant="default" />
 
-            <section className="container mx-auto px-5 justify-center flex-1 flex items-center">
+            <section className="w-full mx-auto px-4 md:px-12 lg:px-20 justify-center flex-1 flex items-center">
                 <div className="max-w-4xl mx-auto text-center space-y-3">
                     <h1 className="text-3xl md:text-6xl font-bold text-foreground tracking-tight leading-snug md:leading-tight">
                         Pusat Pelaporan{" "}
@@ -37,8 +37,8 @@ export default async function Page() {
                         Toko
                     </h1>
 
-                    <div className="flex justify-center gap-4 md:gap-5">
-                        <div className="flex flex-col items-center justify-center gap-2.5 w-28 h-28 md:w-36 md:h-36 text-card-foreground">
+                    <div className="flex flex-wrap justify-center gap-3 md:gap-5">
+                        <div className="flex flex-col items-center justify-center gap-2.5 min-w-20 flex-1 max-w-36 h-28 md:h-36 text-card-foreground">
                             <Wrench className="h-6 w-6 md:h-8 md:w-8 text-primary" />
                             <Badge
                                 variant="secondary"
@@ -48,7 +48,7 @@ export default async function Page() {
                                 Cepat
                             </Badge>
                         </div>
-                        <div className="flex flex-col items-center justify-center gap-2.5 w-28 h-28 md:w-36 md:h-36 text-card-foreground">
+                        <div className="flex flex-col items-center justify-center gap-2.5 min-w-20 flex-1 max-w-36 h-28 md:h-36 text-card-foreground">
                             <ClipboardCheck className="h-6 w-6 md:h-8 md:w-8 text-primary" />
                             <Badge
                                 variant="secondary"
@@ -58,7 +58,7 @@ export default async function Page() {
                                 Tracking Real-time
                             </Badge>
                         </div>
-                        <div className="flex flex-col items-center justify-center gap-2.5 w-28 h-28 md:w-36 md:h-36 text-card-foreground">
+                        <div className="flex flex-col items-center justify-center gap-2.5 min-w-20 flex-1 max-w-36 h-28 md:h-36 text-card-foreground">
                             <TrendingDown className="h-6 w-6 md:h-8 md:w-8 text-primary" />
                             <Badge
                                 variant="secondary"
