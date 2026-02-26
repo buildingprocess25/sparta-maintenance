@@ -70,48 +70,69 @@ export async function submitReport(data: DraftData) {
             },
         });
 
-        let reportId: string;
+        // Always get the store to generate the correct sequence prefix
+        const store = data.storeCode
+            ? await prisma.store.findUnique({
+                  where: { code: data.storeCode },
+                  select: { code: true },
+              })
+            : null;
 
-        if (existingDraft) {
-            await prisma.report.update({
-                where: { reportNumber: existingDraft.reportNumber },
-                data: {
-                    storeCode: data.storeCode || null,
-                    storeName: data.storeName || "",
-                    branchName: data.branchName || "",
-                    totalEstimation: data.totalEstimation || 0,
-                    status: "PENDING_APPROVAL",
-                    items: itemsJson,
-                    estimations: estimationsJson,
-                },
-            });
+        const reportId = await prisma.$transaction(async (tx) => {
+            let finalReportId: string;
 
-            reportId = existingDraft.reportNumber;
-        } else {
-            const store = data.storeCode
-                ? await prisma.store.findUnique({
-                      where: { code: data.storeCode },
-                      select: { code: true },
-                  })
-                : null;
-            const reportNumber = await generateReportNumber(store?.code);
+            if (existingDraft) {
+                // Check if the draft has a temporary ID (DRAFT-cuid).
+                // If yes, we must generate a real sequential report number for the final submission.
+                let finalReportNumber = existingDraft.reportNumber;
+                if (finalReportNumber.startsWith("DRAFT-")) {
+                    finalReportNumber = await generateReportNumber(
+                        store?.code,
+                        tx,
+                    );
+                }
 
-            const newReport = await prisma.report.create({
-                data: {
-                    reportNumber,
-                    storeCode: data.storeCode || null,
-                    storeName: data.storeName || "",
-                    branchName: data.branchName || "",
-                    totalEstimation: data.totalEstimation || 0,
-                    status: "PENDING_APPROVAL",
-                    createdByNIK: user.NIK,
-                    items: itemsJson,
-                    estimations: estimationsJson,
-                },
-            });
+                // Using Prisma update with primary key change
+                await tx.report.update({
+                    where: { reportNumber: existingDraft.reportNumber },
+                    data: {
+                        reportNumber: finalReportNumber,
+                        storeCode: data.storeCode || null,
+                        storeName: data.storeName || "",
+                        branchName: data.branchName || "",
+                        totalEstimation: data.totalEstimation || 0,
+                        status: "PENDING_APPROVAL",
+                        items: itemsJson,
+                        estimations: estimationsJson,
+                    },
+                });
 
-            reportId = newReport.reportNumber;
-        }
+                finalReportId = finalReportNumber;
+            } else {
+                // New report directly submitted without saving draft first
+                const reportNumber = await generateReportNumber(
+                    store?.code,
+                    tx,
+                );
+
+                const newReport = await tx.report.create({
+                    data: {
+                        reportNumber,
+                        storeCode: data.storeCode || null,
+                        storeName: data.storeName || "",
+                        branchName: data.branchName || "",
+                        totalEstimation: data.totalEstimation || 0,
+                        status: "PENDING_APPROVAL",
+                        createdByNIK: user.NIK,
+                        items: itemsJson,
+                        estimations: estimationsJson,
+                    },
+                });
+
+                finalReportId = newReport.reportNumber;
+            }
+            return finalReportId;
+        });
 
         revalidatePath("/reports");
 

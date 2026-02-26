@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
-import { generateReportNumber } from "@/lib/report-helpers";
+import { createId } from "@paralleldrive/cuid2";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import type { Prisma } from "@prisma/client";
 import {
@@ -13,7 +13,7 @@ import {
 } from "@/lib/authorization";
 import { headers } from "next/headers";
 import type { DraftData } from "./types";
-import { draftDataSchema, deleteDraftSchema } from "./types";
+import { deleteDraftSchema } from "./types";
 
 function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
     return data.checklistItems
@@ -70,14 +70,6 @@ export async function getDraft() {
 }
 
 export async function saveDraft(data: DraftData) {
-    const parsed = draftDataSchema.safeParse(data);
-    if (!parsed.success) {
-        return {
-            error: "Data draft tidak valid",
-            detail: parsed.error.message,
-        };
-    }
-
     try {
         const user = await requireRole("BMS");
 
@@ -109,13 +101,12 @@ export async function saveDraft(data: DraftData) {
 
             return { reportId: updatedReport.reportNumber };
         } else {
-            const store = data.storeCode
-                ? await prisma.store.findUnique({
-                      where: { code: data.storeCode },
-                      select: { code: true },
-                  })
-                : null;
-            const reportNumber = await generateReportNumber(store?.code);
+            // DRAFTS use a temporary unique ID (cuid).
+            // The real sequential number (e.g. ALF1-YYMM-001) is
+            // only generated when SUBMITTING the report.
+            // This prevents sequence starvation from abandoned drafts
+            // and avoids constraint errors during rapid auto-saving.
+            const reportNumber = `DRAFT-${createId()}`;
 
             const newReport = await prisma.report.create({
                 data: {
@@ -134,10 +125,12 @@ export async function saveDraft(data: DraftData) {
             return { reportId: newReport.reportNumber };
         }
     } catch (error) {
+        console.error("[DEBUG saveDraft] ERROR CAUGHT:", error);
         logger.error({ operation: "saveDraft" }, "Failed to save draft", error);
         return {
             error: "Gagal menyimpan draft",
             detail: getErrorDetail(error),
+            _debugMsg: String(error),
         };
     }
 }

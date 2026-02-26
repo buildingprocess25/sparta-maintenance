@@ -30,13 +30,12 @@ type UseDraftParams = {
         React.SetStateAction<Map<string, BmsItemGroup>>
     >;
     selectedStoreCode: string;
-    setSelectedStoreCode: (code: string) => void;
     store: string;
-    setStore: (name: string) => void;
     userBranchName: string;
     activeCategories: ChecklistCategory[];
     grandTotalBms: number;
     isSubmitting: boolean;
+    handleStoreChange: (storeCode: string) => Promise<void>;
 };
 
 export function useDraft({
@@ -47,19 +46,19 @@ export function useDraft({
     bmsItems,
     setBmsItems,
     selectedStoreCode,
-    setSelectedStoreCode,
     store,
-    setStore,
     userBranchName,
     activeCategories,
     grandTotalBms,
     isSubmitting,
+    handleStoreChange,
 }: UseDraftParams) {
     const [draftReportId, setDraftReportId] = useState<string | null>(
         existingDraft?.reportNumber || null,
     );
     const [showDraftDialog, setShowDraftDialog] = useState(!!existingDraft);
     const [isRestoringDraft, setIsRestoringDraft] = useState(false);
+    const [isDeletingDraft, setIsDeletingDraft] = useState(false);
 
     const handleContinueDraft = useCallback(async () => {
         if (!existingDraft) return;
@@ -70,8 +69,7 @@ export function useDraft({
                     (st) => st.code === existingDraft.storeCode,
                 );
                 if (s) {
-                    setSelectedStoreCode(s.code);
-                    setStore(s.name);
+                    await handleStoreChange(s.code);
                 }
             }
 
@@ -169,21 +167,22 @@ export function useDraft({
         } finally {
             setIsRestoringDraft(false);
         }
-    }, [
-        existingDraft,
-        stores,
-        setChecklist,
-        setBmsItems,
-        setSelectedStoreCode,
-        setStore,
-    ]);
+    }, [existingDraft, stores, setChecklist, setBmsItems, handleStoreChange]);
 
     const handleCreateNew = useCallback(async () => {
-        if (existingDraft) {
-            await deleteDraft(existingDraft.reportNumber);
+        setIsDeletingDraft(true);
+        try {
+            if (existingDraft) {
+                await deleteDraft(existingDraft.reportNumber);
+            }
+            setShowDraftDialog(false);
+            toast.info("Draft dihapus, mulai laporan baru");
+        } catch (error) {
+            console.error("Gagal menghapus draft", error);
+            toast.error("Gagal menghapus draft lama");
+        } finally {
+            setIsDeletingDraft(false);
         }
-        setShowDraftDialog(false);
-        toast.info("Draft dihapus, mulai laporan baru");
     }, [existingDraft]);
 
     // Auto-save with debounce
@@ -248,16 +247,24 @@ export function useDraft({
         );
 
         (async () => {
-            const res = await saveDraft({
-                storeCode: debouncedStoreCode || undefined,
-                storeName: store,
-                branchName: userBranchName,
-                checklistItems,
-                bmsEstimations,
-                totalEstimation,
-            });
-            if (res.reportId && res.reportId !== draftReportId) {
-                setDraftReportId(res.reportId);
+            try {
+                const res = await saveDraft({
+                    storeCode: debouncedStoreCode || undefined,
+                    storeName: store,
+                    branchName: userBranchName,
+                    checklistItems,
+                    bmsEstimations,
+                    totalEstimation,
+                });
+
+                if (res.error) {
+                    toast.error(`Auto-save gagal: ${res.detail || res.error}`);
+                    console.error("[Auto-save error]", res);
+                } else if (res.reportId && res.reportId !== draftReportId) {
+                    setDraftReportId(res.reportId);
+                }
+            } catch (err) {
+                console.error("[Auto-save exception]", err);
             }
         })();
     }, [
@@ -347,6 +354,7 @@ export function useDraft({
         setDraftReportId,
         showDraftDialog,
         isRestoringDraft,
+        isDeletingDraft,
         handleContinueDraft,
         handleCreateNew,
         buildDraftData,

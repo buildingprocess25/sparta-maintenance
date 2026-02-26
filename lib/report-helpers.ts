@@ -1,13 +1,22 @@
 import "server-only";
 import prisma from "./prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
+
+export type PrismaTx = Omit<
+    PrismaClient,
+    "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 /**
  * Generate a unique, sequential report number atomically.
  * Format: `{STORE_CODE}-{YYMM}-{SEQ}` (e.g. `ALF1-2602-001`)
+ *
+ * It accepts an optional Prisma Transaction client to ensure the lock
+ * is held until the caller commits the full transaction.
  */
 export async function generateReportNumber(
     storeCode?: string,
+    tx?: PrismaTx | PrismaClient,
 ): Promise<string> {
     const now = new Date();
     const yy = now.getFullYear().toString().slice(-2);
@@ -17,14 +26,17 @@ export async function generateReportNumber(
 
     const lockKey = hashCode(prefix);
 
-    return prisma.$transaction(async (tx) => {
-        await tx.$executeRawUnsafe(`SELECT pg_advisory_xact_lock($1)`, lockKey);
+    const executeOperation = async (client: PrismaTx | PrismaClient) => {
+        await client.$executeRawUnsafe(
+            `SELECT pg_advisory_xact_lock($1)`,
+            lockKey,
+        );
 
         // Find the current max sequence number in one query.
-        const result = await tx.$queryRaw<{ max_seq: number | null }[]>(
+        const result = await client.$queryRaw<{ max_seq: number | null }[]>(
             Prisma.sql`
                 SELECT MAX(
-                    CAST(SUBSTRING("reportNumber" FROM ${prefix.length + 1}) AS INTEGER)
+                    CAST(SUBSTR("reportNumber", ${prefix.length + 1}) AS INTEGER)
                 ) AS max_seq
                 FROM "Report"
                 WHERE "reportNumber" LIKE ${prefix + "%"}
@@ -35,7 +47,13 @@ export async function generateReportNumber(
         const nextNumber = (maxSeq + 1).toString().padStart(3, "0");
 
         return `${prefix}${nextNumber}`;
-    });
+    };
+
+    if (tx) {
+        return executeOperation(tx);
+    } else {
+        return prisma.$transaction((t) => executeOperation(t));
+    }
 }
 
 function hashCode(str: string): number {

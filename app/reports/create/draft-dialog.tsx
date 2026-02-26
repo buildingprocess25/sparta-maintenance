@@ -15,20 +15,20 @@ import { Badge } from "@/components/ui/badge";
 
 interface DraftDialogProps {
     open: boolean;
-    draftReportNumber: string;
     draftStoreName?: string;
     draftUpdatedAt: string;
     isLoading?: boolean;
+    isDeleting?: boolean;
     onContinueDraft: () => void;
     onCreateNew: () => void;
 }
 
 export function DraftDialog({
     open,
-    draftReportNumber,
     draftStoreName,
     draftUpdatedAt,
     isLoading = false,
+    isDeleting = false,
     onContinueDraft,
     onCreateNew,
 }: DraftDialogProps) {
@@ -56,9 +56,6 @@ export function DraftDialog({
                         <div className="mt-4 rounded-lg border bg-muted/40 p-3 text-sm">
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center justify-between">
-                                    <span className="font-semibold text-foreground flex items-center gap-2">
-                                        {draftReportNumber}
-                                    </span>
                                     <Badge
                                         variant="outline"
                                         className="text-[10px] font-normal"
@@ -90,18 +87,33 @@ export function DraftDialog({
                 <AlertDialogFooter className="sm:justify-between sm:gap-2">
                     {/* Secondary Action (Left on Desktop) */}
                     <AlertDialogCancel
-                        onClick={onCreateNew}
-                        disabled={isLoading}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (!isDeleting && !isLoading) onCreateNew();
+                        }}
+                        disabled={isLoading || isDeleting}
                         className="w-full sm:w-auto mt-2 sm:mt-0 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/20"
                     >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Hapus & Buat Baru
+                        {isDeleting ? (
+                            <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Menghapus...
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Hapus & Buat Baru
+                            </>
+                        )}
                     </AlertDialogCancel>
 
                     {/* Primary Action (Right on Desktop) */}
                     <AlertDialogAction
-                        onClick={onContinueDraft}
-                        disabled={isLoading}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            if (!isDeleting && !isLoading) onContinueDraft();
+                        }}
+                        disabled={isLoading || isDeleting}
                         className="w-full sm:w-auto"
                     >
                         {isLoading ? (

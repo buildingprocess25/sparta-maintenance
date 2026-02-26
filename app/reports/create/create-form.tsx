@@ -43,9 +43,7 @@ export default function CreateReportForm({
         openCategories,
         setOpenCategories,
         selectedStoreCode,
-        setSelectedStoreCode,
         store,
-        setStore,
         isCategoryICoolingDown,
         categoryIAvailableDate,
         activeCategories,
@@ -71,6 +69,7 @@ export default function CreateReportForm({
         setDraftReportId,
         showDraftDialog,
         isRestoringDraft,
+        isDeletingDraft,
         handleContinueDraft,
         handleCreateNew,
         buildDraftData,
@@ -82,13 +81,12 @@ export default function CreateReportForm({
         bmsItems,
         setBmsItems,
         selectedStoreCode,
-        setSelectedStoreCode,
         store,
-        setStore,
         userBranchName,
         activeCategories,
         grandTotalBms,
         isSubmitting,
+        handleStoreChange,
     });
 
     const {
@@ -174,10 +172,10 @@ export default function CreateReportForm({
         <div className="min-h-screen flex flex-col bg-background">
             <DraftDialog
                 open={showDraftDialog}
-                draftReportNumber={existingDraft?.reportNumber || ""}
                 draftStoreName={existingDraft?.storeName}
                 draftUpdatedAt={existingDraft?.updatedAt || ""}
                 isLoading={isRestoringDraft}
+                isDeleting={isDeletingDraft}
                 onContinueDraft={handleContinueDraft}
                 onCreateNew={handleCreateNew}
             />
