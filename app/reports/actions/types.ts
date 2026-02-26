@@ -37,33 +37,39 @@ export type ReportFilters = {
 
 import { z } from "zod/v4";
 
-const checklistItemSchema = z.object({
-    itemId: z.string().min(1),
-    itemName: z.string().min(1),
-    categoryName: z.string(),
-    condition: z.enum(["BAIK", "RUSAK", "TIDAK_ADA"]).optional(),
-    preventiveCondition: z.enum(["OK", "NOT_OK"]).optional(),
-    handler: z.enum(["BMS", "REKANAN"]).optional(),
-    photoUrl: z.string().optional(),
-    notes: z.string().optional(),
-});
+const checklistItemSchema = z
+    .object({
+        itemId: z.string().min(1),
+        itemName: z.string().min(1),
+        categoryName: z.string(),
+        condition: z.enum(["BAIK", "RUSAK", "TIDAK_ADA"]).optional(),
+        preventiveCondition: z.enum(["OK", "NOT_OK"]).optional(),
+        handler: z.enum(["BMS", "REKANAN"]).optional(),
+        photoUrl: z.string().optional(),
+        notes: z.string().optional(),
+    })
+    .passthrough();
 
-const bmsEstimationSchema = z.object({
-    itemName: z.string().min(1),
-    quantity: z.number().min(0),
-    unit: z.string().min(1),
-    price: z.number().min(0),
-    totalPrice: z.number().min(0),
-});
+const bmsEstimationSchema = z
+    .object({
+        itemName: z.string().min(1),
+        quantity: z.number().min(0),
+        unit: z.string().min(1),
+        price: z.number().min(0),
+        totalPrice: z.number().min(0),
+    })
+    .passthrough();
 
-export const draftDataSchema = z.object({
-    storeCode: z.string().optional(),
-    storeName: z.string().optional(),
-    branchName: z.string().optional(),
-    checklistItems: z.array(checklistItemSchema),
-    bmsEstimations: z.record(z.string(), z.array(bmsEstimationSchema)),
-    totalEstimation: z.number().optional(),
-});
+export const draftDataSchema = z
+    .object({
+        storeCode: z.string().optional(),
+        storeName: z.string().optional(),
+        branchName: z.string().optional(),
+        checklistItems: z.array(checklistItemSchema),
+        bmsEstimations: z.record(z.string(), z.array(bmsEstimationSchema)),
+        totalEstimation: z.number().optional(),
+    })
+    .passthrough();
 
 export const deleteDraftSchema = z.object({
     reportNumber: z.string().min(1, "Report number wajib diisi"),

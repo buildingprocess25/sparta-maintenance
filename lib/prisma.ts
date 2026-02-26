@@ -7,22 +7,22 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const prismaClientSingleton = () => {
-    // Get database URL from environment
-    const databaseUrl = process.env.DIRECT_URL || process.env.DATABASE_URL;
+    // Use DATABASE_URL (Supabase transaction pooler) for runtime.
+    // DIRECT_URL is for migrations only (bypasses pooler, hits DB directly).
+    const databaseUrl = process.env.DATABASE_URL;
 
     if (!databaseUrl) {
-        throw new Error(
-            "DATABASE_URL or DIRECT_URL environment variable is not set",
-        );
+        throw new Error("DATABASE_URL environment variable is not set");
     }
 
-    // Create PostgreSQL adapter for Supabase with optimized connection pool
+    // Serverless-optimized pool: each function instance only handles
+    // one request at a time, so max: 1 is sufficient.
     const pool = new Pool({
         connectionString: databaseUrl,
-        max: 5, // Keep low for serverless (Supabase free tier ~60 total)
-        idleTimeoutMillis: 30000, // Close idle connections after 30s
-        connectionTimeoutMillis: 10000, // Timeout for acquiring connection
-        allowExitOnIdle: true, // Allow process to exit when all connections idle
+        max: 1,
+        idleTimeoutMillis: 10000, // Release idle connections after 10s
+        connectionTimeoutMillis: 10000,
+        allowExitOnIdle: true,
     });
     const adapter = new PrismaPg(pool);
 
