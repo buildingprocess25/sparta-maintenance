@@ -50,7 +50,16 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                         variant="secondary"
                         className="gap-1 bg-green-100 text-green-700 border-green-200 px-2 py-0.5 text-[10px] font-medium"
                     >
-                        Disetujui
+                        Est. Disetujui
+                    </Badge>
+                );
+            case "ON_PROGRESS":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-blue-100 text-blue-700 border-blue-200 px-2 py-0.5 text-[10px] font-medium"
+                    >
+                        Dikerjakan
                     </Badge>
                 );
             case "REJECTED":
@@ -90,7 +99,9 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                         <div className="flex justify-between items-start mb-2">
                             <div className="flex flex-col">
                                 <span className="font-mono text-[10px] text-muted-foreground">
-                                    {report.reportNumber}
+                                    {report.status === "DRAFT"
+                                        ? "DRAFT"
+                                        : report.reportNumber}
                                 </span>
                                 <h3 className="font-semibold text-sm line-clamp-1 leading-tight">
                                     {report.storeName || "—"}

@@ -44,6 +44,8 @@ import {
     Pencil,
     FileEdit,
     Loader2,
+    CalendarDays,
+    Wrench,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -96,6 +98,9 @@ export default function ReportsList({
     const [statusFilter, setStatusFilter] = useState(
         searchParams.get("status")?.toLowerCase() || "all",
     );
+    const [dateRangeFilter, setDateRangeFilter] = useState(
+        searchParams.get("dateRange") || "all",
+    );
 
     // Debounce search update
     const handleSearch = (term: string) => {
@@ -121,7 +126,22 @@ export default function ReportsList({
         } else {
             params.delete("status");
         }
-        params.set("page", "1"); // Reset to page 1 on filter
+        params.set("page", "1");
+        startTransition(() => {
+            router.push(`${pathname}?${params.toString()}`);
+        });
+    };
+
+    // Handle date range filter change
+    const handleDateRangeChange = (range: string) => {
+        setDateRangeFilter(range);
+        const params = new URLSearchParams(searchParams.toString());
+        if (range && range !== "all") {
+            params.set("dateRange", range);
+        } else {
+            params.delete("dateRange");
+        }
+        params.set("page", "1");
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`);
         });
@@ -162,7 +182,16 @@ export default function ReportsList({
                         variant="secondary"
                         className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
                     >
-                        <Check className="h-3 w-3" /> Disetujui
+                        <Check className="h-3 w-3" /> Estimasi Disetujui
+                    </Badge>
+                );
+            case "ON_PROGRESS":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
+                    >
+                        <Wrench className="h-3 w-3" /> Sedang Dikerjakan
                     </Badge>
                 );
             case "REJECTED":
@@ -183,6 +212,7 @@ export default function ReportsList({
         switch (report.status) {
             case "PENDING_APPROVAL":
             case "APPROVED":
+            case "ON_PROGRESS":
                 return (
                     <Button
                         variant="ghost"
@@ -241,10 +271,14 @@ export default function ReportsList({
             <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
                 {/* Action Bar: Search, Filter, Create */}
                 <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-                    <div className="flex flex-1 gap-2">
-                        <div className="relative flex-1 md:max-w-sm">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <div className="flex flex-1 gap-2 flex-wrap">
+                        <div className="relative flex-1 min-w-48 md:max-w-sm">
+                            <label htmlFor="report-search" className="sr-only">
+                                Cari laporan
+                            </label>
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
                             <Input
+                                id="report-search"
                                 placeholder="Cari toko atau nomor laporan..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
@@ -255,24 +289,53 @@ export default function ReportsList({
                             value={statusFilter}
                             onValueChange={handleStatusChange}
                         >
-                            <SelectTrigger className="w-auto bg-background">
+                            <SelectTrigger
+                                className="w-auto bg-background"
+                                aria-label="Filter berdasarkan status"
+                            >
                                 <div className="flex items-center gap-2">
-                                    <Filter className="h-4 w-4 text-muted-foreground" />
+                                    <Filter className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
                                     <SelectValue placeholder="Status" />
                                 </div>
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">Semua</SelectItem>
+                                <SelectItem value="all">Semua Status</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="pending_approval">
                                     Menunggu Persetujuan
                                 </SelectItem>
                                 <SelectItem value="approved">
-                                    Disetujui
+                                    Estimasi Disetujui
+                                </SelectItem>
+                                <SelectItem value="on_progress">
+                                    Sedang Dikerjakan
                                 </SelectItem>
                                 <SelectItem value="rejected">
                                     Ditolak
                                 </SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Select
+                            value={dateRangeFilter}
+                            onValueChange={handleDateRangeChange}
+                        >
+                            <SelectTrigger
+                                className="w-auto bg-background"
+                                aria-label="Filter berdasarkan periode waktu"
+                            >
+                                <div className="flex items-center gap-2">
+                                    <CalendarDays className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+                                    <SelectValue placeholder="Periode" />
+                                </div>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Waktu</SelectItem>
+                                <SelectItem value="this_month">Bulan Ini</SelectItem>
+                                <SelectItem value="last_month">Bulan Lalu</SelectItem>
+                                <SelectItem value="last_3_months">3 Bulan Terakhir</SelectItem>
+                                <SelectItem value="last_6_months">6 Bulan Terakhir</SelectItem>
+                                <SelectItem value="this_year">Tahun Ini</SelectItem>
+                                <SelectItem value="last_year">Tahun Lalu</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -337,7 +400,9 @@ export default function ReportsList({
                                             className="group"
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                                                {report.reportNumber}
+                                                {report.status === "DRAFT"
+                                                    ? "DRAFT"
+                                                    : report.reportNumber}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">

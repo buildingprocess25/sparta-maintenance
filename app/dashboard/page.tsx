@@ -19,7 +19,8 @@ import {
     FileClock,
 } from "lucide-react";
 import Link from "next/link";
-import { requireAuth, getUserStats } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
+import { getUserStats } from "./queries";
 import { capitalizeEachWord } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 import type { UserRole } from "@prisma/client";
@@ -134,24 +135,28 @@ export default async function DashboardPage() {
             value: stats.totalReports.toString(),
             icon: FileText,
             color: "text-primary",
+            href: "/reports",
         },
         {
             label: "Menunggu Approval",
             value: stats.pendingReports.toString(),
             icon: Clock,
             color: "text-yellow-600",
+            href: "/reports?status=pending_approval",
         },
         {
             label: "Laporan Disetujui",
             value: stats.approvedReports.toString(),
             icon: CheckCircle2,
             color: "text-green-600",
+            href: "/reports?status=approved",
         },
         {
             label: "Laporan Ditolak",
             value: stats.rejectedReports.toString(),
             icon: AlertCircle,
             color: "text-red-600",
+            href: "/reports?status=rejected",
         },
     ];
 
@@ -202,9 +207,9 @@ export default async function DashboardPage() {
                 {/* Stats Grid */}
                 <div className="grid grid-cols-4 gap-4">
                     {dashboardStats.map((stat, i) => (
+                        <Link key={i} href={stat.href} className="group">
                         <Card
-                            key={i}
-                            className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6"
+                            className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6 cursor-pointer hover:border-primary/40"
                         >
                             <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
                                 <CardTitle className="text-xs text-center md:text-left md:text-sm font-medium w-12 md:w-auto">
@@ -221,11 +226,9 @@ export default async function DashboardPage() {
                                 <stat.icon
                                     className={`h-3 w-3 ${stat.color} md:hidden`}
                                 />
-                                <p className="text-xs text-muted-foreground mt-1 hidden md:block">
-                                    Laporan bulan ini
-                                </p>
                             </CardContent>
                         </Card>
+                        </Link>
                     ))}
                 </div>
 

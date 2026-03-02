@@ -82,8 +82,7 @@ export async function submitReport(data: DraftData) {
             let finalReportId: string;
 
             if (existingDraft) {
-                // Check if the draft has a temporary ID (DRAFT-cuid).
-                // If yes, we must generate a real sequential report number for the final submission.
+                // Draft key is DRAFT-{NIK}; replace with real sequential number on submit.
                 let finalReportNumber = existingDraft.reportNumber;
                 if (finalReportNumber.startsWith("DRAFT-")) {
                     finalReportNumber = await generateReportNumber(

@@ -8,6 +8,7 @@ export type {
 
 export { getDraft, saveDraft, deleteDraft } from "./actions/draft";
 export { submitReport } from "./actions/submit";
+export { startWork } from "./actions/start-work";
 export {
     getStoresByBranch,
     getMyReports,

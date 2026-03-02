@@ -3,7 +3,6 @@
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
-import { createId } from "@paralleldrive/cuid2";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import type { Prisma } from "@prisma/client";
 import {
@@ -101,12 +100,11 @@ export async function saveDraft(data: DraftData) {
 
             return { reportId: updatedReport.reportNumber };
         } else {
-            // DRAFTS use a temporary unique ID (cuid).
+            // Draft key is stable per user: DRAFT-{NIK}.
             // The real sequential number (e.g. ALF1-YYMM-001) is
             // only generated when SUBMITTING the report.
-            // This prevents sequence starvation from abandoned drafts
-            // and avoids constraint errors during rapid auto-saving.
-            const reportNumber = `DRAFT-${createId()}`;
+            // This prevents sequence starvation from abandoned drafts.
+            const reportNumber = `DRAFT-${user.NIK}`;
 
             const newReport = await prisma.report.create({
                 data: {
@@ -125,12 +123,10 @@ export async function saveDraft(data: DraftData) {
             return { reportId: newReport.reportNumber };
         }
     } catch (error) {
-        console.error("[DEBUG saveDraft] ERROR CAUGHT:", error);
         logger.error({ operation: "saveDraft" }, "Failed to save draft", error);
         return {
             error: "Gagal menyimpan draft",
             detail: getErrorDetail(error),
-            _debugMsg: String(error),
         };
     }
 }

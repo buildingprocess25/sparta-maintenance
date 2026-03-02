@@ -7,6 +7,7 @@ type ReportsPageProps = {
         page?: string;
         search?: string;
         status?: string;
+        dateRange?: string;
     }>;
 };
 
@@ -18,12 +19,14 @@ export default async function ReportsPage(props: ReportsPageProps) {
     const limit = 10;
     const search = searchParams.search || "";
     const status = searchParams.status || "all";
+    const dateRange = searchParams.dateRange || "all";
 
     const { reports, total } = await getMyReports({
         page,
         limit,
         search,
         status: status === "all" ? undefined : status.toUpperCase(),
+        dateRange: dateRange as import("./actions/types").DateRangeFilter,
     });
 
     const totalPages = Math.ceil(total / limit);

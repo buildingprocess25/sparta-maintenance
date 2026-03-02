@@ -26,12 +26,48 @@ export type DraftData = {
     totalEstimation?: number;
 };
 
+export type DateRangeFilter =
+    | "all"
+    | "this_month"
+    | "last_month"
+    | "last_3_months"
+    | "last_6_months"
+    | "this_year"
+    | "last_year";
+
 export type ReportFilters = {
     search?: string;
     status?: string;
+    dateRange?: DateRangeFilter;
     page?: number;
     limit?: number;
 };
+
+/** Returns { gte, lt } date bounds for a given DateRangeFilter value, or undefined for "all". */
+export function resolveDateRange(
+    range: DateRangeFilter | undefined,
+): { gte: Date; lt: Date } | undefined {
+    if (!range || range === "all") return undefined;
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth(); // 0-indexed
+
+    switch (range) {
+        case "this_month":
+            return { gte: new Date(y, m, 1), lt: new Date(y, m + 1, 1) };
+        case "last_month":
+            return { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
+        case "last_3_months":
+            return { gte: new Date(y, m - 3, 1), lt: new Date(y, m + 1, 1) };
+        case "last_6_months":
+            return { gte: new Date(y, m - 6, 1), lt: new Date(y, m + 1, 1) };
+        case "this_year":
+            return { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) };
+        case "last_year":
+            return { gte: new Date(y - 1, 0, 1), lt: new Date(y, 0, 1) };
+    }
+}
 
 // --- Zod schemas for runtime validation ---
 

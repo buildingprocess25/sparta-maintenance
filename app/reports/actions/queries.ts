@@ -3,7 +3,8 @@
 import prisma from "@/lib/prisma";
 import type { ReportItemJson } from "@/types/report";
 import { requireAuth, requireRole } from "@/lib/authorization";
-import type { ReportFilters } from "./types";
+import type { ReportFilters, DateRangeFilter } from "./types";
+import { resolveDateRange } from "./types";
 
 export async function getStoresByBranch(branchName: string) {
     const user = await requireAuth();
@@ -29,7 +30,7 @@ export async function getStoresByBranch(branchName: string) {
 export async function getMyReports(filters: ReportFilters = {}) {
     const user = await requireRole("BMS");
 
-    const { search, status, page = 1, limit = 20 } = filters;
+    const { search, status, dateRange, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
     const where: Record<string, unknown> = {
@@ -37,9 +38,14 @@ export async function getMyReports(filters: ReportFilters = {}) {
         status: {
             in: status
                 ? [status]
-                : ["DRAFT", "PENDING_APPROVAL", "APPROVED", "REJECTED"],
+                : ["DRAFT", "PENDING_APPROVAL", "APPROVED", "ON_PROGRESS", "REJECTED"],
         },
     };
+
+    const dateBounds = resolveDateRange(dateRange as DateRangeFilter | undefined);
+    if (dateBounds) {
+        where.createdAt = dateBounds;
+    }
 
     if (search) {
         where.OR = [

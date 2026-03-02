@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +38,8 @@ import {
     User,
     ChevronDown,
     Image as ImageIcon,
+    Loader2,
+    PlayCircle,
 } from "lucide-react";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { Button } from "@/components/ui/button";
@@ -44,8 +48,8 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-
 import { cn } from "@/lib/utils";
+import { startWork } from "@/app/reports/actions";
 
 type LogEntry = {
     status: string;
@@ -72,15 +76,17 @@ type ReportDetailProps = {
 
 const STATUS_STEPS = [
     { key: "PENDING_APPROVAL", label: "Menunggu Persetujuan", icon: Clock },
-    { key: "APPROVED", label: "Disetujui", icon: CheckCircle2 },
-    { key: "COMPLETED", label: "Selesai", icon: Wrench },
+    { key: "APPROVED", label: "Estimasi Disetujui", icon: CheckCircle2 },
+    { key: "ON_PROGRESS", label: "Sedang Dikerjakan", icon: Wrench },
+    { key: "COMPLETED", label: "Selesai", icon: CheckCircle2 },
 ];
 
 const STATUS_ORDER: Record<string, number> = {
     PENDING_APPROVAL: 0,
     APPROVED: 1,
     REJECTED: 1,
-    COMPLETED: 2,
+    ON_PROGRESS: 2,
+    COMPLETED: 3,
 };
 
 function StatusTimeline({ status }: { status: string }) {
@@ -164,7 +170,16 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="bg-green-100 text-green-800 hover:bg-green-100/80"
                 >
-                    Disetujui
+                    Estimasi Disetujui
+                </Badge>
+            );
+        case "ON_PROGRESS":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="bg-blue-100 text-blue-800 hover:bg-blue-100/80"
+                >
+                    Sedang Dikerjakan
                 </Badge>
             );
         case "REJECTED":
@@ -173,7 +188,7 @@ function getStatusBadge(status: string) {
             return (
                 <Badge
                     variant="secondary"
-                    className="bg-blue-100 text-blue-800 hover:bg-blue-100/80"
+                    className="bg-purple-100 text-purple-800 hover:bg-purple-100/80"
                 >
                     Selesai
                 </Badge>
@@ -209,6 +224,24 @@ export function ReportDetailView({ report }: ReportDetailProps) {
     const rusakCount = report.items.filter(
         (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
     ).length;
+
+    const [isPending, startTransition] = useTransition();
+
+    const handleStartWork = () => {
+        startTransition(async () => {
+            const result = await startWork(report.reportNumber);
+            if (result.error) {
+                toast.error("Gagal memulai pengerjaan", {
+                    description: result.error,
+                });
+            } else {
+                toast.success("Pengerjaan dimulai!", {
+                    description:
+                        "Status laporan diubah menjadi 'Sedang Dikerjakan'.",
+                });
+            }
+        });
+    };
 
     return (
         <div className="min-h-screen flex flex-col bg-background/50">
@@ -326,7 +359,7 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                             </CardContent>
                         </Card>
 
-                        {/* Quick Actions (Future placeholder) */}
+                        {/* Quick Actions */}
                         <a
                             href={`/api/reports/${report.reportNumber}/pdf`}
                             target="_blank"
@@ -335,13 +368,55 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                         >
                             <Button
                                 className="w-full"
-                                variant="default"
+                                variant="outline"
                                 size="lg"
                             >
                                 <Printer className="h-4 w-4 mr-2" />
                                 Cetak PDF
                             </Button>
                         </a>
+
+                        {/* CTA: BMS starts work after estimation is approved */}
+                        {report.status === "APPROVED" && (
+                            <div className="space-y-3">
+                                <div
+                                    className="bg-green-50 border border-green-200 rounded-lg p-3"
+                                    role="status"
+                                    aria-live="polite"
+                                >
+                                    <div className="flex gap-2 items-start">
+                                        <CheckCircle2 className="h-4 w-4 text-green-600 mt-0.5 shrink-0" aria-hidden="true" />
+                                        <div>
+                                            <p className="text-sm font-medium text-green-800">
+                                                Estimasi Disetujui
+                                            </p>
+                                            <p className="text-xs text-green-700 mt-0.5">
+                                                Estimasi biaya telah disetujui oleh BMC. Silakan mulai pengerjaan maintenance.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <Button
+                                    className="w-full"
+                                    size="lg"
+                                    onClick={handleStartWork}
+                                    disabled={isPending}
+                                    aria-label="Mulai pengerjaan maintenance untuk laporan ini"
+                                >
+                                    {isPending ? (
+                                        <>
+                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
+                                            Memproses...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <PlayCircle className="h-4 w-4 mr-2" aria-hidden="true" />
+                                            Mulai Pengerjaan
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+                        )}
                     </div>
 
                     {/* MAIN CONTENT - Tabs */}
@@ -582,7 +657,7 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                                                                     >
                                                                                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                                                             <div className="flex items-start gap-3">
-                                                                                                <span className="font-mono text-sm font-medium text-muted-foreground min-w-[2rem] pt-0.5">
+                                                                                                <span className="font-mono text-sm font-medium text-muted-foreground min-w-8 pt-0.5">
                                                                                                     {
                                                                                                         checklistItem.id
                                                                                                     }
@@ -827,6 +902,9 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                                     const isRejected =
                                                         log.status ===
                                                         "REJECTED";
+                                                    const isOnProgress =
+                                                        log.status ===
+                                                        "ON_PROGRESS";
 
                                                     return (
                                                         <div
@@ -841,18 +919,21 @@ export function ReportDetailView({ report }: ReportDetailProps) {
                                                                         ? "border-green-500 bg-green-50"
                                                                         : isRejected
                                                                           ? "border-red-500 bg-red-50"
-                                                                          : "border-muted-foreground",
+                                                                          : isOnProgress
+                                                                            ? "border-blue-500 bg-blue-50"
+                                                                            : "border-muted-foreground",
                                                                 )}
                                                             />
 
                                                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 mb-1">
                                                                 <div className="font-medium text-sm">
                                                                     {isApproved
-                                                                        ? "Disetujui"
+                                                                        ? "Estimasi Disetujui"
                                                                         : isRejected
                                                                           ? "Ditolak"
-                                                                          : log.status}
-                                                                </div>
+                                                                          : isOnProgress
+                                                                            ? "Mulai Pengerjaan"
+                                                                            : log.status}</div>
                                                                 <span className="text-xs text-muted-foreground font-mono">
                                                                     {formatDate(
                                                                         log.createdAt,
