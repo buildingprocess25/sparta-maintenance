@@ -16,11 +16,10 @@ import {
     Store,
     Calendar,
     ArrowRight,
-    FileClock,
 } from "lucide-react";
 import Link from "next/link";
 import { requireAuth } from "@/lib/authorization";
-import { getUserStats } from "./queries";
+import { getUserStats, getBMCStats } from "./queries";
 import { capitalizeEachWord } from "@/lib/utils";
 import { LogoutButton } from "./logout-button";
 import type { UserRole } from "@prisma/client";
@@ -28,6 +27,7 @@ import type { UserRole } from "@prisma/client";
 export default async function DashboardPage() {
     const user = await requireAuth();
     const stats = await getUserStats(user.NIK);
+    const bmcStats = user.role === "BMC" ? await getBMCStats(user.branchNames) : null;
 
     const getMenuByRole = (role: UserRole) => {
         switch (role) {
@@ -50,13 +50,7 @@ export default async function DashboardPage() {
                             href: "/reports",
                             variant: "outline" as const,
                         },
-                        {
-                            title: "Riwayat Perbaikan",
-                            description: "Riwayat laporan yang sudah selesai",
-                            icon: FileClock,
-                            href: "/reports/finished",
-                            variant: "outline" as const,
-                        },
+                        
                     ],
                 };
 
@@ -129,36 +123,79 @@ export default async function DashboardPage() {
         }
     };
 
-    const dashboardStats = [
-        {
-            label: "Total Laporan",
-            value: stats.totalReports.toString(),
-            icon: FileText,
-            color: "text-primary",
-            href: "/reports",
-        },
-        {
-            label: "Menunggu Tindakan",
-            value: stats.pendingReports.toString(),
-            icon: Clock,
-            color: "text-yellow-600",
-            href: "/reports",
-        },
-        {
-            label: "Laporan Selesai",
-            value: stats.approvedReports.toString(),
-            icon: CheckCircle2,
-            color: "text-green-600",
-            href: "/reports?status=COMPLETED",
-        },
-        {
-            label: "Estimasi Ditolak",
-            value: stats.rejectedReports.toString(),
-            icon: AlertCircle,
-            color: "text-red-600",
-            href: "/reports?status=ESTIMATION_REJECTED",
-        },
-    ];
+    const getStatsByRole = (role: UserRole) => {
+        switch (role) {
+            case "BMS":
+                return [
+                    {
+                        label: "Total Laporan Dibuat",
+                        value: stats.totalReports.toString(),
+                        icon: FileText,
+                        color: "text-primary",
+                        href: "/reports",
+                    },
+                    {
+                        label: "Menunggu Tindakan",
+                        value: stats.pendingReports.toString(),
+                        icon: Clock,
+                        color: "text-yellow-600",
+                        href: "/reports",
+                    },
+                    {
+                        label: "Laporan Selesai",
+                        value: stats.approvedReports.toString(),
+                        icon: CheckCircle2,
+                        color: "text-green-600",
+                        href: "/reports?status=COMPLETED",
+                    },
+                    {
+                        label: "Estimasi Ditolak",
+                        value: stats.rejectedReports.toString(),
+                        icon: AlertCircle,
+                        color: "text-red-600",
+                        href: "/reports?status=ESTIMATION_REJECTED",
+                    },
+                ];
+
+            case "BMC":
+                return [
+                    {
+                        label: "Total Laporan Masuk",
+                        value: bmcStats!.totalReports.toString(),
+                        icon: FileText,
+                        color: "text-primary",
+                        href: "/approval/reports",
+                    },
+                    {
+                        label: "Perlu Tindakan Anda",
+                        value: bmcStats!.needsAction.toString(),
+                        icon: Clock,
+                        color: "text-yellow-600",
+                        href: "/approval/reports",
+                    },
+                    {
+                        label: "Disetujui",
+                        value: bmcStats!.completed.toString(),
+                        icon: CheckCircle2,
+                        color: "text-green-600",
+                        href: "/approval/reports?status=completed",
+                    },
+                    {
+                        label: "Ditolak",
+                        value: bmcStats!.rejected.toString(),
+                        icon: AlertCircle,
+                        color: "text-red-600",
+                        href: "/approval/reports",
+                    },
+                    
+                ];
+
+            default:
+                return [];
+        }
+    };
+
+    const dashboardStats = getStatsByRole(user.role);
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">

@@ -39,7 +39,7 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
             case "IN_PROGRESS":
                 return <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 border-blue-200 px-2 py-0.5 text-[10px] font-medium">Dikerjakan</Badge>;
             case "PENDING_REVIEW":
-                return <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 border-purple-200 px-2 py-0.5 text-[10px] font-medium">Menunggu Review</Badge>;
+                return <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 border-purple-200 px-2 py-0.5 text-[10px] font-medium">Menunggu Review Penyelesaian</Badge>;
             case "REVIEW_REJECTED_REVISION":
                 return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-700 border-orange-200 px-2 py-0.5 text-[10px] font-medium">Ditolak (Revisi)</Badge>;
             case "APPROVED_BMC":

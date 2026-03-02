@@ -85,7 +85,7 @@ const STATUS_STEPS = [
     { key: "PENDING_ESTIMATION",   label: "Menunggu Persetujuan Estimasi", icon: Clock },
     { key: "ESTIMATION_APPROVED",  label: "Estimasi Disetujui",            icon: CheckCircle2 },
     { key: "IN_PROGRESS",          label: "Sedang Dikerjakan",             icon: Wrench },
-    { key: "PENDING_REVIEW",       label: "Menunggu Review",               icon: Clock },
+    { key: "PENDING_REVIEW",       label: "Menunggu Review Penyelesaian",               icon: Clock },
     { key: "APPROVED_BMC",         label: "Penyelesaian Disetujui",        icon: CheckCircle2 },
     { key: "COMPLETED",            label: "Selesai",                       icon: CheckCircle2 },
 ];
@@ -255,7 +255,7 @@ function getStatusBadge(status: string) {
         case "IN_PROGRESS":
             return <Badge variant="secondary" className="bg-blue-100 text-blue-800 hover:bg-blue-100/80">Sedang Dikerjakan</Badge>;
         case "PENDING_REVIEW":
-            return <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-100/80">Menunggu Review</Badge>;
+            return <Badge variant="secondary" className="bg-purple-100 text-purple-800 hover:bg-purple-100/80">Menunggu Review Penyelesaian</Badge>;
         case "REVIEW_REJECTED_REVISION":
             return <Badge variant="secondary" className="bg-orange-100 text-orange-800 hover:bg-orange-100/80">Ditolak (Revisi)</Badge>;
         case "APPROVED_BMC":
@@ -316,7 +316,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
             if (result.error) {
                 toast.error("Gagal mengirim laporan penyelesaian", { description: result.error });
             } else {
-                toast.success("Laporan dikirim!", { description: "Status laporan diubah menjadi 'Menunggu Review'." });
+                toast.success("Laporan dikirim!", { description: "Status laporan diubah menjadi 'Menunggu Review Penyelesaian'." });
                 setActiveDialog(null);
                 setNotesInput("");
             }
@@ -381,14 +381,16 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
             />
 
             <main className={cn("flex-1 container mx-auto px-4 py-4 md:py-8 max-w-7xl", hasMobileCTA && "pb-24 lg:pb-8")}>
-                {/* Status Header */}
-                <div className="mb-6 lg:mb-10 mt-2 px-1 lg:px-2">
-                    <StatusTimeline status={report.status} />
-                </div>
+                {/* Status Header — hidden for BMC/BNM_MANAGER */}
+                {!["BMC", "BNM_MANAGER"].includes(viewer.role) && (
+                    <div className="mb-10 lg:mb-16 md:-mt-5">
+                        <StatusTimeline status={report.status} />
+                    </div>
+                )}
 
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                     {/* LEFT SIDEBAR - Key Information */}
-                    <div className="lg:col-span-4 xl:col-span-3 space-y-4 lg:space-y-6 lg:sticky lg:top-6">
+                    <div className="lg:col-span-4 xl:col-span-3 space-y-4 lg:space-y-6 lg:sticky lg:top-10">
 
                         {/* ── MOBILE: compact summary card ── */}
                         <Card className="lg:hidden shadow-sm border-border/60">
@@ -530,8 +532,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                         >
                             <Button
                                 className="w-full"
-                                variant="outline"
-                                size="sm"
                             >
                                 <Printer className="h-4 w-4 mr-2" />
                                 Cetak PDF
@@ -592,7 +592,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                         {viewer.role === "BMC" && report.status === "PENDING_ESTIMATION" && (
                             <div className="space-y-3">
                                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                    <p className="text-sm font-medium text-yellow-800">Menunggu Review Estimasi</p>
+                                    <p className="text-sm font-medium text-yellow-800">Menunggu Review Penyelesaian Estimasi</p>
                                     <p className="text-xs text-yellow-700 mt-0.5">Tinjau laporan dan putuskan persetujuan estimasi.</p>
                                 </div>
                                 {activeDialog === "reject_estimation" ? (
@@ -628,7 +628,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                         {viewer.role === "BMC" && report.status === "PENDING_REVIEW" && (
                             <div className="space-y-3">
                                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                                    <p className="text-sm font-medium text-purple-800">Menunggu Review Penyelesaian</p>
+                                    <p className="text-sm font-medium text-purple-800">Menunggu Review Penyelesaian Penyelesaian</p>
                                     <p className="text-xs text-purple-700 mt-0.5">Tinjau hasil pengerjaan dan putuskan persetujuan.</p>
                                 </div>
                                 {activeDialog === "reject_completion" ? (
@@ -690,31 +690,40 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                     {/* MAIN CONTENT - Tabs */}
                     <div className="lg:col-span-8 xl:col-span-9">
                         <Tabs defaultValue="checklist" className="w-full">
-                            <div className="mb-4">
-                                <TabsList className="bg-muted h-10 p-1 w-full lg:w-auto grid grid-cols-3 lg:grid-cols-none lg:flex">
-                                    <TabsTrigger value="checklist" className="flex-1 lg:flex-none">
-                                        <Layers className="h-3.5 w-3.5" />
-                                        <span className="ml-1.5">Checklist</span>
+                            <div className="mb-4 border-b border-border">
+                                <TabsList className="bg-transparent h-auto p-0 w-full grid grid-cols-3 lg:flex lg:w-auto rounded-none">
+                                    <TabsTrigger
+                                        value="checklist"
+                                        className="flex-1 lg:flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-4 py-2.5 gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <Layers className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="font-medium text-sm">Checklist</span>
                                         <Badge
                                             variant="secondary"
-                                            className="ml-1 h-5 px-1.5 text-[10px] hidden sm:inline-flex"
+                                            className="ml-0.5 h-5 px-1.5 text-[10px] hidden sm:inline-flex"
                                         >
                                             {report.items.length}
                                         </Badge>
                                     </TabsTrigger>
-                                    <TabsTrigger value="estimations" className="flex-1 lg:flex-none">
-                                        <Package className="h-3.5 w-3.5" />
-                                        <span className="ml-1.5">Estimasi</span>
+                                    <TabsTrigger
+                                        value="estimations"
+                                        className="flex-1 lg:flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-4 py-2.5 gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <Package className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="font-medium text-sm">Estimasi BMS Lengkap</span>
                                         <Badge
                                             variant="secondary"
-                                            className="ml-1 h-5 px-1.5 text-[10px] hidden sm:inline-flex"
+                                            className="ml-0.5 h-5 px-1.5 text-[10px] hidden sm:inline-flex"
                                         >
                                             {report.estimations.length}
                                         </Badge>
                                     </TabsTrigger>
-                                    <TabsTrigger value="history" className="flex-1 lg:flex-none">
-                                        <History className="h-3.5 w-3.5" />
-                                        <span className="ml-1.5">Riwayat</span>
+                                    <TabsTrigger
+                                        value="history"
+                                        className="flex-1 lg:flex-none rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary data-[state=active]:shadow-none px-4 py-2.5 gap-1.5 text-muted-foreground hover:text-foreground transition-colors"
+                                    >
+                                        <History className="h-3.5 w-3.5 shrink-0" />
+                                        <span className="font-medium text-sm">Riwayat</span>
                                     </TabsTrigger>
                                 </TabsList>
                             </div>
@@ -731,22 +740,8 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         </CardContent>
                                     </Card>
                                 ) : (
-                                    <Card className="py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
-                                        <CardHeader className="px-1 md:px-6 flex flex-row items-center justify-between">
-                                            <div>
-                                                <CardTitle className="text-base">
-                                                    Checklist Kondisi
-                                                </CardTitle>
-                                                <CardDescription className="text-xs">
-                                                    Total{" "}
-                                                    {checklistCategories.reduce(
-                                                        (acc, cat) => acc + cat.items.length,
-                                                        0,
-                                                    )}{" "}
-                                                    item
-                                                </CardDescription>
-                                            </div>
-                                        </CardHeader>
+                                    <Card className="py-0 ring-0 md:py-6 shadow-none bg-transparent md:bg-background border-0 md:border">
+                                        
                                         <CardContent className="space-y-3 px-1 md:px-6 pb-0 md:pb-6">
                                             {checklistCategories.map((category) => {
                                                 const categoryReportItems = report.items.filter(
@@ -875,7 +870,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                             {/* Handler */}
                                                                             {reportItem?.handler && (
                                                                                 <div className="flex items-center gap-2 pt-3 border-t">
-                                                                                    <p className="text-muted-foreground">Dikerjakan oleh:</p>
+                                                                                    <p className="text-muted-foreground">Akan Dikerjakan oleh:</p>
                                                                                     <Badge variant="outline" className="text-sm">
                                                                                         {reportItem.handler === "REKANAN" ? "Rekanan" : reportItem.handler}
                                                                                     </Badge>
@@ -913,6 +908,37 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                     ) : null}
                                                                                 </div>
                                                                             )}
+
+                                                                            {/* Estimations for this item */}
+                                                                            {(() => {
+                                                                                const itemEstimations = report.estimations.filter(
+                                                                                    (e) => e.itemId === checklistItem.id,
+                                                                                );
+                                                                                if (itemEstimations.length === 0) return null;
+                                                                                return (
+                                                                                    <div className="pt-2 border-t">
+                                                                                        <p className="text-sm text-muted-foreground mb-2 flex items-center gap-1">
+                                                                                            <Package className="h-3 w-3" />
+                                                                                            Estimasi Material
+                                                                                        </p>
+                                                                                        <div className="space-y-1">
+                                                                                            {itemEstimations.map((est, idx) => (
+                                                                                                <div key={idx} className="flex items-center justify-between gap-2 text-sm bg-muted/40 rounded px-2.5 py-1.5">
+                                                                                                    <div className="flex items-center gap-2 min-w-0">
+                                                                                                        <span className="font-medium truncate">{est.materialName}</span>
+                                                                                                        <span className="text-muted-foreground shrink-0">
+                                                                                                            {est.quantity} {est.unit}
+                                                                                                        </span>
+                                                                                                    </div>
+                                                                                                    <span className="font-mono font-semibold shrink-0">
+                                                                                                        {formatCurrency(est.totalPrice)}
+                                                                                                    </span>
+                                                                                                </div>
+                                                                                            ))}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                     );
                                                                 })}
@@ -929,7 +955,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                             {/* TAB: ESTIMATIONS */}
                             <TabsContent value="estimations" className="mt-0">
                                 <Card className="shadow-sm border-border/60">
-                                    <CardHeader className="bg-muted/10">
+                                    <CardHeader className="border-b">
                                         <div className="flex items-center justify-between">
                                             <CardTitle className="text-base font-semibold flex items-center gap-2">
                                                 <Package className="h-4 w-4" />
@@ -1072,7 +1098,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                             {/* TAB: HISTORY */}
                             <TabsContent value="history" className="mt-0">
                                 <Card className="shadow-sm border-border/60">
-                                    <CardHeader className="pb-4 border-b bg-muted/10">
+                                    <CardHeader className="border-b">
                                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                                             <Clock className="h-4 w-4" />
                                             Riwayat Aktivitas

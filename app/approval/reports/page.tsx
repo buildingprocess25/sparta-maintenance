@@ -28,36 +28,28 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from "@/components/ui/empty";
-import { ClipboardCheck, ArrowRight, Clock, CheckCircle2 } from "lucide-react";
+import { ClipboardCheck, ArrowRight, Clock, CheckCircle2, MapPin } from "lucide-react";
+import { ApprovalFiltersBar } from "./filters-bar";
 
-type SearchParams = Promise<{ q?: string }>;
+type SearchParams = Promise<{ q?: string; status?: string; dateRange?: string }>;
 
 function getStatusBadge(status: string) {
     switch (status) {
         case "PENDING_ESTIMATION":
             return (
-                <Badge
-                    variant="secondary"
-                    className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 whitespace-nowrap"
-                >
+                <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 border-yellow-200 shadow-none whitespace-nowrap">
                     Menunggu Persetujuan Estimasi
                 </Badge>
             );
         case "PENDING_REVIEW":
             return (
-                <Badge
-                    variant="secondary"
-                    className="bg-purple-100 text-purple-800 hover:bg-purple-100/80 whitespace-nowrap"
-                >
-                    Menunggu Review
+                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100/80 border-purple-200 shadow-none whitespace-nowrap">
+                    Menunggu Review Penyelesaian
                 </Badge>
             );
         case "APPROVED_BMC":
             return (
-                <Badge
-                    variant="secondary"
-                    className="bg-teal-100 text-teal-800 hover:bg-teal-100/80 whitespace-nowrap"
-                >
+                <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100/80 border-teal-200 shadow-none whitespace-nowrap">
                     Penyelesaian Disetujui
                 </Badge>
             );
@@ -90,14 +82,20 @@ export default async function ApprovalReportsPage({
         redirect("/reports");
     }
 
-    const { q } = await searchParams;
+    const { q, status: statusParam, dateRange } = await searchParams;
     const search = q?.trim().toLowerCase();
 
     // Build status filter based on role
-    const statusFilter =
+    const roleStatuses =
         user.role === "BNM_MANAGER"
             ? (["APPROVED_BMC"] as const)
             : (["PENDING_ESTIMATION", "PENDING_REVIEW"] as const);
+
+    // Narrow by selected status within allowed role statuses
+    const activeStatuses =
+        statusParam && statusParam !== "all"
+            ? roleStatuses.filter((s) => s === statusParam.toUpperCase())
+            : [...roleStatuses];
 
     // Build branch filter for BMC
     const branchFilter =
@@ -105,16 +103,52 @@ export default async function ApprovalReportsPage({
             ? { branchName: { in: user.branchNames } }
             : {};
 
+    // Build date range filter
+    const now = new Date();
+    let dateFilter: Record<string, unknown> = {};
+    switch (dateRange) {
+        case "this_month":
+            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } };
+            break;
+        case "last_month":
+            dateFilter = {
+                updatedAt: {
+                    gte: new Date(now.getFullYear(), now.getMonth() - 1, 1),
+                    lt: new Date(now.getFullYear(), now.getMonth(), 1),
+                },
+            };
+            break;
+        case "last_3_months":
+            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth() - 3, 1) } };
+            break;
+        case "last_6_months":
+            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth() - 6, 1) } };
+            break;
+        case "this_year":
+            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), 0, 1) } };
+            break;
+        case "last_year":
+            dateFilter = {
+                updatedAt: {
+                    gte: new Date(now.getFullYear() - 1, 0, 1),
+                    lt: new Date(now.getFullYear(), 0, 1),
+                },
+            };
+            break;
+    }
+
     const reports = await prisma.report.findMany({
         where: {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            status: { in: statusFilter as any },
+            status: { in: activeStatuses as any },
             ...branchFilter,
+            ...dateFilter,
         },
         orderBy: { updatedAt: "desc" },
         select: {
             reportNumber: true,
             storeName: true,
+            storeCode: true,
             branchName: true,
             status: true,
             totalEstimation: true,
@@ -160,89 +194,99 @@ export default async function ApprovalReportsPage({
             year: "numeric",
         });
 
+    const storeDisplay = (storeName: string, storeCode: string | null) =>
+        storeCode ? `${storeCode} - ${storeName}` : storeName || "—";
+
+    const pendingEstimation = reports.filter((r) => r.status === "PENDING_ESTIMATION").length;
+    const pendingReview = reports.filter((r) => r.status === "PENDING_REVIEW").length;
+    const pendingFinal = reports.filter((r) => r.status === "APPROVED_BMC").length;
+
     return (
-        <div className="min-h-screen flex flex-col bg-background/50">
+        <div className="min-h-screen flex flex-col bg-muted/20">
             <Header
                 variant="dashboard"
                 title={pageTitle}
                 description={pageDescription}
                 showBackButton
                 backHref="/dashboard"
+                logo={false}
             />
 
-            <main className="flex-1 container mx-auto px-4 py-6 md:py-8 max-w-7xl">
-                {/* Summary cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-                    <Card className="border-yellow-200 bg-yellow-50/50">
-                        <CardContent className="pt-5 flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-                                <Clock className="h-5 w-5 text-yellow-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold">{reports.length}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Total Menunggu Tindakan
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                    <Card className="border-green-200 bg-green-50/50">
-                        <CardContent className="pt-5 flex items-center gap-4">
-                            <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                            </div>
-                            <div>
-                                <p className="text-2xl font-bold">
-                                    {user.role === "BNM_MANAGER"
-                                        ? "BNM Manager"
-                                        : `${user.branchNames.length} Cabang`}
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    {user.role === "BNM_MANAGER"
-                                        ? "Semua Cabang"
-                                        : "Area Anda"}
-                                </p>
-                            </div>
-                        </CardContent>
-                    </Card>
+            <main className="flex-1 container mx-auto px-4 py-6 md:py-8 max-w-7xl space-y-6">
+
+                {/* Summary strip */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {user.role !== "BNM_MANAGER" && (
+                        <Card className="border-yellow-200/60 bg-yellow-50/40">
+                            <CardContent className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
+                                    <Clock className="h-4 w-4 text-yellow-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xl font-bold leading-none">{pendingEstimation}</p>
+                                    <p className="text-muted-foreground mt-0.5">Menunggu Persetujuan Estimasi</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {user.role !== "BNM_MANAGER" && (
+                        <Card className="border-purple-200/60 bg-purple-50/40">
+                            <CardContent className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                                    <ClipboardCheck className="h-4 w-4 text-purple-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xl font-bold leading-none">{pendingReview}</p>
+                                    <p className="text-muted-foreground mt-0.5">Menunggu Review Penyelesaian</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    {user.role === "BNM_MANAGER" && (
+                        <Card className="border-teal-200/60 bg-teal-50/40">
+                            <CardContent className="flex items-center gap-3">
+                                <div className="h-9 w-9 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
+                                    <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                                </div>
+                                <div>
+                                    <p className="text-xl font-bold leading-none">{pendingFinal}</p>
+                                    <p className="text-muted-foreground mt-0.5">Perlu Persetujuan Final</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+                    
                 </div>
 
-                <Card className="shadow-sm">
-                    <CardHeader className="border-b pb-4 flex flex-row items-center justify-between gap-4 flex-wrap">
-                        <div>
-                            <CardTitle className="text-base font-semibold flex items-center gap-2">
-                                <ClipboardCheck className="h-4 w-4 text-primary" />
-                                Daftar Laporan
-                            </CardTitle>
-                            <CardDescription className="mt-1">
-                                {filtered.length} laporan membutuhkan tindakan
-                            </CardDescription>
+                {/* Main table card */}
+                <Card className="shadow-sm border-border/60">
+                    <CardHeader className="border-b">
+                        <div className="flex flex-col gap-3">
+                            <div className="flex items-center justify-between">
+                                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                                    <ClipboardCheck className="h-4 w-4 text-primary" />
+                                    Daftar Laporan
+                                </CardTitle>
+                                <CardDescription>
+                                    {filtered.length} laporan
+                                </CardDescription>
+                            </div>
+                            <ApprovalFiltersBar role={user.role} />
                         </div>
-                        <form method="GET" className="flex gap-2 w-full sm:w-auto">
-                            <input
-                                type="text"
-                                name="q"
-                                defaultValue={q}
-                                placeholder="Cari no. laporan, toko..."
-                                className="border rounded-md px-3 py-2 text-sm flex-1 sm:w-64 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            />
-                            <Button type="submit" variant="outline" size="sm">
-                                Cari
-                            </Button>
-                        </form>
                     </CardHeader>
-                    <CardContent className="p-0">
+
+                    <CardContent>
                         {filtered.length === 0 ? (
                             <div className="py-16">
                                 <Empty>
                                     <EmptyMedia>
-                                        <ClipboardCheck className="h-10 w-10 text-muted-foreground/40" />
+                                        <ClipboardCheck className="h-10 w-10 text-muted-foreground/30" />
                                     </EmptyMedia>
                                     <EmptyHeader>
                                         <EmptyTitle>Tidak Ada Laporan</EmptyTitle>
                                         <EmptyDescription>
-                                            {search
-                                                ? `Tidak ada laporan yang cocok dengan "${search}".`
+                                            {search || (statusParam && statusParam !== "all") || (dateRange && dateRange !== "all")
+                                                ? "Tidak ada laporan yang cocok dengan filter yang dipilih."
                                                 : "Tidak ada laporan yang membutuhkan tindakan saat ini."}
                                         </EmptyDescription>
                                     </EmptyHeader>
@@ -254,60 +298,47 @@ export default async function ApprovalReportsPage({
                                 <div className="hidden md:block overflow-x-auto">
                                     <Table>
                                         <TableHeader>
-                                            <TableRow className="bg-muted/30">
-                                                <TableHead>No. Laporan</TableHead>
-                                                <TableHead>Toko / Cabang</TableHead>
-                                                <TableHead>Dilaporkan Oleh</TableHead>
-                                                <TableHead>Status</TableHead>
-                                                <TableHead>Estimasi</TableHead>
-                                                <TableHead>Diperbarui</TableHead>
-                                                <TableHead className="text-right">
-                                                    Aksi
-                                                </TableHead>
+                                            <TableRow className="bg-muted/30 hover:bg-muted/30 uppercase">
+                                                <TableHead className="text-sm">No. Laporan</TableHead>
+                                                <TableHead className="text-sm">Toko</TableHead>
+                                                <TableHead className="text-sm">Dilaporkan Oleh</TableHead>
+                                                <TableHead className="text-sm">Status</TableHead>
+                                                <TableHead className="text-sm text-right">Estimasi</TableHead>
+                                                <TableHead className="text-sm">Diperbarui</TableHead>
+                                                <TableHead className="text-sm">Aksi</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {filtered.map((report) => (
-                                                <TableRow
-                                                    key={report.reportNumber}
-                                                    className="hover:bg-muted/20"
-                                                >
+                                                <TableRow key={report.reportNumber} className="hover:bg-muted/20 group">
                                                     <TableCell className="font-mono font-semibold text-sm">
                                                         {report.reportNumber}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <p className="font-medium text-sm">
-                                                            {report.storeName || "—"}
+                                                        <p className="font-medium text-sm leading-tight">
+                                                            {storeDisplay(report.storeName, report.storeCode)}
                                                         </p>
-                                                        <p className="text-xs text-muted-foreground">
+                                                        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
+                                                            <MapPin className="h-3 w-3 shrink-0" />
                                                             {report.branchName}
                                                         </p>
                                                     </TableCell>
-                                                    <TableCell className="text-sm">
+                                                    <TableCell className="text-sm text-muted-foreground">
                                                         {report.createdBy.name}
                                                     </TableCell>
                                                     <TableCell>
                                                         {getStatusBadge(report.status)}
                                                     </TableCell>
-                                                    <TableCell className="text-sm font-mono">
-                                                        {formatCurrency(
-                                                            report.totalEstimation,
-                                                        )}
+                                                    <TableCell className="text-sm font-mono text-right">
+                                                        {formatCurrency(report.totalEstimation)}
                                                     </TableCell>
                                                     <TableCell className="text-xs text-muted-foreground">
                                                         {formatDate(report.updatedAt)}
                                                     </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Link
-                                                            href={`/reports/${report.reportNumber}`}
-                                                        >
-                                                            <Button
-                                                                size="sm"
-                                                                className="gap-1.5"
-                                                            >
-                                                                {getActionLabel(
-                                                                    report.status,
-                                                                )}
+                                                    <TableCell>
+                                                        <Link href={`/reports/${report.reportNumber}`}>
+                                                            <Button size="sm" className="gap-1.5 h-8">
+                                                                {getActionLabel(report.status)}
                                                                 <ArrowRight className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </Link>
@@ -318,22 +349,20 @@ export default async function ApprovalReportsPage({
                                     </Table>
                                 </div>
 
-                                {/* Mobile List */}
-                                <div className="md:hidden divide-y">
+                                {/* Mobile Cards */}
+                                <div className="md:hidden divide-y divide-border/60">
                                     {filtered.map((report) => (
-                                        <div
-                                            key={report.reportNumber}
-                                            className="p-4 space-y-3"
-                                        >
+                                        <div key={report.reportNumber} className="p-4 space-y-3">
                                             <div className="flex items-start justify-between gap-2">
-                                                <div>
+                                                <div className="min-w-0">
                                                     <p className="font-mono font-semibold text-sm">
                                                         {report.reportNumber}
                                                     </p>
-                                                    <p className="text-sm font-medium">
-                                                        {report.storeName || "—"}
+                                                    <p className="text-sm font-medium mt-0.5 truncate">
+                                                        {storeDisplay(report.storeName, report.storeCode)}
                                                     </p>
-                                                    <p className="text-xs text-muted-foreground">
+                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                        <MapPin className="h-3 w-3 shrink-0" />
                                                         {report.branchName}
                                                     </p>
                                                 </div>
@@ -341,20 +370,14 @@ export default async function ApprovalReportsPage({
                                             </div>
                                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                                                 <span>{report.createdBy.name}</span>
-                                                <span>
-                                                    {formatDate(report.updatedAt)}
-                                                </span>
+                                                <span>{formatDate(report.updatedAt)}</span>
                                             </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-sm font-mono font-medium">
-                                                    {formatCurrency(
-                                                        report.totalEstimation,
-                                                    )}
+                                            <div className="flex items-center justify-between pt-1">
+                                                <span className="text-sm font-mono font-semibold">
+                                                    {formatCurrency(report.totalEstimation)}
                                                 </span>
-                                                <Link
-                                                    href={`/reports/${report.reportNumber}`}
-                                                >
-                                                    <Button size="sm" className="gap-1.5">
+                                                <Link href={`/reports/${report.reportNumber}`}>
+                                                    <Button size="sm" className="gap-1.5 h-8">
                                                         {getActionLabel(report.status)}
                                                         <ArrowRight className="h-3.5 w-3.5" />
                                                     </Button>

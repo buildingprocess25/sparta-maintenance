@@ -197,7 +197,7 @@ export default function ReportsList({
             case "PENDING_REVIEW":
                 return (
                     <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none">
-                        <Clock className="h-3 w-3" /> Menunggu Review
+                        <Clock className="h-3 w-3" /> Menunggu Review Penyelesaian
                     </Badge>
                 );
             case "REVIEW_REJECTED_REVISION":
@@ -317,7 +317,7 @@ export default function ReportsList({
                                 <SelectItem value="estimation_rejected_revision">Estimasi Ditolak (Revisi)</SelectItem>
                                 <SelectItem value="estimation_rejected">Estimasi Ditolak</SelectItem>
                                 <SelectItem value="in_progress">Sedang Dikerjakan</SelectItem>
-                                <SelectItem value="pending_review">Menunggu Review</SelectItem>
+                                <SelectItem value="pending_review">Menunggu Review Penyelesaian</SelectItem>
                                 <SelectItem value="review_rejected_revision">Ditolak (Revisi)</SelectItem>
                                 <SelectItem value="approved_bmc">Penyelesaian Disetujui</SelectItem>
                                 <SelectItem value="completed">Selesai</SelectItem>

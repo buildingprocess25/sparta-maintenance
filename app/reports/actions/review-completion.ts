@@ -34,7 +34,7 @@ export async function reviewCompletion(
 
         if (report.status !== ReportStatus.PENDING_REVIEW) {
             return {
-                error: "Laporan harus berstatus 'Menunggu Review' untuk di-review",
+                error: "Laporan harus berstatus 'Menunggu Review Penyelesaian' untuk di-review",
             };
         }
 
