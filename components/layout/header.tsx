@@ -86,8 +86,7 @@ export function Header({
                         </div>
 
                         {/* RIGHT: Branding Logos */}
-                        {logo && (
-                            <div className="items-center gap-3 shrink-0 flex">
+                        <div className={cn("items-center gap-3 shrink-0", logo ? "flex" : "hidden lg:flex")}>
                                 {/* Logo Container with Glass Effect */}
                                 <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
                                     <Image
@@ -121,7 +120,7 @@ export function Header({
                                     </div>
                                 </div>
                             </div>
-                        )}
+
                     </div>
                 </div>
             </header>

@@ -38,7 +38,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
         status: {
             in: status
                 ? [status]
-                : ["DRAFT", "PENDING_APPROVAL", "APPROVED", "ON_PROGRESS", "REJECTED"],
+                : ["DRAFT", "PENDING_ESTIMATION", "ESTIMATION_APPROVED", "ESTIMATION_REJECTED_REVISION", "ESTIMATION_REJECTED", "IN_PROGRESS", "PENDING_REVIEW", "REVIEW_REJECTED_REVISION", "APPROVED_BMC"],
         },
     };
 

@@ -86,39 +86,21 @@ export async function GET(
         };
 
         if (
-            report.status === "APPROVED" ||
-            report.status === "REJECTED" ||
+            report.status === "APPROVED_BMC" ||
             report.status === "COMPLETED"
         ) {
-            // If completed, it was approved before.
-            // Ideally we find the approval log.
-            // For now, if status matches, we try to use the latest log if it matches the status.
-            // Or if COMPLETED, we assume it was approved.
-
+            // If completed/approved by BMC, find the relevant approval log.
             const latestLog = report.logs[0];
 
-            // Setup basic status mapping
-            if (report.status === "APPROVED" || report.status === "COMPLETED") {
-                approvalData.status = "APPROVED";
-            } else if (report.status === "REJECTED") {
-                approvalData.status = "REJECTED";
-            }
+            // All these statuses mean work was approved
+            approvalData.status = "APPROVED";
 
             // Hydrate details from log if available
             if (latestLog) {
-                // Check if log status roughly matches report status to be relevant
-                // e.g. if Report is APPROVED, valid logs are APPROVED.
-                // If Report is REJECTED, valid logs are REJECTED.
-                // If Report is COMPLETED, we might look for the APPROVED log (but here we just take latest for simplicity or if it's the right one)
-
-                // For accuracy: Find the log that corresponds to the validation action.
-                // Since we take(1) desc, it's the latest action.
-
                 if (
-                    latestLog.status === "APPROVED" ||
-                    latestLog.status === "REJECTED"
+                    latestLog.status === "APPROVED_BMC" ||
+                    latestLog.status === "COMPLETED"
                 ) {
-                    approvalData.status = latestLog.status;
                     approvalData.approvedBy = latestLog.approver.name;
                     approvalData.approvedAt =
                         latestLog.createdAt.toLocaleDateString("id-ID", {
@@ -131,6 +113,25 @@ export async function GET(
                         });
                     approvalData.notes = latestLog.notes || undefined;
                 }
+            }
+        } else if (
+            report.status === "ESTIMATION_REJECTED" ||
+            report.status === "ESTIMATION_REJECTED_REVISION" ||
+            report.status === "REVIEW_REJECTED_REVISION"
+        ) {
+            approvalData.status = "REJECTED";
+            const latestLog = report.logs[0];
+            if (latestLog) {
+                approvalData.approvedBy = latestLog.approver.name;
+                approvalData.approvedAt = latestLog.createdAt.toLocaleDateString("id-ID", {
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                });
+                approvalData.notes = latestLog.notes || undefined;
             }
         }
 

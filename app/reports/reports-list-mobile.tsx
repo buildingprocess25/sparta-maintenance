@@ -27,61 +27,31 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "DRAFT":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-gray-100 text-gray-700 border-gray-200 px-2 py-0.5 text-[10px] font-medium"
-                    >
-                        Draft
-                    </Badge>
-                );
-            case "PENDING_APPROVAL":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-yellow-100 text-yellow-700 border-yellow-200 px-2 py-0.5 text-[10px] font-medium"
-                    >
-                        Menunggu
-                    </Badge>
-                );
-            case "APPROVED":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-green-100 text-green-700 border-green-200 px-2 py-0.5 text-[10px] font-medium"
-                    >
-                        Est. Disetujui
-                    </Badge>
-                );
-            case "ON_PROGRESS":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-blue-100 text-blue-700 border-blue-200 px-2 py-0.5 text-[10px] font-medium"
-                    >
-                        Dikerjakan
-                    </Badge>
-                );
-            case "REJECTED":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-red-100 text-red-700 border-red-200 px-2 py-0.5 text-[10px] font-medium"
-                    >
-                        Ditolak
-                    </Badge>
-                );
+                return <Badge variant="secondary" className="gap-1 bg-gray-100 text-gray-700 border-gray-200 px-2 py-0.5 text-[10px] font-medium">Draft</Badge>;
+            case "PENDING_ESTIMATION":
+                return <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-700 border-yellow-200 px-2 py-0.5 text-[10px] font-medium">Menunggu Est.</Badge>;
+            case "ESTIMATION_APPROVED":
+                return <Badge variant="secondary" className="gap-1 bg-green-100 text-green-700 border-green-200 px-2 py-0.5 text-[10px] font-medium">Est. Disetujui</Badge>;
+            case "ESTIMATION_REJECTED_REVISION":
+                return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-700 border-orange-200 px-2 py-0.5 text-[10px] font-medium">Est. Ditolak (Revisi)</Badge>;
+            case "ESTIMATION_REJECTED":
+                return <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700 border-red-200 px-2 py-0.5 text-[10px] font-medium">Est. Ditolak</Badge>;
+            case "IN_PROGRESS":
+                return <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 border-blue-200 px-2 py-0.5 text-[10px] font-medium">Dikerjakan</Badge>;
+            case "PENDING_REVIEW":
+                return <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 border-purple-200 px-2 py-0.5 text-[10px] font-medium">Menunggu Review</Badge>;
+            case "REVIEW_REJECTED_REVISION":
+                return <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-700 border-orange-200 px-2 py-0.5 text-[10px] font-medium">Ditolak (Revisi)</Badge>;
+            case "APPROVED_BMC":
+                return <Badge variant="secondary" className="gap-1 bg-teal-100 text-teal-700 border-teal-200 px-2 py-0.5 text-[10px] font-medium">Penyelesaian Disetujui</Badge>;
+            case "COMPLETED":
+                return <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary border-primary/20 px-2 py-0.5 text-[10px] font-medium">Selesai</Badge>;
             default:
-                return (
-                    <Badge variant="outline" className="text-[10px]">
-                        {status}
-                    </Badge>
-                );
+                return <Badge variant="outline" className="text-[10px]">{status}</Badge>;
         }
     };
-
     const getActionUrl = (report: ReportData) => {
-        if (report.status === "DRAFT" || report.status === "REJECTED") {
+        if (report.status === "DRAFT" || report.status === "ESTIMATION_REJECTED_REVISION") {
             return `/reports/edit/${report.reportNumber}`;
         }
         return `/reports/${report.reportNumber}`;
@@ -143,7 +113,7 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                             >
                                 <Link href={getActionUrl(report)}>
                                     {report.status === "DRAFT" ||
-                                    report.status === "REJECTED" ? (
+                                    report.status === "ESTIMATION_REJECTED_REVISION" ? (
                                         <>
                                             <Pencil className="h-3 w-3 mr-1.5" />
                                             Edit

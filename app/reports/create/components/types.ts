@@ -60,4 +60,8 @@ export interface CreateReportFormProps {
         role: string;
         branch: string;
     };
+    /** When set, the form operates in edit mode for the given REJECTED report. */
+    editMode?: { reportNumber: string };
+    /** Auto-restore the existingDraft on mount without showing the dialog (used for draft edit). */
+    autoRestoreOnMount?: boolean;
 }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DraftDialog } from "./draft-dialog";
-import { submitReport } from "@/app/reports/actions";
+import { submitReport, resubmitReport } from "@/app/reports/actions";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import { Zap } from "lucide-react";
 import type { CreateReportFormProps } from "./components/types";
 export type { StoreOption, SerializedDraft } from "./components/types";
 import { StoreSelectDialog } from "./components/store-select-dialog";
-import { PhotoPreviewOverlay } from "./components/photo-preview-overlay";
 import { ProgressBar } from "./components/progress-bar";
 import { ChecklistStep } from "./components/checklist-step";
 import { BmsEstimationStep } from "./components/bms-estimation-step";
@@ -31,11 +30,16 @@ export default function CreateReportForm({
     userBranchName,
     existingDraft,
     userInfo,
+    editMode,
+    autoRestoreOnMount,
 }: CreateReportFormProps) {
     const router = useRouter();
     const [step, setStep] = useState<1 | 2>(1);
     const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isEditMode = !!editMode;
+    const shouldAutoRestore = isEditMode || !!autoRestoreOnMount;
 
     const {
         checklist,
@@ -87,6 +91,8 @@ export default function CreateReportForm({
         grandTotalBms,
         isSubmitting,
         handleStoreChange,
+        autoRestore: shouldAutoRestore,
+        disableAutoSave: isEditMode,
     });
 
     const {
@@ -130,6 +136,36 @@ export default function CreateReportForm({
         try {
             const draftData = buildDraftData();
 
+            // --- Edit mode: resubmit existing REJECTED report ---
+            if (isEditMode && editMode) {
+                const updatedChecklistItems = draftData.checklistItems.map(
+                    (item) => ({
+                        ...item,
+                        photoUrl:
+                            checklist.get(item.itemId)?.photoUrl ??
+                            item.photoUrl,
+                    }),
+                );
+
+                const result = await resubmitReport(editMode.reportNumber, {
+                    ...draftData,
+                    checklistItems: updatedChecklistItems,
+                });
+
+                if (result.error) {
+                    toast.error(result.error, {
+                        description: result.detail,
+                    });
+                    setIsSubmitting(false);
+                    return;
+                }
+
+                toast.success("Laporan berhasil diajukan ulang!");
+                router.push(`/reports/${editMode.reportNumber}`);
+                return;
+            }
+
+            // --- Create mode: save draft then submit ---
             const { saveDraft } = await import("@/app/reports/actions");
             const saveResult = await saveDraft(draftData);
             if (saveResult.error) throw new Error(saveResult.error);
@@ -162,7 +198,7 @@ export default function CreateReportForm({
         } catch (err) {
             const error = err as Error;
             setIsSubmitting(false);
-            toast.error("Gagal membuat laporan", {
+            toast.error(isEditMode ? "Gagal mengajukan ulang laporan" : "Gagal membuat laporan", {
                 description: error.message,
             });
         }
@@ -180,28 +216,38 @@ export default function CreateReportForm({
                 onCreateNew={handleCreateNew}
             />
 
-            <StoreSelectDialog
-                open={!selectedStoreCode && !showDraftDialog}
-                stores={stores}
-                selectedStoreCode={selectedStoreCode}
-                onStoreChange={handleStoreChange}
-                onCancel={() => router.push("/dashboard")}
-            />
+            {!isEditMode && (
+                <StoreSelectDialog
+                    open={!selectedStoreCode && !showDraftDialog}
+                    stores={stores}
+                    selectedStoreCode={selectedStoreCode}
+                    onStoreChange={handleStoreChange}
+                    onCancel={() => router.push("/dashboard")}
+                />
+            )}
 
             <LoadingOverlay
                 isOpen={isSubmitting}
-                message="Membuat laporan..."
+                message={isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."}
             />
 
             <Header
                 variant="dashboard"
                 title={
-                    step === 1
-                        ? "Checklist Perbaikan Toko"
-                        : "Ringkasan Laporan"
+                    isEditMode
+                        ? step === 1
+                            ? "Edit Laporan"
+                            : "Ringkasan Revisi"
+                        : step === 1
+                          ? "Checklist Perbaikan Toko"
+                          : "Ringkasan Laporan"
                 }
                 showBackButton={step === 1}
-                backHref="/dashboard"
+                backHref={
+                    isEditMode && editMode
+                        ? `/reports/${editMode.reportNumber}`
+                        : "/dashboard"
+                }
                 logo={false}
             />
 
@@ -217,10 +263,27 @@ export default function CreateReportForm({
                 }}
             />
 
-            <PhotoPreviewOverlay
-                previewPhoto={previewPhoto}
-                onClose={closePreview}
-            />
+            {previewPhoto && (
+                <div
+                    className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
+                    onClick={closePreview}
+                >
+                    <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src={previewPhoto}
+                            alt="Preview Foto"
+                            className="w-full h-full object-contain rounded-lg max-h-[85vh]"
+                        />
+                        <button
+                            onClick={closePreview}
+                            className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <main className="flex-1 container mx-auto px-4 md:px-4 py-4 md:py-8 max-w-7xl content-wrapper">
                 <ProgressBar step={step} />

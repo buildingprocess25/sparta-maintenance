@@ -3,7 +3,6 @@
 import { Camera, CheckCircle2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
     Select,
     SelectContent,
@@ -16,6 +15,7 @@ import {
     type ChecklistCondition,
 } from "@/lib/checklist-data";
 import { LocalNotesTextarea } from "./local-notes-textarea";
+import { cn } from "@/lib/utils";
 
 interface ChecklistItemProps {
     item: { id: string; name: string };
@@ -59,91 +59,107 @@ export function ChecklistItemCard({
 
             {isPreventive ? (
                 /* PREVENTIVE: OK / NOT OK */
-                <RadioGroup
-                    value={condition}
-                    onValueChange={(value) =>
-                        onConditionChange(
-                            item.id,
-                            item.name,
-                            value as ChecklistCondition,
-                        )
-                    }
-                >
-                    <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="baik" id={`${item.id}-ok`} />
-                            <Label
-                                htmlFor={`${item.id}-ok`}
-                                className="cursor-pointer"
+                <div className="flex flex-wrap gap-2">
+                    {(["baik", "rusak"] as ChecklistCondition[]).map((val) => {
+                        const label = val === "baik" ? "OK" : "Not OK";
+                        const isSelected = condition === val;
+                        const selectedStyle =
+                            val === "baik"
+                                ? isSelected
+                                    ? "bg-green-50 border-green-400 text-green-700 font-medium"
+                                    : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                                : isSelected
+                                  ? "bg-red-50 border-red-400 text-red-700 font-medium"
+                                  : "bg-muted/40 border-border text-muted-foreground hover:bg-muted";
+                        const dotStyle =
+                            val === "baik"
+                                ? isSelected
+                                    ? "border-green-600 bg-green-600"
+                                    : "border-muted-foreground"
+                                : isSelected
+                                  ? "border-red-600 bg-red-600"
+                                  : "border-muted-foreground";
+                        return (
+                            <button
+                                key={val}
+                                type="button"
+                                onClick={() =>
+                                    onConditionChange(item.id, item.name, val)
+                                }
+                                className={cn(
+                                    "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all",
+                                    selectedStyle,
+                                )}
                             >
-                                OK
-                            </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem
-                                value="rusak"
-                                id={`${item.id}-not-ok`}
-                            />
-                            <Label
-                                htmlFor={`${item.id}-not-ok`}
-                                className="cursor-pointer"
-                            >
-                                Not OK
-                            </Label>
-                        </div>
-                    </div>
-                </RadioGroup>
+                                <div
+                                    className={cn(
+                                        "h-3 w-3 rounded-full border-2 shrink-0",
+                                        dotStyle,
+                                    )}
+                                />
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
             ) : (
                 /* REGULAR: Baik / Rusak / Tidak Ada */
-                <RadioGroup
-                    value={condition}
-                    onValueChange={(value) =>
-                        onConditionChange(
-                            item.id,
-                            item.name,
-                            value as ChecklistCondition,
-                        )
-                    }
-                >
-                    <div className="flex flex-wrap gap-4">
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem
-                                value="baik"
-                                id={`${item.id}-baik`}
-                            />
-                            <Label
-                                htmlFor={`${item.id}-baik`}
-                                className="cursor-pointer"
+                <div className="flex flex-wrap gap-2">
+                    {(
+                        [
+                            { val: "baik" as ChecklistCondition, label: "Baik" },
+                            { val: "rusak" as ChecklistCondition, label: "Rusak" },
+                            { val: "tidak-ada" as ChecklistCondition, label: "Tidak Ada" },
+                        ]
+                    ).map(({ val, label }) => {
+                        const isSelected = condition === val;
+                        const selectedStyle =
+                            val === "baik"
+                                ? isSelected
+                                    ? "bg-green-50 border-green-400 text-green-700 font-medium"
+                                    : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                                : val === "rusak"
+                                  ? isSelected
+                                      ? "bg-red-50 border-red-400 text-red-700 font-medium"
+                                      : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                                  : isSelected
+                                    ? "bg-muted border-border text-foreground font-medium"
+                                    : "bg-muted/40 border-border text-muted-foreground hover:bg-muted";
+                        const dotStyle =
+                            val === "baik"
+                                ? isSelected
+                                    ? "border-green-600 bg-green-600"
+                                    : "border-muted-foreground"
+                                : val === "rusak"
+                                  ? isSelected
+                                      ? "border-red-600 bg-red-600"
+                                      : "border-muted-foreground"
+                                  : isSelected
+                                    ? "border-foreground bg-foreground"
+                                    : "border-muted-foreground";
+                        return (
+                            <button
+                                key={val}
+                                type="button"
+                                onClick={() =>
+                                    onConditionChange(item.id, item.name, val)
+                                }
+                                className={cn(
+                                    "flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all",
+                                    selectedStyle,
+                                )}
                             >
-                                Baik
-                            </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem
-                                value="rusak"
-                                id={`${item.id}-rusak`}
-                            />
-                            <Label
-                                htmlFor={`${item.id}-rusak`}
-                                className="cursor-pointer"
-                            >
-                                Rusak
-                            </Label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <RadioGroupItem
-                                value="tidak-ada"
-                                id={`${item.id}-tidak-ada`}
-                            />
-                            <Label
-                                htmlFor={`${item.id}-tidak-ada`}
-                                className="cursor-pointer"
-                            >
-                                Tidak Ada
-                            </Label>
-                        </div>
-                    </div>
-                </RadioGroup>
+                                <div
+                                    className={cn(
+                                        "h-3 w-3 rounded-full border-2 shrink-0",
+                                        dotStyle,
+                                    )}
+                                />
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
             )}
 
             {/* Notes */}

@@ -138,25 +138,25 @@ export default async function DashboardPage() {
             href: "/reports",
         },
         {
-            label: "Menunggu Approval",
+            label: "Menunggu Tindakan",
             value: stats.pendingReports.toString(),
             icon: Clock,
             color: "text-yellow-600",
-            href: "/reports?status=pending_approval",
+            href: "/reports",
         },
         {
-            label: "Laporan Disetujui",
+            label: "Laporan Selesai",
             value: stats.approvedReports.toString(),
             icon: CheckCircle2,
             color: "text-green-600",
-            href: "/reports?status=approved",
+            href: "/reports?status=COMPLETED",
         },
         {
-            label: "Laporan Ditolak",
+            label: "Estimasi Ditolak",
             value: stats.rejectedReports.toString(),
             icon: AlertCircle,
             color: "text-red-600",
-            href: "/reports?status=rejected",
+            href: "/reports?status=ESTIMATION_REJECTED",
         },
     ];
 

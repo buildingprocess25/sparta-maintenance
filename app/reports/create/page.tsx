@@ -3,8 +3,14 @@ import { getStoresByBranch, getDraft } from "@/app/reports/actions";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "./create-form";
 
-export default async function CreateReportPage() {
+export default async function CreateReportPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ restore?: string }>;
+}) {
     const user = await requireRole("BMS");
+    const { restore } = await searchParams;
+    const autoRestoreOnMount = restore === "1";
 
     // Fetch stores and draft in parallel
     const [stores, draft] = await Promise.all([
@@ -65,6 +71,7 @@ export default async function CreateReportPage() {
                 branch: user.branchNames[0] || "",
             }}
             existingDraft={serializedDraft}
+            autoRestoreOnMount={autoRestoreOnMount}
         />
     );
 }

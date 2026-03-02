@@ -9,11 +9,11 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
 /**
- * BMS starts working on an approved report.
- * Transitions status: APPROVED → ON_PROGRESS.
- * Can only be called by the BMS who owns the report.
+ * BMS submits a completed work for BMC review.
+ * Transitions: IN_PROGRESS → PENDING_REVIEW
+ * Also handles: REVIEW_REJECTED_REVISION → PENDING_REVIEW (re-submit after BMC rejection)
  */
-export async function startWork(reportNumber: string) {
+export async function submitCompletion(reportNumber: string, notes?: string) {
     try {
         const user = await requireRole("BMS");
         const headersList = await headers();
@@ -24,31 +24,32 @@ export async function startWork(reportNumber: string) {
             select: { createdByNIK: true, status: true },
         });
 
-        if (!report) {
-            return { error: "Laporan tidak ditemukan" };
-        }
+        if (!report) return { error: "Laporan tidak ditemukan" };
 
         if (report.createdByNIK !== user.NIK) {
             return { error: "Anda tidak memiliki akses ke laporan ini" };
         }
 
-        if (report.status !== ReportStatus.ESTIMATION_APPROVED) {
+        if (
+            report.status !== ReportStatus.IN_PROGRESS &&
+            report.status !== ReportStatus.REVIEW_REJECTED_REVISION
+        ) {
             return {
-                error: "Laporan harus berstatus 'Estimasi Disetujui' untuk memulai pengerjaan",
+                error: "Laporan harus dalam status 'Sedang Dikerjakan' atau 'Ditolak (Revisi)' untuk mengajukan penyelesaian",
             };
         }
 
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
-                data: { status: ReportStatus.IN_PROGRESS },
+                data: { status: ReportStatus.PENDING_REVIEW },
             }),
             prisma.approvalLog.create({
                 data: {
                     reportNumber,
                     approverNIK: user.NIK,
-                    status: ReportStatus.IN_PROGRESS,
-                    notes: "BMS memulai pengerjaan maintenance",
+                    status: ReportStatus.PENDING_REVIEW,
+                    notes: notes || "BMS mengajukan penyelesaian pekerjaan untuk di-review",
                 },
             }),
         ]);
@@ -57,17 +58,20 @@ export async function startWork(reportNumber: string) {
         revalidatePath("/reports");
 
         logger.info(
-            { operation: "startWork", reportNumber, userId: user.NIK },
-            "BMS started work on report",
+            { operation: "submitCompletion", reportNumber, userId: user.NIK },
+            "Completion submitted for review",
         );
 
         return { success: true };
     } catch (error) {
         logger.error(
-            { operation: "startWork", reportNumber },
-            "Failed to start work",
+            { operation: "submitCompletion", reportNumber },
+            "Failed to submit completion",
             error,
         );
-        return { error: "Gagal memulai pengerjaan", detail: getErrorDetail(error) };
+        return {
+            error: "Gagal mengajukan penyelesaian",
+            detail: getErrorDetail(error),
+        };
     }
 }

@@ -16,19 +16,19 @@ export async function getUserStats(userId: string) {
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
-                        status: "PENDING_APPROVAL",
+                        status: { in: ["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"] },
                     },
                 }),
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
-                        status: "APPROVED",
+                        status: "COMPLETED",
                     },
                 }),
                 prisma.report.count({
                     where: {
                         createdByNIK: userId,
-                        status: "REJECTED",
+                        status: "ESTIMATION_REJECTED",
                     },
                 }),
             ]);

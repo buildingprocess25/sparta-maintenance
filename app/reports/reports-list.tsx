@@ -160,47 +160,62 @@ export default function ReportsList({
         switch (status) {
             case "DRAFT":
                 return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-gray-200 shadow-none"
-                    >
+                    <Badge variant="secondary" className="gap-1 bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-gray-200 shadow-none">
                         <FileEdit className="h-3 w-3" /> Draft
                     </Badge>
                 );
-            case "PENDING_APPROVAL":
+            case "PENDING_ESTIMATION":
                 return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
-                    >
-                        <Clock className="h-3 w-3" /> Menunggu Persetujuan
+                    <Badge variant="secondary" className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none">
+                        <Clock className="h-3 w-3" /> Menunggu Persetujuan Estimasi
                     </Badge>
                 );
-            case "APPROVED":
+            case "ESTIMATION_APPROVED":
                 return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
-                    >
+                    <Badge variant="secondary" className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none">
                         <Check className="h-3 w-3" /> Estimasi Disetujui
                     </Badge>
                 );
-            case "ON_PROGRESS":
+            case "ESTIMATION_REJECTED_REVISION":
                 return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
-                    >
+                    <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none">
+                        <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
+                    </Badge>
+                );
+            case "ESTIMATION_REJECTED":
+                return (
+                    <Badge variant="secondary" className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none">
+                        <X className="h-3 w-3" /> Estimasi Ditolak
+                    </Badge>
+                );
+            case "IN_PROGRESS":
+                return (
+                    <Badge variant="secondary" className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none">
                         <Wrench className="h-3 w-3" /> Sedang Dikerjakan
                     </Badge>
                 );
-            case "REJECTED":
+            case "PENDING_REVIEW":
                 return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
-                    >
-                        <X className="h-3 w-3" /> Ditolak
+                    <Badge variant="secondary" className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none">
+                        <Clock className="h-3 w-3" /> Menunggu Review
+                    </Badge>
+                );
+            case "REVIEW_REJECTED_REVISION":
+                return (
+                    <Badge variant="secondary" className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none">
+                        <X className="h-3 w-3" /> Ditolak (Revisi)
+                    </Badge>
+                );
+            case "APPROVED_BMC":
+                return (
+                    <Badge variant="secondary" className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none">
+                        <Check className="h-3 w-3" /> Penyelesaian Disetujui
+                    </Badge>
+                );
+            case "COMPLETED":
+                return (
+                    <Badge variant="secondary" className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 shadow-none">
+                        <Check className="h-3 w-3" /> Selesai
                     </Badge>
                 );
             default:
@@ -210,16 +225,15 @@ export default function ReportsList({
 
     const getActionButton = (report: ReportData) => {
         switch (report.status) {
-            case "PENDING_APPROVAL":
-            case "APPROVED":
-            case "ON_PROGRESS":
+            case "PENDING_ESTIMATION":
+            case "ESTIMATION_APPROVED":
+            case "ESTIMATION_REJECTED":
+            case "IN_PROGRESS":
+            case "PENDING_REVIEW":
+            case "APPROVED_BMC":
+            case "COMPLETED":
                 return (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        asChild
-                    >
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" asChild>
                         <Link href={`/reports/${report.reportNumber}`}>
                             <Eye className="h-4 w-4" />
                             <span className="sr-only">Lihat Detail</span>
@@ -227,17 +241,13 @@ export default function ReportsList({
                     </Button>
                 );
             case "DRAFT":
-            case "REJECTED":
+            case "ESTIMATION_REJECTED_REVISION":
+            case "REVIEW_REJECTED_REVISION":
                 return (
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-primary"
-                        asChild
-                    >
-                        <Link href={`/reports/edit/${report.reportNumber}`}>
-                            <Pencil className="h-4 w-4" />
-                            <span className="sr-only">Edit Laporan</span>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary" asChild>
+                        <Link href={`/reports/${report.reportNumber}`}>
+                            <Eye className="h-4 w-4" />
+                            <span className="sr-only">Lihat Detail</span>
                         </Link>
                     </Button>
                 );
@@ -266,6 +276,7 @@ export default function ReportsList({
                 description={`${total} laporan — Kelola dan pantau status laporan kerusakan`}
                 showBackButton
                 backHref="/dashboard"
+                logo={false}
             />
 
             <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
@@ -301,18 +312,15 @@ export default function ReportsList({
                             <SelectContent>
                                 <SelectItem value="all">Semua Status</SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="pending_approval">
-                                    Menunggu Persetujuan
-                                </SelectItem>
-                                <SelectItem value="approved">
-                                    Estimasi Disetujui
-                                </SelectItem>
-                                <SelectItem value="on_progress">
-                                    Sedang Dikerjakan
-                                </SelectItem>
-                                <SelectItem value="rejected">
-                                    Ditolak
-                                </SelectItem>
+                                <SelectItem value="pending_estimation">Menunggu Persetujuan Estimasi</SelectItem>
+                                <SelectItem value="estimation_approved">Estimasi Disetujui</SelectItem>
+                                <SelectItem value="estimation_rejected_revision">Estimasi Ditolak (Revisi)</SelectItem>
+                                <SelectItem value="estimation_rejected">Estimasi Ditolak</SelectItem>
+                                <SelectItem value="in_progress">Sedang Dikerjakan</SelectItem>
+                                <SelectItem value="pending_review">Menunggu Review</SelectItem>
+                                <SelectItem value="review_rejected_revision">Ditolak (Revisi)</SelectItem>
+                                <SelectItem value="approved_bmc">Penyelesaian Disetujui</SelectItem>
+                                <SelectItem value="completed">Selesai</SelectItem>
                             </SelectContent>
                         </Select>
                         <Select
@@ -379,9 +387,8 @@ export default function ReportsList({
                                             Toko & Cabang
                                         </TableHead>
                                         <TableHead>
-                                            <div className="flex items-center gap-1 cursor-pointer hover:text-foreground">
+                                            <div className="flex items-center gap-1 hover:text-foreground">
                                                 Tanggal{" "}
-                                                <ArrowUpDown className="h-3 w-3" />
                                             </div>
                                         </TableHead>
                                         <TableHead>Status</TableHead>

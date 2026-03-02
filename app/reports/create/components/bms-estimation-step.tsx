@@ -58,7 +58,7 @@ function parseFormattedNumber(formatted: string): number {
     return parseInt(cleaned, 10) || 0;
 }
 
-/** Input harga dengan local state — hanya commit ke parent saat blur */
+/** Input harga dengan local state — commit ke parent setiap perubahan */
 function PriceInput({
     value,
     onCommit,
@@ -85,10 +85,10 @@ function PriceInput({
                 const raw = e.target.value.replace(/[^0-9]/g, "");
                 const num = parseInt(raw, 10) || 0;
                 setLocalValue(num ? num.toLocaleString("id-ID") : raw);
+                onCommit(num);
             }}
             onBlur={() => {
                 const num = parseFormattedNumber(localValue);
-                onCommit(num);
                 setLocalValue(formatNumber(num));
             }}
             className={className}
@@ -142,7 +142,7 @@ export function BmsEstimationStep({
                             <CardTitle className="text-base">
                                 Estimasi Harga BMS ({bmsItemsList.length} item)
                             </CardTitle>
-                            <CardDescription className="text-xs">
+                            <CardDescription className="text-xs md:text-sm">
                                 Tambahkan barang untuk setiap item rusak
                             </CardDescription>
                         </CardHeader>

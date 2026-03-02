@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { saveDraft, deleteDraft } from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
@@ -36,6 +36,10 @@ type UseDraftParams = {
     grandTotalBms: number;
     isSubmitting: boolean;
     handleStoreChange: (storeCode: string) => Promise<void>;
+    /** Skip the draft dialog and auto-restore the existingDraft on mount (used by edit mode). */
+    autoRestore?: boolean;
+    /** Disable the debounced auto-save to the draft table (used by edit mode). */
+    disableAutoSave?: boolean;
 };
 
 export function useDraft({
@@ -52,17 +56,25 @@ export function useDraft({
     grandTotalBms,
     isSubmitting,
     handleStoreChange,
+    autoRestore = false,
+    disableAutoSave = false,
 }: UseDraftParams) {
     const [draftReportId, setDraftReportId] = useState<string | null>(
         existingDraft?.reportNumber || null,
     );
-    const [showDraftDialog, setShowDraftDialog] = useState(!!existingDraft);
+    // In autoRestore mode (edit page), skip the dialog and restore inline on mount.
+    const [showDraftDialog, setShowDraftDialog] = useState(
+        !!existingDraft && !autoRestore,
+    );
     const [isRestoringDraft, setIsRestoringDraft] = useState(false);
     const [isDeletingDraft, setIsDeletingDraft] = useState(false);
+    // Guard against double-invoke (React StrictMode / re-renders).
+    const hasAutoRestoredRef = useRef(false);
 
-    const handleContinueDraft = useCallback(async () => {
+    const handleContinueDraft = useCallback(async (opts?: { loading?: string; success?: string }) => {
         if (!existingDraft) return;
         setIsRestoringDraft(true);
+        const loadingToastId = opts?.loading ? toast.loading(opts.loading) : undefined;
         try {
             if (existingDraft.storeCode) {
                 const s = stores.find(
@@ -100,14 +112,22 @@ export function useDraft({
 
             const restored = new Map<string, ChecklistItem>();
             existingDraft.items.forEach((item, i) => {
+                // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"
+                // Map back to local condition values: OK→"baik", NOT_OK→"rusak"
+                let restoredCondition: ChecklistCondition = "";
+                if (item.preventiveCondition === "OK") {
+                    restoredCondition = "baik";
+                } else if (item.preventiveCondition === "NOT_OK") {
+                    restoredCondition = "rusak";
+                } else if (item.condition === "TIDAK_ADA") {
+                    restoredCondition = "tidak-ada";
+                } else if (item.condition) {
+                    restoredCondition = item.condition.toLowerCase() as ChecklistCondition;
+                }
                 restored.set(item.itemId, {
                     id: item.itemId,
                     name: item.itemName,
-                    condition:
-                        item.condition === "TIDAK_ADA"
-                            ? "tidak-ada"
-                            : ((item.condition?.toLowerCase() ||
-                                  "") as ChecklistCondition),
+                    condition: restoredCondition,
                     handler:
                         item.handler === "BMS"
                             ? "BMS"
@@ -163,7 +183,8 @@ export function useDraft({
             }
 
             setShowDraftDialog(false);
-            toast.success("Draft dilanjutkan");
+            if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
+            toast.success(opts?.success ?? "Draft dilanjutkan");
         } finally {
             setIsRestoringDraft(false);
         }
@@ -185,21 +206,37 @@ export function useDraft({
         }
     }, [existingDraft]);
 
+    // Auto-restore on mount when in edit mode (skip dialog, populate form immediately).
+    useEffect(() => {
+        if (autoRestore && existingDraft && !hasAutoRestoredRef.current) {
+            hasAutoRestoredRef.current = true;
+            handleContinueDraft({
+                loading: "Memuat laporan...",
+                success: "Laporan berhasil dimuat",
+            });
+        }
+        // Only run once on mount.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     // Auto-save with debounce
     const debouncedChecklist = useDebounce(checklist, 2000);
     const debouncedBmsItems = useDebounce(bmsItems, 2000);
     const debouncedStoreCode = useDebounce(selectedStoreCode, 2000);
 
     useEffect(() => {
+        if (disableAutoSave) return;
         if (debouncedChecklist.size === 0 && !debouncedStoreCode) return;
         if (isSubmitting) return;
 
         const checklistItems = Array.from(debouncedChecklist.values()).map(
             (item) => {
                 let categoryName = "";
+                let isPreventive = false;
                 for (const cat of activeCategories) {
                     if (cat.items.some((i) => i.id === item.id)) {
                         categoryName = cat.title;
+                        isPreventive = !!cat.isPreventive;
                         break;
                     }
                 }
@@ -207,14 +244,22 @@ export function useDraft({
                     itemId: item.id,
                     itemName: item.name,
                     categoryName,
-                    condition:
-                        item.condition === "baik"
-                            ? ("BAIK" as const)
+                    condition: isPreventive
+                        ? undefined
+                        : item.condition === "baik"
+                          ? ("BAIK" as const)
+                          : item.condition === "rusak"
+                            ? ("RUSAK" as const)
+                            : item.condition === "tidak-ada"
+                              ? ("TIDAK_ADA" as const)
+                              : undefined,
+                    preventiveCondition: isPreventive
+                        ? item.condition === "baik"
+                            ? ("OK" as const)
                             : item.condition === "rusak"
-                              ? ("RUSAK" as const)
-                              : item.condition === "tidak-ada"
-                                ? ("TIDAK_ADA" as const)
-                                : undefined,
+                              ? ("NOT_OK" as const)
+                              : undefined
+                        : undefined,
                     handler:
                         item.handler === "BMS"
                             ? ("BMS" as const)
@@ -288,9 +333,11 @@ export function useDraft({
             .filter((item) => item.condition && validItemIds.has(item.id))
             .map((item) => {
                 let categoryName = "";
+                let isPreventive = false;
                 for (const cat of activeCategories) {
                     if (cat.items.some((i) => i.id === item.id)) {
                         categoryName = cat.title;
+                        isPreventive = !!cat.isPreventive;
                         break;
                     }
                 }
@@ -298,14 +345,22 @@ export function useDraft({
                     itemId: item.id,
                     itemName: item.name,
                     categoryName,
-                    condition:
-                        item.condition === "baik"
-                            ? ("BAIK" as const)
+                    condition: isPreventive
+                        ? undefined
+                        : item.condition === "baik"
+                          ? ("BAIK" as const)
+                          : item.condition === "rusak"
+                            ? ("RUSAK" as const)
+                            : item.condition === "tidak-ada"
+                              ? ("TIDAK_ADA" as const)
+                              : undefined,
+                    preventiveCondition: isPreventive
+                        ? item.condition === "baik"
+                            ? ("OK" as const)
                             : item.condition === "rusak"
-                              ? ("RUSAK" as const)
-                              : item.condition === "tidak-ada"
-                                ? ("TIDAK_ADA" as const)
-                                : undefined,
+                              ? ("NOT_OK" as const)
+                              : undefined
+                        : undefined,
                     handler:
                         item.handler === "BMS"
                             ? ("BMS" as const)

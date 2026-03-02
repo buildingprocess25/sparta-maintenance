@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { requireRole } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import prisma from "@/lib/prisma";
 import { ReportDetailView } from "./report-detail-view";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
@@ -10,7 +10,7 @@ type Props = {
 
 export default async function ReportDetailPage({ params }: Props) {
     const { reportNumber } = await params;
-    const user = await requireRole("BMS");
+    const user = await requireAuth();
 
     const report = await prisma.report.findUnique({
         where: { reportNumber },
@@ -25,8 +25,19 @@ export default async function ReportDetailPage({ params }: Props) {
 
     if (!report) notFound();
 
-    // BMS can only view their own reports
-    if (report.createdByNIK !== user.NIK) redirect("/reports");
+    // Access control
+    if (user.role === "BMS") {
+        // BMS can only view their own reports
+        if (report.createdByNIK !== user.NIK) redirect("/reports");
+    } else if (user.role === "BMC") {
+        // BMC can view reports from their branches
+        if (!user.branchNames.includes(report.branchName)) redirect("/approval/reports");
+    } else if (user.role === "BNM_MANAGER") {
+        // BnM Manager can view APPROVED_BMC and COMPLETED reports
+        if (!["APPROVED_BMC", "COMPLETED"].includes(report.status)) redirect("/approval/reports");
+    } else if (user.role !== "ADMIN") {
+        redirect("/dashboard");
+    }
 
     const items = (report.items ?? []) as unknown as ReportItemJson[];
     const estimations = (report.estimations ??
@@ -37,6 +48,7 @@ export default async function ReportDetailPage({ params }: Props) {
             report={{
                 reportNumber: report.reportNumber,
                 storeName: report.storeName,
+                storeCode: report.storeCode || "",
                 branchName: report.branchName,
                 status: report.status as string,
                 totalEstimation: Number(report.totalEstimation),
@@ -52,6 +64,7 @@ export default async function ReportDetailPage({ params }: Props) {
                     createdAt: l.createdAt,
                 })),
             }}
+            viewer={{ role: user.role, nik: user.NIK }}
         />
     );
 }

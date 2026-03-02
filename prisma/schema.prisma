@@ -16,16 +16,21 @@ datasource db {
 enum UserRole {
   BMS
   BMC
+  BNM_MANAGER
   ADMIN
 }
 
 enum ReportStatus {
   DRAFT
-  PENDING_APPROVAL
-  APPROVED
-  ON_PROGRESS
-  REJECTED
-  COMPLETED
+  PENDING_ESTIMATION          // BMS submitted, waiting BMC estimation review
+  ESTIMATION_APPROVED         // BMC approved estimation, BMS can start work
+  ESTIMATION_REJECTED_REVISION // BMC rejected estimation, BMS must revise
+  ESTIMATION_REJECTED         // BMC permanently rejected (report closed)
+  IN_PROGRESS                 // BMS is working on the report
+  PENDING_REVIEW              // BMS finished, waiting BMC completion review
+  REVIEW_REJECTED_REVISION    // BMC rejected work, BMS must revise
+  APPROVED_BMC                // BMC approved work, waiting BnM Manager
+  COMPLETED                   // BnM Manager approved — report done
 }
 
 enum ItemCondition {
