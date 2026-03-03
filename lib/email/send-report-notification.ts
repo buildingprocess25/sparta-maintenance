@@ -45,14 +45,25 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         minute: "2-digit",
     });
 
-    // Determine recipient email
-    // TODO: Di production, ganti logika ini untuk mengambil email BMC dari DB
-    //       berdasarkan branchName yang sama dengan laporan ini.
-    //       Contoh: const bmcUser = await prisma.user.findFirst({
-    //                 where: { role: "BMC", branchName: report.branchName }
-    //               });
-    //               const recipientEmail = bmcUser?.email;
-    const recipientEmail = process.env.DEV_EMAIL_RECIPIENT;
+    // Find the BMC reviewer for this branch
+    //   Production: picks first BMC whose branchNames includes this report's branch
+    //   Dev fallback: uses DEV_EMAIL_RECIPIENT
+    let recipientEmail: string | undefined;
+
+    const bmcUser = await prisma.user.findFirst({
+        where: {
+            role: "BMC",
+            branchNames: { has: report.branchName },
+        },
+        select: { email: true },
+    });
+
+    if (bmcUser) {
+        recipientEmail = bmcUser.email;
+    } else {
+        // Dev fallback
+        recipientEmail = process.env.DEV_EMAIL_RECIPIENT;
+    }
 
     if (!recipientEmail) {
         logger.error(
@@ -61,6 +72,14 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         );
         return;
     }
+
+    // Build the direct report URL. If the recipient is not logged in, the
+    // report page will redirect them to /login?redirect=<path> and return
+    // after authentication.
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(/\/$/, "");
+    const reviewUrl = appUrl
+        ? `${appUrl}/reports/${report.reportNumber}`
+        : undefined;
 
     const assetsDir = path.join(process.cwd(), "public", "assets");
     const alfamartLogoBase64 = fs
@@ -100,6 +119,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         bmsItems: bmsItems.length,
         rekananItems: rekananItems.length,
         totalEstimation: Number(report.totalEstimation),
+        reviewUrl,
     });
 
     await sendEmail({

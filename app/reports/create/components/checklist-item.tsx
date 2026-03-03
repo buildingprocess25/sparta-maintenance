@@ -18,7 +18,7 @@ import { LocalNotesTextarea } from "./local-notes-textarea";
 import { cn } from "@/lib/utils";
 
 interface ChecklistItemProps {
-    item: { id: string; name: string };
+    item: { id: string; name: string; desc?: string };
     isPreventive: boolean;
     itemData: ChecklistItemType | undefined;
     onConditionChange: (
@@ -53,8 +53,15 @@ export function ChecklistItemCard({
             id={`item-${item.id}`}
             className="space-y-3 p-3 bg-background rounded-md border transition-all duration-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20 focus-within:shadow-lg focus-within:shadow-primary/20"
         >
-            <div className="font-medium text-sm">
-                {item.id}. {item.name}
+            <div>
+                <p className="font-medium text-sm">
+                    {item.id}. {item.name}
+                </p>
+                {item.desc && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {item.desc}
+                    </p>
+                )}
             </div>
 
             {isPreventive ? (
@@ -105,13 +112,14 @@ export function ChecklistItemCard({
             ) : (
                 /* REGULAR: Baik / Rusak / Tidak Ada */
                 <div className="flex flex-wrap gap-2">
-                    {(
-                        [
-                            { val: "baik" as ChecklistCondition, label: "Baik" },
-                            { val: "rusak" as ChecklistCondition, label: "Rusak" },
-                            { val: "tidak-ada" as ChecklistCondition, label: "Tidak Ada" },
-                        ]
-                    ).map(({ val, label }) => {
+                    {[
+                        { val: "baik" as ChecklistCondition, label: "Baik" },
+                        { val: "rusak" as ChecklistCondition, label: "Rusak" },
+                        {
+                            val: "tidak-ada" as ChecklistCondition,
+                            label: "Tidak Ada",
+                        },
+                    ].map(({ val, label }) => {
                         const isSelected = condition === val;
                         const selectedStyle =
                             val === "baik"

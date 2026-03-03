@@ -26,7 +26,7 @@ const initialState: LoginState = {
     errors: {},
 };
 
-export function LoginForm() {
+export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -63,6 +63,13 @@ export function LoginForm() {
                     </CardHeader>
                     <CardContent>
                         <form action={formAction} className="space-y-4">
+                            {callbackUrl && (
+                                <input
+                                    type="hidden"
+                                    name="callbackUrl"
+                                    value={callbackUrl}
+                                />
+                            )}
                             {/* Email */}
                             <div className="space-y-2">
                                 <label

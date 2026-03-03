@@ -4,12 +4,21 @@ import { Footer } from "@/components/layout/footer";
 import { getSession } from "@/lib/session";
 import { LoginForm } from "./login-form";
 
-export default async function LoginPage() {
+export default async function LoginPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ redirect?: string; logout?: string }>;
+}) {
     // Check if user already logged in
     const session = await getSession();
+    const { redirect: callbackUrl } = await searchParams;
 
     if (session) {
-        redirect("/dashboard");
+        redirect(
+            callbackUrl && callbackUrl.startsWith("/")
+                ? callbackUrl
+                : "/dashboard",
+        );
     }
 
     return (
@@ -22,7 +31,7 @@ export default async function LoginPage() {
                 backHref="/"
             />
 
-            <LoginForm />
+            <LoginForm callbackUrl={callbackUrl} />
 
             <Footer />
         </div>

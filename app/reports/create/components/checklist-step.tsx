@@ -175,7 +175,7 @@ export function ChecklistStep({
                                 <CalendarClock className="h-4 w-4 shrink-0" />
                                 <div className="text-sm">
                                     <span className="font-medium">
-                                        I. Preventif Equipment Toko (setiap 3
+                                        I. PERAWATAN EQUIPMENT TOKO (setiap 3
                                         bulan)
                                     </span>{" "}
                                     — Laporkan lagi pada{" "}

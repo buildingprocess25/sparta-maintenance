@@ -9,6 +9,8 @@ export type ReportEmailData = {
     bmsItems: number;
     rekananItems: number;
     totalEstimation: number;
+    /** Magic-link URL — auto-login BMC langsung ke halaman laporan */
+    reviewUrl?: string;
 };
 
 export function buildReportSubmittedHtml(data: ReportEmailData): string {
@@ -123,12 +125,30 @@ export function buildReportSubmittedHtml(data: ReportEmailData): string {
                 }
               </table>
 
-              <p style="margin:0 0 8px;color:#374151;font-size:13px;line-height:1.6;">
+              <p style="margin:0 0 8px;color:#374151;font-size:14px;line-height:1.6;">
                 Laporan lengkap dalam format PDF terlampir pada email ini. Silakan buka lampiran untuk melihat detail checklist perbaikan.
               </p>
-              <p style="margin:0;color:#6b7280;font-size:12px;line-height:1.6;">
+              <p style="margin:0 0 24px;color:#6b7280;font-size:13px;line-height:1.6;">
                 Harap segera melakukan review dan approval terhadap laporan ini.
               </p>
+
+              ${
+                  data.reviewUrl
+                      ? `
+              <!-- CTA Button -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+                <tr>
+                  <td align="center">
+                    <a href="${data.reviewUrl}"
+                       style="display:inline-block;background-color:#c0392b;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:6px;letter-spacing:0.3px;">
+                      Review Laporan &amp; Estimasi
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              `
+                      : ``
+              }
             </td>
           </tr>
 

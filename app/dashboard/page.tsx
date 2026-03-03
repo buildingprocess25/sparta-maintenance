@@ -128,7 +128,7 @@ export default async function DashboardPage() {
             case "BMS":
                 return [
                     {
-                        label: "Total Laporan Dibuat",
+                        label: "Total Laporan",
                         value: stats.totalReports.toString(),
                         icon: FileText,
                         color: "text-primary",

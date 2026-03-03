@@ -77,5 +77,13 @@ export async function loginAction(
     }
 
     // 5. Redirect jika sukses (Dilakukan di luar try-catch karena redirect melempar error NEXT_REDIRECT)
-    redirect("/dashboard");
+    const callbackUrl = formData.get("callbackUrl") as string | null;
+    // Validate: must start with / but not // (prevents open redirect)
+    const safeRedirect =
+        callbackUrl &&
+        callbackUrl.startsWith("/") &&
+        !callbackUrl.startsWith("//")
+            ? callbackUrl
+            : "/dashboard";
+    redirect(safeRedirect);
 }

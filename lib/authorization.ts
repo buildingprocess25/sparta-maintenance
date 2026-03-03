@@ -66,12 +66,16 @@ export async function getAuthUser(): Promise<AuthUser | null> {
 }
 
 /**
- * Require authentication - redirect to login if not authenticated
+ * Require authentication - redirect to login if not authenticated.
+ * Pass `callbackPath` to send the user back to a specific page after login.
  */
-export async function requireAuth(): Promise<AuthUser> {
+export async function requireAuth(callbackPath?: string): Promise<AuthUser> {
     const user = await getAuthUser();
     if (!user) {
-        redirect("/login?logout=1");
+        const target = callbackPath
+            ? `/login?redirect=${encodeURIComponent(callbackPath)}`
+            : "/login?logout=1";
+        redirect(target);
     }
     return user;
 }
@@ -193,4 +197,3 @@ export async function validateCSRF(headers: Headers): Promise<void> {
         throw new Error("CSRF validation failed: origin mismatch");
     }
 }
-

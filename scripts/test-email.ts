@@ -1,6 +1,7 @@
 import "dotenv/config";
 import nodemailer from "nodemailer";
 import { google } from "googleapis";
+import { buildReportSubmittedHtml } from "../lib/email/templates/report-submitted";
 
 const OAuth2 = google.auth.OAuth2;
 
@@ -42,6 +43,7 @@ async function main() {
         "GMAIL_CLIENT_SECRET",
         "GMAIL_REFRESH_TOKEN",
         "DEV_EMAIL_RECIPIENT",
+        "NEXT_PUBLIC_APP_URL",
     ];
     const missing = requiredEnv.filter((k) => !process.env[k]);
     if (missing.length > 0) {
@@ -53,6 +55,34 @@ async function main() {
         const targetEmail =
             process.env.DEV_EMAIL_RECIPIENT || process.env.GMAIL_USER!;
 
+        const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "").replace(
+            /\/$/,
+            "",
+        );
+        const dummyReviewUrl = `${appUrl}/reports/RPT-2026-TEST-001`;
+
+        // Build email HTML using the real template
+        const html = buildReportSubmittedHtml({
+            reportNumber: "RPT-2026-TEST-001",
+            storeName: "Alfamart Test Store",
+            storeCode: "ALF-9999",
+            branchName: "Cabang Jakarta Utara",
+            submittedBy: "Budi Santoso",
+            submittedAt: new Date().toLocaleDateString("id-ID", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            }),
+            rusakItems: 7,
+            bmsItems: 4,
+            rekananItems: 3,
+            totalEstimation: 4_750_000,
+            reviewUrl: dummyReviewUrl,
+        });
+
         console.log(`Mencoba mengirim email ke: ${targetEmail}`);
 
         const transporter = await createTransporter();
@@ -60,28 +90,20 @@ async function main() {
         await transporter.sendMail({
             from: `"SPARTA Maintenance" <${process.env.GMAIL_USER}>`,
             to: targetEmail,
-            subject: "TEST EMAIL SPARTA MAINTENANCE",
-            html: `
-                <div style="font-family: sans-serif; padding: 20px;">
-                    <h2 style="color: #4CAF50;">✅ Koneksi Berhasil!</h2>
-                    <p>Halo,</p>
-                    <p>Konfigurasi GMAIL_REFRESH_TOKEN Anda berhasil divalidasi dan aplikasi kini siap mengirim email.</p>
-                    <hr style="border: 0; border-top: 1px solid #ddd; margin: 20px 0;">
-                    <small style="color: #666;">Dikirim secara otomatis oleh Sparta Maintenance System</small>
-                </div>
-            `,
+            subject:
+                "[TEST] Laporan Maintenance Baru: RPT-2026-TEST-001 — Alfamart Test Store",
+            html,
         });
 
-        console.log("✅ SUKSES! Email berhasil dikirim.");
-    } catch (error: any) {
+        console.log("✅ SUKSES! Email dengan tombol review berhasil dikirim.");
+        console.log(`   Review URL (direct): ${dummyReviewUrl}`);
+    } catch (error: unknown) {
         console.error("❌ GAGAL! Terjadi kesalahan saat mengirim email:");
-        if (error.response) {
-            console.error(
-                "Detail Error API:",
-                error.response.data || error.response,
-            );
+        const err = error as { response?: unknown; message?: string };
+        if (err.response) {
+            console.error("Detail Error API:", err.response);
         } else {
-            console.error(error.message || error);
+            console.error(err.message || error);
         }
     }
 }

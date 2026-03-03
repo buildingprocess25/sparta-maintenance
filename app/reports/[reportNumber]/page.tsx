@@ -10,7 +10,7 @@ type Props = {
 
 export default async function ReportDetailPage({ params }: Props) {
     const { reportNumber } = await params;
-    const user = await requireAuth();
+    const user = await requireAuth(`/reports/${reportNumber}`);
 
     const report = await prisma.report.findUnique({
         where: { reportNumber },
@@ -31,10 +31,12 @@ export default async function ReportDetailPage({ params }: Props) {
         if (report.createdByNIK !== user.NIK) redirect("/reports");
     } else if (user.role === "BMC") {
         // BMC can view reports from their branches
-        if (!user.branchNames.includes(report.branchName)) redirect("/approval/reports");
+        if (!user.branchNames.includes(report.branchName))
+            redirect("/approval/reports");
     } else if (user.role === "BNM_MANAGER") {
         // BnM Manager can view APPROVED_BMC and COMPLETED reports
-        if (!["APPROVED_BMC", "COMPLETED"].includes(report.status)) redirect("/approval/reports");
+        if (!["APPROVED_BMC", "COMPLETED"].includes(report.status))
+            redirect("/approval/reports");
     } else if (user.role !== "ADMIN") {
         redirect("/dashboard");
     }
