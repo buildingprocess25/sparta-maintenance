@@ -16,9 +16,9 @@ export default async function ReportDetailPage({ params }: Props) {
         where: { reportNumber },
         include: {
             createdBy: { select: { NIK: true, name: true } },
-            logs: {
+            activities: {
                 orderBy: { createdAt: "asc" },
-                include: { approver: { select: { name: true } } },
+                include: { actor: { select: { name: true } } },
             },
         },
     });
@@ -58,11 +58,11 @@ export default async function ReportDetailPage({ params }: Props) {
                 submittedBy: report.createdBy.name,
                 items,
                 estimations,
-                logs: report.logs.map((l) => ({
-                    status: l.status as string,
-                    notes: l.notes ?? null,
-                    approverName: l.approver.name,
-                    createdAt: l.createdAt,
+                activities: report.activities.map((a) => ({
+                    action: a.action as string,
+                    notes: a.notes ?? null,
+                    actorName: a.actor.name,
+                    createdAt: a.createdAt,
                 })),
             }}
             viewer={{ role: user.role, nik: user.NIK }}

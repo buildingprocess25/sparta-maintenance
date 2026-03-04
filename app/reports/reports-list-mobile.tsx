@@ -13,7 +13,6 @@ import {
     Wrench,
     Check,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { ReportData } from "./reports-list";
 
@@ -199,7 +198,11 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                     key={report.reportNumber}
                     className="shadow-sm overflow-hidden cursor-pointer"
                     onClick={() =>
-                        router.push(`/reports/${report.reportNumber}`)
+                        router.push(
+                            report.status === "DRAFT"
+                                ? "/reports/create?restore=1"
+                                : `/reports/${report.reportNumber}`,
+                        )
                     }
                 >
                     <CardContent>
@@ -257,22 +260,22 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                                                 ? "border-primary/40 text-primary hover:bg-primary/5"
                                                 : "bg-muted text-muted-foreground hover:bg-muted/80"
                                         }`}
-                                        onClick={(e) => e.stopPropagation()}
-                                        asChild
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            router.push(
+                                                report.status === "DRAFT"
+                                                    ? "/reports/create?restore=1"
+                                                    : report.status ===
+                                                            "ESTIMATION_REJECTED_REVISION" ||
+                                                        report.status ===
+                                                            "REVIEW_REJECTED_REVISION"
+                                                      ? `/reports/revisi/${report.reportNumber}`
+                                                      : `/reports/${report.reportNumber}`,
+                                            );
+                                        }}
                                     >
-                                        <Link
-                                            href={
-                                                report.status ===
-                                                    "ESTIMATION_REJECTED_REVISION" ||
-                                                report.status ===
-                                                    "REVIEW_REJECTED_REVISION"
-                                                    ? `/reports/revisi/${report.reportNumber}`
-                                                    : `/reports/${report.reportNumber}`
-                                            }
-                                        >
-                                            {cfg.icon}
-                                            {cfg.label}
-                                        </Link>
+                                        {cfg.icon}
+                                        {cfg.label}
                                     </Button>
                                 );
                             })()}

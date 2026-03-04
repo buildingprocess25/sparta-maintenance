@@ -47,7 +47,6 @@ import {
     CalendarDays,
     Wrench,
 } from "lucide-react";
-import Link from "next/link";
 import {
     Pagination,
     PaginationContent,
@@ -314,6 +313,13 @@ export default function ReportsList({
     const getActionButton = (report: ReportData) => {
         const cfg = ACTION_CONFIG[report.status];
         if (!cfg) return null;
+        const href =
+            report.status === "DRAFT"
+                ? "/reports/create?restore=1"
+                : report.status === "ESTIMATION_REJECTED_REVISION" ||
+                    report.status === "REVIEW_REJECTED_REVISION"
+                  ? `/reports/revisi/${report.reportNumber}`
+                  : `/reports/${report.reportNumber}`;
         return (
             <Button
                 variant={cfg.cta ? "outline" : "ghost"}
@@ -323,20 +329,13 @@ export default function ReportsList({
                         ? "border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
                         : "text-muted-foreground"
                 }`}
-                onClick={(e) => e.stopPropagation()}
-                asChild
+                onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(href);
+                }}
             >
-                <Link
-                    href={
-                        report.status === "ESTIMATION_REJECTED_REVISION" ||
-                        report.status === "REVIEW_REJECTED_REVISION"
-                            ? `/reports/revisi/${report.reportNumber}`
-                            : `/reports/${report.reportNumber}`
-                    }
-                >
-                    {cfg.icon}
-                    {cfg.label}
-                </Link>
+                {cfg.icon}
+                {cfg.label}
             </Button>
         );
     };
@@ -533,7 +532,9 @@ export default function ReportsList({
                                             className="group cursor-pointer"
                                             onClick={() =>
                                                 router.push(
-                                                    `/reports/${report.reportNumber}`,
+                                                    report.status === "DRAFT"
+                                                        ? "/reports/create?restore=1"
+                                                        : `/reports/${report.reportNumber}`,
                                                 )
                                             }
                                         >

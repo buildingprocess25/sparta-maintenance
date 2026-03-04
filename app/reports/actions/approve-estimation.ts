@@ -62,6 +62,13 @@ export async function reviewEstimation(
                       ? "Estimasi ditolak, BMS diminta merevisi"
                       : "Estimasi ditolak permanen oleh BMC");
 
+        const estimationAction =
+            decision === "approve"
+                ? "ESTIMATION_APPROVED"
+                : decision === "reject_revision"
+                  ? "ESTIMATION_REJECTED_REVISION"
+                  : "ESTIMATION_REJECTED";
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
@@ -72,6 +79,14 @@ export async function reviewEstimation(
                     reportNumber,
                     approverNIK: user.NIK,
                     status: newStatus,
+                    notes: logNote,
+                },
+            }),
+            prisma.activityLog.create({
+                data: {
+                    reportNumber,
+                    actorNIK: user.NIK,
+                    action: estimationAction,
                     notes: logNote,
                 },
             }),

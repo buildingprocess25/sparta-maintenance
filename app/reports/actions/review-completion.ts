@@ -54,6 +54,9 @@ export async function reviewCompletion(
                 ? notes || null
                 : notes || "Pekerjaan ditolak oleh BMC, BMS diminta merevisi";
 
+        const completionReviewAction =
+            decision === "approve" ? "WORK_APPROVED" : "WORK_REJECTED_REVISION";
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
@@ -64,6 +67,14 @@ export async function reviewCompletion(
                     reportNumber,
                     approverNIK: user.NIK,
                     status: newStatus,
+                    notes: logNote,
+                },
+            }),
+            prisma.activityLog.create({
+                data: {
+                    reportNumber,
+                    actorNIK: user.NIK,
+                    action: completionReviewAction,
                     notes: logNote,
                 },
             }),

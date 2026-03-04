@@ -43,12 +43,12 @@ export async function startWork(reportNumber: string) {
                 where: { reportNumber },
                 data: { status: ReportStatus.IN_PROGRESS },
             }),
-            prisma.approvalLog.create({
+            prisma.activityLog.create({
                 data: {
                     reportNumber,
-                    approverNIK: user.NIK,
-                    status: ReportStatus.IN_PROGRESS,
-                    notes: "BMS memulai pengerjaan maintenance",
+                    actorNIK: user.NIK,
+                    action: "WORK_STARTED",
+                    notes: null,
                 },
             }),
         ]);
@@ -68,6 +68,9 @@ export async function startWork(reportNumber: string) {
             "Failed to start work",
             error,
         );
-        return { error: "Gagal memulai pengerjaan", detail: getErrorDetail(error) };
+        return {
+            error: "Gagal memulai pengerjaan",
+            detail: getErrorDetail(error),
+        };
     }
 }

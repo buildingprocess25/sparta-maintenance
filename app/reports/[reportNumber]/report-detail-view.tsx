@@ -56,11 +56,68 @@ import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
 import { approveFinal } from "@/app/reports/actions/approve-final";
 
-type LogEntry = {
-    status: string;
+type ActivityEntry = {
+    action: string;
     notes: string | null;
-    approverName: string;
+    actorName: string;
     createdAt: Date;
+};
+
+const ACTIVITY_HISTORY_CONFIG: Record<
+    string,
+    { label: string; positive: boolean; negative: boolean }
+> = {
+    SUBMITTED: { label: "Laporan Dikirim", positive: true, negative: false },
+    RESUBMITTED_ESTIMATION: {
+        label: "Laporan Direvisi & Dikirim Ulang",
+        positive: true,
+        negative: false,
+    },
+    RESUBMITTED_WORK: {
+        label: "Pekerjaan Direvisi & Dikirim Ulang",
+        positive: true,
+        negative: false,
+    },
+    WORK_STARTED: {
+        label: "Mulai Pengerjaan",
+        positive: true,
+        negative: false,
+    },
+    COMPLETION_SUBMITTED: {
+        label: "Laporan Penyelesaian Dikirim",
+        positive: true,
+        negative: false,
+    },
+    ESTIMATION_APPROVED: {
+        label: "Estimasi Disetujui",
+        positive: true,
+        negative: false,
+    },
+    ESTIMATION_REJECTED_REVISION: {
+        label: "Estimasi Ditolak (Revisi)",
+        positive: false,
+        negative: true,
+    },
+    ESTIMATION_REJECTED: {
+        label: "Estimasi Ditolak",
+        positive: false,
+        negative: true,
+    },
+    WORK_APPROVED: {
+        label: "Penyelesaian Disetujui",
+        positive: true,
+        negative: false,
+    },
+    WORK_REJECTED_REVISION: {
+        label: "Pekerjaan Ditolak (Revisi)",
+        positive: false,
+        negative: true,
+    },
+    FINALIZED: {
+        label: "Laporan Selesai",
+        positive: true,
+        negative: false,
+    },
 };
 
 type ReportDetailProps = {
@@ -76,7 +133,7 @@ type ReportDetailProps = {
         submittedBy: string;
         items: ReportItemJson[];
         estimations: MaterialEstimationJson[];
-        logs: LogEntry[];
+        activities: ActivityEntry[];
     };
     viewer: { role: string; nik: string };
 };
@@ -1896,111 +1953,85 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         </CardDescription>
                                     </CardHeader>
                                     <CardContent className="pt-6 pl-2">
-                                        {report.logs.length === 0 ? (
+                                        {report.activities.length === 0 ? (
                                             <div className="text-center text-muted-foreground py-8">
                                                 Belum ada riwayat aktivitas.
                                             </div>
                                         ) : (
                                             <div className="relative border-l border-muted ml-4 space-y-8 pb-2">
-                                                {report.logs.map((log, i) => {
-                                                    const statusLabels: Record<
-                                                        string,
-                                                        string
-                                                    > = {
-                                                        DRAFT: "Draft Disimpan",
-                                                        PENDING_ESTIMATION:
-                                                            "Laporan Dikirim",
-                                                        ESTIMATION_APPROVED:
-                                                            "Estimasi Disetujui",
-                                                        ESTIMATION_REJECTED_REVISION:
-                                                            "Estimasi Ditolak (Revisi)",
-                                                        ESTIMATION_REJECTED:
-                                                            "Estimasi Ditolak",
-                                                        IN_PROGRESS:
-                                                            "Mulai Pengerjaan",
-                                                        PENDING_REVIEW:
-                                                            "Laporan Penyelesaian Dikirim",
-                                                        REVIEW_REJECTED_REVISION:
-                                                            "Pekerjaan Ditolak (Revisi)",
-                                                        APPROVED_BMC:
-                                                            "Penyelesaian Disetujui",
-                                                        COMPLETED:
-                                                            "Laporan Selesai",
-                                                    };
-                                                    const isPositive = [
-                                                        "ESTIMATION_APPROVED",
-                                                        "IN_PROGRESS",
-                                                        "PENDING_REVIEW",
-                                                        "APPROVED_BMC",
-                                                        "COMPLETED",
-                                                        "PENDING_ESTIMATION",
-                                                    ].includes(log.status);
-                                                    const isNegative = [
-                                                        "ESTIMATION_REJECTED",
-                                                        "ESTIMATION_REJECTED_REVISION",
-                                                        "REVIEW_REJECTED_REVISION",
-                                                    ].includes(log.status);
-                                                    const label =
-                                                        statusLabels[
-                                                            log.status
-                                                        ] ?? log.status;
-
-                                                    return (
-                                                        <div
-                                                            key={i}
-                                                            className="relative pl-6"
-                                                        >
-                                                            {/* Timeline Dot */}
+                                                {report.activities.map(
+                                                    (entry, i) => {
+                                                        const cfg =
+                                                            ACTIVITY_HISTORY_CONFIG[
+                                                                entry.action
+                                                            ] ?? {
+                                                                label: entry.action,
+                                                                positive: false,
+                                                                negative: false,
+                                                            };
+                                                        const isPositive =
+                                                            cfg.positive;
+                                                        const isNegative =
+                                                            cfg.negative;
+                                                        return (
                                                             <div
-                                                                className={cn(
-                                                                    "absolute -left-1.25 top-1 h-2.5 w-2.5 rounded-full border-2 bg-background transition-colors",
-                                                                    isNegative
-                                                                        ? "border-red-500 bg-red-50"
-                                                                        : isPositive
-                                                                          ? "border-green-500 bg-green-50"
-                                                                          : "border-muted-foreground",
-                                                                )}
-                                                            />
-
-                                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 mb-1">
-                                                                <div className="font-medium text-sm">
-                                                                    {label}
-                                                                </div>
-                                                                <span className="text-xs text-muted-foreground font-mono">
-                                                                    {formatDate(
-                                                                        log.createdAt,
-                                                                    )}{" "}
-                                                                    •{" "}
-                                                                    {formatTime(
-                                                                        log.createdAt,
+                                                                key={i}
+                                                                className="relative pl-6"
+                                                            >
+                                                                {/* Timeline Dot */}
+                                                                <div
+                                                                    className={cn(
+                                                                        "absolute -left-1.25 top-1 h-2.5 w-2.5 rounded-full border-2 bg-background transition-colors",
+                                                                        isNegative
+                                                                            ? "border-red-500 bg-red-50"
+                                                                            : isPositive
+                                                                              ? "border-green-500 bg-green-50"
+                                                                              : "border-muted-foreground",
                                                                     )}
-                                                                </span>
-                                                            </div>
+                                                                />
 
-                                                            <div className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
-                                                                <User className="h-3 w-3" />
-                                                                <span>
-                                                                    {
-                                                                        log.approverName
-                                                                    }
-                                                                </span>
-                                                            </div>
-
-                                                            {log.notes && (
-                                                                <div className="bg-muted/30 p-3 rounded-md border border-border/50 text-xs italic text-muted-foreground relative">
-                                                                    <span className="absolute top-2 left-2 text-muted-foreground/20 text-xl font-serif leading-none">
-                                                                        “
-                                                                    </span>
-                                                                    <span className="pl-3 relative z-10">
+                                                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 mb-1">
+                                                                    <div className="font-medium text-sm">
                                                                         {
-                                                                            log.notes
+                                                                            cfg.label
+                                                                        }
+                                                                    </div>
+                                                                    <span className="text-xs text-muted-foreground font-mono">
+                                                                        {formatDate(
+                                                                            entry.createdAt,
+                                                                        )}{" "}
+                                                                        •{" "}
+                                                                        {formatTime(
+                                                                            entry.createdAt,
+                                                                        )}
+                                                                    </span>
+                                                                </div>
+
+                                                                <div className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
+                                                                    <User className="h-3 w-3" />
+                                                                    <span>
+                                                                        {
+                                                                            entry.actorName
                                                                         }
                                                                     </span>
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })}
+
+                                                                {entry.notes && (
+                                                                    <div className="bg-muted/30 p-3 rounded-md border border-border/50 text-xs italic text-muted-foreground relative">
+                                                                        <span className="absolute top-2 left-2 text-muted-foreground/20 text-xl font-serif leading-none">
+                                                                            &quot;
+                                                                        </span>
+                                                                        <span className="pl-3 relative z-10">
+                                                                            {
+                                                                                entry.notes
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    },
+                                                )}
                                             </div>
                                         )}
                                     </CardContent>

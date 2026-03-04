@@ -41,7 +41,14 @@ export async function approveFinal(reportNumber: string, notes?: string) {
                     reportNumber,
                     approverNIK: user.NIK,
                     status: ReportStatus.COMPLETED,
-                    // Only store user-typed notes; don't inject a generic placeholder.
+                    notes: notes || null,
+                },
+            }),
+            prisma.activityLog.create({
+                data: {
+                    reportNumber,
+                    actorNIK: user.NIK,
+                    action: "FINALIZED",
                     notes: notes || null,
                 },
             }),

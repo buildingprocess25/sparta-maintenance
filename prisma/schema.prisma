@@ -49,6 +49,20 @@ enum HandlerType {
   REKANAN
 }
 
+enum ActivityAction {
+  SUBMITTED                   // BMS submitted initial report
+  RESUBMITTED_ESTIMATION      // BMS resubmitted after estimation rejection/revision
+  RESUBMITTED_WORK            // BMS resubmitted after work rejection/revision
+  WORK_STARTED                // BMS started work on approved report
+  COMPLETION_SUBMITTED        // BMS submitted work completion for review
+  ESTIMATION_APPROVED         // BMC approved estimation
+  ESTIMATION_REJECTED_REVISION // BMC rejected estimation, requested revision
+  ESTIMATION_REJECTED         // BMC permanently rejected report
+  WORK_APPROVED               // BMC approved work completion (forwarded to BnM)
+  WORK_REJECTED_REVISION      // BMC rejected work completion, requested revision
+  FINALIZED                   // BnM Manager gave final approval
+}
+
 // =========================================
 // MODELS
 // =========================================
@@ -61,7 +75,8 @@ model User {
   branchNames   String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
   
   reports       Report[]      @relation("CreatedReports")
-  approvals     ApprovalLog[] 
+  approvals     ApprovalLog[]
+  activities    ActivityLog[]
 }
 
 model Store {
@@ -93,6 +108,7 @@ model Report {
   estimations   Json          @default("[]")
   
   logs          ApprovalLog[]
+  activities    ActivityLog[]
 
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -116,4 +132,21 @@ model ApprovalLog {
   approver      User      @relation(fields: [approverNIK], references: [NIK])
   
   createdAt     DateTime  @default(now())
+}
+
+model ActivityLog {
+  id            String         @id @default(uuid())
+  reportNumber  String
+  actorNIK      String
+
+  action        ActivityAction
+  notes         String?
+
+  report        Report    @relation(fields: [reportNumber], references: [reportNumber])
+  actor         User      @relation(fields: [actorNIK], references: [NIK])
+
+  createdAt     DateTime  @default(now())
+
+  @@index([reportNumber])
+  @@index([actorNIK])
 }

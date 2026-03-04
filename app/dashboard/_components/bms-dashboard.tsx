@@ -1,18 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
     FileText,
     Plus,
     Clock,
     CheckCircle2,
     AlertCircle,
-    Activity,
     Settings,
     ArrowRight,
 } from "lucide-react";
 import Link from "next/link";
-import { getUserStats } from "../queries";
+import { getUserStats, getBMSActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
+import { ActivitySection } from "./shared/activity-feed";
 import type { AuthUser } from "@/lib/authorization";
 
 const MENUS = [
@@ -33,7 +32,10 @@ const MENUS = [
 ];
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
-    const stats = await getUserStats(user.NIK);
+    const [stats, activities] = await Promise.all([
+        getUserStats(user.NIK),
+        getBMSActivity(user.NIK),
+    ]);
 
     const dashboardStats = [
         {
@@ -157,50 +159,10 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                 </div>
 
                 {/* Activity Feed */}
-                <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Activity className="h-5 w-5 text-primary" />
-                            Aktivitas Terbaru
-                        </h2>
-                        <Button
-                            variant="link"
-                            size="sm"
-                            className="h-auto p-0 text-primary"
-                        >
-                            Lihat Semua
-                        </Button>
-                    </div>
-
-                    <Card className="h-fit">
-                        <CardContent className="p-0">
-                            <div className="p-6 flex flex-col items-center justify-center text-center space-y-3 min-h-50">
-                                <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                                    <Activity className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <div className="space-y-1">
-                                    <h3 className="font-medium">
-                                        Belum ada aktivitas
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground max-w-50">
-                                        Laporan dan aktivitas terbaru Anda akan
-                                        muncul di sini.
-                                    </p>
-                                </div>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="mt-2"
-                                    asChild
-                                >
-                                    <Link href="/reports/create">
-                                        Buat Laporan Sekarang
-                                    </Link>
-                                </Button>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                <ActivitySection
+                    activities={activities}
+                    emptyMessage="Laporan dan aktivitas terbaru Anda akan muncul di sini."
+                />
             </div>
         </DashboardShell>
     );

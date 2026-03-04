@@ -130,6 +130,17 @@ export async function submitReport(data: DraftData) {
 
                 finalReportId = newReport.reportNumber;
             }
+
+            // Record submission in ActivityLog
+            await tx.activityLog.create({
+                data: {
+                    reportNumber: finalReportId,
+                    actorNIK: user.NIK,
+                    action: "SUBMITTED",
+                    notes: null,
+                },
+            });
+
             return finalReportId;
         });
 

@@ -39,17 +39,22 @@ export async function submitCompletion(reportNumber: string, notes?: string) {
             };
         }
 
+        const completionAction =
+            report.status === ReportStatus.REVIEW_REJECTED_REVISION
+                ? "RESUBMITTED_WORK"
+                : "COMPLETION_SUBMITTED";
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
                 data: { status: ReportStatus.PENDING_REVIEW },
             }),
-            prisma.approvalLog.create({
+            prisma.activityLog.create({
                 data: {
                     reportNumber,
-                    approverNIK: user.NIK,
-                    status: ReportStatus.PENDING_REVIEW,
-                    notes: notes || "BMS mengajukan penyelesaian pekerjaan untuk di-review",
+                    actorNIK: user.NIK,
+                    action: completionAction,
+                    notes: notes || null,
                 },
             }),
         ]);

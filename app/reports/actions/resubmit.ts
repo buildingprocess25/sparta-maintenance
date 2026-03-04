@@ -118,12 +118,17 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
                 },
             });
 
-            await tx.approvalLog.create({
+            const activityAction =
+                currentStatus === "REVIEW_REJECTED_REVISION"
+                    ? "RESUBMITTED_WORK"
+                    : "RESUBMITTED_ESTIMATION";
+
+            await tx.activityLog.create({
                 data: {
                     reportNumber,
-                    status: newStatus,
+                    actorNIK: user.NIK,
+                    action: activityAction,
                     notes: null,
-                    approverNIK: user.NIK,
                 },
             });
         });
