@@ -57,7 +57,7 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ReportsListMobile } from "./reports-list-mobile";
+import { BmsReportsMobile } from "./bms-reports-mobile";
 
 // Type for report data from server
 export type ReportData = {
@@ -73,19 +73,19 @@ export type ReportData = {
     };
 };
 
-type ReportsListProps = {
+type BmsReportsListProps = {
     reports: ReportData[];
     total: number;
     totalPages: number;
     currentPage: number;
 };
 
-export default function ReportsList({
+export default function BmsReportsList({
     reports,
     total,
     totalPages,
     currentPage,
-}: ReportsListProps) {
+}: BmsReportsListProps) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -493,7 +493,7 @@ export default function ReportsList({
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
                             )}
-                            <ReportsListMobile reports={reports} />
+                            <BmsReportsMobile reports={reports} />
                         </div>
 
                         {/* --- DESKTOP VIEW: DATA TABLE --- */}
@@ -512,11 +512,7 @@ export default function ReportsList({
                                         <TableHead className="min-w-50">
                                             Toko & Cabang
                                         </TableHead>
-                                        <TableHead>
-                                            <div className="flex items-center gap-1 hover:text-foreground">
-                                                Tanggal{" "}
-                                            </div>
-                                        </TableHead>
+                                        <TableHead>Tanggal</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">
                                             Estimasi
@@ -597,56 +593,57 @@ export default function ReportsList({
                                             />
                                         </PaginationItem>
 
-                                        {/* Generate page numbers */}
-                                        {Array.from({
-                                            length: totalPages,
-                                        }).map((_, i) => {
-                                            const page = i + 1;
-                                            // Simple logic: show all for now, can be optimized for large pages later
-                                            // Or simplified: show current, first, last, and surrounding
-                                            if (
-                                                totalPages <= 7 ||
-                                                page === 1 ||
-                                                page === totalPages ||
-                                                (page >= currentPage - 1 &&
-                                                    page <= currentPage + 1)
-                                            ) {
-                                                return (
-                                                    <PaginationItem key={page}>
-                                                        <PaginationLink
-                                                            href="#"
-                                                            isActive={
-                                                                page ===
-                                                                currentPage
-                                                            }
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                handlePageChange(
-                                                                    page,
-                                                                );
-                                                            }}
+                                        {Array.from({ length: totalPages }).map(
+                                            (_, i) => {
+                                                const page = i + 1;
+                                                if (
+                                                    totalPages <= 7 ||
+                                                    page === 1 ||
+                                                    page === totalPages ||
+                                                    (page >= currentPage - 1 &&
+                                                        page <= currentPage + 1)
+                                                ) {
+                                                    return (
+                                                        <PaginationItem
+                                                            key={page}
                                                         >
-                                                            {page}
-                                                        </PaginationLink>
-                                                    </PaginationItem>
-                                                );
-                                            } else if (
-                                                (page === currentPage - 2 &&
-                                                    currentPage > 3) ||
-                                                (page === currentPage + 2 &&
-                                                    currentPage <
-                                                        totalPages - 2)
-                                            ) {
-                                                return (
-                                                    <PaginationItem
-                                                        key={`ellipsis-${page}`}
-                                                    >
-                                                        <PaginationEllipsis />
-                                                    </PaginationItem>
-                                                );
-                                            }
-                                            return null;
-                                        })}
+                                                            <PaginationLink
+                                                                href="#"
+                                                                isActive={
+                                                                    page ===
+                                                                    currentPage
+                                                                }
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.preventDefault();
+                                                                    handlePageChange(
+                                                                        page,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                {page}
+                                                            </PaginationLink>
+                                                        </PaginationItem>
+                                                    );
+                                                } else if (
+                                                    (page === currentPage - 2 &&
+                                                        currentPage > 3) ||
+                                                    (page === currentPage + 2 &&
+                                                        currentPage <
+                                                            totalPages - 2)
+                                                ) {
+                                                    return (
+                                                        <PaginationItem
+                                                            key={`ellipsis-${page}`}
+                                                        >
+                                                            <PaginationEllipsis />
+                                                        </PaginationItem>
+                                                    );
+                                                }
+                                                return null;
+                                            },
+                                        )}
 
                                         <PaginationItem>
                                             <PaginationNext

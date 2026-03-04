@@ -1430,6 +1430,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                                 {
                                                                                                     checklistItem.id
                                                                                                 }
+
                                                                                                 .{" "}
                                                                                                 {
                                                                                                     checklistItem.name
@@ -1451,13 +1452,15 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                         preventive) && (
                                                                                         <div className="flex flex-wrap gap-3 pt-3 border-t">
                                                                                             {category.isPreventive ? (
-                                                                                                // Preventive items: condition field stores BAIK(=OK) / RUSAK(=NOT OK)
+                                                                                                // Preventive items: condition stored in preventiveCondition as OK / NOT_OK
                                                                                                 <>
                                                                                                     <div
                                                                                                         className={cn(
                                                                                                             "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border",
-                                                                                                            condition ===
-                                                                                                                "BAIK"
+                                                                                                            preventive ===
+                                                                                                                "OK" ||
+                                                                                                                condition ===
+                                                                                                                    "BAIK"
                                                                                                                 ? "bg-green-50 border-green-200 text-green-700"
                                                                                                                 : "bg-muted/40 text-muted-foreground",
                                                                                                         )}
@@ -1465,8 +1468,10 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                                         <div
                                                                                                             className={cn(
                                                                                                                 "h-3 w-3 rounded-full border-2",
-                                                                                                                condition ===
-                                                                                                                    "BAIK"
+                                                                                                                preventive ===
+                                                                                                                    "OK" ||
+                                                                                                                    condition ===
+                                                                                                                        "BAIK"
                                                                                                                     ? "border-green-600 bg-green-600"
                                                                                                                     : "border-muted-foreground",
                                                                                                             )}
@@ -1476,8 +1481,10 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                                     <div
                                                                                                         className={cn(
                                                                                                             "flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border",
-                                                                                                            condition ===
-                                                                                                                "RUSAK"
+                                                                                                            preventive ===
+                                                                                                                "NOT_OK" ||
+                                                                                                                condition ===
+                                                                                                                    "RUSAK"
                                                                                                                 ? "bg-red-50 border-red-200 text-red-700"
                                                                                                                 : "bg-muted/40 text-muted-foreground",
                                                                                                         )}
@@ -1485,8 +1492,10 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                                                                                         <div
                                                                                                             className={cn(
                                                                                                                 "h-3 w-3 rounded-full border-2",
-                                                                                                                condition ===
-                                                                                                                    "RUSAK"
+                                                                                                                preventive ===
+                                                                                                                    "NOT_OK" ||
+                                                                                                                    condition ===
+                                                                                                                        "RUSAK"
                                                                                                                     ? "border-red-600 bg-red-600"
                                                                                                                     : "border-muted-foreground",
                                                                                                             )}

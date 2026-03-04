@@ -1,20 +1,39 @@
-import { requireRole } from "@/lib/authorization";
+import { requireAuth } from "@/lib/authorization";
 import { getMyReports } from "@/app/reports/actions";
-import ReportsList from "./reports-list";
+import BmsReportsList from "./_components/bms-reports-list";
+import { BmcApprovalList } from "./_components/bmc-approval-list";
+import type { DateRangeFilter } from "./actions/types";
 
 type ReportsPageProps = {
     searchParams: Promise<{
+        // BMS params
         page?: string;
         search?: string;
+        // Approval params
+        q?: string;
+        // Shared
         status?: string;
         dateRange?: string;
     }>;
 };
 
 export default async function ReportsPage(props: ReportsPageProps) {
+    const user = await requireAuth("/reports");
     const searchParams = await props.searchParams;
-    await requireRole("BMS");
 
+    // ── BMC / BNM_MANAGER / ADMIN → Approval queue ──────────────────────────
+    if (["BMC", "BNM_MANAGER", "ADMIN"].includes(user.role)) {
+        return (
+            <BmcApprovalList
+                user={{ role: user.role, branchNames: user.branchNames }}
+                q={searchParams.q}
+                status={searchParams.status}
+                dateRange={searchParams.dateRange}
+            />
+        );
+    }
+
+    // ── BMS → Personal report list ───────────────────────────────────────────
     const page = Number(searchParams.page) || 1;
     const limit = 10;
     const search = searchParams.search || "";
@@ -26,7 +45,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
         limit,
         search,
         status: status === "all" ? undefined : status.toUpperCase(),
-        dateRange: dateRange as import("./actions/types").DateRangeFilter,
+        dateRange: dateRange as DateRangeFilter,
     });
 
     const totalPages = Math.ceil(total / limit);
@@ -39,7 +58,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
     }));
 
     return (
-        <ReportsList
+        <BmsReportsList
             reports={serializedReports}
             total={total}
             totalPages={totalPages}

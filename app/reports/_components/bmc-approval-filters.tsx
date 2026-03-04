@@ -16,7 +16,7 @@ type Props = {
     role: string;
 };
 
-export function ApprovalFiltersBar({ role }: Props) {
+export function BmcApprovalFilters({ role }: Props) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -54,7 +54,10 @@ export function ApprovalFiltersBar({ role }: Props) {
             {/* Status filter — only shown if role has multiple statuses */}
             {role !== "BNM_MANAGER" && (
                 <Select value={status} onValueChange={(v) => push("status", v)}>
-                    <SelectTrigger className="w-auto bg-background" aria-label="Filter berdasarkan status">
+                    <SelectTrigger
+                        className="w-auto bg-background"
+                        aria-label="Filter berdasarkan status"
+                    >
                         <div className="flex items-center gap-2">
                             <Filter className="h-4 w-4 text-muted-foreground" />
                             <SelectValue placeholder="Status" />
@@ -62,15 +65,25 @@ export function ApprovalFiltersBar({ role }: Props) {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Semua Status</SelectItem>
-                        <SelectItem value="pending_estimation">Menunggu Persetujuan Estimasi</SelectItem>
-                        <SelectItem value="pending_review">Menunggu Review Penyelesaian</SelectItem>
+                        <SelectItem value="pending_estimation">
+                            Menunggu Persetujuan Estimasi
+                        </SelectItem>
+                        <SelectItem value="pending_review">
+                            Menunggu Review Penyelesaian
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             )}
 
             {/* Date range filter */}
-            <Select value={dateRange} onValueChange={(v) => push("dateRange", v)}>
-                <SelectTrigger className="w-auto bg-background" aria-label="Filter berdasarkan periode waktu">
+            <Select
+                value={dateRange}
+                onValueChange={(v) => push("dateRange", v)}
+            >
+                <SelectTrigger
+                    className="w-auto bg-background"
+                    aria-label="Filter berdasarkan periode waktu"
+                >
                     <div className="flex items-center gap-2">
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
                         <SelectValue placeholder="Periode" />
@@ -80,8 +93,12 @@ export function ApprovalFiltersBar({ role }: Props) {
                     <SelectItem value="all">Semua Waktu</SelectItem>
                     <SelectItem value="this_month">Bulan Ini</SelectItem>
                     <SelectItem value="last_month">Bulan Lalu</SelectItem>
-                    <SelectItem value="last_3_months">3 Bulan Terakhir</SelectItem>
-                    <SelectItem value="last_6_months">6 Bulan Terakhir</SelectItem>
+                    <SelectItem value="last_3_months">
+                        3 Bulan Terakhir
+                    </SelectItem>
+                    <SelectItem value="last_6_months">
+                        6 Bulan Terakhir
+                    </SelectItem>
                     <SelectItem value="this_year">Tahun Ini</SelectItem>
                     <SelectItem value="last_year">Tahun Lalu</SelectItem>
                 </SelectContent>

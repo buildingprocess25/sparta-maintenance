@@ -5,7 +5,11 @@ import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import type { Prisma } from "@prisma/client";
 import type { MaterialEstimationJson } from "@/types/report";
-import { requireRole, requireOwnership, validateCSRF } from "@/lib/authorization";
+import {
+    requireRole,
+    requireOwnership,
+    validateCSRF,
+} from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { sendReportNotification } from "@/lib/email/send-report-notification";
@@ -72,9 +76,23 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
             return { error: "Laporan tidak ditemukan" };
         }
 
-        if (report.status !== "ESTIMATION_REJECTED_REVISION") {
-            return { error: "Hanya laporan dengan status 'Estimasi Ditolak (Revisi)' yang bisa diajukan ulang" };
+        const REVISION_STATUSES = [
+            "ESTIMATION_REJECTED_REVISION",
+            "REVIEW_REJECTED_REVISION",
+        ] as const;
+        type RevisionStatus = (typeof REVISION_STATUSES)[number];
+
+        if (!(REVISION_STATUSES as readonly string[]).includes(report.status)) {
+            return {
+                error: "Hanya laporan dengan status revisi yang bisa diajukan ulang",
+            };
         }
+
+        const currentStatus = report.status as RevisionStatus;
+        const newStatus =
+            currentStatus === "REVIEW_REJECTED_REVISION"
+                ? "PENDING_REVIEW"
+                : "PENDING_ESTIMATION";
 
         await requireOwnership(report.createdByNIK);
 
@@ -82,6 +100,11 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
         const estimationsJson = buildEstimationsJson(data);
 
         await prisma.$transaction(async (tx) => {
+            // Delete the rejection log entry before resubmitting
+            await tx.approvalLog.deleteMany({
+                where: { reportNumber, status: currentStatus },
+            });
+
             await tx.report.update({
                 where: { reportNumber },
                 data: {
@@ -89,7 +112,7 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
-                    status: "PENDING_ESTIMATION",
+                    status: newStatus,
                     items: itemsJson,
                     estimations: estimationsJson,
                 },
@@ -98,8 +121,8 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
             await tx.approvalLog.create({
                 data: {
                     reportNumber,
-                    status: "PENDING_ESTIMATION",
-                    notes: "Laporan direvisi dan diajukan ulang oleh BMS (estimasi)",
+                    status: newStatus,
+                    notes: null,
                     approverNIK: user.NIK,
                 },
             });

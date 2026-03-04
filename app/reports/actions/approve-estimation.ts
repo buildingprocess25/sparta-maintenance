@@ -8,10 +8,7 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-type EstimationDecision =
-    | "approve"
-    | "reject_revision"
-    | "reject";
+type EstimationDecision = "approve" | "reject_revision" | "reject";
 
 /**
  * BMC reviews a PENDING_ESTIMATION report.
@@ -54,13 +51,16 @@ export async function reviewEstimation(
                   ? ReportStatus.ESTIMATION_REJECTED_REVISION
                   : ReportStatus.ESTIMATION_REJECTED;
 
+        // For approvals, only store user-typed notes (null if empty) so the PDF
+        // stamp notes strip doesn't show an auto-generated placeholder.
+        // For rejections, keep a fallback so BMS understands why they were rejected.
         const logNote =
-            notes ||
-            (decision === "approve"
-                ? "Estimasi disetujui oleh BMC"
-                : decision === "reject_revision"
-                  ? "Estimasi ditolak, BMS diminta merevisi"
-                  : "Estimasi ditolak permanen oleh BMC");
+            decision === "approve"
+                ? notes || null
+                : notes ||
+                  (decision === "reject_revision"
+                      ? "Estimasi ditolak, BMS diminta merevisi"
+                      : "Estimasi ditolak permanen oleh BMC");
 
         await prisma.$transaction([
             prisma.report.update({
@@ -79,10 +79,14 @@ export async function reviewEstimation(
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");
-        revalidatePath("/approval/reports");
 
         logger.info(
-            { operation: "reviewEstimation", reportNumber, decision, userId: user.NIK },
+            {
+                operation: "reviewEstimation",
+                reportNumber,
+                decision,
+                userId: user.NIK,
+            },
             "Estimation reviewed",
         );
 

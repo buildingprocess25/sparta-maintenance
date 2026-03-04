@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { requireAuth } from "@/lib/authorization";
 import prisma from "@/lib/prisma";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -28,10 +26,26 @@ import {
     EmptyMedia,
     EmptyTitle,
 } from "@/components/ui/empty";
-import { ClipboardCheck, ArrowRight, Clock, CheckCircle2, MapPin } from "lucide-react";
-import { ApprovalFiltersBar } from "./filters-bar";
+import {
+    ClipboardCheck,
+    ArrowRight,
+    Clock,
+    CheckCircle2,
+    MapPin,
+} from "lucide-react";
+import { BmcApprovalFilters } from "./bmc-approval-filters";
 
-type SearchParams = Promise<{ q?: string; status?: string; dateRange?: string }>;
+type ApprovalUser = {
+    role: string;
+    branchNames: string[];
+};
+
+type Props = {
+    user: ApprovalUser;
+    q?: string;
+    status?: string;
+    dateRange?: string;
+};
 
 function getStatusBadge(status: string) {
     switch (status) {
@@ -71,18 +85,12 @@ function getActionLabel(status: string) {
     }
 }
 
-export default async function ApprovalReportsPage({
-    searchParams,
-}: {
-    searchParams: SearchParams;
-}) {
-    const user = await requireAuth();
-
-    if (!["BMC", "BNM_MANAGER", "ADMIN"].includes(user.role)) {
-        redirect("/reports");
-    }
-
-    const { q, status: statusParam, dateRange } = await searchParams;
+export async function BmcApprovalList({
+    user,
+    q,
+    status: statusParam,
+    dateRange,
+}: Props) {
     const search = q?.trim().toLowerCase();
 
     // Build status filter based on role
@@ -108,7 +116,11 @@ export default async function ApprovalReportsPage({
     let dateFilter: Record<string, unknown> = {};
     switch (dateRange) {
         case "this_month":
-            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth(), 1) } };
+            dateFilter = {
+                updatedAt: {
+                    gte: new Date(now.getFullYear(), now.getMonth(), 1),
+                },
+            };
             break;
         case "last_month":
             dateFilter = {
@@ -119,13 +131,23 @@ export default async function ApprovalReportsPage({
             };
             break;
         case "last_3_months":
-            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth() - 3, 1) } };
+            dateFilter = {
+                updatedAt: {
+                    gte: new Date(now.getFullYear(), now.getMonth() - 3, 1),
+                },
+            };
             break;
         case "last_6_months":
-            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), now.getMonth() - 6, 1) } };
+            dateFilter = {
+                updatedAt: {
+                    gte: new Date(now.getFullYear(), now.getMonth() - 6, 1),
+                },
+            };
             break;
         case "this_year":
-            dateFilter = { updatedAt: { gte: new Date(now.getFullYear(), 0, 1) } };
+            dateFilter = {
+                updatedAt: { gte: new Date(now.getFullYear(), 0, 1) },
+            };
             break;
         case "last_year":
             dateFilter = {
@@ -172,7 +194,9 @@ export default async function ApprovalReportsPage({
         : reports;
 
     const pageTitle =
-        user.role === "BNM_MANAGER" ? "Persetujuan Final" : "Persetujuan Laporan";
+        user.role === "BNM_MANAGER"
+            ? "Persetujuan Final"
+            : "Persetujuan Laporan";
 
     const pageDescription =
         user.role === "BNM_MANAGER"
@@ -197,9 +221,15 @@ export default async function ApprovalReportsPage({
     const storeDisplay = (storeName: string, storeCode: string | null) =>
         storeCode ? `${storeCode} - ${storeName}` : storeName || "—";
 
-    const pendingEstimation = reports.filter((r) => r.status === "PENDING_ESTIMATION").length;
-    const pendingReview = reports.filter((r) => r.status === "PENDING_REVIEW").length;
-    const pendingFinal = reports.filter((r) => r.status === "APPROVED_BMC").length;
+    const pendingEstimation = reports.filter(
+        (r) => r.status === "PENDING_ESTIMATION",
+    ).length;
+    const pendingReview = reports.filter(
+        (r) => r.status === "PENDING_REVIEW",
+    ).length;
+    const pendingFinal = reports.filter(
+        (r) => r.status === "APPROVED_BMC",
+    ).length;
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">
@@ -213,7 +243,6 @@ export default async function ApprovalReportsPage({
             />
 
             <main className="flex-1 container mx-auto px-4 py-6 md:py-8 max-w-7xl space-y-6">
-
                 {/* Summary strip */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {user.role !== "BNM_MANAGER" && (
@@ -223,8 +252,12 @@ export default async function ApprovalReportsPage({
                                     <Clock className="h-4 w-4 text-yellow-600" />
                                 </div>
                                 <div>
-                                    <p className="text-xl font-bold leading-none">{pendingEstimation}</p>
-                                    <p className="text-muted-foreground mt-0.5">Menunggu Persetujuan Estimasi</p>
+                                    <p className="text-xl font-bold leading-none">
+                                        {pendingEstimation}
+                                    </p>
+                                    <p className="text-muted-foreground mt-0.5">
+                                        Menunggu Persetujuan Estimasi
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -236,8 +269,12 @@ export default async function ApprovalReportsPage({
                                     <ClipboardCheck className="h-4 w-4 text-purple-600" />
                                 </div>
                                 <div>
-                                    <p className="text-xl font-bold leading-none">{pendingReview}</p>
-                                    <p className="text-muted-foreground mt-0.5">Menunggu Review Penyelesaian</p>
+                                    <p className="text-xl font-bold leading-none">
+                                        {pendingReview}
+                                    </p>
+                                    <p className="text-muted-foreground mt-0.5">
+                                        Menunggu Review Penyelesaian
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
@@ -249,13 +286,16 @@ export default async function ApprovalReportsPage({
                                     <CheckCircle2 className="h-4 w-4 text-teal-600" />
                                 </div>
                                 <div>
-                                    <p className="text-xl font-bold leading-none">{pendingFinal}</p>
-                                    <p className="text-muted-foreground mt-0.5">Perlu Persetujuan Final</p>
+                                    <p className="text-xl font-bold leading-none">
+                                        {pendingFinal}
+                                    </p>
+                                    <p className="text-muted-foreground mt-0.5">
+                                        Perlu Persetujuan Final
+                                    </p>
                                 </div>
                             </CardContent>
                         </Card>
                     )}
-                    
                 </div>
 
                 {/* Main table card */}
@@ -271,7 +311,7 @@ export default async function ApprovalReportsPage({
                                     {filtered.length} laporan
                                 </CardDescription>
                             </div>
-                            <ApprovalFiltersBar role={user.role} />
+                            <BmcApprovalFilters role={user.role} />
                         </div>
                     </CardHeader>
 
@@ -283,9 +323,14 @@ export default async function ApprovalReportsPage({
                                         <ClipboardCheck className="h-10 w-10 text-muted-foreground/30" />
                                     </EmptyMedia>
                                     <EmptyHeader>
-                                        <EmptyTitle>Tidak Ada Laporan</EmptyTitle>
+                                        <EmptyTitle>
+                                            Tidak Ada Laporan
+                                        </EmptyTitle>
                                         <EmptyDescription>
-                                            {search || (statusParam && statusParam !== "all") || (dateRange && dateRange !== "all")
+                                            {search ||
+                                            (statusParam &&
+                                                statusParam !== "all") ||
+                                            (dateRange && dateRange !== "all")
                                                 ? "Tidak ada laporan yang cocok dengan filter yang dipilih."
                                                 : "Tidak ada laporan yang membutuhkan tindakan saat ini."}
                                         </EmptyDescription>
@@ -299,24 +344,44 @@ export default async function ApprovalReportsPage({
                                     <Table>
                                         <TableHeader>
                                             <TableRow className="bg-muted/30 hover:bg-muted/30 uppercase">
-                                                <TableHead className="text-sm">No. Laporan</TableHead>
-                                                <TableHead className="text-sm">Toko</TableHead>
-                                                <TableHead className="text-sm">Dilaporkan Oleh</TableHead>
-                                                <TableHead className="text-sm">Status</TableHead>
-                                                <TableHead className="text-sm text-right">Estimasi</TableHead>
-                                                <TableHead className="text-sm">Diperbarui</TableHead>
-                                                <TableHead className="text-sm">Aksi</TableHead>
+                                                <TableHead className="text-sm">
+                                                    No. Laporan
+                                                </TableHead>
+                                                <TableHead className="text-sm">
+                                                    Toko
+                                                </TableHead>
+                                                <TableHead className="text-sm">
+                                                    Dilaporkan Oleh
+                                                </TableHead>
+                                                <TableHead className="text-sm">
+                                                    Status
+                                                </TableHead>
+                                                <TableHead className="text-sm text-right">
+                                                    Estimasi
+                                                </TableHead>
+                                                <TableHead className="text-sm">
+                                                    Diperbarui
+                                                </TableHead>
+                                                <TableHead className="text-sm">
+                                                    Aksi
+                                                </TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {filtered.map((report) => (
-                                                <TableRow key={report.reportNumber} className="hover:bg-muted/20 group">
+                                                <TableRow
+                                                    key={report.reportNumber}
+                                                    className="hover:bg-muted/20 group"
+                                                >
                                                     <TableCell className="font-mono font-semibold text-sm">
                                                         {report.reportNumber}
                                                     </TableCell>
                                                     <TableCell>
                                                         <p className="font-medium text-sm leading-tight">
-                                                            {storeDisplay(report.storeName, report.storeCode)}
+                                                            {storeDisplay(
+                                                                report.storeName,
+                                                                report.storeCode,
+                                                            )}
                                                         </p>
                                                         <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                                                             <MapPin className="h-3 w-3 shrink-0" />
@@ -327,18 +392,31 @@ export default async function ApprovalReportsPage({
                                                         {report.createdBy.name}
                                                     </TableCell>
                                                     <TableCell>
-                                                        {getStatusBadge(report.status)}
+                                                        {getStatusBadge(
+                                                            report.status,
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-sm font-mono text-right">
-                                                        {formatCurrency(report.totalEstimation)}
+                                                        {formatCurrency(
+                                                            report.totalEstimation,
+                                                        )}
                                                     </TableCell>
                                                     <TableCell className="text-xs text-muted-foreground">
-                                                        {formatDate(report.updatedAt)}
+                                                        {formatDate(
+                                                            report.updatedAt,
+                                                        )}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Link href={`/reports/${report.reportNumber}`}>
-                                                            <Button size="sm" className="gap-1.5 h-8">
-                                                                {getActionLabel(report.status)}
+                                                        <Link
+                                                            href={`/reports/${report.reportNumber}`}
+                                                        >
+                                                            <Button
+                                                                size="sm"
+                                                                className="gap-1.5 h-8"
+                                                            >
+                                                                {getActionLabel(
+                                                                    report.status,
+                                                                )}
                                                                 <ArrowRight className="h-3.5 w-3.5" />
                                                             </Button>
                                                         </Link>
@@ -352,14 +430,20 @@ export default async function ApprovalReportsPage({
                                 {/* Mobile Cards */}
                                 <div className="md:hidden divide-y divide-border/60">
                                     {filtered.map((report) => (
-                                        <div key={report.reportNumber} className="p-4 space-y-3">
+                                        <div
+                                            key={report.reportNumber}
+                                            className="p-4 space-y-3"
+                                        >
                                             <div className="flex items-start justify-between gap-2">
                                                 <div className="min-w-0">
                                                     <p className="font-mono font-semibold text-sm">
                                                         {report.reportNumber}
                                                     </p>
                                                     <p className="text-sm font-medium mt-0.5 truncate">
-                                                        {storeDisplay(report.storeName, report.storeCode)}
+                                                        {storeDisplay(
+                                                            report.storeName,
+                                                            report.storeCode,
+                                                        )}
                                                     </p>
                                                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                                         <MapPin className="h-3 w-3 shrink-0" />
@@ -369,16 +453,31 @@ export default async function ApprovalReportsPage({
                                                 {getStatusBadge(report.status)}
                                             </div>
                                             <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                                <span>{report.createdBy.name}</span>
-                                                <span>{formatDate(report.updatedAt)}</span>
+                                                <span>
+                                                    {report.createdBy.name}
+                                                </span>
+                                                <span>
+                                                    {formatDate(
+                                                        report.updatedAt,
+                                                    )}
+                                                </span>
                                             </div>
                                             <div className="flex items-center justify-between pt-1">
                                                 <span className="text-sm font-mono font-semibold">
-                                                    {formatCurrency(report.totalEstimation)}
+                                                    {formatCurrency(
+                                                        report.totalEstimation,
+                                                    )}
                                                 </span>
-                                                <Link href={`/reports/${report.reportNumber}`}>
-                                                    <Button size="sm" className="gap-1.5 h-8">
-                                                        {getActionLabel(report.status)}
+                                                <Link
+                                                    href={`/reports/${report.reportNumber}`}
+                                                >
+                                                    <Button
+                                                        size="sm"
+                                                        className="gap-1.5 h-8"
+                                                    >
+                                                        {getActionLabel(
+                                                            report.status,
+                                                        )}
                                                         <ArrowRight className="h-3.5 w-3.5" />
                                                     </Button>
                                                 </Link>

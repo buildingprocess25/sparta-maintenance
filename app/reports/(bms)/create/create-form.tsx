@@ -55,7 +55,7 @@ export default function CreateReportForm({
         toggleCategory,
         updateChecklistItem,
         validateStep1,
-    } = useChecklist(stores);
+    } = useChecklist(stores, isEditMode);
 
     const {
         bmsItems,
@@ -198,9 +198,14 @@ export default function CreateReportForm({
         } catch (err) {
             const error = err as Error;
             setIsSubmitting(false);
-            toast.error(isEditMode ? "Gagal mengajukan ulang laporan" : "Gagal membuat laporan", {
-                description: error.message,
-            });
+            toast.error(
+                isEditMode
+                    ? "Gagal mengajukan ulang laporan"
+                    : "Gagal membuat laporan",
+                {
+                    description: error.message,
+                },
+            );
         }
     };
 
@@ -228,7 +233,9 @@ export default function CreateReportForm({
 
             <LoadingOverlay
                 isOpen={isSubmitting}
-                message={isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."}
+                message={
+                    isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."
+                }
             />
 
             <Header
@@ -268,7 +275,10 @@ export default function CreateReportForm({
                     className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
                     onClick={closePreview}
                 >
-                    <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
+                    <div
+                        className="relative max-w-4xl max-h-[90vh] w-full"
+                        onClick={(e) => e.stopPropagation()}
+                    >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={previewPhoto}
@@ -335,8 +345,12 @@ export default function CreateReportForm({
                         activeCategories={activeCategories}
                         openCategories={openCategories}
                         checklist={checklist}
-                        isCategoryICoolingDown={isCategoryICoolingDown}
-                        categoryIAvailableDate={categoryIAvailableDate}
+                        isCategoryICoolingDown={
+                            isEditMode ? false : isCategoryICoolingDown
+                        }
+                        categoryIAvailableDate={
+                            isEditMode ? null : categoryIAvailableDate
+                        }
                         onToggleCategory={toggleCategory}
                         onConditionChange={(itemId, itemName, value) =>
                             updateChecklistItem(

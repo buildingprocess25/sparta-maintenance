@@ -103,7 +103,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         alfamartLogoBase64,
         buildingLogoBase64,
         approval: {
-            status: "PENDING",
+            reportStatus: report.status,
         },
     });
 

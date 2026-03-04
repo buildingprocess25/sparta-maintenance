@@ -7,8 +7,6 @@ import {
     Image,
     StyleSheet,
     renderToBuffer,
-    Svg,
-    Path,
 } from "@react-pdf/renderer";
 import React from "react";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
@@ -174,48 +172,72 @@ const styles = StyleSheet.create({
         fontSize: 7,
         color: "#9ca3af",
     },
-    // Approval Styles
-    approvalCard: {
+    // Stamp Styles
+    stampSectionContent: {
+        marginTop: 8,
+        flexDirection: "row",
+        justifyContent: "flex-end",
+    },
+    stampOuter: {
+        width: 210,
+        borderWidth: 2,
+        borderStyle: "solid",
+        padding: 2,
+    },
+    stampInner: {
         borderWidth: 1,
-        borderStyle: "dashed",
-        borderRadius: 4,
-        padding: 10,
-        width: "30%",
-        alignSelf: "center",
+        borderStyle: "solid",
+    },
+    stampHeader: {
+        paddingVertical: 7,
+        paddingHorizontal: 10,
+    },
+    stampHeaderText: {
+        fontFamily: "Helvetica-Bold",
+        fontSize: 8,
+        color: "#ffffff",
+        textAlign: "center",
+    },
+    stampBody: {
+        paddingVertical: 8,
+        paddingHorizontal: 10,
         alignItems: "center",
     },
-    approvalPending: {
-        borderColor: "#9ca3af",
-        backgroundColor: "#f9fafb",
-    },
-    approvalRejected: {
-        borderColor: "#ef4444",
-        backgroundColor: "#fef2f2",
-    },
-    approvalRejectedWithNotes: {
-        borderColor: "#eab308",
-        backgroundColor: "#fefce8",
-    },
-    approvalApproved: {
-        borderColor: "#22c55e",
-        backgroundColor: "#f0fdf4",
-    },
-    approvalTitle: {
-        fontSize: 10,
+    stampName: {
+        fontSize: 9,
         fontFamily: "Helvetica-Bold",
-        marginBottom: 4,
         textAlign: "center",
-    },
-    approvalText: {
-        fontSize: 8,
-        color: "#374151",
+        color: "#111827",
         marginBottom: 2,
+    },
+    stampNik: {
+        fontSize: 7.5,
+        color: "#374151",
+        textAlign: "center",
+        marginBottom: 2,
+    },
+    stampDate: {
+        fontSize: 7.5,
+        color: "#374151",
         textAlign: "center",
     },
-    approvalNote: {
+    stampPendingText: {
         fontSize: 8,
         fontFamily: "Helvetica-Oblique",
-        marginTop: 4,
+        color: "#9ca3af",
+        textAlign: "center",
+    },
+    stampNoteWrapper: {
+        borderTopWidth: 0.5,
+        borderTopStyle: "solid",
+        borderTopColor: "#d1d5db",
+        paddingVertical: 5,
+        paddingHorizontal: 10,
+    },
+    stampNote: {
+        fontSize: 7,
+        fontFamily: "Helvetica-Oblique",
+        color: "#6b7280",
         textAlign: "center",
     },
 });
@@ -262,8 +284,9 @@ export type ReportPdfData = {
     alfamartLogoBase64: string;
     buildingLogoBase64: string;
     approval: {
-        status: "PENDING" | "APPROVED" | "REJECTED";
-        approvedBy?: string;
+        reportStatus: string;
+        approverName?: string;
+        approverNIK?: string;
         approvedAt?: string;
         notes?: string;
     };
@@ -287,10 +310,85 @@ function groupEstimationsByItemId(estimations: MaterialEstimationJson[]) {
     return groups;
 }
 
+type StampConfig = { label: string; color: string; notesLabel: string };
+
+function getStampConfig(reportStatus: string): StampConfig {
+    switch (reportStatus) {
+        case "DRAFT":
+            return { label: "Draft", color: "#6b7280", notesLabel: "Catatan:" };
+        case "PENDING_ESTIMATION":
+            return {
+                label: "Menunggu Persetujuan Estimasi",
+                color: "#6b7280",
+                notesLabel: "Catatan:",
+            };
+        case "ESTIMATION_APPROVED":
+            return {
+                label: "Estimasi Disetujui BMC",
+                color: "#16a34a",
+                notesLabel: "Catatan Persetujuan:",
+            };
+        case "ESTIMATION_REJECTED":
+            return {
+                label: "Estimasi Ditolak BMC",
+                color: "#dc2626",
+                notesLabel: "Alasan Penolakan:",
+            };
+        case "ESTIMATION_REJECTED_REVISION":
+            return {
+                label: "Estimasi Ditolak — Perlu Revisi",
+                color: "#d97706",
+                notesLabel: "Catatan Revisi:",
+            };
+        case "IN_PROGRESS":
+            return {
+                label: "Pekerjaan Berlangsung",
+                color: "#2563eb",
+                notesLabel: "Catatan:",
+            };
+        case "PENDING_REVIEW":
+            return {
+                label: "Menunggu Review Penyelesaian",
+                color: "#7c3aed",
+                notesLabel: "Catatan:",
+            };
+        case "REVIEW_REJECTED_REVISION":
+            return {
+                label: "Review Ditolak — Perlu Revisi",
+                color: "#d97706",
+                notesLabel: "Catatan Revisi:",
+            };
+        case "APPROVED_BMC":
+            return {
+                label: "Penyelesaian Disetujui BMC",
+                color: "#16a34a",
+                notesLabel: "Catatan Persetujuan:",
+            };
+        case "COMPLETED":
+            return {
+                label: "Disetujui BNM Manager",
+                color: "#0369a1",
+                notesLabel: "Catatan Persetujuan:",
+            };
+        default:
+            return {
+                label: reportStatus,
+                color: "#6b7280",
+                notesLabel: "Catatan:",
+            };
+    }
+}
+
 function buildReportDocument(data: ReportPdfData) {
     const itemGroups = groupItemsByCategory(data.items);
     const rusakItems = data.items.filter(
         (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
+    );
+
+    const stampConfig = getStampConfig(data.approval.reportStatus);
+    const stampColor = stampConfig.color;
+    const hasApproverInfo = !!(
+        data.approval.approverName && data.approval.approvedAt
     );
 
     return React.createElement(
@@ -556,7 +654,7 @@ function buildReportDocument(data: ReportPdfData) {
                                           width: "5%",
                                       },
                                   },
-                                  "Kode",
+                                  "No.",
                               ),
                               React.createElement(
                                   Text,
@@ -586,7 +684,7 @@ function buildReportDocument(data: ReportPdfData) {
                                           width: "10%",
                                       },
                                   },
-                                  "Qty",
+                                  "Jumlah",
                               ),
                               React.createElement(
                                   Text,
@@ -741,99 +839,85 @@ function buildReportDocument(data: ReportPdfData) {
                     { style: styles.sectionTitle },
                     "Persetujuan",
                 ),
-            ),
-            React.createElement(
-                View,
-                {
-                    style: [
-                        styles.approvalCard,
-                        data.approval.status === "PENDING"
-                            ? styles.approvalPending
-                            : data.approval.status === "APPROVED"
-                              ? styles.approvalApproved
-                              : data.approval.status === "REJECTED" &&
-                                  data.approval.notes
-                                ? styles.approvalRejectedWithNotes
-                                : styles.approvalRejected,
-                    ],
-                },
-                // Icon based on status
                 React.createElement(
-                    Svg,
-                    {
-                        width: 24,
-                        height: 24,
-                        viewBox: "0 0 24 24",
-                        style: { marginBottom: 8 },
-                    },
-                    React.createElement(Path, {
-                        d:
-                            data.approval.status === "APPROVED"
-                                ? "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" // Check Circle
-                                : data.approval.status === "REJECTED"
-                                  ? data.approval.notes
-                                      ? "M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" // Alert Triangle
-                                      : "M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" // X Circle
-                                  : "M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z", // Clock
-                        stroke:
-                            data.approval.status === "PENDING"
-                                ? "#9ca3af"
-                                : data.approval.status === "APPROVED"
-                                  ? "#16a34a"
-                                  : data.approval.status === "REJECTED" &&
-                                      data.approval.notes
-                                    ? "#ca8a04"
-                                    : "#ef4444",
-                        strokeWidth: 2,
-                        fill: "none",
-                        strokeLinecap: "round",
-                        strokeLinejoin: "round",
-                    }),
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: [
-                            styles.approvalTitle,
-                            {
-                                color:
-                                    data.approval.status === "PENDING"
-                                        ? "#6b7280"
-                                        : data.approval.status === "APPROVED"
-                                          ? "#16a34a"
-                                          : data.approval.status ===
-                                                  "REJECTED" &&
-                                              data.approval.notes
-                                            ? "#ca8a04"
-                                            : "#dc2626",
+                    View,
+                    { style: styles.stampSectionContent },
+                    React.createElement(
+                        View,
+                        {
+                            style: {
+                                ...styles.stampOuter,
+                                borderColor: stampColor,
                             },
-                        ],
-                    },
-                    data.approval.status === "PENDING"
-                        ? "Menunggu Persetujuan BMC"
-                        : data.approval.status === "APPROVED"
-                          ? "Disetujui oleh BMC"
-                          : data.approval.status === "REJECTED" &&
-                              data.approval.notes
-                            ? "Ditolak oleh BMC (perlu revisi)"
-                            : "Ditolak oleh BMC",
+                        },
+                        React.createElement(
+                            View,
+                            {
+                                style: {
+                                    ...styles.stampInner,
+                                    borderColor: stampColor,
+                                },
+                            },
+                            // Header strip
+                            React.createElement(
+                                View,
+                                {
+                                    style: {
+                                        ...styles.stampHeader,
+                                        backgroundColor: stampColor,
+                                    },
+                                },
+                                React.createElement(
+                                    Text,
+                                    { style: styles.stampHeaderText },
+                                    stampConfig.label.toUpperCase(),
+                                ),
+                            ),
+                            // Body: approver details or pending placeholder
+                            hasApproverInfo
+                                ? React.createElement(
+                                      View,
+                                      { style: styles.stampBody },
+                                      React.createElement(
+                                          Text,
+                                          { style: styles.stampName },
+                                          data.approval.approverName!,
+                                      ),
+                                      React.createElement(
+                                          Text,
+                                          { style: styles.stampNik },
+                                          `NIK: ${data.approval.approverNIK ?? "—"}`,
+                                      ),
+                                      React.createElement(
+                                          Text,
+                                          { style: styles.stampDate },
+                                          data.approval.approvedAt!,
+                                      ),
+                                  )
+                                : React.createElement(
+                                      View,
+                                      { style: styles.stampBody },
+                                      React.createElement(
+                                          Text,
+                                          { style: styles.stampPendingText },
+                                          "Belum ada penanda tangan",
+                                      ),
+                                  ),
+                            // Optional rejection/revision notes
+                            data.approval.notes
+                                ? React.createElement(
+                                      View,
+                                      { style: styles.stampNoteWrapper },
+                                      React.createElement(
+                                          Text,
+                                          { style: styles.stampNote },
+                                          `${stampConfig.notesLabel} ${data.approval.notes}`,
+                                      ),
+                                  )
+                                : null,
+                        ),
+                    ),
                 ),
-                data.approval.status !== "PENDING" &&
-                    data.approval.approvedBy &&
-                    data.approval.approvedAt
-                    ? [
-                          React.createElement(
-                              Text,
-                              { key: "date", style: styles.approvalText },
-                              data.approval.approvedAt,
-                          ),
-                          React.createElement(
-                              Text,
-                              { key: "by", style: styles.approvalText },
-                              `Oleh: ${data.approval.approvedBy}`,
-                          ),
-                      ]
-                    : null,
             ),
 
             // Footer

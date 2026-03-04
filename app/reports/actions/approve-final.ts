@@ -41,14 +41,14 @@ export async function approveFinal(reportNumber: string, notes?: string) {
                     reportNumber,
                     approverNIK: user.NIK,
                     status: ReportStatus.COMPLETED,
-                    notes: notes || "Laporan disetujui dan diselesaikan oleh BnM Manager",
+                    // Only store user-typed notes; don't inject a generic placeholder.
+                    notes: notes || null,
                 },
             }),
         ]);
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");
-        revalidatePath("/approval/reports");
 
         logger.info(
             { operation: "approveFinal", reportNumber, userId: user.NIK },

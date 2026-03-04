@@ -24,10 +24,9 @@ export async function GET(
                 },
                 logs: {
                     orderBy: { createdAt: "desc" },
-                    take: 1,
                     include: {
                         approver: {
-                            select: { name: true },
+                            select: { name: true, NIK: true },
                         },
                     },
                 },
@@ -77,63 +76,28 @@ export async function GET(
             // We'll proceed, assuming they exist as checked in previous steps.
         }
 
-        // Determine approval status from the latest log or report status
+        // Find the log entry that caused the current report status (exact match),
+        // falling back to the most recent log if no exact status match exists.
+        const statusLog =
+            report.logs.find((l) => l.status === report.status) ??
+            report.logs[0];
+
         const approvalData = {
-            status: "PENDING" as "PENDING" | "APPROVED" | "REJECTED",
-            approvedBy: undefined as string | undefined,
-            approvedAt: undefined as string | undefined,
-            notes: undefined as string | undefined,
+            reportStatus: report.status,
+            approverName: statusLog?.approver?.name ?? undefined,
+            approverNIK: statusLog?.approver?.NIK ?? undefined,
+            approvedAt: statusLog
+                ? statusLog.createdAt.toLocaleDateString("id-ID", {
+                      weekday: "long",
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                  })
+                : undefined,
+            notes: statusLog?.notes ?? undefined,
         };
-
-        if (
-            report.status === "APPROVED_BMC" ||
-            report.status === "COMPLETED"
-        ) {
-            // If completed/approved by BMC, find the relevant approval log.
-            const latestLog = report.logs[0];
-
-            // All these statuses mean work was approved
-            approvalData.status = "APPROVED";
-
-            // Hydrate details from log if available
-            if (latestLog) {
-                if (
-                    latestLog.status === "APPROVED_BMC" ||
-                    latestLog.status === "COMPLETED"
-                ) {
-                    approvalData.approvedBy = latestLog.approver.name;
-                    approvalData.approvedAt =
-                        latestLog.createdAt.toLocaleDateString("id-ID", {
-                            weekday: "long",
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                        });
-                    approvalData.notes = latestLog.notes || undefined;
-                }
-            }
-        } else if (
-            report.status === "ESTIMATION_REJECTED" ||
-            report.status === "ESTIMATION_REJECTED_REVISION" ||
-            report.status === "REVIEW_REJECTED_REVISION"
-        ) {
-            approvalData.status = "REJECTED";
-            const latestLog = report.logs[0];
-            if (latestLog) {
-                approvalData.approvedBy = latestLog.approver.name;
-                approvalData.approvedAt = latestLog.createdAt.toLocaleDateString("id-ID", {
-                    weekday: "long",
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
-                approvalData.notes = latestLog.notes || undefined;
-            }
-        }
 
         const pdfBuffer = await generateReportPdf({
             reportNumber: report.reportNumber,

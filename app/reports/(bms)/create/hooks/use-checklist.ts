@@ -28,7 +28,7 @@ import {
 } from "@/lib/checklist-data";
 import type { StoreOption } from "../components/types";
 
-export function useChecklist(stores: StoreOption[]) {
+export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
     const [checklist, setChecklist] = useState<Map<string, ChecklistItem>>(
         new Map(),
     );
@@ -41,8 +41,9 @@ export function useChecklist(stores: StoreOption[]) {
     const [categoryIAvailableDate, setCategoryIAvailableDate] =
         useState<Date | null>(null);
 
+    // In edit/revisi mode the report already has preventive items — always enable them
     const activeCategories = checklistCategories.filter(
-        (cat) => !(cat.isPreventive && isCategoryICoolingDown),
+        (cat) => !(cat.isPreventive && isCategoryICoolingDown && !isEditMode),
     );
 
     const handleStoreChange = useCallback(

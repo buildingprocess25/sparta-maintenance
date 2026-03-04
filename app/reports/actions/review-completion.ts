@@ -43,13 +43,16 @@ export async function reviewCompletion(
         }
 
         const newStatus =
-            decision === "approve" ? ReportStatus.APPROVED_BMC : ReportStatus.REVIEW_REJECTED_REVISION;
+            decision === "approve"
+                ? ReportStatus.APPROVED_BMC
+                : ReportStatus.REVIEW_REJECTED_REVISION;
 
+        // For approvals, only store user-typed notes (null if empty) so the PDF
+        // stamp notes strip doesn't show an auto-generated placeholder.
         const logNote =
-            notes ||
-            (decision === "approve"
-                ? "Pekerjaan disetujui oleh BMC, diteruskan ke BnM Manager"
-                : "Pekerjaan ditolak oleh BMC, BMS diminta merevisi");
+            decision === "approve"
+                ? notes || null
+                : notes || "Pekerjaan ditolak oleh BMC, BMS diminta merevisi";
 
         await prisma.$transaction([
             prisma.report.update({
@@ -68,10 +71,14 @@ export async function reviewCompletion(
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");
-        revalidatePath("/approval/reports");
 
         logger.info(
-            { operation: "reviewCompletion", reportNumber, decision, userId: user.NIK },
+            {
+                operation: "reviewCompletion",
+                reportNumber,
+                decision,
+                userId: user.NIK,
+            },
             "Completion reviewed",
         );
 

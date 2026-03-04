@@ -3,14 +3,19 @@ import { requireRole } from "@/lib/authorization";
 import { getStoresByBranch } from "@/app/reports/actions";
 import prisma from "@/lib/prisma";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
-import CreateReportForm from "@/app/reports/create/create-form";
+import CreateReportForm from "@/app/reports/(bms)/create/create-form";
 
-export default async function EditReportPage({
+const REVISION_STATUSES = [
+    "ESTIMATION_REJECTED_REVISION",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+export default async function RevisiReportPage({
     params,
 }: {
-    params: Promise<{ id: string }>;
+    params: Promise<{ reportNumber: string }>;
 }) {
-    const { id: reportNumber } = await params;
+    const { reportNumber } = await params;
     const user = await requireRole("BMS");
 
     const report = await prisma.report.findUnique({
@@ -30,24 +35,20 @@ export default async function EditReportPage({
         },
     });
 
-    // Draft: redirect to create page with ?restore=1 to auto-restore without dialog
-    if (!report || report.status === "DRAFT") {
-        redirect("/reports/create?restore=1");
-    }
-
-    // Only ESTIMATION_REJECTED_REVISION reports owned by this user can be edited
-    if (report.status !== "ESTIMATION_REJECTED_REVISION" || report.createdByNIK !== user.NIK) {
+    // Only revision-status reports owned by this user can be revised
+    if (
+        !report ||
+        !(REVISION_STATUSES as readonly string[]).includes(report.status) ||
+        report.createdByNIK !== user.NIK
+    ) {
         redirect("/reports");
     }
 
-    const [stores] = await Promise.all([
-        getStoresByBranch(user.branchNames[0] || ""),
-    ]);
+    const stores = await getStoresByBranch(user.branchNames[0] || "");
 
     const items = (report.items ?? []) as unknown as ReportItemJson[];
-    const estimations = (
-        report.estimations ?? []
-    ) as unknown as MaterialEstimationJson[];
+    const estimations = (report.estimations ??
+        []) as unknown as MaterialEstimationJson[];
 
     const serializedReport = {
         reportNumber: report.reportNumber,

@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReportData } from "./reports-list";
+import type { ReportData } from "./bms-reports-list";
 
 const MOBILE_ACTION_CONFIG: Record<
     string,
@@ -73,11 +73,11 @@ const MOBILE_ACTION_CONFIG: Record<
     },
 };
 
-interface ReportsListMobileProps {
+interface BmsReportsMobileProps {
     reports: ReportData[];
 }
 
-export function ReportsListMobile({ reports }: ReportsListMobileProps) {
+export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
     const router = useRouter();
 
     const formatDate = (date: Date) => {
@@ -192,6 +192,7 @@ export function ReportsListMobile({ reports }: ReportsListMobileProps) {
                 );
         }
     };
+
     return (
         <div className="space-y-3 md:hidden">
             {reports.map((report) => (

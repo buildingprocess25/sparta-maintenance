@@ -22,8 +22,9 @@ export async function GET() {
             alfamartLogoBase64: PLACEHOLDER_LOGO,
             buildingLogoBase64: PLACEHOLDER_LOGO,
             approval: {
-                status: "APPROVED",
-                approvedBy: "Dimas Bagas",
+                reportStatus: "APPROVED_BMC",
+                approverName: "Dimas Bagas",
+                approverNIK: "12345678",
                 approvedAt: "Selasa, 13 Februari 2024 - 09:00",
                 // notes: "Mohon cek kembali estimasi harga engsel, terlalu mahal.",
             },
