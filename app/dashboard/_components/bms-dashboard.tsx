@@ -1,12 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     FileText,
     Plus,
     Clock,
     CheckCircle2,
     AlertCircle,
+    Wrench,
     Settings,
     ArrowRight,
+    TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { getUserStats, getBMSActivity } from "../queries";
@@ -37,63 +39,92 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
         getBMSActivity(user.NIK),
     ]);
 
-    const dashboardStats = [
-        {
-            label: "Total Laporan",
-            value: stats.totalReports.toString(),
-            icon: FileText,
-            color: "text-primary",
-            href: "/reports",
-        },
-        {
-            label: "Menunggu Tindakan",
-            value: stats.pendingReports.toString(),
-            icon: Clock,
-            color: "text-yellow-600",
-            href: "/reports",
-        },
-        {
-            label: "Laporan Selesai",
-            value: stats.approvedReports.toString(),
-            icon: CheckCircle2,
-            color: "text-green-600",
-            href: "/reports?status=COMPLETED",
-        },
-        {
-            label: "Estimasi Ditolak",
-            value: stats.rejectedReports.toString(),
-            icon: AlertCircle,
-            color: "text-red-600",
-            href: "/reports?status=ESTIMATION_REJECTED",
-        },
-    ];
-
     return (
         <DashboardShell user={user}>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-4">
-                {dashboardStats.map((stat, i) => (
-                    <Link key={i} href={stat.href} className="group">
-                        <Card className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6 cursor-pointer hover:border-primary/40">
-                            <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
-                                <CardTitle className="text-xs text-center md:text-left md:text-sm font-medium w-12 md:w-auto">
-                                    {stat.label}
-                                </CardTitle>
-                                <stat.icon
-                                    className={`h-4 w-4 ${stat.color} hidden md:block`}
-                                />
-                            </CardHeader>
-                            <CardContent className="md:items-start justify-center items-center gap-1 flex md:flex-col">
-                                <div className="text-lg md:text-2xl md:text-left font-bold">
-                                    {stat.value}
-                                </div>
-                                <stat.icon
-                                    className={`h-3 w-3 ${stat.color} md:hidden`}
-                                />
-                            </CardContent>
-                        </Card>
+            {/* Stats Panel */}
+            <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
+                {/* Hero stat — Perlu Tindakan */}
+                <Link
+                    href="/reports"
+                    className="group shrink-0 lg:w-64 bg-orange-500 text-white p-6 flex flex-col justify-between hover:bg-orange-600 transition-colors"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-orange-100 text-sm font-medium">
+                            <AlertCircle className="h-4 w-4" />
+                            Perlu Tindakan
+                        </div>
+                        <TrendingUp className="h-4 w-4 text-orange-200 opacity-70" />
+                    </div>
+                    <div>
+                        <div className="text-6xl font-bold tabular-nums leading-none mt-4">
+                            {stats.needsAction}
+                        </div>
+                        <p className="text-sm text-orange-100 mt-3 leading-snug">
+                            Laporan siap dikerjakan atau butuh revisi
+                        </p>
+                    </div>
+                </Link>
+
+                {/* Secondary stats */}
+                <div className="flex-1 grid grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
+                    <Link
+                        href="/reports"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">
+                            <Clock className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {stats.waitingReview}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Menunggu Review
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Diproses pihak lain
+                            </p>
+                        </div>
                     </Link>
-                ))}
+                    <Link
+                        href="/reports?status=in_progress"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
+                            <Wrench className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {stats.inProgress}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Dikerjakan
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Sedang dalam pengerjaan
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        href="/reports?status=completed"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                            <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {stats.completed}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Selesai
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Laporan telah rampung
+                            </p>
+                        </div>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

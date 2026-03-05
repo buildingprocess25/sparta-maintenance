@@ -1,12 +1,14 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     ClipboardCheck,
     CheckCircle2,
+    FileText,
     Settings,
     ArrowRight,
+    TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
-import { getBranchActivity } from "../queries";
+import { getBNMStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
 import { ActivitySection } from "./shared/activity-feed";
 import type { AuthUser } from "@/lib/authorization";
@@ -22,37 +24,78 @@ const MENUS = [
 ];
 
 export async function BnmDashboard({ user }: { user: AuthUser }) {
-    const activities = await getBranchActivity(user.branchNames);
+    const [bnmStats, activities] = await Promise.all([
+        getBNMStats(user.branchNames),
+        getBranchActivity(user.branchNames),
+    ]);
+
     return (
         <DashboardShell user={user}>
-            {/* Placeholder stats */}
-            <div className="grid grid-cols-2 gap-4 md:w-1/2">
-                <Card className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6">
-                    <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
-                        <CardTitle className="text-xs text-center md:text-left md:text-sm font-medium w-12 md:w-auto">
-                            Menunggu Approval
-                        </CardTitle>
-                        <ClipboardCheck className="h-4 w-4 text-primary hidden md:block" />
-                    </CardHeader>
-                    <CardContent className="md:items-start justify-center items-center gap-1 flex md:flex-col">
-                        <div className="text-lg md:text-2xl md:text-left font-bold">
-                            —
+            {/* Stats Panel */}
+            <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row max-w-3xl">
+                {/* Hero stat — Menunggu Approval Final */}
+                <Link
+                    href="/reports?status=approved_bmc"
+                    className="group shrink-0 lg:w-64 bg-orange-500 text-white p-6 flex flex-col justify-between hover:bg-orange-600 transition-colors"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-orange-100 text-sm font-medium">
+                            <ClipboardCheck className="h-4 w-4" />
+                            Persetujuan Final
                         </div>
-                    </CardContent>
-                </Card>
-                <Card className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6">
-                    <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
-                        <CardTitle className="text-xs text-center md:text-left md:text-sm font-medium w-12 md:w-auto">
-                            Disetujui
-                        </CardTitle>
-                        <CheckCircle2 className="h-4 w-4 text-green-600 hidden md:block" />
-                    </CardHeader>
-                    <CardContent className="md:items-start justify-center items-center gap-1 flex md:flex-col">
-                        <div className="text-lg md:text-2xl md:text-left font-bold">
-                            —
+                        <TrendingUp className="h-4 w-4 text-orange-200 opacity-70" />
+                    </div>
+                    <div>
+                        <div className="text-6xl font-bold tabular-nums leading-none mt-4">
+                            {bnmStats.awaitingApproval}
                         </div>
-                    </CardContent>
-                </Card>
+                        <p className="text-sm text-orange-100 mt-3 leading-snug">
+                            Laporan siap mendapat persetujuan Anda
+                        </p>
+                    </div>
+                </Link>
+
+                {/* Secondary stats */}
+                <div className="flex-1 grid grid-cols-2 divide-x divide-y lg:divide-y-0 bg-card">
+                    <Link
+                        href="/reports?status=completed"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                            <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {bnmStats.completed}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Selesai
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Telah disetujui
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        href="/reports"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
+                            <FileText className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {bnmStats.totalReports}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Total Laporan
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Semua laporan di branch
+                            </p>
+                        </div>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

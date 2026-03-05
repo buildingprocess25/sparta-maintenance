@@ -93,20 +93,6 @@ export function ReportSidebar({
                     (report.status === "IN_PROGRESS" ||
                         report.status === "REVIEW_REJECTED_REVISION") && (
                         <div className="space-y-3">
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                <p className="text-sm font-medium text-blue-800">
-                                    {report.status ===
-                                    "REVIEW_REJECTED_REVISION"
-                                        ? "Pekerjaan Ditolak — Perlu Revisi"
-                                        : "Sedang Dikerjakan"}
-                                </p>
-                                <p className="text-xs text-blue-700 mt-0.5">
-                                    {report.status ===
-                                    "REVIEW_REJECTED_REVISION"
-                                        ? "Perbaiki dan kirim ulang laporan penyelesaian."
-                                        : "Setelah selesai, kirim laporan untuk direview BMC."}
-                                </p>
-                            </div>
                             {activeDialog === "submit_completion" ? (
                                 <div className="space-y-2">
                                     <textarea
@@ -161,6 +147,20 @@ export function ReportSidebar({
                                         : "Kirim Laporan Penyelesaian"}
                                 </Button>
                             )}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                <p className="text-sm font-medium text-blue-800">
+                                    {report.status ===
+                                    "REVIEW_REJECTED_REVISION"
+                                        ? "Pekerjaan Ditolak — Perlu Revisi"
+                                        : "Sedang Dikerjakan"}
+                                </p>
+                                <p className="text-xs text-blue-700 mt-0.5">
+                                    {report.status ===
+                                    "REVIEW_REJECTED_REVISION"
+                                        ? "Perbaiki dan kirim ulang laporan penyelesaian."
+                                        : "Setelah selesai, kirim laporan untuk direview BMC."}
+                                </p>
+                            </div>
                         </div>
                     )}
 

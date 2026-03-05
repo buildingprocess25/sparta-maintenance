@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTransition } from "react";
-import { Button } from "@/components/ui/button";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -35,15 +34,13 @@ export function LogoutButton() {
 
             <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <AlertDialogTrigger asChild>
-                    <Button
-                        variant="destructive"
-                        size="sm"
-                        className="ml-auto md:ml-0"
+                    <button
                         disabled={isPending}
+                        className="cursor-pointer group flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-destructive/8 hover:text-destructive disabled:pointer-events-none disabled:opacity-50"
                     >
-                        <LogOut className="mr-2 h-4 w-4" />
-                        Logout
-                    </Button>
+                        <LogOut className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+                        <span className="hidden sm:inline">Keluar</span>
+                    </button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                     <AlertDialogHeader>

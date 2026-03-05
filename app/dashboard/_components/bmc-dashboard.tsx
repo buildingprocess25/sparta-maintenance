@@ -1,13 +1,15 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
     FileText,
     ClipboardCheck,
     FolderOpen,
     Clock,
     CheckCircle2,
-    AlertCircle,
+    Wrench,
+    Hourglass,
     Settings,
     ArrowRight,
+    TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 import { getBMCStats, getBranchActivity } from "../queries";
@@ -27,7 +29,7 @@ const MENUS = [
         title: "Riwayat Approval",
         description: "Riwayat laporan yang sudah diapprove",
         icon: FolderOpen,
-        href: "/reports?status=approved_bmc",
+        href: "/reports",
         variant: "outline" as const,
     },
 ];
@@ -38,63 +40,92 @@ export async function BmcDashboard({ user }: { user: AuthUser }) {
         getBranchActivity(user.branchNames),
     ]);
 
-    const dashboardStats = [
-        {
-            label: "Total Laporan Masuk",
-            value: bmcStats.totalReports.toString(),
-            icon: FileText,
-            color: "text-primary",
-            href: "/reports",
-        },
-        {
-            label: "Perlu Tindakan Anda",
-            value: bmcStats.needsAction.toString(),
-            icon: Clock,
-            color: "text-yellow-600",
-            href: "/reports",
-        },
-        {
-            label: "Disetujui",
-            value: bmcStats.completed.toString(),
-            icon: CheckCircle2,
-            color: "text-green-600",
-            href: "/reports?status=completed",
-        },
-        {
-            label: "Ditolak",
-            value: bmcStats.rejected.toString(),
-            icon: AlertCircle,
-            color: "text-red-600",
-            href: "/reports",
-        },
-    ];
-
     return (
         <DashboardShell user={user}>
-            {/* Stats Grid */}
-            <div className="grid grid-cols-4 gap-4">
-                {dashboardStats.map((stat, i) => (
-                    <Link key={i} href={stat.href} className="group">
-                        <Card className="hover:shadow-md transition-shadow gap-2 py-3 md:py-6 cursor-pointer hover:border-primary/40">
-                            <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
-                                <CardTitle className="text-xs text-center md:text-left md:text-sm font-medium w-12 md:w-auto">
-                                    {stat.label}
-                                </CardTitle>
-                                <stat.icon
-                                    className={`h-4 w-4 ${stat.color} hidden md:block`}
-                                />
-                            </CardHeader>
-                            <CardContent className="md:items-start justify-center items-center gap-1 flex md:flex-col">
-                                <div className="text-lg md:text-2xl md:text-left font-bold">
-                                    {stat.value}
-                                </div>
-                                <stat.icon
-                                    className={`h-3 w-3 ${stat.color} md:hidden`}
-                                />
-                            </CardContent>
-                        </Card>
+            {/* Stats Panel */}
+            <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
+                {/* Hero stat — Perlu Ditinjau */}
+                <Link
+                    href="/reports"
+                    className="group shrink-0 lg:w-64 bg-orange-500 text-white p-6 flex flex-col justify-between hover:bg-orange-600 transition-colors"
+                >
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-orange-100 text-sm font-medium">
+                            <Clock className="h-4 w-4" />
+                            Perlu Ditinjau
+                        </div>
+                        <TrendingUp className="h-4 w-4 text-orange-200 opacity-70" />
+                    </div>
+                    <div>
+                        <div className="text-6xl font-bold tabular-nums leading-none mt-4">
+                            {bmcStats.needsReview}
+                        </div>
+                        <p className="text-sm text-orange-100 mt-3 leading-snug">
+                            Estimasi & penyelesaian menunggu review Anda
+                        </p>
+                    </div>
+                </Link>
+
+                {/* Secondary stats */}
+                <div className="flex-1 grid grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
+                    <Link
+                        href="/reports?status=in_progress"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
+                            <Wrench className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {bmcStats.inProgress}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Dalam Proses
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                BMS sedang mengerjakan
+                            </p>
+                        </div>
                     </Link>
-                ))}
+                    <Link
+                        href="/reports?status=approved_bmc"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-purple-600 text-sm font-medium">
+                            <Hourglass className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {bmcStats.awaitingFinal}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Menunggu BnM
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Menunggu persetujuan final
+                            </p>
+                        </div>
+                    </Link>
+                    <Link
+                        href="/reports?status=completed"
+                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                    >
+                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
+                            <CheckCircle2 className="h-4 w-4" />
+                        </div>
+                        <div>
+                            <div className="text-3xl font-bold tabular-nums mt-3">
+                                {bmcStats.completed}
+                            </div>
+                            <p className="text-sm font-semibold mt-1">
+                                Selesai
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                                Disetujui BnM Manager
+                            </p>
+                        </div>
+                    </Link>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
