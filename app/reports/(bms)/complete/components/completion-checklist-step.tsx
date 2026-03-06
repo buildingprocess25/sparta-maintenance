@@ -40,16 +40,19 @@ import { realisasiGrandTotal } from "../types";
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function isItemComplete(state: CompletionItemState): boolean {
+    const storesValid =
+        state.receiptPhotos.length === 0 ||
+        (state.materialStores.length > 0 &&
+            state.materialStores.every(
+                (s) => s.name.trim().length > 0 && s.city.trim().length > 0,
+            ));
     return (
         state.afterPhotos.length > 0 &&
         state.realisasiEntries.length > 0 &&
         state.realisasiEntries.every(
             (e) => e.materialName.trim().length > 0 && e.price > 0,
         ) &&
-        state.materialStores.length > 0 &&
-        state.materialStores.every(
-            (s) => s.name.trim().length > 0 && s.city.trim().length > 0,
-        ) &&
+        storesValid &&
         state.receiptPhotos.length > 0
     );
 }

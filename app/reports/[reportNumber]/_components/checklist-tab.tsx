@@ -104,12 +104,25 @@ export function ChecklistTab({
                     const categoryItems = items.filter((i) =>
                         i.itemId.startsWith(category.id),
                     );
-                    const totalItems = category.items.length;
+                    // For preventive categories, only count items that have data
+                    // (items without data are in the 3-month cooldown and are hidden).
+                    const totalItems = category.isPreventive
+                        ? category.items.filter((ci) =>
+                              categoryItems.some(
+                                  (ri) =>
+                                      ri.itemId === ci.id &&
+                                      (ri.condition || ri.preventiveCondition),
+                              ),
+                          ).length
+                        : category.items.length;
                     const filledItems = categoryItems.filter(
                         (i) => i.condition || i.preventiveCondition,
                     ).length;
                     const isCompleted =
                         filledItems === totalItems && totalItems > 0;
+
+                    // Hide preventive categories where all items are in cooldown
+                    if (category.isPreventive && totalItems === 0) return null;
 
                     return (
                         <Collapsible key={category.id} defaultOpen={false}>
@@ -144,6 +157,15 @@ export function ChecklistTab({
                                         const condition = reportItem?.condition;
                                         const preventive =
                                             reportItem?.preventiveCondition;
+
+                                        // Hide preventive items with no data — they are in the
+                                        // 3-month cooldown period and were intentionally skipped.
+                                        if (
+                                            category.isPreventive &&
+                                            !condition &&
+                                            !preventive
+                                        )
+                                            return null;
                                         const hasPhoto =
                                             (reportItem?.images &&
                                                 reportItem.images.length > 0) ||

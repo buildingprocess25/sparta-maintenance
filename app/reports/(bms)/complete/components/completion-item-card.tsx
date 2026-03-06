@@ -578,39 +578,6 @@ export function CompletionItemCard({
                 </div>
             </div>
 
-            {/* ─── Toko Material ───────────────────────────────────────── */}
-            <div className="pt-2 border-t">
-                <Label className="text-sm flex items-center gap-1.5 mb-2">
-                    <Store className="h-3.5 w-3.5" />
-                    Toko Material <span className="text-destructive">*</span>
-                </Label>
-                {state.materialStores.length > 0 ? (
-                    <MaterialStoreRows
-                        stores={state.materialStores}
-                        onChange={(stores) =>
-                            onChange({ materialStores: stores })
-                        }
-                    />
-                ) : (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-primary hover:text-primary hover:bg-primary/10"
-                        onClick={() =>
-                            onChange({
-                                materialStores: [
-                                    { id: genId(), name: "", city: "" },
-                                ],
-                            })
-                        }
-                    >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Tambah Toko
-                    </Button>
-                )}
-            </div>
-
             {/* ─── Foto Nota/Struk ─────────────────────────────────────── */}
             <div className="pt-2 border-t">
                 <Label className="text-sm flex items-center gap-1.5">
@@ -646,6 +613,42 @@ export function CompletionItemCard({
                         : "Buka Kamera"}
                 </Button>
             </div>
+
+            {/* ─── Toko Material (hanya jika ada foto nota) ────────────── */}
+            {state.receiptPhotos.length > 0 && (
+                <div className="pt-2 border-t">
+                    <Label className="text-sm flex items-center gap-1.5 mb-2">
+                        <Store className="h-3.5 w-3.5" />
+                        Toko Material{" "}
+                        <span className="text-destructive">*</span>
+                    </Label>
+                    {state.materialStores.length > 0 ? (
+                        <MaterialStoreRows
+                            stores={state.materialStores}
+                            onChange={(stores) =>
+                                onChange({ materialStores: stores })
+                            }
+                        />
+                    ) : (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="text-primary hover:text-primary hover:bg-primary/10"
+                            onClick={() =>
+                                onChange({
+                                    materialStores: [
+                                        { id: genId(), name: "", city: "" },
+                                    ],
+                                })
+                            }
+                        >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Tambah Toko
+                        </Button>
+                    )}
+                </div>
+            )}
 
             {/* ─── Catatan Penyelesaian ─────────────────────────────────── */}
             <div className="pt-2 border-t">

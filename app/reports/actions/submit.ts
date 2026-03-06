@@ -9,7 +9,7 @@ import type { MaterialEstimationJson } from "@/types/report";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { sendReportNotification } from "@/lib/email/send-report-notification";
+// import { sendReportNotification } from "@/lib/email/send-report-notification"; // TODO: Re-enable when ready
 import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
 
@@ -250,13 +250,14 @@ export async function submitReport(data: DraftData) {
 
         revalidatePath("/reports");
 
-        sendReportNotification(reportId).catch((err) => {
-            logger.error(
-                { operation: "submitReport", reportId },
-                "Failed to send notification email",
-                err,
-            );
-        });
+        // TODO: Re-enable email when ready
+        // sendReportNotification(reportId).catch((err) => {
+        //     logger.error(
+        //         { operation: "submitReport", reportId },
+        //         "Failed to send notification email",
+        //         err,
+        //     );
+        // });
 
         return { success: true, reportId };
     } catch (error) {

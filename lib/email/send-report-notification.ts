@@ -37,6 +37,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
     const rekananItems = items.filter((i) => i.handler === "REKANAN");
 
     const submittedAt = new Date().toLocaleDateString("id-ID", {
+        timeZone: "Asia/Jakarta",
         weekday: "long",
         year: "numeric",
         month: "long",
@@ -102,8 +103,11 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         totalEstimation: Number(report.totalEstimation),
         alfamartLogoBase64,
         buildingLogoBase64,
+        completionSelfieUrls: [],
+        completionNotes: undefined,
         approval: {
             reportStatus: report.status,
+            stamps: [],
         },
     });
 

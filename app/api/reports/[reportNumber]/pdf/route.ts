@@ -22,11 +22,11 @@ export async function GET(
                 store: {
                     select: { name: true, code: true },
                 },
-                logs: {
-                    orderBy: { createdAt: "desc" },
+                activities: {
+                    orderBy: { createdAt: "asc" },
                     include: {
-                        approver: {
-                            select: { name: true, NIK: true },
+                        actor: {
+                            select: { name: true, NIK: true, role: true },
                         },
                     },
                 },
@@ -45,6 +45,7 @@ export async function GET(
             []) as unknown as MaterialEstimationJson[];
 
         const submittedAt = report.createdAt.toLocaleDateString("id-ID", {
+            timeZone: "Asia/Jakarta",
             weekday: "long",
             year: "numeric",
             month: "long",
@@ -76,28 +77,54 @@ export async function GET(
             // We'll proceed, assuming they exist as checked in previous steps.
         }
 
-        // Find the log entry that caused the current report status (exact match),
-        // falling back to the most recent log if no exact status match exists.
-        const statusLog =
-            report.logs.find((l) => l.status === report.status) ??
-            report.logs[0];
+        const formatDate = (d: Date) =>
+            d.toLocaleDateString("id-ID", {
+                timeZone: "Asia/Jakarta",
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+            });
 
-        const approvalData = {
-            reportStatus: report.status,
-            approverName: statusLog?.approver?.name ?? undefined,
-            approverNIK: statusLog?.approver?.NIK ?? undefined,
-            approvedAt: statusLog
-                ? statusLog.createdAt.toLocaleDateString("id-ID", {
-                      weekday: "long",
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                  })
-                : undefined,
-            notes: statusLog?.notes ?? undefined,
-        };
+        const STAMP_ACTIONS = [
+            "ESTIMATION_APPROVED",
+            "ESTIMATION_REJECTED",
+            "ESTIMATION_REJECTED_REVISION",
+            "WORK_APPROVED",
+            "WORK_REJECTED_REVISION",
+            "FINALIZED",
+        ];
+
+        // Build stamps from actual activity log entries that exist,
+        // preserving chronological order — stamps are permanent once logged.
+        const stamps = report.activities
+            .filter((l) => STAMP_ACTIONS.includes(l.action))
+            .map((log) => ({
+                action: log.action,
+                approverName: log.actor?.name ?? undefined,
+                approverNIK: log.actor?.NIK ?? undefined,
+                approverRole: log.actor?.role ?? undefined,
+                approvedAt: formatDate(log.createdAt),
+                notes: log.notes ?? undefined,
+            }));
+
+        // Parse selfie URLs (stored as single URL or JSON array)
+        const rawSelfie = report.completionSelfieUrl;
+        const completionSelfieUrls: string[] = rawSelfie
+            ? rawSelfie.startsWith("[")
+                ? (JSON.parse(rawSelfie) as string[])
+                : [rawSelfie]
+            : [];
+
+        // Pull completion notes from the activity log
+        const completionLog = report.activities.find(
+            (l) =>
+                l.action === "COMPLETION_SUBMITTED" ||
+                l.action === "RESUBMITTED_WORK",
+        );
+        const completionNotes = completionLog?.notes ?? undefined;
 
         const pdfBuffer = await generateReportPdf({
             reportNumber: report.reportNumber,
@@ -111,7 +138,12 @@ export async function GET(
             totalEstimation: Number(report.totalEstimation),
             alfamartLogoBase64,
             buildingLogoBase64,
-            approval: approvalData,
+            completionSelfieUrls,
+            completionNotes,
+            approval: {
+                reportStatus: report.status,
+                stamps,
+            },
         });
 
         return new NextResponse(pdfBuffer as unknown as BodyInit, {

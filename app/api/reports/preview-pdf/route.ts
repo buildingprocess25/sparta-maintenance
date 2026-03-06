@@ -21,12 +21,26 @@ export async function GET() {
             totalEstimation: 1500000,
             alfamartLogoBase64: PLACEHOLDER_LOGO,
             buildingLogoBase64: PLACEHOLDER_LOGO,
+            completionSelfieUrls: [],
+            completionNotes: undefined,
             approval: {
-                reportStatus: "APPROVED_BMC",
-                approverName: "Dimas Bagas",
-                approverNIK: "12345678",
-                approvedAt: "Selasa, 13 Februari 2024 - 09:00",
-                // notes: "Mohon cek kembali estimasi harga engsel, terlalu mahal.",
+                reportStatus: "COMPLETED",
+                stamps: [
+                    {
+                        action: "WORK_APPROVED",
+                        approverName: "Dimas Bagas",
+                        approverNIK: "12345678",
+                        approverRole: "BMC",
+                        approvedAt: "Selasa, 13 Februari 2024 - 09:00",
+                    },
+                    {
+                        action: "FINALIZED",
+                        approverName: "Budi Santoso",
+                        approverNIK: "87654321",
+                        approverRole: "BNM_MANAGER",
+                        approvedAt: "Rabu, 14 Februari 2024 - 10:30",
+                    },
+                ],
             },
             items: [
                 {
