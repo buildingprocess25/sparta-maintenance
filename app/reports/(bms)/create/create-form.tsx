@@ -266,7 +266,7 @@ export default function CreateReportForm({
                     name: userInfo.name,
                     nik: userInfo.nik,
                     role: userInfo.role,
-                    storeInfo: `Toko: ${store || "Belum Dipilih"}${draftReportId ? ` | ${draftReportId}` : ""}`,
+                    storeInfo: `Toko: ${store || "Belum Dipilih"}${draftReportId && !draftReportId.startsWith("DRAFT-") ? ` | ${draftReportId}` : ""}`,
                 }}
             />
 

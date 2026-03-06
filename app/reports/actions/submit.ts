@@ -45,6 +45,70 @@ function buildEstimationsJson(data: DraftData): Prisma.InputJsonValue {
     return estimations as unknown as Prisma.InputJsonValue;
 }
 
+/**
+ * Moves every photo that was uploaded to the DRAFT folder in Supabase Storage
+ * to the real report number folder.
+ *
+ * Upload path at capture time: `{branch}/{storeCode}/DRAFT-{NIK}/{itemId}_{name}.ext`
+ * Correct path after submit:   `{branch}/{storeCode}/{reportNumber}/{itemId}_{name}.ext`
+ *
+ * Returns the updated checklistItems array with corrected photoUrl values.
+ */
+async function migrateReportPhotos(
+    items: DraftData["checklistItems"],
+    draftId: string,
+    reportId: string,
+): Promise<DraftData["checklistItems"]> {
+    const { getSupabaseClient } = await import("@/lib/supabase");
+    const storage = getSupabaseClient().storage.from("reports");
+
+    const results = await Promise.allSettled(
+        items.map(async (item) => {
+            if (!item.photoUrl || !item.photoUrl.includes(`/${draftId}/`)) {
+                return item;
+            }
+            try {
+                const urlObj = new URL(item.photoUrl);
+                // pathname: /storage/v1/object/public/reports/{path}
+                const oldPath = decodeURIComponent(
+                    urlObj.pathname.split("/reports/")[1] ?? "",
+                );
+                if (!oldPath) return item;
+
+                const newPath = oldPath.replace(
+                    `/${draftId}/`,
+                    `/${reportId}/`,
+                );
+
+                const { error } = await storage.move(oldPath, newPath);
+                if (error) {
+                    logger.error(
+                        { operation: "migrateReportPhotos", draftId, reportId },
+                        "Failed to move photo in storage",
+                        error,
+                    );
+                    // Non-fatal: keep the old URL — file is still accessible
+                    return item;
+                }
+
+                const {
+                    data: { publicUrl },
+                } = storage.getPublicUrl(newPath);
+                return {
+                    ...item,
+                    photoUrl: `${publicUrl}?t=${Date.now()}`,
+                };
+            } catch {
+                return item;
+            }
+        }),
+    );
+
+    return results.map((r, i) =>
+        r.status === "fulfilled" ? r.value : items[i],
+    );
+}
+
 export async function submitReport(data: DraftData) {
     const parsed = draftDataSchema.safeParse(data);
     if (!parsed.success) {
@@ -143,6 +207,46 @@ export async function submitReport(data: DraftData) {
 
             return finalReportId;
         });
+
+        // ── Photo migration ────────────────────────────────────────────────
+        // Photos were uploaded to DRAFT-{NIK}/ during drafting.
+        // Now that we have a real report number, move them to the correct
+        // folder ({branch}/{storeCode}/{reportNumber}/) and patch the DB row.
+        if (existingDraft?.reportNumber.startsWith("DRAFT-")) {
+            try {
+                const migratedItems = await migrateReportPhotos(
+                    data.checklistItems,
+                    existingDraft.reportNumber,
+                    reportId,
+                );
+
+                const anyMoved = migratedItems.some(
+                    (item, i) =>
+                        item.photoUrl !== data.checklistItems[i]?.photoUrl,
+                );
+
+                if (anyMoved) {
+                    await prisma.report.update({
+                        where: { reportNumber: reportId },
+                        data: {
+                            items: buildItemsJson({
+                                ...data,
+                                checklistItems: migratedItems,
+                            }),
+                        },
+                    });
+                }
+            } catch (err) {
+                // Non-fatal: report is submitted, photos are still accessible
+                // at the old DRAFT path. Log and continue.
+                logger.error(
+                    { operation: "submitReport", reportId },
+                    "Photo migration failed (non-fatal, photos remain at draft path)",
+                    err,
+                );
+            }
+        }
+        // ──────────────────────────────────────────────────────────────────
 
         revalidatePath("/reports");
 

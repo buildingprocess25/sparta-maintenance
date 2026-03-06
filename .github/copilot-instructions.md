@@ -4,6 +4,20 @@
 
 Sistem Pelaporan dan Tracking Aset Maintenance untuk PT Sumber Alfaria Trijaya. Next.js 16 App Router, TypeScript 5, Prisma 7, PostgreSQL (Neon), Supabase (photos), JWT sessions. UI in **Bahasa Indonesia**.
 
+## Development Commands
+
+```bash
+npm run dev           # start dev server
+npm run db:push       # push schema changes (uses DIRECT_URL via prisma.config.ts)
+npm run db:generate   # regenerate Prisma client after schema changes
+npm run db:studio     # Prisma Studio GUI
+npm run create-user   # create user via CLI (tsx scripts/create-user.ts)
+npm run db:seed       # seed DB
+```
+
+Always run `db:push && db:generate` together after editing `prisma/schema.prisma`.
+`prisma.config.ts` feeds `DIRECT_URL` (non-pooled) to Prisma CLI — this is separate from `DATABASE_URL` (pooled, used at runtime).
+
 ## UI Design Approach
 
 **Desktop-first** for all roles except BMS on `/reports/create` (mobile-first due to field mobility).
@@ -27,7 +41,14 @@ Four roles with separate dashboard components under `app/dashboard/_components/`
 - `BNM_MANAGER` → `bnm-dashboard.tsx` — final approval
 - `ADMIN` → `admin-dashboard.tsx` — system management
 
-Authentication guard: use `requireAuth()` from `@/lib/authorization` in server components. Returns `AuthUser` with `{ NIK, email, name, role, branchNames[] }`.
+Auth helpers in `lib/authorization.ts` — use the narrowest helper available:
+
+- `requireAuth()` — any logged-in user; redirects to `/login` if no session
+- `requireRole("BMC")` or `requireRole(["BMC", "ADMIN"])` — throws `AuthorizationError` if wrong role
+- `requireOwnership(report.createdByNIK)` — ADMIN bypasses; others must own the resource
+- `requireBranchAccess(branchName)` — ADMIN bypasses; others must have branch in `branchNames[]`
+
+All return `AuthUser`: `{ NIK, email, name, role, branchNames[] }`.
 
 ### Report Status Flow (10 states)
 
@@ -40,27 +61,48 @@ DRAFT → PENDING_ESTIMATION → ESTIMATION_APPROVED → IN_PROGRESS → PENDING
 
 ### Key Directories
 
-- `app/reports/actions/` — Server Actions (submit, approve-estimation, review-completion, approve-final, etc.)
-- `app/dashboard/queries.ts` — DB queries with `"server-only"` marker; one function per role
-- `app/reports/[reportNumber]/_components/` — sub-components for report detail view
-- `lib/authorization.ts` — `requireAuth()`, `getAuthUser()`, `AuthorizationError`
-- `lib/checklist-data.ts` — static checklist categories & items (source of truth)
-- `prisma/schema.prisma` — schema with `ReportStatus` and `ActivityAction` enums
+- `app/reports/actions/` — Server Actions: `submit.ts`, `draft.ts`, `approve-estimation.ts`, `review-completion.ts`, `approve-final.ts`, `resubmit.ts`, `start-work.ts`, etc.
+- `app/reports/actions/types.ts` — shared `DraftData`, `ChecklistItemData`, `BmsEstimationData`, `ReportFilters` types + `draftDataSchema` (Zod)
+- `app/dashboard/queries.ts` — DB queries (`"server-only"`); one function per role
+- `app/reports/[reportNumber]/_components/` — detail view sub-components (checklist-tab, history-tab, status-timeline, etc.)
+- `lib/authorization.ts` — all auth/CSRF helpers
+- `lib/checklist-data.ts` — static checklist categories & items; **single source of truth** for item IDs
+- `lib/report-helpers.ts` — `generateReportNumber()` with Postgres advisory lock; `PrismaTx` type for passing tx client
+
+### Data Model Notes
+
+`Report.items` and `Report.estimations` are **JSONB columns** (typed as `Json`), not relational. They hold `ReportItemJson[]` and `MaterialEstimationJson[]` respectively (see `types/report.ts`). Never create new child tables for these — use the JSONB pattern.
+
+Supabase photo storage path: `{branchName}/{storeCode}/DRAFT-{NIK}/{itemId}_{name}.ext` while drafting → moved to `{branchName}/{storeCode}/{reportNumber}/{itemId}_{name}.ext` on submit. Use `getSupabaseClient()` from `lib/supabase.ts` (lazy singleton).
 
 ## Conventions
 
 ### Server Actions pattern
 
+Every mutating action must: (1) call `requireRole` or `requireAuth`, (2) call `validateCSRF(await headers())`, (3) validate input with Zod, (4) mutate DB, (5) write `ActivityLog`, (6) call `revalidatePath`.
+
 ```ts
 // app/reports/actions/some-action.ts
 "use server";
-import { requireAuth } from "@/lib/authorization";
+import { requireRole, validateCSRF } from "@/lib/authorization";
+import { headers } from "next/headers";
+import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
 export async function someAction(reportNumber: string, notes?: string) {
-    const user = await requireAuth();
-    // ... validate, mutate DB, log ActivityLog entry
-    return { error: null } | { error: "message" };
+    const user = await requireRole("BMC");
+    await validateCSRF(await headers());
+    // ... validate input, mutate DB
+    await prisma.activityLog.create({
+        data: {
+            reportNumber,
+            actorNIK: user.NIK,
+            action: "ESTIMATION_APPROVED",
+            notes,
+        },
+    });
+    revalidatePath(`/reports/${reportNumber}`);
+    return { error: null };
 }
 ```
 
@@ -77,27 +119,18 @@ const handleAction = () =>
     });
 ```
 
-### Audit trail — always log to ActivityLog
-
-Every state-changing action must write an `ActivityLog` entry:
-
-```ts
-await prisma.activityLog.create({
-    data: { reportNumber, actorNIK: user.NIK, action: "SUBMITTED", notes },
-});
-```
-
 ### Queries pattern
 
-- Files use `"server-only"` at top, never called from client components
-- Scope queries by role: BMS → `createdByNIK`, BMC/BNM → `branchName: { in: branchNames }`
-- Use structured logging: `logger.error({ operation: "fnName", userId }, "msg", error)`
+- Add `"server-only"` at top of every query file — never import into client components
+- Scope by role: BMS → `createdByNIK: user.NIK`; BMC/BNM → `branchName: { in: user.branchNames }`
+- Always filter out `DRAFT` from branch-scoped queries (BMC/BNM should never see drafts)
+- Structured logging: `logger.error({ operation: "fnName", userId: user.NIK }, "message", error)`
 
 ### Component organization
 
-- Page-level sub-components go in `_components/` (underscore prefix, not shown in routes)
-- Shared types extracted to `_components/types.ts`
-- Heavy components split into focused files (checklist-tab, history-tab, etc.)
+- Page-level sub-components go in `_components/` (underscore prefix = not a route)
+- Shared TypeScript types extracted to `_components/types.ts`
+- Heavy components split into focused files (checklist-tab.tsx, history-tab.tsx, etc.)
 
 ## Database
 

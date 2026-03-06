@@ -186,7 +186,9 @@ export type ActivityItem = {
 // ── internal helper ───────────────────────────────────────────────────────────
 
 async function fetchActivityLogs(
-    where: Parameters<typeof prisma.activityLog.findMany>[0]["where"],
+    where: NonNullable<
+        Parameters<typeof prisma.activityLog.findMany>[0]
+    >["where"],
     limit: number,
 ): Promise<ActivityItem[]> {
     const rows = await prisma.activityLog.findMany({

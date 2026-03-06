@@ -9,6 +9,7 @@ import {
     Settings,
     ArrowRight,
     TrendingUp,
+    ClipboardCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { getUserStats, getBMSActivity } from "../queries";
@@ -23,6 +24,14 @@ const MENUS = [
         icon: Plus,
         href: "/reports/create",
         variant: "default" as const,
+    },
+    {
+        title: "Penyelesaian Pekerjaan",
+        description:
+            "Dokumentasikan penyelesaian dengan foto & realisasi biaya",
+        icon: ClipboardCheck,
+        href: "/reports/complete",
+        variant: "outline" as const,
     },
     {
         title: "Laporan Saya",

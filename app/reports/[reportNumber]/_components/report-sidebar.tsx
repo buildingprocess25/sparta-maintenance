@@ -10,6 +10,7 @@ import {
     User,
     XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -41,7 +42,6 @@ export function ReportSidebar({
         activeDialog,
         setActiveDialog,
         handleStartWork,
-        handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
         handleApproveFinal,
@@ -93,60 +93,18 @@ export function ReportSidebar({
                     (report.status === "IN_PROGRESS" ||
                         report.status === "REVIEW_REJECTED_REVISION") && (
                         <div className="space-y-3">
-                            {activeDialog === "submit_completion" ? (
-                                <div className="space-y-2">
-                                    <textarea
-                                        className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                        rows={3}
-                                        placeholder="Catatan penyelesaian (opsional)..."
-                                        value={notesInput}
-                                        onChange={(e) =>
-                                            setNotesInput(e.target.value)
-                                        }
-                                    />
-                                    <Button
-                                        className="w-full"
-                                        size="sm"
-                                        onClick={handleSubmitCompletion}
-                                        disabled={isPending}
-                                    >
-                                        {isPending ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Mengirim...
-                                            </>
-                                        ) : (
-                                            "Konfirmasi Kirim"
-                                        )}
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => {
-                                            setActiveDialog(null);
-                                            setNotesInput("");
-                                        }}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
-                            ) : (
-                                <Button
-                                    className="w-full"
-                                    size="lg"
-                                    onClick={() =>
-                                        setActiveDialog("submit_completion")
-                                    }
-                                    disabled={isPending}
-                                >
+                            <Link
+                                href={`/reports/complete?report=${report.reportNumber}`}
+                                className="block w-full"
+                            >
+                                <Button className="w-full" size="lg">
                                     <CheckCircle2 className="h-4 w-4 mr-2" />
                                     {report.status ===
                                     "REVIEW_REJECTED_REVISION"
                                         ? "Kirim Ulang Laporan"
                                         : "Kirim Laporan Penyelesaian"}
                                 </Button>
-                            )}
+                            </Link>
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                                 <p className="text-sm font-medium text-blue-800">
                                     {report.status ===

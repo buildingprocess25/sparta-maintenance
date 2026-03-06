@@ -5,6 +5,7 @@ import {
     WrenchIcon,
     XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { ReportData, Viewer, ActionState } from "./types";
 
@@ -22,7 +23,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         activeDialog,
         setActiveDialog,
         handleStartWork,
-        handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
         handleApproveFinal,
@@ -92,46 +92,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             {/* BMS: submit completion */}
             {viewer.role === "BMS" &&
                 (report.status === "IN_PROGRESS" ||
-                    report.status === "REVIEW_REJECTED_REVISION") &&
-                (activeDialog === "submit_completion" ? (
-                    <div className="space-y-2">
-                        <textarea
-                            className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
-                            rows={2}
-                            placeholder="Catatan penyelesaian (opsional)..."
-                            value={notesInput}
-                            onChange={(e) => setNotesInput(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-none"
-                                onClick={() => {
-                                    setActiveDialog(null);
-                                    setNotesInput("");
-                                }}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                className="flex-1"
-                                size="sm"
-                                onClick={handleSubmitCompletion}
-                                disabled={isPending}
-                            >
-                                {isPending ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Mengirim...
-                                    </>
-                                ) : (
-                                    "Konfirmasi Kirim"
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
+                    report.status === "REVIEW_REJECTED_REVISION") && (
                     <div className="flex gap-2">
                         <a
                             href={`/api/reports/${report.reportNumber}/pdf`}
@@ -143,19 +104,19 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 <Printer className="h-4 w-4" />
                             </Button>
                         </a>
-                        <Button
+                        <Link
+                            href={`/reports/complete?report=${report.reportNumber}`}
                             className="flex-1"
-                            size="lg"
-                            onClick={() => setActiveDialog("submit_completion")}
-                            disabled={isPending}
                         >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {report.status === "REVIEW_REJECTED_REVISION"
-                                ? "Kirim Ulang Laporan"
-                                : "Kirim Laporan Penyelesaian"}
-                        </Button>
+                            <Button className="w-full" size="lg">
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {report.status === "REVIEW_REJECTED_REVISION"
+                                    ? "Kirim Ulang Laporan"
+                                    : "Kirim Laporan Penyelesaian"}
+                            </Button>
+                        </Link>
                     </div>
-                ))}
+                )}
 
             {/* BMC: review estimation */}
             {viewer.role === "BMC" &&

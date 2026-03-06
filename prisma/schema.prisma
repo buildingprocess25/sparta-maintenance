@@ -107,6 +107,9 @@ model Report {
   items         Json          @default("[]")
   estimations   Json          @default("[]")
   
+  // Completion data
+  completionSelfieUrl  String?   // selfie photo taken by BMS at finish
+  
   logs          ApprovalLog[]
   activities    ActivityLog[]
 
