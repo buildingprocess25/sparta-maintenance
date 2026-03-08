@@ -6,7 +6,6 @@ import {
     ChevronDown,
     MapPin,
     Plus,
-    ReceiptText,
     Store,
     Trash2,
     ZoomIn,
@@ -417,8 +416,8 @@ export interface CompletionItemCardProps {
     estimations: MaterialEstimationJson[];
     state: CompletionItemState;
     onChange: (patch: Partial<CompletionItemState>) => void;
-    /** Called when user wants to open camera for this item */
-    onOpenCamera: (itemId: string, type: "after" | "receipt") => void;
+    /** Called when user wants to open camera for after photo */
+    onOpenCamera: (itemId: string, type: "after") => void;
     /** Called when user taps a thumbnail to preview it fullscreen */
     onPreview: (url: string) => void;
 }
@@ -577,78 +576,6 @@ export function CompletionItemCard({
                     />
                 </div>
             </div>
-
-            {/* ─── Foto Nota/Struk ─────────────────────────────────────── */}
-            <div className="pt-2 border-t">
-                <Label className="text-sm flex items-center gap-1.5">
-                    <ReceiptText className="h-3.5 w-3.5" />
-                    Foto Nota/Struk Belanja{" "}
-                    <span className="text-destructive">*</span>
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                    Foto nota asli (harus ada stempel atau kop toko)
-                </p>
-                <PhotoThumbnails
-                    photos={state.receiptPhotos}
-                    onRemove={(id) =>
-                        onChange({
-                            receiptPhotos: state.receiptPhotos.filter(
-                                (p) => p.id !== id,
-                            ),
-                        })
-                    }
-                    onPreview={onPreview}
-                    variant="thumb"
-                />
-                <Button
-                    type="button"
-                    variant="ghost"
-                    size={state.receiptPhotos.length > 0 ? "sm" : "default"}
-                    className="mt-2 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 hover:text-blue-700"
-                    onClick={() => onOpenCamera(item.itemId, "receipt")}
-                >
-                    <Camera className="mr-1.5 h-4 w-4" />
-                    {state.receiptPhotos.length > 0
-                        ? "Tambah Nota"
-                        : "Buka Kamera"}
-                </Button>
-            </div>
-
-            {/* ─── Toko Material (hanya jika ada foto nota) ────────────── */}
-            {state.receiptPhotos.length > 0 && (
-                <div className="pt-2 border-t">
-                    <Label className="text-sm flex items-center gap-1.5 mb-2">
-                        <Store className="h-3.5 w-3.5" />
-                        Toko Material{" "}
-                        <span className="text-destructive">*</span>
-                    </Label>
-                    {state.materialStores.length > 0 ? (
-                        <MaterialStoreRows
-                            stores={state.materialStores}
-                            onChange={(stores) =>
-                                onChange({ materialStores: stores })
-                            }
-                        />
-                    ) : (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="text-primary hover:text-primary hover:bg-primary/10"
-                            onClick={() =>
-                                onChange({
-                                    materialStores: [
-                                        { id: genId(), name: "", city: "" },
-                                    ],
-                                })
-                            }
-                        >
-                            <Plus className="h-4 w-4 mr-1" />
-                            Tambah Toko
-                        </Button>
-                    )}
-                </div>
-            )}
 
             {/* ─── Catatan Penyelesaian ─────────────────────────────────── */}
             <div className="pt-2 border-t">

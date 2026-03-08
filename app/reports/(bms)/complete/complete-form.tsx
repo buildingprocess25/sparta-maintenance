@@ -16,21 +16,14 @@ import { createInitialItemState } from "./types";
 import { submitCompletionWork } from "@/app/reports/actions/submit-completion-work";
 import { fetchReportForCompletion } from "./actions";
 import type { WorkableReport, ReportForCompletion } from "./queries";
-import type {
-    CompletionDraftData,
-    CompletionItemState,
-    LocalPhoto,
-} from "./types";
+import type { CompletionDraftData, CompletionItemState } from "./types";
 import { useCompletionAutosave } from "./hooks/use-completion-autosave";
 import { realisasiGrandTotal } from "./types";
 import { useRouter } from "next/navigation";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CameraTarget =
-    | { target: "item"; itemId: string; type: "after" | "receipt" }
-    | { target: "selfie" }
-    | null;
+type CameraTarget = { target: "item"; itemId: string; type: "after" } | null;
 
 interface Props {
     workableReports: WorkableReport[];
@@ -121,7 +114,6 @@ export function CompleteForm({
     const [itemStates, setItemStates] = useState<
         Map<string, CompletionItemState>
     >(new Map());
-    const [selfiePhotos, setSelfiePhotos] = useState<LocalPhoto[]>([]);
     const [globalNotes, setGlobalNotes] = useState<string>("");
 
     // ── Camera state ─────────────────────────────────────────────────────────
@@ -136,14 +128,13 @@ export function CompleteForm({
         (
             rn: string,
             notes: string,
-            selfies: LocalPhoto[],
             states: Map<string, CompletionItemState>,
         ): CompletionDraftData => ({
             version: 1,
             reportNumber: rn,
             savedAt: new Date().toISOString(),
             globalNotes: notes,
-            selfiePhotoIds: selfies.map((p) => p.id),
+            selfiePhotoIds: [],
             itemStates: Object.fromEntries(
                 [...states.entries()].map(([itemId, s]) => [
                     itemId,
@@ -151,7 +142,7 @@ export function CompleteForm({
                         afterPhotoIds: s.afterPhotos.map((p) => p.id),
                         realisasiEntries: s.realisasiEntries,
                         materialStores: s.materialStores,
-                        receiptPhotoIds: s.receiptPhotos.map((p) => p.id),
+                        receiptPhotoIds: [],
                         notes: s.notes,
                     },
                 ]),
@@ -162,17 +153,10 @@ export function CompleteForm({
 
     // ─── Trigger autosave whenever state changes ──────────────────────────────
     const triggerAutosave = useCallback(
-        (
-            notes: string,
-            selfies: LocalPhoto[],
-            states: Map<string, CompletionItemState>,
-        ) => {
+        (notes: string, states: Map<string, CompletionItemState>) => {
             const rn = reportNumberRef.current;
             if (!rn) return;
-            autosave.triggerSave(
-                rn,
-                buildDraftData(rn, notes, selfies, states),
-            );
+            autosave.triggerSave(rn, buildDraftData(rn, notes, states));
         },
         [autosave, buildDraftData],
     );
@@ -199,7 +183,6 @@ export function CompleteForm({
                     },
                 );
                 setCurrentReport(report);
-                setSelfiePhotos(draft.selfiePhotos);
                 setGlobalNotes(draft.globalNotes);
 
                 // Merge draft with fresh item states (in case new items were added)
@@ -214,7 +197,6 @@ export function CompleteForm({
             } else {
                 setCurrentReport(report);
                 setItemStates(buildItemStates(report));
-                setSelfiePhotos([]);
                 setGlobalNotes("");
             }
         },
@@ -259,32 +241,14 @@ export function CompleteForm({
     }, [currentReport, router]);
 
     // ── Camera handlers ───────────────────────────────────────────────────────
-    const handleOpenCamera = useCallback(
-        (itemId: string, type: "after" | "receipt") => {
-            setCameraTarget({ target: "item", itemId, type });
-        },
-        [],
-    );
-
-    const handleOpenSelfieCamera = useCallback(() => {
-        setCameraTarget({ target: "selfie" });
+    const handleOpenCamera = useCallback((itemId: string, type: "after") => {
+        setCameraTarget({ target: "item", itemId, type });
     }, []);
 
     const handlePhotoCaptured = useCallback(
         async (file: File) => {
             if (!cameraTarget || !currentReport) return;
             setCameraTarget(null);
-
-            if (cameraTarget.target === "selfie") {
-                const rn = reportNumberRef.current!;
-                const photo = await autosave.addPhoto(rn, file, "selfie");
-                setSelfiePhotos((prev) => {
-                    const next = [...prev, photo];
-                    triggerAutosave(globalNotes, next, itemStates);
-                    return next;
-                });
-                return;
-            }
 
             const { itemId, type } = cameraTarget;
             const rn = reportNumberRef.current!;
@@ -299,29 +263,14 @@ export function CompleteForm({
                 if (!s) return prev;
                 const updated: CompletionItemState = {
                     ...s,
-                    afterPhotos:
-                        type === "after"
-                            ? [...s.afterPhotos, photo]
-                            : s.afterPhotos,
-                    receiptPhotos:
-                        type === "receipt"
-                            ? [...s.receiptPhotos, photo]
-                            : s.receiptPhotos,
+                    afterPhotos: [...s.afterPhotos, photo],
                 };
                 next.set(itemId, updated);
-                triggerAutosave(globalNotes, selfiePhotos, next);
+                triggerAutosave(globalNotes, next);
                 return next;
             });
         },
-        [
-            cameraTarget,
-            currentReport,
-            autosave,
-            globalNotes,
-            selfiePhotos,
-            itemStates,
-            triggerAutosave,
-        ],
+        [cameraTarget, currentReport, autosave, globalNotes, triggerAutosave],
     );
 
     // ── Item state change ─────────────────────────────────────────────────────
@@ -333,32 +282,19 @@ export function CompleteForm({
                 if (!s) return prev;
                 const updated = { ...s, ...patch };
                 next.set(itemId, updated);
-                triggerAutosave(globalNotes, selfiePhotos, next);
+                triggerAutosave(globalNotes, next);
                 return next;
             });
         },
-        [globalNotes, selfiePhotos, triggerAutosave],
+        [globalNotes, triggerAutosave],
     );
 
     const handleGlobalNotesChange = useCallback(
         (value: string) => {
             setGlobalNotes(value);
-            triggerAutosave(value, selfiePhotos, itemStates);
+            triggerAutosave(value, itemStates);
         },
-        [selfiePhotos, itemStates, triggerAutosave],
-    );
-
-    // ── Remove selfie photo ───────────────────────────────────────────────────
-    const handleRemoveSelfiePhoto = useCallback(
-        async (id: string) => {
-            await autosave.removePhoto(id);
-            setSelfiePhotos((prev) => {
-                const next = prev.filter((p) => p.id !== id);
-                triggerAutosave(globalNotes, next, itemStates);
-                return next;
-            });
-        },
-        [autosave, globalNotes, itemStates, triggerAutosave],
+        [itemStates, triggerAutosave],
     );
 
     // ── Submit ────────────────────────────────────────────────────────────────
@@ -403,34 +339,6 @@ export function CompleteForm({
                 );
                 return;
             }
-            if (state.materialStores.length === 0) {
-                toast.error("Toko material wajib diisi", {
-                    description: `Item: ${item.itemName}`,
-                });
-                return;
-            }
-            if (
-                state.materialStores.some(
-                    (s) => !s.name.trim() || !s.city.trim(),
-                )
-            ) {
-                toast.error(
-                    "Semua toko material harus memiliki nama dan kota",
-                    { description: `Item: ${item.itemName}` },
-                );
-                return;
-            }
-            if (state.receiptPhotos.length === 0) {
-                toast.error("Foto nota/struk wajib diunggah", {
-                    description: `Item: ${item.itemName}`,
-                });
-                return;
-            }
-        }
-
-        if (selfiePhotos.length === 0) {
-            toast.error("Foto selfie bersama pejabat toko wajib diunggah");
-            return;
         }
 
         startTransition(async () => {
@@ -442,30 +350,6 @@ export function CompleteForm({
             const loadingId = toast.loading(
                 "Mengunggah foto dan mengirim laporan...",
             );
-
-            // ── Upload selfie photos ─────────────────────────────────────────
-            const uploadedSelfieUrls: string[] = [];
-            for (let i = 0; i < selfiePhotos.length; i++) {
-                const photo = selfiePhotos[i];
-                const file = await autosave.getPhotoFile(photo.id);
-                if (!file) {
-                    toast.error("Gagal memuat foto selfie dari perangkat", {
-                        id: loadingId,
-                    });
-                    return;
-                }
-                const url = await compressAndUpload(
-                    file,
-                    `${branch}/${store}/${rn}/completion/selfie-${ts}-${i}.jpg`,
-                );
-                if (!url) {
-                    toast.error("Gagal mengunggah foto selfie", {
-                        id: loadingId,
-                    });
-                    return;
-                }
-                uploadedSelfieUrls.push(url);
-            }
 
             // ── Upload item photos & build completion items ──────────────────
             const completionItems: import("@/app/reports/actions/submit-completion-work").CompletionItemInput[] =
@@ -500,31 +384,6 @@ export function CompleteForm({
                     afterImages.push(url);
                 }
 
-                // Upload receipt photos
-                const receiptImages: string[] = [];
-                for (let i = 0; i < state.receiptPhotos.length; i++) {
-                    const photo = state.receiptPhotos[i];
-                    const file = await autosave.getPhotoFile(photo.id);
-                    if (!file) {
-                        toast.error(
-                            `Gagal memuat foto nota untuk item ${item.itemName}`,
-                            { id: loadingId },
-                        );
-                        return;
-                    }
-                    const url = await compressAndUpload(
-                        file,
-                        `${branch}/${store}/${rn}/receipt/${item.itemId}-${ts}-${i}.jpg`,
-                    );
-                    if (!url) {
-                        toast.error("Gagal mengunggah foto nota", {
-                            id: loadingId,
-                        });
-                        return;
-                    }
-                    receiptImages.push(url);
-                }
-
                 completionItems.push({
                     itemId: item.itemId,
                     afterImages,
@@ -536,11 +395,8 @@ export function CompleteForm({
                         totalPrice: e.quantity * e.price,
                     })),
                     actualCost: realisasiGrandTotal(state.realisasiEntries),
-                    materialStores: state.materialStores.map((s) => ({
-                        name: s.name.trim(),
-                        city: s.city.trim(),
-                    })),
-                    receiptImages,
+                    materialStores: [],
+                    receiptImages: [],
                     notes: state.notes.trim() || undefined,
                 });
             }
@@ -549,7 +405,7 @@ export function CompleteForm({
             const result = await submitCompletionWork(
                 rn,
                 completionItems,
-                uploadedSelfieUrls,
+                [],
                 globalNotes.trim() || undefined,
             );
 
@@ -569,7 +425,6 @@ export function CompleteForm({
     }, [
         currentReport,
         itemStates,
-        selfiePhotos,
         globalNotes,
         autosave,
         startTransition,
@@ -617,9 +472,6 @@ export function CompleteForm({
                         itemStates={itemStates}
                         onItemChange={handleItemChange}
                         onOpenCamera={handleOpenCamera}
-                        selfiePhotos={selfiePhotos}
-                        onOpenSelfieCamera={handleOpenSelfieCamera}
-                        onRemoveSelfiePhoto={handleRemoveSelfiePhoto}
                         globalNotes={globalNotes}
                         onGlobalNotesChange={handleGlobalNotesChange}
                         isPending={isPending}

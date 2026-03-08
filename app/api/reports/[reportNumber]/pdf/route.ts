@@ -110,13 +110,24 @@ export async function GET(
                 notes: log.notes ?? undefined,
             }));
 
-        // Parse selfie URLs (stored as single URL or JSON array)
-        const rawSelfie = report.completionSelfieUrl;
+        // Parse selfie URLs — now stored in startSelfieUrl (set at start-work).
+        // Format: plain URL (1 photo) or JSON-stringified array (multiple photos).
+        const rawSelfie = report.startSelfieUrl;
         const completionSelfieUrls: string[] = rawSelfie
             ? rawSelfie.startsWith("[")
                 ? (JSON.parse(rawSelfie) as string[])
                 : [rawSelfie]
             : [];
+
+        // Parse start-work receipt URLs — stored as JSONB, may come back as a
+        // raw JSON string from the DB driver. Handle both forms defensively.
+        const rawReceipts = report.startReceiptUrls;
+        const startReceiptUrls: string[] = Array.isArray(rawReceipts)
+            ? (rawReceipts as string[])
+            : typeof rawReceipts === "string" &&
+                (rawReceipts as string).startsWith("[")
+              ? (JSON.parse(rawReceipts as string) as string[])
+              : [];
 
         // Pull completion notes from the activity log
         const completionLog = report.activities.find(
@@ -139,6 +150,7 @@ export async function GET(
             alfamartLogoBase64,
             buildingLogoBase64,
             completionSelfieUrls,
+            startReceiptUrls,
             completionNotes,
             approval: {
                 reportStatus: report.status,

@@ -107,6 +107,10 @@ model Report {
   items         Json          @default("[]")
   estimations   Json          @default("[]")
   
+  // Start-work data (captured when BMS clicks "Mulai Pengerjaan")
+  startSelfieUrl       String?   // selfie photo(s) taken by BMS at start (JSON array or single URL)
+  startReceiptUrls     Json      @default("[]")  // nota/receipt photos taken at start
+
   // Completion data
   completionSelfieUrl  String?   // selfie photo taken by BMS at finish
   

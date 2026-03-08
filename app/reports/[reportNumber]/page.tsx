@@ -44,6 +44,35 @@ export default async function ReportDetailPage({ params }: Props) {
     const estimations = (report.estimations ??
         []) as unknown as MaterialEstimationJson[];
 
+    // Parse selvie URL — stored as plain URL (1 photo) or JSON array (multiple)
+    function parseUrlField(raw: string | null | undefined): string[] {
+        if (!raw) return [];
+        if (raw.startsWith("[")) {
+            try {
+                return JSON.parse(raw) as string[];
+            } catch {
+                return [];
+            }
+        }
+        return [raw];
+    }
+
+    // Parse receipt URLs — stored as JSONB array, but may come back as a JSON
+    // string with some DB drivers (e.g. Neon). Handle both forms defensively.
+    function parseJsonArray(raw: unknown): string[] {
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw as string[];
+        if (typeof raw === "string" && raw.startsWith("[")) {
+            try {
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? (parsed as string[]) : [];
+            } catch {
+                return [];
+            }
+        }
+        return [];
+    }
+
     return (
         <ReportDetailView
             report={{
@@ -64,6 +93,8 @@ export default async function ReportDetailPage({ params }: Props) {
                     actorName: a.actor.name,
                     createdAt: a.createdAt,
                 })),
+                startSelfieUrls: parseUrlField(report.startSelfieUrl),
+                startReceiptUrls: parseJsonArray(report.startReceiptUrls),
             }}
             viewer={{ role: user.role, nik: user.NIK }}
         />

@@ -20,6 +20,8 @@ export type ReportData = {
     items: ReportItemJson[];
     estimations: MaterialEstimationJson[];
     activities: ActivityEntry[];
+    startSelfieUrls: string[];
+    startReceiptUrls: string[];
 };
 
 export type Viewer = { role: string; nik: string };
@@ -31,7 +33,6 @@ export type ActionState = {
     setNotesInput: (v: string) => void;
     activeDialog: string | null;
     setActiveDialog: (v: string | null) => void;
-    handleStartWork: () => void;
     handleSubmitCompletion: () => void;
     handleReviewEstimation: (
         decision: "approve" | "reject_revision" | "reject",

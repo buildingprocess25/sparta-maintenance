@@ -22,7 +22,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         setNotesInput,
         activeDialog,
         setActiveDialog,
-        handleStartWork,
         handleReviewEstimation,
         handleReviewCompletion,
         handleApproveFinal,
@@ -68,24 +67,15 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 <Printer className="h-4 w-4" />
                             </Button>
                         </a>
-                        <Button
+                        <Link
+                            href={`/reports/start-work?report=${report.reportNumber}`}
                             className="flex-1"
-                            size="lg"
-                            onClick={handleStartWork}
-                            disabled={isPending}
                         >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <WrenchIcon className="h-4 w-4 mr-2" />
-                                    Mulai Pengerjaan
-                                </>
-                            )}
-                        </Button>
+                            <Button className="w-full" size="lg">
+                                <WrenchIcon className="h-4 w-4 mr-2" />
+                                Mulai Pengerjaan
+                            </Button>
+                        </Link>
                     </div>
                 )}
 

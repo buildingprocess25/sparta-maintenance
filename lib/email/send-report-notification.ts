@@ -104,6 +104,7 @@ export async function sendReportNotification(reportId: string): Promise<void> {
         alfamartLogoBase64,
         buildingLogoBase64,
         completionSelfieUrls: [],
+        startReceiptUrls: [],
         completionNotes: undefined,
         approval: {
             reportStatus: report.status,

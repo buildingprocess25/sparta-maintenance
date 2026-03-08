@@ -6,9 +6,8 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, Layers, Package } from "lucide-react";
+import { History, Layers, Package, ClipboardList } from "lucide-react";
 
-import { startWork } from "@/app/reports/actions";
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
@@ -19,6 +18,7 @@ import { StatusTimeline } from "./_components/status-timeline";
 import { ReportSidebar } from "./_components/report-sidebar";
 import { ChecklistTab } from "./_components/checklist-tab";
 import { EstimationsTab } from "./_components/estimations-tab";
+import { CompletionTab } from "./_components/completion-tab";
 import { HistoryTab } from "./_components/history-tab";
 import { MobileCtaBar } from "./_components/mobile-cta-bar";
 
@@ -56,26 +56,20 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
     ).length;
 
+    // Show Penyelesaian tab instead of Estimasi for statuses after work is done
+    const COMPLETION_STATUSES = [
+        "IN_PROGRESS",
+        "PENDING_REVIEW",
+        "REVIEW_REJECTED_REVISION",
+        "APPROVED_BMC",
+        "COMPLETED",
+    ];
+    const showCompletionTab = COMPLETION_STATUSES.includes(report.status);
+
     const [isPending, startTransition] = useTransition();
     const [notesInput, setNotesInput] = useState("");
     const [activeDialog, setActiveDialog] = useState<string | null>(null);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-
-    const handleStartWork = () => {
-        startTransition(async () => {
-            const result = await startWork(report.reportNumber);
-            if (result.error) {
-                toast.error("Gagal memulai pengerjaan", {
-                    description: result.error,
-                });
-            } else {
-                toast.success("Pengerjaan dimulai!", {
-                    description:
-                        "Status laporan diubah menjadi 'Sedang Dikerjakan'.",
-                });
-            }
-        });
-    };
 
     const handleSubmitCompletion = () => {
         startTransition(async () => {
@@ -175,7 +169,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         setNotesInput,
         activeDialog,
         setActiveDialog,
-        handleStartWork,
         handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
@@ -233,16 +226,27 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         value="estimations"
                                         className="rounded-lg px-2 py-2.5 sm:px-4 text-muted-foreground hover:bg-primary/30 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-200 gap-1.5 sm:gap-2"
                                     >
-                                        <Package className="h-4 w-4 shrink-0" />
-                                        <span className="font-medium text-xs sm:text-sm truncate">
-                                            Estimasi
-                                        </span>
-                                        <Badge
-                                            variant="secondary"
-                                            className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
-                                        >
-                                            {report.estimations.length}
-                                        </Badge>
+                                        {showCompletionTab ? (
+                                            <>
+                                                <ClipboardList className="h-4 w-4 shrink-0" />
+                                                <span className="font-medium text-xs sm:text-sm truncate">
+                                                    Penyelesaian
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Package className="h-4 w-4 shrink-0" />
+                                                <span className="font-medium text-xs sm:text-sm truncate">
+                                                    Estimasi
+                                                </span>
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
+                                                >
+                                                    {report.estimations.length}
+                                                </Badge>
+                                            </>
+                                        )}
                                     </TabsTrigger>
                                     <TabsTrigger
                                         value="history"
@@ -269,11 +273,23 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                             </TabsContent>
 
                             <TabsContent value="estimations" className="mt-0">
-                                <EstimationsTab
-                                    estimations={report.estimations}
-                                    totalEstimation={report.totalEstimation}
-                                    formatCurrency={formatCurrency}
-                                />
+                                {showCompletionTab ? (
+                                    <CompletionTab
+                                        items={report.items}
+                                        startSelfieUrls={report.startSelfieUrls}
+                                        startReceiptUrls={
+                                            report.startReceiptUrls
+                                        }
+                                        formatCurrency={formatCurrency}
+                                        onPhotoClick={setLightboxSrc}
+                                    />
+                                ) : (
+                                    <EstimationsTab
+                                        estimations={report.estimations}
+                                        totalEstimation={report.totalEstimation}
+                                        formatCurrency={formatCurrency}
+                                    />
+                                )}
                             </TabsContent>
 
                             <TabsContent value="history" className="mt-0">

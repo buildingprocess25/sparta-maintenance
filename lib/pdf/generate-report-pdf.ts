@@ -474,6 +474,7 @@ export type ReportPdfData = {
     alfamartLogoBase64: string;
     buildingLogoBase64: string;
     completionSelfieUrls: string[];
+    startReceiptUrls: string[];
     completionNotes?: string;
     approval: {
         reportStatus: string;
@@ -1604,7 +1605,8 @@ function buildReportDocument(
                 );
                 if (
                     completionItems.length === 0 &&
-                    data.completionSelfieUrls.length === 0
+                    data.completionSelfieUrls.length === 0 &&
+                    data.startReceiptUrls.length === 0
                 )
                     return null;
 
@@ -1695,7 +1697,7 @@ function buildReportDocument(
                         ),
                     ),
 
-                    // Selfie BMS
+                    // Foto Selfie BMS
                     data.completionSelfieUrls.length > 0
                         ? React.createElement(
                               View,
@@ -1706,7 +1708,27 @@ function buildReportDocument(
                                   dimensionMap,
                                   BEFORE_AFTER_MAX_HEIGHT,
                               ),
-                              // Overall completion notes
+                          )
+                        : null,
+
+                    // Nota / Struk Belanja — halaman baru jika selfie sudah ada
+                    data.startReceiptUrls.length > 0
+                        ? React.createElement(
+                              View,
+                              {
+                                  wrap: false,
+                                  style: styles.selfieSection,
+                                  ...(data.completionSelfieUrls.length > 0
+                                      ? { break: true }
+                                      : {}),
+                              },
+                              renderPhotoGrid(
+                                  data.startReceiptUrls,
+                                  "Nota / Struk Belanja",
+                                  dimensionMap,
+                                  BEFORE_AFTER_MAX_HEIGHT,
+                              ),
+                              // Completion notes ditempatkan setelah nota
                               data.completionNotes
                                   ? React.createElement(
                                         View,
@@ -1726,7 +1748,26 @@ function buildReportDocument(
                                     )
                                   : null,
                           )
-                        : null,
+                        : data.completionNotes
+                          ? React.createElement(
+                                View,
+                                { wrap: false, style: styles.selfieSection },
+                                React.createElement(
+                                    View,
+                                    {
+                                        style: {
+                                            ...styles.completionNoteBox,
+                                            marginTop: 6,
+                                        },
+                                    },
+                                    React.createElement(
+                                        Text,
+                                        { style: styles.completionNoteText },
+                                        data.completionNotes,
+                                    ),
+                                ),
+                            )
+                          : null,
                 );
             })(),
 
@@ -1778,6 +1819,7 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
     // Collect all photo URLs that appear in the PDF
     const allUrls: string[] = [
         ...data.completionSelfieUrls,
+        ...data.startReceiptUrls,
         ...data.items.flatMap((item) => [
             ...(item.images ?? (item.photoUrl ? [item.photoUrl] : [])),
             ...(item.afterImages ?? []),

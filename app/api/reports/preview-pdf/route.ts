@@ -22,6 +22,7 @@ export async function GET() {
             alfamartLogoBase64: PLACEHOLDER_LOGO,
             buildingLogoBase64: PLACEHOLDER_LOGO,
             completionSelfieUrls: [],
+            startReceiptUrls: [],
             completionNotes: undefined,
             approval: {
                 reportStatus: "COMPLETED",

@@ -3,14 +3,10 @@
 import { useState } from "react";
 import {
     AlertCircle,
-    Camera,
     CheckCircle2,
     ChevronDown,
     Loader2,
     Store,
-    Trash2,
-    User,
-    ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -34,26 +30,17 @@ import {
 } from "./completion-item-card";
 import type { ReportForCompletion } from "../queries";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
-import type { LocalPhoto } from "../types";
 import { realisasiGrandTotal } from "../types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function isItemComplete(state: CompletionItemState): boolean {
-    const storesValid =
-        state.receiptPhotos.length === 0 ||
-        (state.materialStores.length > 0 &&
-            state.materialStores.every(
-                (s) => s.name.trim().length > 0 && s.city.trim().length > 0,
-            ));
     return (
         state.afterPhotos.length > 0 &&
         state.realisasiEntries.length > 0 &&
         state.realisasiEntries.every(
             (e) => e.materialName.trim().length > 0 && e.price > 0,
-        ) &&
-        storesValid &&
-        state.receiptPhotos.length > 0
+        )
     );
 }
 
@@ -63,10 +50,7 @@ interface Props {
     report: NonNullable<ReportForCompletion>;
     itemStates: Map<string, CompletionItemState>;
     onItemChange: (itemId: string, patch: Partial<CompletionItemState>) => void;
-    onOpenCamera: (itemId: string, type: "after" | "receipt") => void;
-    selfiePhotos: LocalPhoto[];
-    onOpenSelfieCamera: () => void;
-    onRemoveSelfiePhoto: (id: string) => void;
+    onOpenCamera: (itemId: string, type: "after") => void;
     globalNotes: string;
     onGlobalNotesChange: (value: string) => void;
     isPending: boolean;
@@ -81,9 +65,6 @@ export function CompletionChecklistStep({
     itemStates,
     onItemChange,
     onOpenCamera,
-    selfiePhotos,
-    onOpenSelfieCamera,
-    onRemoveSelfiePhoto,
     globalNotes,
     onGlobalNotesChange,
     isPending,
@@ -317,66 +298,6 @@ export function CompletionChecklistStep({
                     </CardContent>
                 </Card>
             </div>
-
-            {/* ─── Selfie Section ─────────────────────────────────────────────── */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base flex items-center gap-2">
-                        <User className="h-4 w-4 text-primary" />
-                        Foto Selfie{" "}
-                        <span className="text-destructive text-sm font-normal">
-                            *
-                        </span>
-                    </CardTitle>
-                    <CardDescription>
-                        Foto selfie bersama pejabat toko Alfamart di lokasi,
-                        dengan nota dan barang di belakang
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {selfiePhotos.length > 0 && (
-                        <div className="flex flex-wrap gap-3 mb-3">
-                            {selfiePhotos.map((photo) => (
-                                <div key={photo.id} className="relative group">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={photo.previewUrl}
-                                        alt="Selfie"
-                                        className="h-32 w-32 object-cover rounded-lg border-2 border-green-200 cursor-zoom-in"
-                                        onClick={() =>
-                                            setPreviewUrl(photo.previewUrl)
-                                        }
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            onRemoveSelfiePhoto(photo.id)
-                                        }
-                                        className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                                    >
-                                        <Trash2 className="h-3 w-3" />
-                                    </button>
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        <ZoomIn className="h-5 w-5 text-white drop-shadow-lg" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size={selfiePhotos.length > 0 ? "sm" : "default"}
-                        className="bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 hover:text-blue-700"
-                        onClick={onOpenSelfieCamera}
-                    >
-                        <Camera className="mr-2 h-4 w-4" />
-                        {selfiePhotos.length > 0
-                            ? "Tambah Selfie"
-                            : "Buka Kamera"}
-                    </Button>
-                </CardContent>
-            </Card>
 
             {/* ─── Global Notes ──────────────────────────────────────────────── */}
             <LocalNotesTextarea

@@ -41,7 +41,6 @@ export function ReportSidebar({
         setNotesInput,
         activeDialog,
         setActiveDialog,
-        handleStartWork,
         handleReviewEstimation,
         handleReviewCompletion,
         handleApproveFinal,
@@ -68,23 +67,15 @@ export function ReportSidebar({
                 {viewer.role === "BMS" &&
                     report.status === "ESTIMATION_APPROVED" && (
                         <div className="space-y-3">
-                            <Button
-                                className="w-full"
-                                onClick={handleStartWork}
-                                disabled={isPending}
+                            <Link
+                                href={`/reports/start-work?report=${report.reportNumber}`}
+                                className="block w-full"
                             >
-                                {isPending ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Memproses...
-                                    </>
-                                ) : (
-                                    <>
-                                        <WrenchIcon className="h-4 w-4 mr-2" />
-                                        Mulai Pengerjaan
-                                    </>
-                                )}
-                            </Button>
+                                <Button className="w-full">
+                                    <WrenchIcon className="h-4 w-4 mr-2" />
+                                    Mulai Pengerjaan
+                                </Button>
+                            </Link>
                         </div>
                     )}
 
