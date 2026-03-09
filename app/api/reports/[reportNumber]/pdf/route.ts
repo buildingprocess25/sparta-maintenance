@@ -4,12 +4,18 @@ import path from "path";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
+import { getAuthUser } from "@/lib/authorization";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ reportNumber: string }> },
 ) {
+    const user = await getAuthUser();
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const reportNumber = (await params).reportNumber;
 
     try {

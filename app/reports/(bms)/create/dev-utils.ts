@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
-import { supabase } from "@/lib/supabase";
+import { getSupabaseClient } from "@/lib/supabase";
 import {
     checklistCategories,
     unitOptions,
@@ -88,15 +88,16 @@ export function autoFillStep1(
                             .replace(/[^a-zA-Z0-9]/g, "_")
                             .toLowerCase();
                         const filePath = `${ctx.branchName}/${ctx.storeCode}/${ctx.draftReportId}/${item.id}_${safeItemName}.jpg`;
+                        const supabaseClient = getSupabaseClient();
 
-                        const { data, error } = await supabase.storage
+                        const { data, error } = await supabaseClient.storage
                             .from("reports")
                             .upload(filePath, compressed, { upsert: true });
 
                         if (!error && data) {
                             const {
                                 data: { publicUrl },
-                            } = supabase.storage
+                            } = supabaseClient.storage
                                 .from("reports")
                                 .getPublicUrl(data.path);
 

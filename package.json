@@ -10,7 +10,6 @@
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:studio": "prisma studio",
-        "create-user": "tsx scripts/create-user.ts",
         "db:seed": "tsx prisma/seed.ts",
         "db:reset": "prisma migrate reset",
         "postinstall": "prisma generate"

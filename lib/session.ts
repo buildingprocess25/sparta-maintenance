@@ -2,8 +2,8 @@ import "server-only";
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
-const SESSION_COOKIE_NAME = "bnm_session";
-const SESSION_EXPIRY_MS = 60 * 60 * 1000; // 1 Jam
+const SESSION_COOKIE_NAME = "app_session";
+const SESSION_EXPIRY_MS = 8 * 60 * 60 * 1000; // 8 jam — cukup untuk satu shift kerja lapangan
 
 function getSecretKey() {
     const secret = process.env.SESSION_SECRET;

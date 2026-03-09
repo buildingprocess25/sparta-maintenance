@@ -12,38 +12,7 @@ import { revalidatePath } from "next/cache";
 // import { sendReportNotification } from "@/lib/email/send-report-notification"; // TODO: Re-enable when ready
 import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
-
-function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
-    return data.checklistItems
-        .filter((item) => item.condition || item.preventiveCondition)
-        .map((item) => ({
-            itemId: item.itemId,
-            itemName: item.itemName,
-            categoryName: item.categoryName,
-            condition: item.condition || null,
-            preventiveCondition: item.preventiveCondition || null,
-            handler: item.handler || null,
-            photoUrl: item.photoUrl || null,
-            notes: item.notes || null,
-        })) as unknown as Prisma.InputJsonValue;
-}
-
-function buildEstimationsJson(data: DraftData): Prisma.InputJsonValue {
-    const estimations: MaterialEstimationJson[] = [];
-    for (const [itemId, ests] of Object.entries(data.bmsEstimations)) {
-        for (const est of ests) {
-            estimations.push({
-                itemId,
-                materialName: est.itemName,
-                quantity: est.quantity,
-                unit: est.unit,
-                price: est.price,
-                totalPrice: est.totalPrice,
-            });
-        }
-    }
-    return estimations as unknown as Prisma.InputJsonValue;
-}
+import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 
 /**
  * Moves every photo that was uploaded to the DRAFT folder in Supabase Storage

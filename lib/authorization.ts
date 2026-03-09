@@ -61,7 +61,9 @@ export async function getAuthUser(): Promise<AuthUser | null> {
             "Failed to fetch auth user",
             error,
         );
-        return null;
+        throw new Error(
+            "Terjadi kesalahan saat mengambil data pengguna. Silakan coba lagi.",
+        );
     }
 }
 

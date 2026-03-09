@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-const SESSION_COOKIE_NAME = "bnm_session";
+const SESSION_COOKIE_NAME = "app_session";
 
 // Route prefixes that require authentication
 const protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"];

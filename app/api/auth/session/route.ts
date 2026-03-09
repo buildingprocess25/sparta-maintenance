@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { jwtVerify } from "jose";
 
-const SESSION_COOKIE_NAME = "bnm_session";
+const SESSION_COOKIE_NAME = "app_session";
 
 function getSecretKey() {
     const secret = process.env.SESSION_SECRET;
