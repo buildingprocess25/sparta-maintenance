@@ -71,6 +71,13 @@ export function BmcApprovalFilters({ role }: Props) {
                         <SelectItem value="pending_review">
                             Menunggu Review Penyelesaian
                         </SelectItem>
+                        <SelectItem value="in_progress">
+                            Sedang Dikerjakan
+                        </SelectItem>
+                        <SelectItem value="approved_bmc">
+                            Menunggu Persetujuan Final
+                        </SelectItem>
+                        <SelectItem value="completed">Selesai</SelectItem>
                     </SelectContent>
                 </Select>
             )}

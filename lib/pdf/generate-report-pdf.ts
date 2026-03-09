@@ -14,6 +14,7 @@ import type {
     MaterialEstimationJson,
     RealisasiItemJson,
 } from "@/types/report";
+import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -195,7 +196,7 @@ const styles = StyleSheet.create({
     stampSectionContent: {
         marginTop: 8,
         flexDirection: "row",
-        justifyContent: "flex-end",
+        justifyContent: "center",
     },
     stampBox: {
         width: 150,
@@ -513,12 +514,13 @@ function getStampLabelConfig(action: string): { label: string; color: string } {
     }
 }
 
-function roleLabel(role?: string): string {
+function roleLabel(role?: string, nik?: string): string {
+    if (nik && ROLE_LABEL_OVERRIDES[nik]) return ROLE_LABEL_OVERRIDES[nik];
     switch (role) {
         case "BMC":
             return "Branch Maintenance Coordinator";
         case "BNM_MANAGER":
-            return "BNM Manager";
+            return "Branch Building & Maintenance Manager";
         default:
             return role ?? "";
     }
@@ -533,7 +535,7 @@ function renderStampBox(stamp: ReportStamp, idx: number) {
             key: stamp.action,
             style: {
                 ...styles.stampBox,
-                marginLeft: idx > 0 ? 12 : 0,
+                marginLeft: idx > 0 ? 16 : 0,
             },
         },
         // Row 1: Colored badge
@@ -583,7 +585,7 @@ function renderStampBox(stamp: ReportStamp, idx: number) {
             React.createElement(
                 Text,
                 { style: styles.stampRole },
-                roleLabel(stamp.approverRole),
+                roleLabel(stamp.approverRole, stamp.approverNIK),
             ),
         ),
         // Notes (optional)

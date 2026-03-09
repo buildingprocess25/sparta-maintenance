@@ -54,7 +54,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
             <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
                 {/* Hero stat — Perlu Tindakan */}
                 <Link
-                    href="/reports"
+                    href="/reports?status=needs_action"
                     className="group shrink-0 lg:w-64 bg-orange-500 text-white p-6 flex flex-col justify-between hover:bg-orange-600 transition-colors"
                 >
                     <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                 {/* Secondary stats */}
                 <div className="flex-1 grid grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
                     <Link
-                        href="/reports"
+                        href="/reports?status=waiting_review"
                         className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
                     >
                         <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">

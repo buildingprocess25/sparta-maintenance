@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-
 import {
     Table,
     TableBody,
@@ -30,21 +29,17 @@ import {
     EmptyTitle,
     EmptyDescription,
 } from "@/components/ui/empty";
-import React from "react";
 import {
     Search,
-    Plus,
     MapPin,
     Filter,
     FileText,
-    Clock,
-    X,
-    Check,
-    Eye,
-    Pencil,
-    FileEdit,
-    Loader2,
     CalendarDays,
+    ArrowRight,
+    Loader2,
+    Check,
+    X,
+    Clock,
     Wrench,
 } from "lucide-react";
 import {
@@ -56,41 +51,141 @@ import {
     PaginationNext,
     PaginationPrevious,
 } from "@/components/ui/pagination";
-import { ReportsListMobile } from "./reports-list-mobile";
 
-// Type for report data from server
-export type ReportData = {
+export type ApprovalReportData = {
     reportNumber: string;
     storeName: string;
+    storeCode: string | null;
     branchName: string;
     status: string;
     totalEstimation: number;
     createdAt: Date;
     updatedAt: Date;
-    _count: {
-        items: number;
-    };
+    createdByName: string;
 };
 
-type ReportsListProps = {
-    reports: ReportData[];
+type Props = {
+    reports: ApprovalReportData[];
     total: number;
     totalPages: number;
     currentPage: number;
+    role: string;
 };
 
-export default function ReportsList({
+const getStatusBadge = (status: string) => {
+    switch (status) {
+        case "PENDING_ESTIMATION":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
+                >
+                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Estimasi
+                </Badge>
+            );
+        case "ESTIMATION_APPROVED":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
+                >
+                    <Check className="h-3 w-3" /> Estimasi Disetujui
+                </Badge>
+            );
+        case "ESTIMATION_REJECTED_REVISION":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
+                >
+                    <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
+                </Badge>
+            );
+        case "ESTIMATION_REJECTED":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
+                >
+                    <X className="h-3 w-3" /> Estimasi Ditolak
+                </Badge>
+            );
+        case "IN_PROGRESS":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
+                >
+                    <Wrench className="h-3 w-3" /> Sedang Dikerjakan
+                </Badge>
+            );
+        case "PENDING_REVIEW":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none"
+                >
+                    <Clock className="h-3 w-3" /> Menunggu Review Penyelesaian
+                </Badge>
+            );
+        case "REVIEW_REJECTED_REVISION":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
+                >
+                    <X className="h-3 w-3" /> Ditolak (Revisi)
+                </Badge>
+            );
+        case "APPROVED_BMC":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
+                >
+                    <Check className="h-3 w-3" /> Menunggu Persetujuan BnM
+                    Manager
+                </Badge>
+            );
+        case "COMPLETED":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 shadow-none"
+                >
+                    <Check className="h-3 w-3" /> Selesai
+                </Badge>
+            );
+        default:
+            return <Badge variant="outline">{status}</Badge>;
+    }
+};
+
+const getActionLabel = (status: string, role: string): string => {
+    switch (status) {
+        case "PENDING_ESTIMATION":
+            return "Review Estimasi";
+        case "PENDING_REVIEW":
+            return "Review Pekerjaan";
+        case "APPROVED_BMC":
+            return role === "BNM_MANAGER" ? "Setujui Final" : "Lihat";
+        default:
+            return "Lihat";
+    }
+};
+
+export function ApprovalReportsList({
     reports,
     total,
     totalPages,
     currentPage,
-}: ReportsListProps) {
+    role,
+}: Props) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
 
-    // Initialize state from URL params
     const [searchQuery, setSearchQuery] = useState(
         searchParams.get("search") || "",
     );
@@ -101,275 +196,79 @@ export default function ReportsList({
         searchParams.get("dateRange") || "all",
     );
 
-    // Debounce search update
-    const handleSearch = (term: string) => {
-        setSearchQuery(term);
+    const pushParam = (key: string, value: string) => {
         const params = new URLSearchParams(searchParams.toString());
-        if (term) {
-            params.set("search", term);
+        if (value && value !== "all") {
+            params.set(key, value);
         } else {
-            params.delete("search");
-        }
-        params.set("page", "1"); // Reset to page 1 on search
-        startTransition(() => {
-            router.replace(`${pathname}?${params.toString()}`);
-        });
-    };
-
-    // Handle status filter change
-    const handleStatusChange = (status: string) => {
-        setStatusFilter(status);
-        const params = new URLSearchParams(searchParams.toString());
-        if (status && status !== "all") {
-            params.set("status", status);
-        } else {
-            params.delete("status");
+            params.delete(key);
         }
         params.set("page", "1");
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
-        });
-    };
-
-    // Handle date range filter change
-    const handleDateRangeChange = (range: string) => {
-        setDateRangeFilter(range);
-        const params = new URLSearchParams(searchParams.toString());
-        if (range && range !== "all") {
-            params.set("dateRange", range);
-        } else {
-            params.delete("dateRange");
-        }
-        params.set("page", "1");
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
-        });
-    };
-
-    // Handle pagination
-    const handlePageChange = (page: number) => {
-        const params = new URLSearchParams(searchParams.toString());
-        params.set("page", page.toString());
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
-        });
-    };
-
-    const getStatusBadge = (status: string) => {
-        switch (status) {
-            case "DRAFT":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-gray-200 shadow-none"
-                    >
-                        <FileEdit className="h-3 w-3" /> Draft
-                    </Badge>
-                );
-            case "PENDING_ESTIMATION":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
-                    >
-                        <Clock className="h-3 w-3" /> Menunggu Persetujuan
-                        Estimasi
-                    </Badge>
-                );
-            case "ESTIMATION_APPROVED":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
-                    >
-                        <Check className="h-3 w-3" /> Estimasi Disetujui
-                    </Badge>
-                );
-            case "ESTIMATION_REJECTED_REVISION":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
-                    >
-                        <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
-                    </Badge>
-                );
-            case "ESTIMATION_REJECTED":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
-                    >
-                        <X className="h-3 w-3" /> Estimasi Ditolak
-                    </Badge>
-                );
-            case "IN_PROGRESS":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
-                    >
-                        <Wrench className="h-3 w-3" /> Sedang Dikerjakan
-                    </Badge>
-                );
-            case "PENDING_REVIEW":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none"
-                    >
-                        <Clock className="h-3 w-3" /> Menunggu Review
-                        Penyelesaian
-                    </Badge>
-                );
-            case "REVIEW_REJECTED_REVISION":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
-                    >
-                        <X className="h-3 w-3" /> Ditolak (Revisi)
-                    </Badge>
-                );
-            case "APPROVED_BMC":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
-                    >
-                        <Check className="h-3 w-3" /> Menunggu Persetujuan BnM
-                        Manager
-                    </Badge>
-                );
-            case "COMPLETED":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 shadow-none"
-                    >
-                        <Check className="h-3 w-3" /> Selesai
-                    </Badge>
-                );
-            default:
-                return <Badge variant="outline">{status}</Badge>;
-        }
-    };
-
-    const ACTION_CONFIG: Record<
-        string,
-        { label: string; icon: React.ReactNode; cta: boolean }
-    > = {
-        DRAFT: {
-            label: "Lanjutkan",
-            icon: <Pencil className="h-3.5 w-3.5" />,
-            cta: true,
-        },
-        PENDING_ESTIMATION: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
-        },
-        ESTIMATION_APPROVED: {
-            label: "Mulai Pekerjaan",
-            icon: <Wrench className="h-3.5 w-3.5" />,
-            cta: true,
-        },
-        ESTIMATION_REJECTED_REVISION: {
-            label: "Revisi",
-            icon: <Pencil className="h-3.5 w-3.5" />,
-            cta: true,
-        },
-        ESTIMATION_REJECTED: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
-        },
-        IN_PROGRESS: {
-            label: "Selesaikan",
-            icon: <Check className="h-3.5 w-3.5" />,
-            cta: true,
-        },
-        PENDING_REVIEW: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
-        },
-        REVIEW_REJECTED_REVISION: {
-            label: "Revisi",
-            icon: <Pencil className="h-3.5 w-3.5" />,
-            cta: true,
-        },
-        APPROVED_BMC: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
-        },
-        COMPLETED: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
-        },
-    };
-
-    const getActionButton = (report: ReportData) => {
-        const cfg = ACTION_CONFIG[report.status];
-        if (!cfg) return null;
-        const href =
-            report.status === "DRAFT"
-                ? "/reports/create?restore=1"
-                : report.status === "ESTIMATION_REJECTED_REVISION" ||
-                    report.status === "REVIEW_REJECTED_REVISION"
-                  ? `/reports/revisi/${report.reportNumber}`
-                  : `/reports/${report.reportNumber}`;
-        return (
-            <Button
-                variant={cfg.cta ? "outline" : "ghost"}
-                size="sm"
-                className={`h-7 text-xs gap-1.5 px-2.5 ${
-                    cfg.cta
-                        ? "border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
-                        : "text-muted-foreground"
-                }`}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(href);
-                }}
-            >
-                {cfg.icon}
-                {cfg.label}
-            </Button>
+        startTransition(() =>
+            router.replace(`${pathname}?${params.toString()}`),
         );
     };
 
-    const formatDate = (date: Date) => {
-        return new Date(date).toLocaleDateString("id-ID", {
+    const handleSearch = (term: string) => {
+        setSearchQuery(term);
+        pushParam("search", term);
+    };
+
+    const handleStatusChange = (status: string) => {
+        setStatusFilter(status);
+        pushParam("status", status);
+    };
+
+    const handleDateRangeChange = (range: string) => {
+        setDateRangeFilter(range);
+        pushParam("dateRange", range);
+    };
+
+    const handlePageChange = (page: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("page", page.toString());
+        startTransition(() =>
+            router.replace(`${pathname}?${params.toString()}`),
+        );
+    };
+
+    const formatDate = (date: Date) =>
+        new Date(date).toLocaleDateString("id-ID", {
             year: "numeric",
             month: "short",
             day: "numeric",
         });
-    };
 
-    const formatCurrency = (amount: number) => {
-        return `Rp ${Number(amount).toLocaleString("id-ID")}`;
-    };
+    const formatCurrency = (amount: number) =>
+        `Rp ${Number(amount).toLocaleString("id-ID")}`;
+
+    const pageTitle =
+        role === "BNM_MANAGER"
+            ? "Persetujuan Final"
+            : role === "ADMIN"
+              ? "Semua Laporan"
+              : "Persetujuan Laporan";
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
             <Header
                 variant="dashboard"
-                title="Laporan Saya"
-                description={`${total} laporan — Kelola dan pantau status laporan kerusakan`}
+                title={pageTitle}
+                description={`${total} laporan`}
                 showBackButton
                 backHref="/dashboard"
                 logo={false}
             />
 
             <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
-                {/* Action Bar: Search, Filter, Create */}
+                {/* Action Bar: Search, Filter */}
                 <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
                     <div className="flex flex-1 gap-2 flex-wrap">
                         <div className="relative flex-1 min-w-48 md:max-w-sm">
-                            <label htmlFor="report-search" className="sr-only">
+                            <label
+                                htmlFor="approval-search"
+                                className="sr-only"
+                            >
                                 Cari laporan
                             </label>
                             <Search
@@ -377,7 +276,7 @@ export default function ReportsList({
                                 aria-hidden="true"
                             />
                             <Input
-                                id="report-search"
+                                id="approval-search"
                                 placeholder="Cari toko atau nomor laporan..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
@@ -404,34 +303,30 @@ export default function ReportsList({
                                 <SelectItem value="all">
                                     Semua Status
                                 </SelectItem>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="pending_estimation">
-                                    Menunggu Persetujuan Estimasi
-                                </SelectItem>
-                                <SelectItem value="estimation_approved">
-                                    Estimasi Disetujui
-                                </SelectItem>
-                                <SelectItem value="estimation_rejected_revision">
-                                    Estimasi Ditolak (Revisi)
-                                </SelectItem>
-                                <SelectItem value="estimation_rejected">
-                                    Estimasi Ditolak
-                                </SelectItem>
-                                <SelectItem value="in_progress">
-                                    Sedang Dikerjakan
-                                </SelectItem>
-                                <SelectItem value="pending_review">
-                                    Menunggu Review Penyelesaian
-                                </SelectItem>
-                                <SelectItem value="review_rejected_revision">
-                                    Ditolak (Revisi)
-                                </SelectItem>
+                                {role !== "BNM_MANAGER" && (
+                                    <>
+                                        <SelectItem value="pending_estimation">
+                                            Menunggu Persetujuan Estimasi
+                                        </SelectItem>
+                                        <SelectItem value="in_progress">
+                                            Sedang Dikerjakan
+                                        </SelectItem>
+                                        <SelectItem value="pending_review">
+                                            Menunggu Review Penyelesaian
+                                        </SelectItem>
+                                    </>
+                                )}
                                 <SelectItem value="approved_bmc">
-                                    Menunggu Persetujuan BnM Manager
+                                    Menunggu Persetujuan Final
                                 </SelectItem>
                                 <SelectItem value="completed">
                                     Selesai
                                 </SelectItem>
+                                {(role === "BMC" || role === "ADMIN") && (
+                                    <SelectItem value="view_all">
+                                        Semua Laporan
+                                    </SelectItem>
+                                )}
                             </SelectContent>
                         </Select>
                         <Select
@@ -473,15 +368,6 @@ export default function ReportsList({
                             </SelectContent>
                         </Select>
                     </div>
-
-                    <Button
-                        onClick={() => router.push("/reports/create")}
-                        className="w-full md:w-auto gap-2 shadow-sm"
-                    >
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden md:inline">Buat Laporan</span>
-                        <span className="md:hidden">Laporan Baru</span>
-                    </Button>
                 </div>
 
                 {reports.length > 0 ? (
@@ -493,7 +379,64 @@ export default function ReportsList({
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
                             )}
-                            <ReportsListMobile reports={reports} />
+                            <div className="space-y-3">
+                                {reports.map((report) => (
+                                    <div
+                                        key={report.reportNumber}
+                                        className="bg-card border rounded-lg shadow-sm p-4 space-y-3 cursor-pointer"
+                                        onClick={() =>
+                                            router.push(
+                                                `/reports/${report.reportNumber}`,
+                                            )
+                                        }
+                                    >
+                                        <div className="flex items-start justify-between gap-2">
+                                            <div className="min-w-0">
+                                                <p className="font-mono font-semibold text-xs text-muted-foreground">
+                                                    {report.reportNumber}
+                                                </p>
+                                                <p className="text-sm font-medium mt-0.5 truncate">
+                                                    {report.storeName || "—"}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                    <MapPin className="h-3 w-3 shrink-0" />
+                                                    {report.branchName}
+                                                </p>
+                                            </div>
+                                            {getStatusBadge(report.status)}
+                                        </div>
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>{report.createdByName}</span>
+                                            <span>
+                                                {formatDate(report.updatedAt)}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-between pt-1">
+                                            <span className="text-sm font-mono font-semibold">
+                                                {formatCurrency(
+                                                    report.totalEstimation,
+                                                )}
+                                            </span>
+                                            <Button
+                                                size="sm"
+                                                className="gap-1.5 h-8"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    router.push(
+                                                        `/reports/${report.reportNumber}`,
+                                                    );
+                                                }}
+                                            >
+                                                {getActionLabel(
+                                                    report.status,
+                                                    role,
+                                                )}
+                                                <ArrowRight className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
 
                         {/* --- DESKTOP VIEW: DATA TABLE --- */}
@@ -512,11 +455,8 @@ export default function ReportsList({
                                         <TableHead className="min-w-50">
                                             Toko & Cabang
                                         </TableHead>
-                                        <TableHead>
-                                            <div className="flex items-center gap-1 hover:text-foreground">
-                                                Tanggal{" "}
-                                            </div>
-                                        </TableHead>
+                                        <TableHead>Dilaporkan Oleh</TableHead>
+                                        <TableHead>Tanggal</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">
                                             Estimasi
@@ -533,16 +473,12 @@ export default function ReportsList({
                                             className="group cursor-pointer"
                                             onClick={() =>
                                                 router.push(
-                                                    report.status === "DRAFT"
-                                                        ? "/reports/create?restore=1"
-                                                        : `/reports/${report.reportNumber}`,
+                                                    `/reports/${report.reportNumber}`,
                                                 )
                                             }
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                                                {report.status === "DRAFT"
-                                                    ? "DRAFT"
-                                                    : report.reportNumber}
+                                                {report.reportNumber}
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">
@@ -557,7 +493,10 @@ export default function ReportsList({
                                                 </div>
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
-                                                {formatDate(report.createdAt)}
+                                                {report.createdByName}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {formatDate(report.updatedAt)}
                                             </TableCell>
                                             <TableCell>
                                                 {getStatusBadge(report.status)}
@@ -568,7 +507,23 @@ export default function ReportsList({
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                {getActionButton(report)}
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(
+                                                            `/reports/${report.reportNumber}`,
+                                                        );
+                                                    }}
+                                                >
+                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                    {getActionLabel(
+                                                        report.status,
+                                                        role,
+                                                    )}
+                                                </Button>
                                             </TableCell>
                                         </TableRow>
                                     ))}
@@ -599,56 +554,57 @@ export default function ReportsList({
                                             />
                                         </PaginationItem>
 
-                                        {/* Generate page numbers */}
-                                        {Array.from({
-                                            length: totalPages,
-                                        }).map((_, i) => {
-                                            const page = i + 1;
-                                            // Simple logic: show all for now, can be optimized for large pages later
-                                            // Or simplified: show current, first, last, and surrounding
-                                            if (
-                                                totalPages <= 7 ||
-                                                page === 1 ||
-                                                page === totalPages ||
-                                                (page >= currentPage - 1 &&
-                                                    page <= currentPage + 1)
-                                            ) {
-                                                return (
-                                                    <PaginationItem key={page}>
-                                                        <PaginationLink
-                                                            href="#"
-                                                            isActive={
-                                                                page ===
-                                                                currentPage
-                                                            }
-                                                            onClick={(e) => {
-                                                                e.preventDefault();
-                                                                handlePageChange(
-                                                                    page,
-                                                                );
-                                                            }}
+                                        {Array.from({ length: totalPages }).map(
+                                            (_, i) => {
+                                                const page = i + 1;
+                                                if (
+                                                    totalPages <= 7 ||
+                                                    page === 1 ||
+                                                    page === totalPages ||
+                                                    (page >= currentPage - 1 &&
+                                                        page <= currentPage + 1)
+                                                ) {
+                                                    return (
+                                                        <PaginationItem
+                                                            key={page}
                                                         >
-                                                            {page}
-                                                        </PaginationLink>
-                                                    </PaginationItem>
-                                                );
-                                            } else if (
-                                                (page === currentPage - 2 &&
-                                                    currentPage > 3) ||
-                                                (page === currentPage + 2 &&
-                                                    currentPage <
-                                                        totalPages - 2)
-                                            ) {
-                                                return (
-                                                    <PaginationItem
-                                                        key={`ellipsis-${page}`}
-                                                    >
-                                                        <PaginationEllipsis />
-                                                    </PaginationItem>
-                                                );
-                                            }
-                                            return null;
-                                        })}
+                                                            <PaginationLink
+                                                                href="#"
+                                                                isActive={
+                                                                    page ===
+                                                                    currentPage
+                                                                }
+                                                                onClick={(
+                                                                    e,
+                                                                ) => {
+                                                                    e.preventDefault();
+                                                                    handlePageChange(
+                                                                        page,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                {page}
+                                                            </PaginationLink>
+                                                        </PaginationItem>
+                                                    );
+                                                } else if (
+                                                    (page === currentPage - 2 &&
+                                                        currentPage > 3) ||
+                                                    (page === currentPage + 2 &&
+                                                        currentPage <
+                                                            totalPages - 2)
+                                                ) {
+                                                    return (
+                                                        <PaginationItem
+                                                            key={`ellipsis-${page}`}
+                                                        >
+                                                            <PaginationEllipsis />
+                                                        </PaginationItem>
+                                                    );
+                                                }
+                                                return null;
+                                            },
+                                        )}
 
                                         <PaginationItem>
                                             <PaginationNext
@@ -695,7 +651,7 @@ export default function ReportsList({
                                 <EmptyDescription>
                                     {searchQuery
                                         ? "Coba ubah kata kunci pencarian atau filter Anda."
-                                        : "Anda belum membuat laporan kerusakan apapun."}
+                                        : "Tidak ada laporan yang cocok dengan filter yang dipilih."}
                                 </EmptyDescription>
                             </EmptyHeader>
                         </Empty>

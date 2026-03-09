@@ -64,7 +64,7 @@ export function StatusBadge({ status }: { status: string }) {
                     variant="secondary"
                     className="bg-teal-100 text-teal-800 hover:bg-teal-100/80"
                 >
-                    Penyelesaian Disetujui
+                    Menunggu Persetujuan BnM Manager
                 </Badge>
             );
         case "COMPLETED":

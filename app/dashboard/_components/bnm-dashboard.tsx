@@ -77,7 +77,7 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
                         </div>
                     </Link>
                     <Link
-                        href="/reports"
+                        href="/reports?status=view_all"
                         className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
                     >
                         <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">

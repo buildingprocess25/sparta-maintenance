@@ -171,7 +171,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                         variant="secondary"
                         className="gap-1 bg-teal-100 text-teal-700 border-teal-200 px-2 py-0.5 text-[10px] font-medium"
                     >
-                        Penyelesaian Disetujui
+                        Menunggu Persetujuan BnM Manager
                     </Badge>
                 );
             case "COMPLETED":

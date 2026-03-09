@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/authorization";
-import { getMyReports } from "@/app/reports/actions";
+import { getMyReports, getApprovalReports } from "@/app/reports/actions";
 import BmsReportsList from "./_components/bms-reports-list";
-import { BmcApprovalList } from "./_components/bmc-approval-list";
+import { ApprovalReportsList } from "./_components/approval-reports-list";
 import type { DateRangeFilter } from "./actions/types";
 
 type ReportsPageProps = {
@@ -23,12 +23,27 @@ export default async function ReportsPage(props: ReportsPageProps) {
 
     // ── BMC / BNM_MANAGER / ADMIN → Approval queue ──────────────────────────
     if (["BMC", "BNM_MANAGER", "ADMIN"].includes(user.role)) {
+        const approvalPage = Number(searchParams.page) || 1;
+        const approvalLimit = 10;
+        const approvalSearch = searchParams.search || "";
+        const approvalStatus = searchParams.status || "all";
+        const approvalDateRange = searchParams.dateRange || "all";
+
+        const { reports, total } = await getApprovalReports({
+            status: approvalStatus,
+            search: approvalSearch,
+            dateRange: approvalDateRange as DateRangeFilter,
+            page: approvalPage,
+            limit: approvalLimit,
+        });
+
         return (
-            <BmcApprovalList
-                user={{ role: user.role, branchNames: user.branchNames }}
-                q={searchParams.q}
-                status={searchParams.status}
-                dateRange={searchParams.dateRange}
+            <ApprovalReportsList
+                reports={reports}
+                total={total}
+                totalPages={Math.ceil(total / approvalLimit)}
+                currentPage={approvalPage}
+                role={user.role}
             />
         );
     }
@@ -37,14 +52,34 @@ export default async function ReportsPage(props: ReportsPageProps) {
     const page = Number(searchParams.page) || 1;
     const limit = 10;
     const search = searchParams.search || "";
-    const status = searchParams.status || "all";
+    const rawStatus = searchParams.status || "all";
     const dateRange = searchParams.dateRange || "all";
+
+    // Group filters: map dashboard stat-card params to arrays of statuses
+    const BMS_NEEDS_ACTION = [
+        "ESTIMATION_APPROVED",
+        "ESTIMATION_REJECTED_REVISION",
+        "REVIEW_REJECTED_REVISION",
+    ];
+    const BMS_WAITING_REVIEW = [
+        "PENDING_ESTIMATION",
+        "PENDING_REVIEW",
+        "APPROVED_BMC",
+    ];
+    const resolvedStatus: string | string[] | undefined =
+        rawStatus === "all"
+            ? undefined
+            : rawStatus === "needs_action"
+              ? BMS_NEEDS_ACTION
+              : rawStatus === "waiting_review"
+                ? BMS_WAITING_REVIEW
+                : rawStatus.toUpperCase();
 
     const { reports, total } = await getMyReports({
         page,
         limit,
         search,
-        status: status === "all" ? undefined : status.toUpperCase(),
+        status: resolvedStatus,
         dateRange: dateRange as DateRangeFilter,
     });
 

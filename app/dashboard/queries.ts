@@ -251,6 +251,35 @@ export async function getBranchActivity(
 }
 
 /**
+ * Fetch BMC's own approval/rejection actions (estimation & work completion).
+ */
+export async function getBMCApprovalHistory(
+    actorNIK: string,
+    limit = 500,
+): Promise<ActivityItem[]> {
+    const BMC_ACTIONS = [
+        "ESTIMATION_APPROVED",
+        "ESTIMATION_REJECTED",
+        "ESTIMATION_REJECTED_REVISION",
+        "WORK_APPROVED",
+        "WORK_REJECTED_REVISION",
+    ];
+    try {
+        return await fetchActivityLogs(
+            { actorNIK, action: { in: BMC_ACTIONS as never[] } },
+            limit,
+        );
+    } catch (error) {
+        logger.error(
+            { operation: "getBMCApprovalHistory", actorNIK },
+            "Failed",
+            error,
+        );
+        return [];
+    }
+}
+
+/**
  * Fetch global activity log (admin).
  */
 export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {

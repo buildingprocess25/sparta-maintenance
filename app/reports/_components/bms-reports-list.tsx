@@ -237,7 +237,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
                     >
-                        <Check className="h-3 w-3" /> Penyelesaian Disetujui
+                        <Check className="h-3 w-3" /> Menunggu Persetujuan BnM
+                        Manager
                     </Badge>
                 );
             case "COMPLETED":
@@ -403,6 +404,12 @@ export default function BmsReportsList({
                                 <SelectItem value="all">
                                     Semua Status
                                 </SelectItem>
+                                <SelectItem value="needs_action">
+                                    Perlu Tindakan
+                                </SelectItem>
+                                <SelectItem value="waiting_review">
+                                    Menunggu Review
+                                </SelectItem>
                                 <SelectItem value="draft">Draft</SelectItem>
                                 <SelectItem value="pending_estimation">
                                     Menunggu Persetujuan Estimasi
@@ -426,7 +433,7 @@ export default function BmsReportsList({
                                     Ditolak (Revisi)
                                 </SelectItem>
                                 <SelectItem value="approved_bmc">
-                                    Penyelesaian Disetujui
+                                    Menunggu Persetujuan BnM Manager
                                 </SelectItem>
                                 <SelectItem value="completed">
                                     Selesai

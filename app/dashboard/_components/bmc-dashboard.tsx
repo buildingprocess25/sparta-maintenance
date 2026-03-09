@@ -29,7 +29,7 @@ const MENUS = [
         title: "Riwayat Approval",
         description: "Riwayat laporan yang sudah diapprove",
         icon: FolderOpen,
-        href: "/reports",
+        href: "/reports/history",
         variant: "outline" as const,
     },
 ];
@@ -99,7 +99,7 @@ export async function BmcDashboard({ user }: { user: AuthUser }) {
                                 {bmcStats.awaitingFinal}
                             </div>
                             <p className="text-sm font-semibold mt-1">
-                                Menunggu BnM
+                                Menunggu Manager
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                                 Menunggu persetujuan final

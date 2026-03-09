@@ -64,7 +64,7 @@ function getStatusBadge(status: string) {
         case "APPROVED_BMC":
             return (
                 <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100/80 border-teal-200 shadow-none whitespace-nowrap">
-                    Penyelesaian Disetujui
+                    Menunggu Persetujuan BnM Manager
                 </Badge>
             );
         default:
@@ -93,17 +93,39 @@ export async function BmcApprovalList({
 }: Props) {
     const search = q?.trim().toLowerCase();
 
+    // All non-draft statuses that can be displayed
+    const ALL_NON_DRAFT_STATUSES = [
+        "PENDING_ESTIMATION",
+        "ESTIMATION_APPROVED",
+        "ESTIMATION_REJECTED_REVISION",
+        "ESTIMATION_REJECTED",
+        "IN_PROGRESS",
+        "PENDING_REVIEW",
+        "REVIEW_REJECTED_REVISION",
+        "APPROVED_BMC",
+        "COMPLETED",
+    ] as const;
+
     // Build status filter based on role
     const roleStatuses =
         user.role === "BNM_MANAGER"
             ? (["APPROVED_BMC"] as const)
             : (["PENDING_ESTIMATION", "PENDING_REVIEW"] as const);
 
-    // Narrow by selected status within allowed role statuses
-    const activeStatuses =
-        statusParam && statusParam !== "all"
-            ? roleStatuses.filter((s) => s === statusParam.toUpperCase())
-            : [...roleStatuses];
+    // view_all: show all non-draft (used by BNM "Total Laporan" stat card)
+    // specific status: show that status directly (used by other dashboard stat cards)
+    // default / "all" / no param: show role-relevant action statuses
+    const normalizedStatus = statusParam?.toUpperCase();
+    const activeStatuses: string[] =
+        normalizedStatus === "VIEW_ALL"
+            ? [...ALL_NON_DRAFT_STATUSES]
+            : normalizedStatus &&
+                normalizedStatus !== "ALL" &&
+                (ALL_NON_DRAFT_STATUSES as readonly string[]).includes(
+                    normalizedStatus,
+                )
+              ? [normalizedStatus]
+              : [...roleStatuses];
 
     // Build branch filter for BMC
     const branchFilter =

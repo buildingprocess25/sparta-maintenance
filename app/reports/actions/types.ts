@@ -37,7 +37,7 @@ export type DateRangeFilter =
 
 export type ReportFilters = {
     search?: string;
-    status?: string;
+    status?: string | string[];
     dateRange?: DateRangeFilter;
     page?: number;
     limit?: number;

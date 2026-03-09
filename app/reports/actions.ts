@@ -19,4 +19,5 @@ export {
     getMyReports,
     getFinishedReports,
     getLastCategoryIDate,
+    getApprovalReports,
 } from "./actions/queries";

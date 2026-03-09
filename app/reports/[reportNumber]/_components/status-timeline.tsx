@@ -20,7 +20,7 @@ const STATUS_STEPS = [
     },
     {
         key: "APPROVED_BMC",
-        label: "Penyelesaian Disetujui",
+        label: "Menunggu Persetujuan BnM Manager",
         icon: CheckCircle2,
     },
     { key: "COMPLETED", label: "Selesai", icon: CheckCircle2 },

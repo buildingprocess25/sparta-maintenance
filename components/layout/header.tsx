@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ArrowLeft } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -25,6 +25,7 @@ export function Header({
     className,
     logo = true,
 }: HeaderProps) {
+    const router = useRouter();
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -64,13 +65,13 @@ export function Header({
                         {/* LEFT: Navigation & Title */}
                         <div className="flex items-center gap-3 md:gap-5 flex-1 min-w-0">
                             {showBackButton && (
-                                <Link
-                                    href={backHref}
+                                <button
+                                    onClick={() => router.back()}
                                     className="group relative flex h-9 w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-sm"
                                     title="Kembali"
                                 >
                                     <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-0.5" />
-                                </Link>
+                                </button>
                             )}
 
                             <div className="flex flex-col justify-center min-w-0">
@@ -86,41 +87,45 @@ export function Header({
                         </div>
 
                         {/* RIGHT: Branding Logos */}
-                        <div className={cn("items-center gap-3 shrink-0", logo ? "flex" : "hidden lg:flex")}>
-                                {/* Logo Container with Glass Effect */}
-                                <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
+                        <div
+                            className={cn(
+                                "items-center gap-3 shrink-0",
+                                logo ? "flex" : "hidden lg:flex",
+                            )}
+                        >
+                            {/* Logo Container with Glass Effect */}
+                            <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
+                                <Image
+                                    src="/assets/Alfamart-Emblem.png"
+                                    alt="Alfamart"
+                                    width={120}
+                                    height={120}
+                                    className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
+                                    priority
+                                />
+
+                                <div className="h-4 md:h-5 w-px bg-white/20 rounded-full" />
+
+                                <div className="flex items-center gap-2">
                                     <Image
-                                        src="/assets/Alfamart-Emblem.png"
-                                        alt="Alfamart"
-                                        width={120}
-                                        height={120}
+                                        src="/assets/Building-Logo.png"
+                                        alt="SPARTA Logo"
+                                        width={60}
+                                        height={60}
                                         className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
                                         priority
                                     />
-
-                                    <div className="h-4 md:h-5 w-px bg-white/20 rounded-full" />
-
-                                    <div className="flex items-center gap-2">
-                                        <Image
-                                            src="/assets/Building-Logo.png"
-                                            alt="SPARTA Logo"
-                                            width={60}
-                                            height={60}
-                                            className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
-                                            priority
-                                        />
-                                        <div className="flex flex-col items-end leading-none text-white">
-                                            <span className="font-bold text-sm tracking-wider">
-                                                SPARTA
-                                            </span>
-                                            <span className="text-[10px] opacity-80 font-light">
-                                                Maintenance
-                                            </span>
-                                        </div>
+                                    <div className="flex flex-col items-end leading-none text-white">
+                                        <span className="font-bold text-sm tracking-wider">
+                                            SPARTA
+                                        </span>
+                                        <span className="text-[10px] opacity-80 font-light">
+                                            Maintenance
+                                        </span>
                                     </div>
                                 </div>
                             </div>
-
+                        </div>
                     </div>
                 </div>
             </header>

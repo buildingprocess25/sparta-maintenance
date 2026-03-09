@@ -4,6 +4,7 @@ import { Store } from "lucide-react";
 import { LogoutButton } from "../../logout-button";
 import { capitalizeEachWord } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
+import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 
 const ROLE_LABELS: Record<string, string> = {
     BMS: "Branch Maintenance Support",
@@ -18,7 +19,8 @@ type Props = {
 };
 
 export function DashboardShell({ user, children }: Props) {
-    const roleLabel = ROLE_LABELS[user.role] ?? user.role;
+    const roleLabel =
+        ROLE_LABEL_OVERRIDES[user.NIK] ?? ROLE_LABELS[user.role] ?? user.role;
     const now = new Date();
     const dayNum = now.getDate().toString().padStart(2, "0");
     const monthYear = now.toLocaleDateString("id-ID", {
