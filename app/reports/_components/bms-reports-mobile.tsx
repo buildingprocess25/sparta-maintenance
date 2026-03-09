@@ -108,7 +108,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                         variant="secondary"
                         className="gap-1 bg-yellow-100 text-yellow-700 border-yellow-200 px-2 py-0.5 text-[10px] font-medium"
                     >
-                        Menunggu Est.
+                        Menunggu Estimasi Disetujui
                     </Badge>
                 );
             case "ESTIMATION_APPROVED":

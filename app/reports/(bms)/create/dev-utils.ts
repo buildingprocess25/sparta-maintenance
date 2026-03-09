@@ -3,6 +3,24 @@
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 import { getSupabaseClient } from "@/lib/supabase";
+
+function getImageDimensions(
+    file: File | Blob,
+): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+            resolve({ width: 4, height: 3 });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+    });
+}
 import {
     checklistCategories,
     unitOptions,
@@ -87,7 +105,9 @@ export function autoFillStep1(
                         const safeItemName = item.name
                             .replace(/[^a-zA-Z0-9]/g, "_")
                             .toLowerCase();
-                        const filePath = `${ctx.branchName}/${ctx.storeCode}/${ctx.draftReportId}/${item.id}_${safeItemName}.jpg`;
+                        const { width: imgW, height: imgH } =
+                            await getImageDimensions(compressed);
+                        const filePath = `${ctx.branchName}/${ctx.storeCode}/${ctx.draftReportId}/${item.id}_${safeItemName}_${imgW}x${imgH}.jpg`;
                         const supabaseClient = getSupabaseClient();
 
                         const { data, error } = await supabaseClient.storage

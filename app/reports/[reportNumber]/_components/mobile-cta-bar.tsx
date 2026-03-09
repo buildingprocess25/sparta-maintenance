@@ -1,10 +1,4 @@
-import {
-    CheckCircle2,
-    Loader2,
-    Printer,
-    WrenchIcon,
-    XCircle,
-} from "lucide-react";
+import { CheckCircle2, Loader2, WrenchIcon, XCircle } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { ReportData, Viewer, ActionState } from "./types";
@@ -37,75 +31,39 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                 report.status === "PENDING_REVIEW")) ||
         (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
 
+    if (!hasWorkflowAction) return null;
+
     return (
         <div className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-background/95 backdrop-blur border-t border-border px-4 py-3 safe-area-pb">
-            {/* Cetak PDF: secondary if workflow action exists, full-width if not */}
-            {!hasWorkflowAction && (
-                <a
-                    href={`/api/reports/${report.reportNumber}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full block"
-                >
-                    <Button variant="outline" className="w-full" size="lg">
-                        <Printer className="h-4 w-4 mr-2" />
-                        Cetak PDF
-                    </Button>
-                </a>
-            )}
             {/* BMS: start work */}
             {viewer.role === "BMS" &&
                 report.status === "ESTIMATION_APPROVED" && (
-                    <div className="flex gap-2">
-                        <a
-                            href={`/api/reports/${report.reportNumber}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-none"
-                        >
-                            <Button variant="outline" size="lg">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        </a>
-                        <Link
-                            href={`/reports/start-work?report=${report.reportNumber}`}
-                            className="flex-1"
-                        >
-                            <Button className="w-full" size="lg">
-                                <WrenchIcon className="h-4 w-4 mr-2" />
-                                Mulai Pengerjaan
-                            </Button>
-                        </Link>
-                    </div>
+                    <Link
+                        href={`/reports/start-work?report=${report.reportNumber}`}
+                        className="block w-full"
+                    >
+                        <Button className="w-full" size="lg">
+                            <WrenchIcon className="h-4 w-4 mr-2" />
+                            Mulai Pengerjaan
+                        </Button>
+                    </Link>
                 )}
 
             {/* BMS: submit completion */}
             {viewer.role === "BMS" &&
                 (report.status === "IN_PROGRESS" ||
                     report.status === "REVIEW_REJECTED_REVISION") && (
-                    <div className="flex gap-2">
-                        <a
-                            href={`/api/reports/${report.reportNumber}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-none"
-                        >
-                            <Button variant="outline" size="lg">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        </a>
-                        <Link
-                            href={`/reports/complete?report=${report.reportNumber}`}
-                            className="flex-1"
-                        >
-                            <Button className="w-full" size="lg">
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                {report.status === "REVIEW_REJECTED_REVISION"
-                                    ? "Kirim Ulang Laporan"
-                                    : "Kirim Laporan Penyelesaian"}
-                            </Button>
-                        </Link>
-                    </div>
+                    <Link
+                        href={`/reports/complete?report=${report.reportNumber}`}
+                        className="block w-full"
+                    >
+                        <Button className="w-full" size="lg">
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            {report.status === "REVIEW_REJECTED_REVISION"
+                                ? "Kirim Ulang Laporan"
+                                : "Kirim Laporan Penyelesaian"}
+                        </Button>
+                    </Link>
                 )}
 
             {/* BMC: review estimation */}
@@ -163,16 +121,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                     </div>
                 ) : (
                     <div className="flex gap-2">
-                        <a
-                            href={`/api/reports/${report.reportNumber}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-none"
-                        >
-                            <Button variant="outline" size="lg">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        </a>
                         <Button
                             className="flex-1"
                             size="lg"
@@ -249,16 +197,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                     </div>
                 ) : (
                     <div className="flex gap-2">
-                        <a
-                            href={`/api/reports/${report.reportNumber}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-none"
-                        >
-                            <Button variant="outline" size="lg">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        </a>
                         <Button
                             className="flex-1"
                             size="lg"
@@ -331,27 +269,15 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-2">
-                        <a
-                            href={`/api/reports/${report.reportNumber}/pdf`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-none"
-                        >
-                            <Button variant="outline" size="lg">
-                                <Printer className="h-4 w-4" />
-                            </Button>
-                        </a>
-                        <Button
-                            className="flex-1"
-                            size="lg"
-                            onClick={() => setActiveDialog("approve_final")}
-                            disabled={isPending}
-                        >
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            Setujui &amp; Selesaikan
-                        </Button>
-                    </div>
+                    <Button
+                        className="w-full"
+                        size="lg"
+                        onClick={() => setActiveDialog("approve_final")}
+                        disabled={isPending}
+                    >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Setujui &amp; Selesaikan
+                    </Button>
                 ))}
         </div>
     );

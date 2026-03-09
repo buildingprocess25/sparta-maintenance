@@ -7,6 +7,23 @@ import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import { getAuthUser } from "@/lib/authorization";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
+// Load logos once at module initialization — avoids disk I/O on every request
+const _assetsDir = path.join(process.cwd(), "public", "assets");
+let ALFAMART_LOGO_BASE64 = "";
+let BUILDING_LOGO_BASE64 = "";
+try {
+    ALFAMART_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "Alfamart-Emblem-small.png"))
+        .toString("base64");
+    BUILDING_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .toString("base64");
+} catch {
+    // PDF will render without logo graphics if assets are missing
+}
+
+const IMMUTABLE_STATUSES = new Set(["COMPLETED", "ESTIMATION_REJECTED"]);
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ reportNumber: string }> },
@@ -46,6 +63,33 @@ export async function GET(
             );
         }
 
+        // BMS can only access their own reports (including drafts)
+        // BMC can only access reports from their branches
+        // BNM_MANAGER can only access APPROVED_BMC and COMPLETED
+        // ADMIN has unrestricted access
+        if (user.role === "BMS") {
+            if (report.createdByNIK !== user.NIK) {
+                return NextResponse.json(
+                    { error: "Forbidden" },
+                    { status: 403 },
+                );
+            }
+        } else if (user.role === "BMC") {
+            if (!user.branchNames.includes(report.branchName)) {
+                return NextResponse.json(
+                    { error: "Forbidden" },
+                    { status: 403 },
+                );
+            }
+        } else if (user.role === "BNM_MANAGER") {
+            if (!["APPROVED_BMC", "COMPLETED"].includes(report.status)) {
+                return NextResponse.json(
+                    { error: "Forbidden" },
+                    { status: 403 },
+                );
+            }
+        }
+
         const items = (report.items ?? []) as unknown as ReportItemJson[];
         const estimations = (report.estimations ??
             []) as unknown as MaterialEstimationJson[];
@@ -59,29 +103,6 @@ export async function GET(
             hour: "2-digit",
             minute: "2-digit",
         });
-
-        const assetsDir = path.join(process.cwd(), "public", "assets");
-
-        let alfamartLogoBase64 = "";
-        let buildingLogoBase64 = "";
-
-        try {
-            alfamartLogoBase64 = fs
-                .readFileSync(path.join(assetsDir, "Alfamart-Emblem-small.png"))
-                .toString("base64");
-            buildingLogoBase64 = fs
-                .readFileSync(path.join(assetsDir, "Building-Logo.png"))
-                .toString("base64");
-        } catch (e) {
-            logger.error(
-                { operation: "generatePdf", reportNumber },
-                "Failed to load logo assets",
-                e,
-            );
-            // Fallback to empty string or a placeholder if needed,
-            // but generateReportPdf might rely on them.
-            // We'll proceed, assuming they exist as checked in previous steps.
-        }
 
         const formatDate = (d: Date) =>
             d.toLocaleDateString("id-ID", {
@@ -153,8 +174,8 @@ export async function GET(
             items,
             estimations,
             totalEstimation: Number(report.totalEstimation),
-            alfamartLogoBase64,
-            buildingLogoBase64,
+            alfamartLogoBase64: ALFAMART_LOGO_BASE64,
+            buildingLogoBase64: BUILDING_LOGO_BASE64,
             completionSelfieUrls,
             startReceiptUrls,
             completionNotes,
@@ -168,6 +189,9 @@ export async function GET(
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${reportNumber}.pdf"`,
+                // URL contains ?v={updatedAt} — each version is a unique URL,
+                // so caching aggressively here is safe.
+                "Cache-Control": "private, max-age=3600, immutable",
             },
         });
     } catch (error) {

@@ -4,6 +4,25 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 import { supabase } from "@/lib/supabase";
+import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
+
+function getImageDimensions(
+    file: File,
+): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+            resolve({ width: 4, height: 3 });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+    });
+}
 import { saveDraft } from "@/app/reports/actions";
 import {
     checklistCategories,
@@ -120,7 +139,9 @@ export function usePhotoUpload({
                 const safeItemName = itemName
                     .replace(/[^a-zA-Z0-9]/g, "_")
                     .toLowerCase();
-                const filePath = `${userBranchName}/${selectedStoreCode}/${draftReportId}/${activePhotoItemId}_${safeItemName}.${fileExt}`;
+                const { width: imgW, height: imgH } =
+                    await getImageDimensions(compressedFile);
+                const filePath = `${userBranchName}/${selectedStoreCode}/${draftReportId}/${activePhotoItemId}_${safeItemName}_${imgW}x${imgH}.${fileExt}`;
 
                 const { data: uploadData, error: uploadError } =
                     await supabase.storage
@@ -214,10 +235,12 @@ export function usePhotoUpload({
         setPreviewPhoto(URL.createObjectURL(file));
     }, []);
 
-    const closePreview = useCallback(() => {
+    const _doClosePreview = useCallback(() => {
         if (previewPhoto) URL.revokeObjectURL(previewPhoto);
         setPreviewPhoto(null);
     }, [previewPhoto]);
+
+    const closePreview = useHistoryBackClose(!!previewPhoto, _doClosePreview);
 
     return {
         isCameraOpen,

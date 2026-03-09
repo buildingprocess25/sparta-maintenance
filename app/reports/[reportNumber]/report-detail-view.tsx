@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, Layers, Package, ClipboardList } from "lucide-react";
+import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
 
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
@@ -70,6 +72,9 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     const [notesInput, setNotesInput] = useState("");
     const [activeDialog, setActiveDialog] = useState<string | null>(null);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+    const closeLightbox = useHistoryBackClose(!!lightboxSrc, () =>
+        setLightboxSrc(null),
+    );
 
     const handleSubmitCompletion = () => {
         startTransition(async () => {
@@ -175,6 +180,16 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleApproveFinal,
     };
 
+    const hasWorkflowAction =
+        (viewer.role === "BMS" &&
+            (report.status === "ESTIMATION_APPROVED" ||
+                report.status === "IN_PROGRESS" ||
+                report.status === "REVIEW_REJECTED_REVISION")) ||
+        (viewer.role === "BMC" &&
+            (report.status === "PENDING_ESTIMATION" ||
+                report.status === "PENDING_REVIEW")) ||
+        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
+
     return (
         <div className="min-h-screen flex flex-col bg-background/50">
             <Header
@@ -204,6 +219,28 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                     />
 
                     <div className="lg:col-span-8 xl:col-span-9">
+                        {/* Mobile PDF button — above tabs, separate from bottom action bar */}
+                        <div className="lg:hidden mb-4">
+                            <a
+                                href={`/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block w-full"
+                            >
+                                <Button
+                                    variant={
+                                        hasWorkflowAction
+                                            ? "outline"
+                                            : "default"
+                                    }
+                                    className="w-full"
+                                    size="lg"
+                                >
+                                    <Printer className="h-4 w-4 mr-2" />
+                                    Lihat Laporan Lengkap (PDF)
+                                </Button>
+                            </a>
+                        </div>
                         <Tabs defaultValue="checklist" className="w-full">
                             <div className="mb-5">
                                 <TabsList className="w-full bg-primary/10">
@@ -311,7 +348,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
             {lightboxSrc && (
                 <div
                     className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
-                    onClick={() => setLightboxSrc(null)}
+                    onClick={closeLightbox}
                 >
                     <div
                         className="relative max-w-4xl max-h-[90vh] w-full"
@@ -324,7 +361,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                             className="w-full h-full object-contain rounded-lg max-h-[85vh]"
                         />
                         <button
-                            onClick={() => setLightboxSrc(null)}
+                            onClick={closeLightbox}
                             className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
                         >
                             ×

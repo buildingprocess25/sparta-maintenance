@@ -35,6 +35,24 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+function getImageDimensions(
+    file: File,
+): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+            resolve({ width: 4, height: 3 });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+    });
+}
+
 async function compressAndUpload(
     file: File,
     path: string,
@@ -371,9 +389,11 @@ export function CompleteForm({
                         );
                         return;
                     }
+                    const { width: aW, height: aH } =
+                        await getImageDimensions(file);
                     const url = await compressAndUpload(
                         file,
-                        `${branch}/${store}/${rn}/after/${item.itemId}-${ts}-${i}.jpg`,
+                        `${branch}/${store}/${rn}/after/${item.itemId}-${ts}-${i}_${aW}x${aH}.jpg`,
                     );
                     if (!url) {
                         toast.error("Gagal mengunggah foto sesudah", {

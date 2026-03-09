@@ -37,6 +37,7 @@ import { StartReportSelectDialog } from "./components/start-report-select-dialog
 import { fetchReportForStartWork } from "./actions";
 import { startWorkWithPhotos } from "@/app/reports/actions/start-work-with-photos";
 import type { StartableReport, ReportForStartWork } from "./queries";
+import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,24 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function getImageDimensions(
+    file: File,
+): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new window.Image();
+        img.onload = () => {
+            resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.onerror = () => {
+            resolve({ width: 4, height: 3 });
+            URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+    });
+}
 
 async function compressAndUpload(
     file: File,
@@ -161,6 +180,9 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
 
     // ── Preview lightbox ──────────────────────────────────────────────────────
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const closePreview = useHistoryBackClose(!!previewUrl, () =>
+        setPreviewUrl(null),
+    );
 
     // ── Load report ───────────────────────────────────────────────────────────
     const loadReport = useCallback(async (reportNumber: string) => {
@@ -303,7 +325,10 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
             const uploadedSelfieUrls: string[] = [];
             for (let i = 0; i < selfiePhotos.length; i++) {
                 const photo = selfiePhotos[i];
-                const path = `${branch}/${store}/${rn}/start-selfie-${ts}-${i}.jpg`;
+                const { width: sW, height: sH } = await getImageDimensions(
+                    photo.file,
+                );
+                const path = `${branch}/${store}/${rn}/start-selfie-${ts}-${i}_${sW}x${sH}.jpg`;
                 const url = await compressAndUpload(photo.file, path);
                 if (!url) {
                     toast.dismiss(loadingId);
@@ -317,7 +342,10 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
             const uploadedReceiptUrls: string[] = [];
             for (let i = 0; i < receiptPhotos.length; i++) {
                 const photo = receiptPhotos[i];
-                const path = `${branch}/${store}/${rn}/start-receipt-${ts}-${i}.jpg`;
+                const { width: rW, height: rH } = await getImageDimensions(
+                    photo.file,
+                );
+                const path = `${branch}/${store}/${rn}/start-receipt-${ts}-${i}_${rW}x${rH}.jpg`;
                 const url = await compressAndUpload(photo.file, path);
                 if (!url) {
                     toast.dismiss(loadingId);
@@ -378,7 +406,7 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
             {previewUrl && (
                 <div
                     className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
-                    onClick={() => setPreviewUrl(null)}
+                    onClick={closePreview}
                 >
                     <div
                         className="relative max-w-4xl max-h-[90vh] w-full"
@@ -391,7 +419,7 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
                             className="w-full h-full object-contain rounded-lg max-h-[85vh]"
                         />
                         <button
-                            onClick={() => setPreviewUrl(null)}
+                            onClick={closePreview}
                             className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
                         >
                             ×

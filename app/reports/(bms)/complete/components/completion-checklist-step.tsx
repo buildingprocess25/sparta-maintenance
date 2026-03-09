@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import {
     AlertCircle,
     CheckCircle2,
@@ -103,6 +104,9 @@ export function CompletionChecklistStep({
         new Set(),
     );
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const closePreview = useHistoryBackClose(!!previewUrl, () =>
+        setPreviewUrl(null),
+    );
 
     const toggle = (id: string) =>
         setOpenCategories((prev) => {
@@ -347,7 +351,7 @@ export function CompletionChecklistStep({
             {previewUrl && (
                 <div
                     className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
-                    onClick={() => setPreviewUrl(null)}
+                    onClick={closePreview}
                 >
                     <div
                         className="relative max-w-4xl max-h-[90vh] w-full"
@@ -360,7 +364,7 @@ export function CompletionChecklistStep({
                             className="w-full h-full object-contain rounded-lg max-h-[85vh]"
                         />
                         <button
-                            onClick={() => setPreviewUrl(null)}
+                            onClick={closePreview}
                             className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
                         >
                             ×

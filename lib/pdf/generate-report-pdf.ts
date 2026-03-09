@@ -9,7 +9,6 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
-import probe from "probe-image-size";
 import type {
     ReportItemJson,
     MaterialEstimationJson,
@@ -17,23 +16,18 @@ import type {
 } from "@/types/report";
 
 /**
- * Detects whether an image URL is portrait or landscape by fetching
- * only the minimal bytes needed to read the image header dimensions.
- * Returns "portrait" | "landscape" | "square".
+ * Parses pixel dimensions embedded in a Supabase Storage filename.
+ * Filenames are written as `{name}_{W}x{H}.{ext}` at upload time,
+ * so no HTTP probe is needed at render time.
+ * Falls back to 4:3 landscape if the pattern is absent (legacy photos).
  */
-export async function getImageOrientation(
-    url: string,
-): Promise<"portrait" | "landscape" | "square"> {
-    try {
-        const result = await probe(url);
-        if (result.width > result.height) return "landscape";
-        if (result.height > result.width) return "portrait";
-        return "square";
-    } catch {
-        // If probe fails (network error, unsupported format, etc.),
-        // default to landscape so the rotation path is taken as a safe fallback.
-        return "landscape";
-    }
+function parseDimensionsFromUrl(url: string): {
+    width: number;
+    height: number;
+} {
+    const match = url.match(/_([\d]+)x([\d]+)\.\w+/);
+    if (match) return { width: parseInt(match[1]), height: parseInt(match[2]) };
+    return { width: 4, height: 3 };
 }
 
 const styles = StyleSheet.create({
@@ -1827,24 +1821,10 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
         ]),
     ].filter(Boolean);
 
-    // Probe actual pixel dimensions of all photos concurrently (reads only image headers)
+    // Parse pixel dimensions from filenames (embedded at upload time as _WxH before extension)
     const uniqueUrls = [...new Set(allUrls)];
-    const probeResults = await Promise.all(
-        uniqueUrls.map(async (url) => {
-            try {
-                const result = await probe(url);
-                return [
-                    url,
-                    { width: result.width, height: result.height },
-                ] as const;
-            } catch {
-                // Default to landscape 4:3 on failure — rotation will be applied
-                return [url, { width: 4, height: 3 }] as const;
-            }
-        }),
-    );
     const dimensionMap = new Map<string, { width: number; height: number }>(
-        probeResults,
+        uniqueUrls.map((url) => [url, parseDimensionsFromUrl(url)]),
     );
 
     const doc = buildReportDocument(data, dimensionMap);

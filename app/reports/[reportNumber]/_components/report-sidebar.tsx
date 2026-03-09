@@ -46,20 +46,33 @@ export function ReportSidebar({
         handleApproveFinal,
     } = actions;
 
+    const hasAction =
+        (viewer.role === "BMS" &&
+            (report.status === "ESTIMATION_APPROVED" ||
+                report.status === "IN_PROGRESS" ||
+                report.status === "REVIEW_REJECTED_REVISION")) ||
+        (viewer.role === "BMC" &&
+            (report.status === "PENDING_ESTIMATION" ||
+                report.status === "PENDING_REVIEW")) ||
+        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
+
     return (
         <div className="lg:col-span-4 xl:col-span-3 space-y-4 lg:space-y-6 lg:sticky lg:top-10">
             {/* ── DESKTOP CTA: always visible at top of sticky sidebar ── */}
             <div className="hidden lg:block space-y-3">
                 {/* PDF print button */}
                 <a
-                    href={`/api/reports/${report.reportNumber}/pdf`}
+                    href={`/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full block"
                 >
-                    <Button variant="outline" className="w-full">
+                    <Button
+                        variant={hasAction ? "outline" : "default"}
+                        className="w-full"
+                    >
                         <Printer className="h-4 w-4 mr-2" />
-                        Cetak PDF
+                        Lihat Laporan Lengkap (PDF)
                     </Button>
                 </a>
 
