@@ -44,11 +44,24 @@ export type SendEmailOptions = {
 };
 
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
+    // ── EMAIL DISABLED ──────────────────────────────────────────────────────
+    // Email sending is intentionally disabled. Remove this block to re-enable.
+    console.warn(
+        "[mailer] sendEmail called but email is disabled. Recipient:",
+        options.to,
+        "| Subject:",
+        options.subject,
+    );
+    return;
+    // ── END DISABLE ─────────────────────────────────────────────────────────
+
     const transporter = await createTransporter();
 
     await transporter.sendMail({
         from: `"SPARTA Maintenance" <${process.env.GMAIL_USER}>`,
-        to: Array.isArray(options.to) ? options.to.join(", ") : options.to,
+        to: Array.isArray(options.to)
+            ? (options.to as string[]).join(", ")
+            : (options.to as string),
         subject: options.subject,
         html: options.html,
         attachments: options.attachments,
