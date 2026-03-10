@@ -1,12 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import {
-    FileText,
     Plus,
     Clock,
     CheckCircle2,
     AlertCircle,
     Wrench,
-    Settings,
     ArrowRight,
     TrendingUp,
     ClipboardCheck,
@@ -33,13 +31,6 @@ const MENUS = [
         href: "/reports/complete",
         variant: "outline" as const,
     },
-    {
-        title: "Laporan Saya",
-        description: "Lihat semua laporan yang sudah dibuat",
-        icon: FileText,
-        href: "/reports",
-        variant: "outline" as const,
-    },
 ];
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
@@ -50,103 +41,94 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
 
     return (
         <DashboardShell user={user}>
-            {/* Stats Panel */}
-            <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
-                {/* Hero stat — Perlu Tindakan */}
-                <Link
-                    href="/reports?status=needs_action"
-                    className="group shrink-0 lg:w-64 bg-orange-500 text-white p-6 flex flex-col justify-between hover:bg-orange-600 transition-colors"
-                >
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-orange-100 text-sm font-medium">
-                            <AlertCircle className="h-4 w-4" />
-                            Perlu Tindakan
-                        </div>
-                        <TrendingUp className="h-4 w-4 text-orange-200 opacity-70" />
-                    </div>
-                    <div>
-                        <div className="text-6xl font-bold tabular-nums leading-none mt-4">
-                            {stats.needsAction}
-                        </div>
-                        <p className="text-sm text-orange-100 mt-3 leading-snug">
-                            Laporan siap dikerjakan atau butuh revisi
-                        </p>
-                    </div>
-                </Link>
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 lg:gap-6 items-start">
+                {/* Left column: Stats + Menu */}
+                <div className="space-y-4">
+                    {/* Stats Panel */}
+                    <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
+                        {/* Hero stat */}
+                        <Link
+                            href="/reports?status=needs_action"
+                            className="group shrink-0 lg:w-52 bg-orange-500 text-white
+                                       flex flex-row items-center justify-between gap-4
+                                       lg:flex-col lg:items-stretch lg:justify-between
+                                       p-4 lg:p-5 hover:bg-orange-600 transition-colors"
+                        >
+                            <div>
+                                <div className="flex items-center gap-1.5 text-orange-100 text-xs font-medium">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                    Perlu Tindakan
+                                </div>
+                                <p className="text-xs text-orange-100 mt-2 leading-snug hidden lg:block">
+                                    Laporan siap dikerjakan atau butuh revisi
+                                </p>
+                            </div>
+                            <div className="flex items-end gap-2 shrink-0 lg:items-center">
+                                <div className="text-4xl lg:text-5xl font-bold tabular-nums leading-none">
+                                    {stats.needsAction}
+                                </div>
+                                <TrendingUp className="h-4 w-4 text-orange-200 opacity-60 mb-0.5 hidden lg:block" />
+                            </div>
+                        </Link>
 
-                {/* Secondary stats */}
-                <div className="flex-1 grid grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
-                    <Link
-                        href="/reports?status=waiting_review"
-                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
-                    >
-                        <div className="flex items-center gap-2 text-yellow-600 text-sm font-medium">
-                            <Clock className="h-4 w-4" />
+                        {/* Secondary stats */}
+                        <div className="flex-1 grid grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
+                            <Link
+                                href="/reports?status=waiting_review"
+                                className="group p-3 lg:p-4 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                            >
+                                <Clock className="h-3.5 w-3.5 text-yellow-600" />
+                                <div>
+                                    <div className="text-2xl lg:text-3xl font-bold tabular-nums mt-2 lg:mt-3">
+                                        {stats.waitingReview}
+                                    </div>
+                                    <p className="text-xs font-semibold mt-0.5">
+                                        Menunggu Review
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block">
+                                        Diproses pihak lain
+                                    </p>
+                                </div>
+                            </Link>
+                            <Link
+                                href="/reports?status=in_progress"
+                                className="group p-3 lg:p-4 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                            >
+                                <Wrench className="h-3.5 w-3.5 text-blue-600" />
+                                <div>
+                                    <div className="text-2xl lg:text-3xl font-bold tabular-nums mt-2 lg:mt-3">
+                                        {stats.inProgress}
+                                    </div>
+                                    <p className="text-xs font-semibold mt-0.5">
+                                        Dikerjakan
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block">
+                                        Sedang dalam pengerjaan
+                                    </p>
+                                </div>
+                            </Link>
+                            <Link
+                                href="/reports?status=completed"
+                                className="group p-3 lg:p-4 flex flex-col justify-between hover:bg-muted/40 transition-colors"
+                            >
+                                <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
+                                <div>
+                                    <div className="text-2xl lg:text-3xl font-bold tabular-nums mt-2 lg:mt-3">
+                                        {stats.completed}
+                                    </div>
+                                    <p className="text-xs font-semibold mt-0.5">
+                                        Selesai
+                                    </p>
+                                    <p className="text-xs text-muted-foreground mt-0.5 hidden lg:block">
+                                        Laporan telah rampung
+                                    </p>
+                                </div>
+                            </Link>
                         </div>
-                        <div>
-                            <div className="text-3xl font-bold tabular-nums mt-3">
-                                {stats.waitingReview}
-                            </div>
-                            <p className="text-sm font-semibold mt-1">
-                                Menunggu Review
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Diproses pihak lain
-                            </p>
-                        </div>
-                    </Link>
-                    <Link
-                        href="/reports?status=in_progress"
-                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
-                    >
-                        <div className="flex items-center gap-2 text-blue-600 text-sm font-medium">
-                            <Wrench className="h-4 w-4" />
-                        </div>
-                        <div>
-                            <div className="text-3xl font-bold tabular-nums mt-3">
-                                {stats.inProgress}
-                            </div>
-                            <p className="text-sm font-semibold mt-1">
-                                Dikerjakan
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Sedang dalam pengerjaan
-                            </p>
-                        </div>
-                    </Link>
-                    <Link
-                        href="/reports?status=completed"
-                        className="group p-5 flex flex-col justify-between hover:bg-muted/40 transition-colors"
-                    >
-                        <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                            <CheckCircle2 className="h-4 w-4" />
-                        </div>
-                        <div>
-                            <div className="text-3xl font-bold tabular-nums mt-3">
-                                {stats.completed}
-                            </div>
-                            <p className="text-sm font-semibold mt-1">
-                                Selesai
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Laporan telah rampung
-                            </p>
-                        </div>
-                    </Link>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {/* Main Menu */}
-                <div className="md:col-span-2 space-y-6">
-                    <div className="flex items-center justify-between">
-                        <h2 className="text-lg font-semibold flex items-center gap-2">
-                            <Settings className="h-5 w-5 text-primary" />
-                            Menu Utama
-                        </h2>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Menu Cards */}
+                    <div className="grid grid-cols-2 gap-3">
                         {MENUS.map((menu, index) => {
                             const Icon = menu.icon;
                             const isDefault = menu.variant === "default";
@@ -163,32 +145,44 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                                                 : "hover:border-primary/50 hover:shadow-md hover:bg-accent/5"
                                         }`}
                                     >
-                                        <CardContent className="p-5 py-0 flex flex-row items-start gap-4">
+                                        <CardContent className="p-4 flex flex-row items-center gap-3">
                                             <div
-                                                className={`p-3 rounded-xl shrink-0 transition-colors ${
+                                                className={`p-2.5 rounded-lg shrink-0 transition-colors ${
                                                     isDefault
                                                         ? "bg-white/10"
                                                         : "bg-primary/10 group-hover:bg-primary/20"
                                                 }`}
                                             >
                                                 <Icon
-                                                    className={`h-6 w-6 ${isDefault ? "text-white" : "text-primary"}`}
+                                                    className={`h-5 w-5 ${
+                                                        isDefault
+                                                            ? "text-white"
+                                                            : "text-primary"
+                                                    }`}
                                                 />
                                             </div>
-                                            <div className="space-y-1">
+                                            <div className="min-w-0 flex-1">
                                                 <h3
-                                                    className={`font-semibold text:sm md:text-lg ${isDefault ? "text-white" : "text-foreground"}`}
+                                                    className={`font-semibold text-sm leading-tight ${
+                                                        isDefault
+                                                            ? "text-white"
+                                                            : "text-foreground"
+                                                    }`}
                                                 >
                                                     {menu.title}
                                                 </h3>
                                                 <p
-                                                    className={`text-xs md:text-sm leading-relaxed ${isDefault ? "text-primary-foreground/80" : "text-muted-foreground"}`}
+                                                    className={`text-xs mt-0.5 leading-snug line-clamp-2 ${
+                                                        isDefault
+                                                            ? "text-primary-foreground/70"
+                                                            : "text-muted-foreground"
+                                                    }`}
                                                 >
                                                     {menu.description}
                                                 </p>
                                             </div>
                                             {isDefault && (
-                                                <ArrowRight className="h-5 w-5 ml-auto self-center text-white/50 group-hover:text-white group-hover:translate-x-1 transition-all" />
+                                                <ArrowRight className="h-4 w-4 shrink-0 text-white/50 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
                                             )}
                                         </CardContent>
                                     </Card>
@@ -198,7 +192,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                     </div>
                 </div>
 
-                {/* Activity Feed */}
+                {/* Right column: Activity Feed */}
                 <ActivitySection
                     activities={activities}
                     emptyMessage="Laporan dan aktivitas terbaru Anda akan muncul di sini."

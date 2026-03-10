@@ -9,7 +9,7 @@ import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 const ROLE_LABELS: Record<string, string> = {
     BMS: "Branch Maintenance Support",
     BMC: "Branch Maintenance Coordinator",
-    BNM_MANAGER: "BNM Manager",
+    BNM_MANAGER: "Branch Building & Maintenance Manager",
     ADMIN: "Admin",
 };
 
