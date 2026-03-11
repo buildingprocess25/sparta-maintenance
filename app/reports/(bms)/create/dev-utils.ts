@@ -61,23 +61,44 @@ export function autoFillStep1(
             console.warn("Gagal fetch dummy image, foto tidak akan diisi");
         }
 
+        // Pre-assign conditions for non-preventive items
+        const nonPreventiveItemIds: string[] = [];
+        for (const category of activeCategories) {
+            if (!category.isPreventive) {
+                for (const item of category.items) {
+                    nonPreventiveItemIds.push(item.id);
+                }
+            }
+        }
+
+        const shuffle = <T>(arr: T[]): T[] => {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        };
+
+        const rusakCount = Math.floor(Math.random() * 2) + 2; // 2 or 3
+        const shuffled = shuffle(nonPreventiveItemIds);
+        const rusakIds = new Set(shuffled.slice(0, rusakCount));
+        const baikIds = new Set(shuffled.slice(rusakCount, rusakCount + 2));
+
         const newChecklist = new Map<string, ChecklistItem>();
-        let itemIndex = 0;
 
         for (const category of activeCategories) {
             for (const item of category.items) {
-                itemIndex++;
-                let allowedConditions: ChecklistCondition[] = [
-                    "baik",
-                    "rusak",
-                    "tidak-ada",
-                ];
+                let condition: ChecklistCondition;
                 if (category.isPreventive) {
-                    allowedConditions = ["baik", "rusak"];
+                    condition = "baik";
+                } else if (rusakIds.has(item.id)) {
+                    condition = "rusak";
+                } else if (baikIds.has(item.id)) {
+                    condition = "baik";
+                } else {
+                    condition = "tidak-ada";
                 }
-
-                const condition =
-                    allowedConditions[itemIndex % allowedConditions.length];
                 const checklistItem: ChecklistItem = {
                     id: item.id,
                     name: item.name,
@@ -133,7 +154,7 @@ export function autoFillStep1(
 
                 if (condition === "rusak") {
                     checklistItem.handler =
-                        itemIndex % 2 === 0 ? "BMS" : "Rekanan";
+                        Math.random() > 0.5 ? "BMS" : "Rekanan";
                 }
 
                 newChecklist.set(item.id, checklistItem);

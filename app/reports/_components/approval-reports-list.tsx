@@ -41,6 +41,8 @@ import {
     X,
     Clock,
     Wrench,
+    Building2,
+    ChevronRight,
 } from "lucide-react";
 import {
     Pagination,
@@ -372,70 +374,141 @@ export function ApprovalReportsList({
 
                 {reports.length > 0 ? (
                     <>
-                        {/* --- MOBILE VIEW: CARD LIST --- */}
+                        {/* --- MOBILE VIEW: LIST --- */}
                         <div className="relative md:hidden">
                             {isPending && (
-                                <div className="absolute inset-0 bg-background z-50 flex items-center justify-center rounded-lg">
+                                <div className="absolute inset-0 bg-background/80 z-50 flex items-center justify-center rounded-xl">
                                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
                             )}
-                            <div className="space-y-3">
-                                {reports.map((report) => (
-                                    <div
-                                        key={report.reportNumber}
-                                        className="bg-card border rounded-lg shadow-sm p-4 space-y-3 cursor-pointer"
-                                        onClick={() =>
-                                            router.push(
-                                                `/reports/${report.reportNumber}`,
-                                            )
-                                        }
-                                    >
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0">
-                                                <p className="font-mono font-semibold text-xs text-muted-foreground">
-                                                    {report.reportNumber}
+                            <div className="rounded-xl border overflow-hidden divide-y bg-card shadow-sm">
+                                {reports.map((report) => {
+                                    const statusBar: Record<string, string> = {
+                                        PENDING_ESTIMATION: "bg-yellow-400",
+                                        ESTIMATION_APPROVED: "bg-green-500",
+                                        ESTIMATION_REJECTED_REVISION:
+                                            "bg-orange-500",
+                                        ESTIMATION_REJECTED: "bg-red-500",
+                                        IN_PROGRESS: "bg-blue-500",
+                                        PENDING_REVIEW: "bg-purple-500",
+                                        REVIEW_REJECTED_REVISION:
+                                            "bg-orange-500",
+                                        APPROVED_BMC: "bg-teal-500",
+                                        COMPLETED: "bg-emerald-500",
+                                    };
+                                    const statusBadge: Record<string, string> =
+                                        {
+                                            PENDING_ESTIMATION:
+                                                "bg-yellow-100 text-yellow-700",
+                                            ESTIMATION_APPROVED:
+                                                "bg-green-100 text-green-700",
+                                            ESTIMATION_REJECTED_REVISION:
+                                                "bg-orange-100 text-orange-700",
+                                            ESTIMATION_REJECTED:
+                                                "bg-red-100 text-red-700",
+                                            IN_PROGRESS:
+                                                "bg-blue-100 text-blue-700",
+                                            PENDING_REVIEW:
+                                                "bg-purple-100 text-purple-700",
+                                            REVIEW_REJECTED_REVISION:
+                                                "bg-orange-100 text-orange-700",
+                                            APPROVED_BMC:
+                                                "bg-teal-100 text-teal-700",
+                                            COMPLETED:
+                                                "bg-emerald-100 text-emerald-700",
+                                        };
+                                    const statusLabel: Record<string, string> =
+                                        {
+                                            PENDING_ESTIMATION:
+                                                "Menunggu Estimasi",
+                                            ESTIMATION_APPROVED:
+                                                "Estimasi Disetujui",
+                                            ESTIMATION_REJECTED_REVISION:
+                                                "Est. Ditolak (Revisi)",
+                                            ESTIMATION_REJECTED: "Est. Ditolak",
+                                            IN_PROGRESS: "Sedang Dikerjakan",
+                                            PENDING_REVIEW: "Menunggu Review",
+                                            REVIEW_REJECTED_REVISION:
+                                                "Ditolak (Revisi)",
+                                            APPROVED_BMC:
+                                                "Menunggu Persetujuan Final",
+                                            COMPLETED: "Selesai",
+                                        };
+                                    const barColor =
+                                        statusBar[report.status] ?? "bg-muted";
+                                    const badgeColor =
+                                        statusBadge[report.status] ??
+                                        "bg-muted text-muted-foreground";
+                                    const label =
+                                        statusLabel[report.status] ??
+                                        report.status;
+                                    const estFormatted = report.totalEstimation
+                                        ? `Rp ${Number(report.totalEstimation).toLocaleString("id-ID")}`
+                                        : null;
+
+                                    return (
+                                        <div
+                                            key={report.reportNumber}
+                                            className="flex items-stretch hover:bg-muted/40 active:bg-muted/60 transition-colors cursor-pointer"
+                                            onClick={() =>
+                                                router.push(
+                                                    `/reports/${report.reportNumber}`,
+                                                )
+                                            }
+                                        >
+                                            <span
+                                                className={`w-1 shrink-0 ${barColor}`}
+                                            />
+                                            <div className="flex-1 min-w-0 px-3 py-3">
+                                                {/* Row 1: store code + name */}
+                                                <p className="font-semibold text-sm leading-tight truncate mb-1">
+                                                    {report.storeCode
+                                                        ? `${report.storeCode} \u2013 ${report.storeName || "\u2014"}`
+                                                        : report.storeName ||
+                                                          "\u2014"}
                                                 </p>
-                                                <p className="text-sm font-medium mt-0.5 truncate">
-                                                    {report.storeName || "—"}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                                    <MapPin className="h-3 w-3 shrink-0" />
-                                                    {report.branchName}
-                                                </p>
+                                                {/* Row 2: status badge */}
+                                                <span
+                                                    className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap mb-2 ${badgeColor}`}
+                                                >
+                                                    {label}
+                                                </span>
+                                                {/* Row 3: report number + branch */}
+                                                <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5">
+                                                    <span className="font-mono shrink-0">
+                                                        {report.reportNumber}
+                                                    </span>
+                                                    <span className="flex items-center gap-1 min-w-0">
+                                                        <Building2 className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">
+                                                            {report.branchName}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                {/* Row 4: creator + date + estimation */}
+                                                <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
+                                                    <span>
+                                                        {report.createdByName}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <CalendarDays className="h-3 w-3 shrink-0" />
+                                                        {formatDate(
+                                                            report.updatedAt,
+                                                        )}
+                                                    </span>
+                                                    {estFormatted && (
+                                                        <span className="font-medium text-foreground">
+                                                            {estFormatted}
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
-                                            {getStatusBadge(report.status)}
+                                            <div className="flex items-center pr-3 text-muted-foreground/40">
+                                                <ChevronRight className="h-4 w-4" />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>{report.createdByName}</span>
-                                            <span>
-                                                {formatDate(report.updatedAt)}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between pt-1">
-                                            <span className="text-sm font-mono font-semibold">
-                                                {formatCurrency(
-                                                    report.totalEstimation,
-                                                )}
-                                            </span>
-                                            <Button
-                                                size="sm"
-                                                className="gap-1.5 h-8"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    router.push(
-                                                        `/reports/${report.reportNumber}`,
-                                                    );
-                                                }}
-                                            >
-                                                {getActionLabel(
-                                                    report.status,
-                                                    role,
-                                                )}
-                                                <ArrowRight className="h-3.5 w-3.5" />
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
 

@@ -81,14 +81,16 @@ export async function getMyReports(filters: ReportFilters = {}) {
         prisma.report.count({ where }),
     ]);
 
-    const reportsWithCount = reports.map((report) => ({
-        ...report,
-        _count: {
-            items: Array.isArray(report.items)
-                ? (report.items as unknown[]).length
-                : 0,
-        },
-    }));
+    const reportsWithCount = reports.map((report) => {
+        const itemsArr = Array.isArray(report.items)
+            ? (report.items as unknown as import("@/types/report").ReportItemJson[])
+            : [];
+        return {
+            ...report,
+            _count: { items: itemsArr.length },
+            rusakCount: itemsArr.filter((i) => i.condition === "RUSAK").length,
+        };
+    });
 
     return { reports: reportsWithCount, total };
 }

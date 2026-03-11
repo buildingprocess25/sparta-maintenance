@@ -3,7 +3,6 @@ import {
     Calendar,
     CheckCircle2,
     FileText,
-    Layers,
     Loader2,
     WrenchIcon,
     Printer,
@@ -457,7 +456,7 @@ export function ReportSidebar({
                             </p>
                             <div className="flex items-center gap-1">
                                 <User className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <p className="font-medium leading-tight truncate">
+                                <p className="font-medium leading-tight">
                                     {report.submittedBy}
                                 </p>
                             </div>
@@ -467,50 +466,35 @@ export function ReportSidebar({
                     {report.items.length > 0 && (
                         <>
                             <Separator />
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                    <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
-                                        <Layers className="h-3.5 w-3.5 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Total Item
-                                        </p>
-                                        <p className="font-bold text-sm">
-                                            {report.items.length}
-                                        </p>
-                                    </div>
+                            <div className="flex items-center gap-2">
+                                <div
+                                    className={cn(
+                                        "h-8 w-8 rounded-full flex items-center justify-center",
+                                        rusakCount > 0
+                                            ? "bg-red-50"
+                                            : "bg-green-50",
+                                    )}
+                                >
+                                    {rusakCount > 0 ? (
+                                        <XCircle className="h-3.5 w-3.5 text-red-500" />
+                                    ) : (
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-2 text-right">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground">
-                                            Perlu Perbaikan
-                                        </p>
-                                        <p
-                                            className={cn(
-                                                "font-bold text-sm",
-                                                rusakCount > 0
-                                                    ? "text-red-600"
-                                                    : "text-green-600",
-                                            )}
-                                        >
-                                            {rusakCount}
-                                        </p>
-                                    </div>
-                                    <div
+                                <div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Perlu Perbaikan
+                                    </p>
+                                    <p
                                         className={cn(
-                                            "h-8 w-8 rounded-full flex items-center justify-center",
+                                            "font-bold text-sm",
                                             rusakCount > 0
-                                                ? "bg-red-50"
-                                                : "bg-green-50",
+                                                ? "text-red-600"
+                                                : "text-green-600",
                                         )}
                                     >
-                                        {rusakCount > 0 ? (
-                                            <XCircle className="h-3.5 w-3.5 text-red-500" />
-                                        ) : (
-                                            <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
-                                        )}
-                                    </div>
+                                        {rusakCount}
+                                    </p>
                                 </div>
                             </div>
                         </>
@@ -583,16 +567,22 @@ export function ReportSidebar({
                         </div>
                     </div>
                     {report.items.length > 0 && (
-                        <div className="border-t border-border pt-6 -mx-6 -mb-6 px-6 flex justify-between items-center rounded-b-xl">
-                            <div>
-                                <p className="text-xs font-medium text-muted-foreground">
-                                    Total Item
-                                </p>
-                                <p className="text-lg font-bold">
-                                    {report.items.length}
-                                </p>
+                        <div className="border-t border-border pt-6 -mx-6 -mb-6 px-6 flex items-center gap-3 rounded-b-xl">
+                            <div
+                                className={cn(
+                                    "h-8 w-8 rounded-full flex items-center justify-center shrink-0",
+                                    rusakCount > 0
+                                        ? "bg-red-50"
+                                        : "bg-green-50",
+                                )}
+                            >
+                                {rusakCount > 0 ? (
+                                    <XCircle className="h-3.5 w-3.5 text-red-500" />
+                                ) : (
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
+                                )}
                             </div>
-                            <div className="text-right">
+                            <div>
                                 <p className="text-xs font-medium text-muted-foreground">
                                     Perlu Perbaikan
                                 </p>

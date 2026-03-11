@@ -12,7 +12,6 @@ import React from "react";
 import type {
     ReportItemJson,
     MaterialEstimationJson,
-    RealisasiItemJson,
 } from "@/types/report";
 import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 
@@ -30,6 +29,8 @@ function parseDimensionsFromUrl(url: string): {
     if (match) return { width: parseInt(match[1]), height: parseInt(match[2]) };
     return { width: 4, height: 3 };
 }
+
+
 
 const styles = StyleSheet.create({
     page: {
@@ -126,16 +127,50 @@ const styles = StyleSheet.create({
     tableRow: {
         flexDirection: "row",
         borderBottom: "1px solid #f3f4f6",
+        minHeight: 14,
+        alignItems: "center",
+        flexWrap: "wrap",
     },
     tableRowAlt: {
         flexDirection: "row",
         borderBottom: "1px solid #f3f4f6",
         backgroundColor: "#f9fafb",
+        minHeight: 14,
+        alignItems: "center",
+        flexWrap: "wrap",
     },
     tableCell: {
-        fontSize: 8,
-        padding: "4 6",
+        fontSize: 7,
+        padding: "3 6",
         color: "#374151",
+    },
+    tableSubRow: {
+        width: "100%",
+        flexDirection: "row",
+        padding: "2 6 4 6",
+        paddingLeft: "15%", // Indent to align with Item column
+        backgroundColor: "rgba(253, 242, 242, 0.5)", // Light red tint for notes
+        borderTop: "1px dashed #fca5a5",
+    },
+    tableSubCell: {
+        fontSize: 6.5,
+        color: "#4b5563",
+        marginRight: 10,
+    },
+    tableSubLabel: {
+        fontFamily: "Helvetica-Bold",
+        color: "#991b1b",
+    },
+    twoColumnTableContainer: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
+    },
+    halfTableWidth: {
+        width: "49%",
+    },
+    fullTableWidth: {
+        width: "100%",
     },
     categoryRow: {
         flexDirection: "row",
@@ -144,10 +179,10 @@ const styles = StyleSheet.create({
         marginBottom: 1,
     },
     categoryCell: {
-        fontSize: 8,
+        fontSize: 7.5,
         fontFamily: "Helvetica-Bold",
         color: "#c0392b",
-        padding: "4 6",
+        padding: "3 6",
     },
     badgeRusak: {
         color: "#c0392b",
@@ -412,9 +447,7 @@ const styles = StyleSheet.create({
         borderRadius: 3,
     },
     completionItemBlock: {
-        marginBottom: 14,
-        paddingBottom: 10,
-        borderBottom: "0.5px solid #e5e7eb",
+        marginBottom: 10,
     },
 });
 
@@ -603,91 +636,143 @@ function renderStampBox(stamp: ReportStamp, idx: number) {
     );
 }
 
-// Each photo slot gets half the usable page width (36pt padding each side, 8pt gap between 2 photos)
-// Fixed row height for all photos — width scales proportionally, zero cropping
-const PHOTO_ROW_HEIGHT = 150; // pt
 
-function renderPhotoGrid(
+const BEFORE_AFTER_COL_WIDTH = (595 - 36 * 2 - 8) / 2; // ≈ 257.5pt
+const BEFORE_AFTER_MAX_HEIGHT = 260; // pt — increased to comfortably fit square photos without capping
+
+/**
+ * Renders a single photo in landscape orientation within a column.
+ * - Landscape/square photos: scaled to fit column width, original proportions.
+ * - Portrait photos: rotated 90° to landscape; the image’s original height
+ *   becomes the visual width (capped at colWidth), and the image’s original
+ *   width becomes the visual height.
+ */
+function renderLandscapePhoto(
+    url: string,
+    idx: number,
+    dimensionMap: Map<string, { width: number; height: number }>,
+    colWidth: number,
+    maxHeight: number,
+) {
+    const dims = dimensionMap.get(url);
+    const nW = dims?.width ?? 4;
+    const nH = dims?.height ?? 3;
+    const isPortrait = nH > nW;
+
+    if (isPortrait) {
+        // After 90° rotation: visual width = nH, visual height = nW.
+        // Scale so visual width fits colWidth.
+        const scale = Math.min(colWidth / nH, maxHeight / nW);
+        const imgW = nW * scale; // pre-rotate width → visual height
+        const imgH = nH * scale; // pre-rotate height → visual width
+        const visualW = imgH;
+        const visualH = imgW;
+
+        const left = -(imgW - imgH) / 2;
+        const top = (imgW - imgH) / 2;
+
+        return React.createElement(
+            View,
+            {
+                key: idx,
+                style: {
+                    width: visualW,
+                    height: visualH,
+                    overflow: "hidden",
+                    borderRadius: 2,
+                    marginBottom: 4,
+                },
+            },
+            React.createElement(Image, {
+                src: url,
+                style: {
+                    position: "absolute",
+                    left,
+                    top,
+                    width: imgW,
+                    height: imgH,
+                    transform: "rotate(90deg)",
+                    // the container ratio exactly matches the original photo ratio (nW/nH),
+                    // so defaulting to "fill" is perfectly proportional and avoids objectFit bugs.
+                },
+            }),
+        );
+    }
+
+    // Landscape / square: fit to column width, cap at maxHeight.
+    let w = colWidth;
+    let h = colWidth * (nH / nW);
+    if (h > maxHeight) {
+        h = maxHeight;
+        w = maxHeight * (nW / nH);
+    }
+    return React.createElement(Image, {
+        key: idx,
+        src: url,
+        style: {
+            width: w,
+            height: h,
+            objectFit: "contain",
+            borderRadius: 2,
+            marginBottom: 4,
+        },
+    });
+}
+
+/**
+ * Renders photos in a 2-column grid. Each row contains up to 2 photos.
+ * All photos are displayed in landscape orientation (portrait rotated).
+ */
+function renderPhotoGrid2Col(
     urls: string[],
     label: string,
     dimensionMap: Map<string, { width: number; height: number }>,
-    height = PHOTO_ROW_HEIGHT,
 ) {
     if (!urls || urls.length === 0) return null;
-    const rows: string[][] = [];
+    const col = BEFORE_AFTER_COL_WIDTH;
+    const maxH = BEFORE_AFTER_MAX_HEIGHT;
+
+    const pairs: string[][] = [];
     for (let i = 0; i < urls.length; i += 2) {
-        rows.push(urls.slice(i, i + 2));
+        pairs.push(urls.slice(i, i + 2));
     }
+
     return React.createElement(
         View,
-        { wrap: false, style: { marginBottom: 10 } },
-        React.createElement(Text, { style: styles.completionSubLabel }, label),
-        ...rows.map((pair, rowIdx) =>
+        { wrap: false, style: { marginBottom: 8 } },
+        React.createElement(
+            Text,
+            { style: styles.completionSubLabel },
+            label,
+        ),
+        ...pairs.map((pair, rowIdx) =>
             React.createElement(
                 View,
-                { key: rowIdx, style: styles.photoGrid },
-                ...pair.map((url, i) => {
-                    const dims = dimensionMap.get(url);
-                    const nW = dims?.width ?? 4;
-                    const nH = dims?.height ?? 3;
-                    const isLandscape = nW > nH;
-
-                    if (isLandscape) {
-                        const imgW = height;
-                        const imgH = (nH * height) / nW;
-                        const marginLeft = -(imgW - imgH) / 2;
-                        const marginTop = (imgW - imgH) / 2;
-                        const visualWidth = imgH;
-                        return React.createElement(
-                            View,
-                            {
-                                key: i,
-                                style: {
-                                    width: visualWidth,
-                                    height: height,
-                                    overflow: "hidden",
-                                    borderRadius: 2,
-                                },
-                            },
-                            React.createElement(Image, {
-                                src: url,
-                                style: {
-                                    width: imgW,
-                                    height: imgH,
-                                    marginLeft,
-                                    marginTop,
-                                    transform: "rotate(90deg)",
-                                },
-                            }),
-                        );
-                    }
-
-                    // Portrait or square: fix height, width proportional
-                    const renderedW = height * (nW / nH);
-                    return React.createElement(Image, {
-                        key: i,
-                        src: url,
-                        style: {
-                            width: renderedW,
-                            height: height,
-                            borderRadius: 2,
-                        },
-                    });
-                }),
+                {
+                    key: rowIdx,
+                    style: {
+                        flexDirection: "row",
+                        gap: 8,
+                        marginBottom: 4,
+                    },
+                },
+                ...pair.map((url, colIdx) =>
+                    renderLandscapePhoto(
+                        url,
+                        rowIdx * 2 + colIdx,
+                        dimensionMap,
+                        col,
+                        maxH,
+                    ),
+                ),
             ),
         ),
     );
 }
 
-// Each column in the before/after layout gets half the usable page width
-const BEFORE_AFTER_COL_WIDTH = (595 - 36 * 2 - 8) / 2; // ≈ 257.5pt
-const BEFORE_AFTER_MAX_HEIGHT = 250; // pt — cap per photo to keep the section compact
-
 /**
  * Renders before & after photos side by side in a two-column layout.
- * Each photo is capped at BEFORE_AFTER_MAX_HEIGHT; width scales down proportionally
- * if needed — zero cropping, zero stretching.
- * Landscape photos are rotated 90° to portrait before display.
+ * All photos are rendered in landscape orientation (portrait rotated 90°).
  */
 function renderBeforeAfterRow(
     beforeUrls: string[],
@@ -698,72 +783,11 @@ function renderBeforeAfterRow(
     const hasAfter = afterUrls.length > 0;
     if (!hasBefore && !hasAfter) return null;
 
-    const renderColPhoto = (url: string, idx: number) => {
-        const dims = dimensionMap.get(url);
-        const nW = dims?.width ?? 4;
-        const nH = dims?.height ?? 3;
-        const col = BEFORE_AFTER_COL_WIDTH;
-        const maxH = BEFORE_AFTER_MAX_HEIGHT;
+    const col = BEFORE_AFTER_COL_WIDTH;
+    const maxH = BEFORE_AFTER_MAX_HEIGHT;
 
-        if (nW > nH) {
-            // Landscape → rotate 90°.
-            // After rotation: visual width = imgH (pre-rotate), visual height = imgW (pre-rotate).
-            // Start by fitting to col width: imgH = col, imgW = col * (nW/nH).
-            // Then cap visual height (= imgW) to maxH if needed.
-            let imgH = col;
-            let imgW = col * (nW / nH);
-            if (imgW > maxH) {
-                // Scale down so visual height = maxH
-                imgW = maxH;
-                imgH = maxH * (nH / nW);
-            }
-            const visualW = imgH;
-            const visualH = imgW;
-            const marginLeft = -(imgW - imgH) / 2;
-            const marginTop = (imgW - imgH) / 2;
-            return React.createElement(
-                View,
-                {
-                    key: idx,
-                    style: {
-                        width: visualW,
-                        height: visualH,
-                        overflow: "hidden",
-                        borderRadius: 2,
-                        marginBottom: 4,
-                    },
-                },
-                React.createElement(Image, {
-                    src: url,
-                    style: {
-                        width: imgW,
-                        height: imgH,
-                        marginLeft,
-                        marginTop,
-                        transform: "rotate(90deg)",
-                    },
-                }),
-            );
-        }
-
-        // Portrait / square: fit to col width first, then cap height.
-        let w = col;
-        let h = col * (nH / nW);
-        if (h > maxH) {
-            h = maxH;
-            w = maxH * (nW / nH);
-        }
-        return React.createElement(Image, {
-            key: idx,
-            src: url,
-            style: {
-                width: w,
-                height: h,
-                borderRadius: 2,
-                marginBottom: 4,
-            },
-        });
-    };
+    const renderPhoto = (url: string, idx: number) =>
+        renderLandscapePhoto(url, idx, dimensionMap, col, maxH);
 
     return React.createElement(
         View,
@@ -772,374 +796,31 @@ function renderBeforeAfterRow(
         hasBefore
             ? React.createElement(
                   View,
-                  { style: { width: BEFORE_AFTER_COL_WIDTH } },
+                  { style: { width: col } },
                   React.createElement(
                       Text,
                       { style: styles.completionSubLabel },
                       "Foto Sebelum",
                   ),
-                  ...beforeUrls.map(renderColPhoto),
+                  ...beforeUrls.map(renderPhoto),
               )
             : null,
         // Right: Foto Sesudah
         hasAfter
             ? React.createElement(
                   View,
-                  { style: { width: BEFORE_AFTER_COL_WIDTH } },
+                  { style: { width: col } },
                   React.createElement(
                       Text,
                       { style: styles.completionSubLabel },
                       "Foto Sesudah",
                   ),
-                  ...afterUrls.map(renderColPhoto),
+                  ...afterUrls.map(renderPhoto),
               )
             : null,
     );
 }
 
-/**
- * Renders receipt (nota/struk) photos in a table layout.
- * Each photo gets a header cell showing the material store name + city.
- * Photos are laid out in 2 columns per row.
- */
-function renderNotaTable(
-    receiptUrls: string[],
-    materialStores: Array<{ name: string; city: string }> | undefined,
-    dimensionMap: Map<string, { width: number; height: number }>,
-) {
-    if (!receiptUrls || receiptUrls.length === 0) return null;
-    const colWidth = BEFORE_AFTER_COL_WIDTH;
-    const maxH = BEFORE_AFTER_MAX_HEIGHT;
-
-    const renderPhoto = (url: string) => {
-        const dims = dimensionMap.get(url);
-        const nW = dims?.width ?? 4;
-        const nH = dims?.height ?? 3;
-        if (nW > nH) {
-            let imgH = colWidth;
-            let imgW = colWidth * (nW / nH);
-            if (imgW > maxH) {
-                imgW = maxH;
-                imgH = maxH * (nH / nW);
-            }
-            const marginLeft = -(imgW - imgH) / 2;
-            const marginTop = (imgW - imgH) / 2;
-            return React.createElement(
-                View,
-                {
-                    style: {
-                        width: imgH,
-                        height: imgW,
-                        overflow: "hidden",
-                        borderRadius: 2,
-                    },
-                },
-                React.createElement(Image, {
-                    src: url,
-                    style: {
-                        width: imgW,
-                        height: imgH,
-                        marginLeft,
-                        marginTop,
-                        transform: "rotate(90deg)",
-                    },
-                }),
-            );
-        }
-        let w = colWidth;
-        let h = colWidth * (nH / nW);
-        if (h > maxH) {
-            h = maxH;
-            w = maxH * (nW / nH);
-        }
-        return React.createElement(Image, {
-            src: url,
-            style: { width: w, height: h, borderRadius: 2 },
-        });
-    };
-
-    const pairs: string[][] = [];
-    for (let i = 0; i < receiptUrls.length; i += 2) {
-        pairs.push(receiptUrls.slice(i, i + 2));
-    }
-
-    return React.createElement(
-        View,
-        { wrap: false, style: { marginBottom: 8 } },
-        React.createElement(
-            Text,
-            { style: styles.completionSubLabel },
-            "Nota / Struk Belanja",
-        ),
-        ...pairs.map((pair, pairIdx) =>
-            React.createElement(
-                View,
-                {
-                    key: pairIdx,
-                    style: {
-                        flexDirection: "row",
-                        gap: 8,
-                        marginBottom: 6,
-                        alignItems: "flex-start",
-                    },
-                },
-                ...pair.map((url, colIdx) => {
-                    const store = materialStores?.[pairIdx * 2 + colIdx];
-                    return React.createElement(
-                        View,
-                        { key: colIdx, style: { width: colWidth } },
-                        store
-                            ? React.createElement(
-                                  View,
-                                  { style: styles.notaTableHeader },
-                                  React.createElement(
-                                      Text,
-                                      { style: styles.notaTableStoreName },
-                                      store.name,
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      { style: styles.notaTableStoreCity },
-                                      store.city,
-                                  ),
-                              )
-                            : null,
-                        renderPhoto(url),
-                    );
-                }),
-            ),
-        ),
-    );
-}
-
-function renderRealisasiTable(
-    realisasiItems: RealisasiItemJson[],
-    estimations: MaterialEstimationJson[],
-    itemId: string,
-) {
-    const itemEstimations = estimations.filter((e) => e.itemId === itemId);
-    const realisasiTotal = realisasiItems.reduce(
-        (sum, r) => sum + r.quantity * r.price,
-        0,
-    );
-    const estimasiTotal = itemEstimations.reduce(
-        (sum, e) => sum + e.totalPrice,
-        0,
-    );
-
-    return React.createElement(
-        View,
-        { style: { marginBottom: 8 } },
-        React.createElement(
-            View,
-            { style: styles.completionTable },
-            // Header — same red style as main table
-            React.createElement(
-                View,
-                { style: styles.completionTableHeader },
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "38%",
-                        },
-                    },
-                    "Material",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "10%",
-                            textAlign: "center",
-                        },
-                    },
-                    "Jumlah",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "10%",
-                        },
-                    },
-                    "Satuan",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "14%",
-                            textAlign: "right",
-                        },
-                    },
-                    "Harga Est.",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "14%",
-                            textAlign: "right",
-                        },
-                    },
-                    "Harga Real.",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.completionTableHeaderCell,
-                            width: "14%",
-                            textAlign: "right",
-                        },
-                    },
-                    "Subtotal",
-                ),
-            ),
-            // Data rows with alternating style
-            ...realisasiItems.map((r, i) => {
-                const est = itemEstimations[i];
-                return React.createElement(
-                    View,
-                    {
-                        key: i,
-                        style:
-                            i % 2 === 0
-                                ? styles.completionTableRow
-                                : styles.completionTableRowAlt,
-                    },
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "38%",
-                            },
-                        },
-                        r.materialName,
-                    ),
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "10%",
-                                textAlign: "center",
-                            },
-                        },
-                        String(r.quantity),
-                    ),
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "10%",
-                            },
-                        },
-                        r.unit,
-                    ),
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "14%",
-                                textAlign: "right",
-                                color: "#6b7280",
-                            },
-                        },
-                        est ? formatCurrency(est.price) : "—",
-                    ),
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "14%",
-                                textAlign: "right",
-                            },
-                        },
-                        formatCurrency(r.price),
-                    ),
-                    React.createElement(
-                        Text,
-                        {
-                            style: {
-                                ...styles.completionTableCell,
-                                width: "14%",
-                                textAlign: "right",
-                                fontFamily: "Helvetica-Bold",
-                            },
-                        },
-                        formatCurrency(r.quantity * r.price),
-                    ),
-                );
-            }),
-            // Total Estimasi row
-            React.createElement(
-                View,
-                { style: styles.completionTotalRow },
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.totalLabel,
-                            width: "86%",
-                            fontSize: 8,
-                        },
-                    },
-                    "Total Estimasi",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.totalValue,
-                            width: "14%",
-                            fontSize: 8,
-                            color: "#374151",
-                        },
-                    },
-                    formatCurrency(estimasiTotal),
-                ),
-            ),
-            // Total Realisasi row
-            React.createElement(
-                View,
-                { style: { ...styles.completionTotalRow, marginTop: 2 } },
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.totalLabel,
-                            width: "86%",
-                            fontSize: 8,
-                        },
-                    },
-                    "Total Realisasi",
-                ),
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            ...styles.totalValue,
-                            width: "14%",
-                            fontSize: 8,
-                        },
-                    },
-                    formatCurrency(realisasiTotal),
-                ),
-            ),
-        ),
-    );
-}
 
 function buildReportDocument(
     data: ReportPdfData,
@@ -1226,18 +907,18 @@ function buildReportDocument(
             ),
 
             // Checklist Section
-            React.createElement(
-                View,
-                { style: styles.section },
-                React.createElement(
-                    Text,
-                    { style: styles.sectionTitle },
-                    "Checklist Kondisi Toko",
-                ),
-                React.createElement(
-                    View,
-                    { style: styles.table },
-                    // Table Header
+            (() => {
+                const totalItems = data.items.length;
+                const USE_TWO_COLUMNS = totalItems > 15; // Enable 2-column mode if there are many items
+                const tableContainerStyle = USE_TWO_COLUMNS
+                    ? styles.twoColumnTableContainer
+                    : { width: "100%" };
+                const columnStyle = USE_TWO_COLUMNS
+                    ? styles.halfTableWidth
+                    : styles.fullTableWidth;
+
+                // Create a reusable header component
+                const TableHeader = () =>
                     React.createElement(
                         View,
                         { style: styles.tableHeader },
@@ -1246,7 +927,7 @@ function buildReportDocument(
                             {
                                 style: {
                                     ...styles.tableHeaderCell,
-                                    width: "5%",
+                                    width: "15%",
                                 },
                             },
                             "Kode",
@@ -1256,355 +937,460 @@ function buildReportDocument(
                             {
                                 style: {
                                     ...styles.tableHeaderCell,
-                                    width: "35%",
+                                    width: "55%",
                                 },
                             },
-                            "Item",
+                            "Item Pekerjaan",
                         ),
                         React.createElement(
                             Text,
                             {
                                 style: {
                                     ...styles.tableHeaderCell,
-                                    width: "20%",
+                                    width: "30%",
                                 },
                             },
                             "Kondisi",
                         ),
+                    );
+
+                // Create a reusable item row component
+                const ItemRow = ({
+                    item,
+                    itemIdx,
+                }: {
+                    item: ReportItemJson;
+                    itemIdx: number;
+                }) => {
+                    const rowStyle =
+                        itemIdx % 2 === 0
+                            ? styles.tableRow
+                            : styles.tableRowAlt;
+                    const cStyle = conditionStyle(
+                        item.condition,
+                        item.preventiveCondition,
+                    );
+                    const hasIssue =
+                        item.condition === "RUSAK" ||
+                        item.preventiveCondition === "NOT_OK";
+                    const hasNotes = Boolean(item.handler || item.notes);
+
+                    return React.createElement(
+                        View,
+                        { key: `item-${item.itemId}`, style: rowStyle },
+                        // Main Row
                         React.createElement(
-                            Text,
+                            View,
                             {
                                 style: {
-                                    ...styles.tableHeaderCell,
-                                    width: "20%",
+                                    flexDirection: "row",
+                                    width: "100%",
+                                    alignItems: "center",
                                 },
                             },
-                            "Handler",
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableCell,
+                                        width: "15%",
+                                        color: "#9ca3af",
+                                    },
+                                },
+                                item.itemId,
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableCell,
+                                        width: "55%",
+                                    },
+                                },
+                                item.itemName,
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableCell,
+                                        width: "30%",
+                                        ...cStyle,
+                                    },
+                                },
+                                conditionLabel(
+                                    item.condition,
+                                    item.preventiveCondition,
+                                ),
+                            ),
                         ),
+                        // Sub Row (only shown if there are issues AND handler/notes exist)
+                        hasIssue && hasNotes
+                            ? React.createElement(
+                                  View,
+                                  { style: styles.tableSubRow },
+                                  item.handler
+                                      ? React.createElement(
+                                            Text,
+                                            { style: styles.tableSubCell },
+                                            React.createElement(
+                                                Text,
+                                                { style: styles.tableSubLabel },
+                                                "Handler: ",
+                                            ),
+                                            item.handler,
+                                        )
+                                      : null,
+                                  item.notes
+                                      ? React.createElement(
+                                            Text,
+                                            {
+                                                style: {
+                                                    ...styles.tableSubCell,
+                                                    flex: 1,
+                                                },
+                                            },
+                                            React.createElement(
+                                                Text,
+                                                { style: styles.tableSubLabel },
+                                                "Catatan: ",
+                                            ),
+                                            item.notes,
+                                        )
+                                      : null,
+                              )
+                            : null,
+                    );
+                };
+
+                // Split categories into left and right columns if USE_TWO_COLUMNS
+                const categories = Object.entries(itemGroups);
+                const leftCategories: typeof categories = [];
+                const rightCategories: typeof categories = [];
+
+                if (USE_TWO_COLUMNS) {
+                    // Split at midpoint of total items so categories read sequentially:
+                    // left column = A…mid, right column = mid+1…end
+                    const totalItemCount = categories.reduce(
+                        (sum, [, items]) => sum + items.length,
+                        0,
+                    );
+                    const half = Math.ceil(totalItemCount / 2);
+                    let accumulated = 0;
+                    let splitDone = false;
+                    categories.forEach(([cat, items]) => {
+                        if (!splitDone) {
+                            leftCategories.push([cat, items]);
+                            accumulated += items.length;
+                            if (accumulated >= half) splitDone = true;
+                        } else {
+                            rightCategories.push([cat, items]);
+                        }
+                    });
+                } else {
+                    leftCategories.push(...categories);
+                }
+
+                const renderCategoryBlock = (
+                    cat: string,
+                    items: ReportItemJson[],
+                    catIdx: number | string,
+                ) => [
+                    React.createElement(
+                        View,
+                        { key: `cat-${catIdx}`, style: styles.categoryRow },
                         React.createElement(
                             Text,
                             {
                                 style: {
-                                    ...styles.tableHeaderCell,
-                                    width: "20%",
+                                    ...styles.categoryCell,
+                                    width: "100%",
                                 },
                             },
-                            "Catatan",
+                            cat,
                         ),
                     ),
-                    // Table Rows grouped by category
-                    ...Object.entries(itemGroups).flatMap(
-                        ([category, items], catIdx) => [
+                    ...items.map((item, itemIdx) => ItemRow({ item, itemIdx })),
+                ];
+
+                return React.createElement(
+                    View,
+                    { style: styles.section },
+                    React.createElement(
+                        Text,
+                        { style: styles.sectionTitle },
+                        "Checklist Kondisi Toko",
+                    ),
+                    React.createElement(
+                        View,
+                        { style: tableContainerStyle },
+
+                        // Left Column (or full width if not 2-col)
+                        React.createElement(
+                            View,
+                            { style: columnStyle },
+                            TableHeader(),
+                            ...leftCategories.flatMap(([cat, items], idx) =>
+                                renderCategoryBlock(cat, items, `left-${idx}`),
+                            ),
+                        ),
+
+                        // Right Column (if 2-col)
+                        USE_TWO_COLUMNS
+                            ? React.createElement(
+                                  View,
+                                  { style: columnStyle },
+                                  TableHeader(),
+                                  ...rightCategories.flatMap(
+                                      ([cat, items], idx) =>
+                                          renderCategoryBlock(
+                                              cat,
+                                              items,
+                                              `right-${idx}`,
+                                          ),
+                                  ),
+                              )
+                            : null,
+                    ),
+                );
+            })(),
+
+            // Estimasi BMS Section — only shown BEFORE completion is submitted
+            (() => {
+                const COMPLETION_STATUSES = [
+                    "PENDING_REVIEW",
+                    "REVIEW_REJECTED_REVISION",
+                    "APPROVED_BMC",
+                    "COMPLETED",
+                ];
+                const isCompletionSubmitted = COMPLETION_STATUSES.includes(
+                    data.approval.reportStatus,
+                );
+
+                // After completion: skip this section (Rekap Penyelesaian replaces it below)
+                if (isCompletionSubmitted || data.estimations.length === 0)
+                    return null;
+
+                return React.createElement(
+                    View,
+                    { style: styles.section },
+                    React.createElement(
+                        Text,
+                        { style: styles.sectionTitle },
+                        "Estimasi Biaya BMS",
+                    ),
+                    React.createElement(
+                        View,
+                        { style: styles.table },
+                        React.createElement(
+                            View,
+                            { style: styles.tableHeader },
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "5%",
+                                    },
+                                },
+                                "No.",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "10%",
+                                    },
+                                },
+                                "Item ID",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "35%",
+                                    },
+                                },
+                                "Material",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "10%",
+                                    },
+                                },
+                                "Jumlah",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "10%",
+                                    },
+                                },
+                                "Satuan",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "15%",
+                                    },
+                                },
+                                "Harga",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.tableHeaderCell,
+                                        width: "15%",
+                                    },
+                                },
+                                "Total",
+                            ),
+                        ),
+                        ...data.estimations.map((est, i) =>
                             React.createElement(
                                 View,
                                 {
-                                    key: `cat-${catIdx}`,
-                                    style: styles.categoryRow,
+                                    key: `est-${i}`,
+                                    style:
+                                        i % 2 === 0
+                                            ? styles.tableRow
+                                            : styles.tableRowAlt,
                                 },
                                 React.createElement(
                                     Text,
                                     {
                                         style: {
-                                            ...styles.categoryCell,
-                                            width: "100%",
+                                            ...styles.tableCell,
+                                            width: "5%",
+                                            color: "#9ca3af",
                                         },
                                     },
-                                    category,
+                                    String(i + 1),
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "10%",
+                                        },
+                                    },
+                                    est.itemId,
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "35%",
+                                        },
+                                    },
+                                    est.materialName,
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "10%",
+                                        },
+                                    },
+                                    String(est.quantity),
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "10%",
+                                        },
+                                    },
+                                    est.unit,
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "15%",
+                                        },
+                                    },
+                                    formatCurrency(est.price),
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...styles.tableCell,
+                                            width: "15%",
+                                            fontFamily: "Helvetica-Bold",
+                                        },
+                                    },
+                                    formatCurrency(est.totalPrice),
                                 ),
                             ),
-                            ...items.map((item, itemIdx) => {
-                                const rowStyle =
-                                    itemIdx % 2 === 0
-                                        ? styles.tableRow
-                                        : styles.tableRowAlt;
-                                const cStyle = conditionStyle(
-                                    item.condition,
-                                    item.preventiveCondition,
-                                );
-                                return React.createElement(
-                                    View,
-                                    {
-                                        key: `item-${catIdx}-${itemIdx}`,
-                                        style: rowStyle,
+                        ),
+                        // Grand Total Row
+                        React.createElement(
+                            View,
+                            { style: styles.totalRow },
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "85%",
                                     },
-                                    React.createElement(
-                                        Text,
-                                        {
-                                            style: {
-                                                ...styles.tableCell,
-                                                width: "5%",
-                                                color: "#9ca3af",
-                                            },
-                                        },
-                                        item.itemId,
-                                    ),
-                                    React.createElement(
-                                        Text,
-                                        {
-                                            style: {
-                                                ...styles.tableCell,
-                                                width: "35%",
-                                            },
-                                        },
-                                        item.itemName,
-                                    ),
-                                    React.createElement(
-                                        Text,
-                                        {
-                                            style: {
-                                                ...styles.tableCell,
-                                                width: "20%",
-                                                ...cStyle,
-                                            },
-                                        },
-                                        conditionLabel(
-                                            item.condition,
-                                            item.preventiveCondition,
-                                        ),
-                                    ),
-                                    React.createElement(
-                                        Text,
-                                        {
-                                            style: {
-                                                ...styles.tableCell,
-                                                width: "20%",
-                                            },
-                                        },
-                                        item.handler ?? "-",
-                                    ),
-                                    React.createElement(
-                                        Text,
-                                        {
-                                            style: {
-                                                ...styles.tableCell,
-                                                width: "20%",
-                                            },
-                                        },
-                                        item.notes || "-",
-                                    ),
-                                );
-                            }),
-                        ],
+                                },
+                                "Total Keseluruhan",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalValue,
+                                        width: "15%",
+                                    },
+                                },
+                                formatCurrency(data.totalEstimation),
+                            ),
+                        ),
                     ),
-                ),
-            ),
+                );
+            })(),
 
-            // Estimasi BMS Section (only if there are estimations)
-            data.estimations.length > 0
-                ? React.createElement(
-                      View,
-                      { style: styles.section },
-                      React.createElement(
-                          Text,
-                          { style: styles.sectionTitle },
-                          "Estimasi Biaya BMS",
-                      ),
-                      React.createElement(
-                          View,
-                          { style: styles.table },
-                          React.createElement(
-                              View,
-                              { style: styles.tableHeader },
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "5%",
-                                      },
-                                  },
-                                  "No.",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "10%",
-                                      },
-                                  },
-                                  "Item ID",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "35%",
-                                      },
-                                  },
-                                  "Material",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "10%",
-                                      },
-                                  },
-                                  "Jumlah",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "10%",
-                                      },
-                                  },
-                                  "Satuan",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "15%",
-                                      },
-                                  },
-                                  "Harga",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.tableHeaderCell,
-                                          width: "15%",
-                                      },
-                                  },
-                                  "Total",
-                              ),
-                          ),
-                          ...data.estimations.map((est, i) =>
-                              React.createElement(
-                                  View,
-                                  {
-                                      key: `est-${i}`,
-                                      style:
-                                          i % 2 === 0
-                                              ? styles.tableRow
-                                              : styles.tableRowAlt,
-                                  },
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "5%",
-                                              color: "#9ca3af",
-                                          },
-                                      },
-                                      String(i + 1),
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "10%",
-                                          },
-                                      },
-                                      est.itemId,
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "35%",
-                                          },
-                                      },
-                                      est.materialName,
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "10%",
-                                          },
-                                      },
-                                      String(est.quantity),
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "10%",
-                                          },
-                                      },
-                                      est.unit,
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "15%",
-                                          },
-                                      },
-                                      formatCurrency(est.price),
-                                  ),
-                                  React.createElement(
-                                      Text,
-                                      {
-                                          style: {
-                                              ...styles.tableCell,
-                                              width: "15%",
-                                              fontFamily: "Helvetica-Bold",
-                                          },
-                                      },
-                                      formatCurrency(est.totalPrice),
-                                  ),
-                              ),
-                          ),
-                          // Grand Total Row
-                          React.createElement(
-                              View,
-                              { style: styles.totalRow },
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.totalLabel,
-                                          width: "85%",
-                                      },
-                                  },
-                                  "Total Keseluruhan",
-                              ),
-                              React.createElement(
-                                  Text,
-                                  {
-                                      style: {
-                                          ...styles.totalValue,
-                                          width: "15%",
-                                      },
-                                  },
-                                  formatCurrency(data.totalEstimation),
-                              ),
-                          ),
-                      ),
-                  )
-                : null,
-
-            // Completion Detail Section
+            // Completion Detail Section — simplified: item header + before/after photos only
             (() => {
+                const COMPLETION_STATUSES = [
+                    "PENDING_REVIEW",
+                    "REVIEW_REJECTED_REVISION",
+                    "APPROVED_BMC",
+                    "COMPLETED",
+                ];
+                const isCompletionSubmitted = COMPLETION_STATUSES.includes(
+                    data.approval.reportStatus,
+                );
+                if (!isCompletionSubmitted) return null;
+
                 const completionItems = data.items.filter(
                     (i) =>
                         (i.condition === "RUSAK" ||
                             i.preventiveCondition === "NOT_OK") &&
-                        (i.afterImages?.length ||
-                            i.realisasiItems?.length ||
-                            i.receiptImages?.length),
+                        ((i.images && i.images.length > 0) ||
+                            i.photoUrl ||
+                            (i.afterImages && i.afterImages.length > 0)),
                 );
-                if (
-                    completionItems.length === 0 &&
-                    data.completionSelfieUrls.length === 0 &&
-                    data.startReceiptUrls.length === 0
-                )
-                    return null;
+                if (completionItems.length === 0) return null;
 
                 return React.createElement(
                     View,
@@ -1615,7 +1401,7 @@ function buildReportDocument(
                         "Detail Penyelesaian Pekerjaan",
                     ),
 
-                    // Per-item blocks
+                    // Per-item blocks: header + before/after photos only
                     ...completionItems.map((item) =>
                         React.createElement(
                             View,
@@ -1639,7 +1425,7 @@ function buildReportDocument(
                                 ),
                             ),
 
-                            // Foto Sebelum & Sesudah side by side
+                            // Foto Sebelum & Sesudah side by side (landscape)
                             renderBeforeAfterRow(
                                 (item.images ??
                                     [item.photoUrl].filter(
@@ -1648,122 +1434,436 @@ function buildReportDocument(
                                 item.afterImages ?? [],
                                 dimensionMap,
                             ),
-
-                            // Realisasi biaya
-                            item.realisasiItems &&
-                                item.realisasiItems.length > 0
-                                ? React.createElement(
-                                      View,
-                                      { wrap: false },
-                                      React.createElement(
-                                          Text,
-                                          { style: styles.completionSubLabel },
-                                          "Realisasi Biaya",
-                                      ),
-                                      renderRealisasiTable(
-                                          item.realisasiItems,
-                                          data.estimations,
-                                          item.itemId,
-                                      ),
-                                  )
-                                : null,
-
-                            // Nota / struk belanja — store info as table header
-                            renderNotaTable(
-                                item.receiptImages ?? [],
-                                item.materialStores,
-                                dimensionMap,
-                            ),
-
-                            // Catatan item
-                            item.completionNotes
-                                ? React.createElement(
-                                      View,
-                                      {
-                                          wrap: false,
-                                          style: styles.completionNoteBox,
-                                      },
-                                      React.createElement(
-                                          Text,
-                                          { style: styles.completionNoteText },
-                                          item.completionNotes,
-                                      ),
-                                  )
-                                : null,
                         ),
                     ),
+                );
+            })(),
 
-                    // Foto Selfie BMS
-                    data.completionSelfieUrls.length > 0
-                        ? React.createElement(
-                              View,
-                              { wrap: false, style: styles.selfieSection },
-                              renderPhotoGrid(
-                                  data.completionSelfieUrls,
-                                  "Foto Selfie BMS",
-                                  dimensionMap,
-                                  BEFORE_AFTER_MAX_HEIGHT,
-                              ),
+            // Bukti Serah Terima dan Nota — selfie + receipt photos
+            (() => {
+                const COMPLETION_STATUSES = [
+                    "PENDING_REVIEW",
+                    "REVIEW_REJECTED_REVISION",
+                    "APPROVED_BMC",
+                    "COMPLETED",
+                ];
+                const isCompletionSubmitted = COMPLETION_STATUSES.includes(
+                    data.approval.reportStatus,
+                );
+                if (!isCompletionSubmitted) return null;
+                const hasSelfie = data.completionSelfieUrls.length > 0;
+                const hasReceipts = data.startReceiptUrls.length > 0;
+                const hasNotes = !!data.completionNotes;
+                if (!hasSelfie && !hasReceipts && !hasNotes) return null;
+
+                return React.createElement(
+                    View,
+                    { break: true, style: styles.section },
+                    React.createElement(
+                        Text,
+                        { style: styles.sectionTitle },
+                        "Bukti Serah Terima dan Nota",
+                    ),
+
+                    // Selfie photos in 2-column grid
+                    hasSelfie
+                        ? renderPhotoGrid2Col(
+                              data.completionSelfieUrls,
+                              "Foto Selfie BMS",
+                              dimensionMap,
                           )
                         : null,
 
-                    // Nota / Struk Belanja — halaman baru jika selfie sudah ada
-                    data.startReceiptUrls.length > 0
+                    // Receipt photos in 2-column grid
+                    hasReceipts
+                        ? renderPhotoGrid2Col(
+                              data.startReceiptUrls,
+                              "Nota / Struk Belanja",
+                              dimensionMap,
+                          )
+                        : null,
+
+                    // Completion notes
+                    hasNotes
                         ? React.createElement(
                               View,
                               {
                                   wrap: false,
-                                  style: styles.selfieSection,
-                                  ...(data.completionSelfieUrls.length > 0
-                                      ? { break: true }
-                                      : {}),
+                                  style: {
+                                      ...styles.completionNoteBox,
+                                      marginTop: 6,
+                                  },
                               },
-                              renderPhotoGrid(
-                                  data.startReceiptUrls,
-                                  "Nota / Struk Belanja",
-                                  dimensionMap,
-                                  BEFORE_AFTER_MAX_HEIGHT,
+                              React.createElement(
+                                  Text,
+                                  { style: styles.completionNoteText },
+                                  data.completionNotes,
                               ),
-                              // Completion notes ditempatkan setelah nota
-                              data.completionNotes
-                                  ? React.createElement(
-                                        View,
-                                        {
-                                            style: {
-                                                ...styles.completionNoteBox,
-                                                marginTop: 6,
-                                            },
-                                        },
-                                        React.createElement(
-                                            Text,
-                                            {
-                                                style: styles.completionNoteText,
-                                            },
-                                            data.completionNotes,
-                                        ),
-                                    )
-                                  : null,
                           )
-                        : data.completionNotes
-                          ? React.createElement(
+                        : null,
+                );
+            })(),
+
+            // Rekap Penyelesaian — compact single table (only after completion submitted)
+            (() => {
+                const COMPLETION_STATUSES = [
+                    "PENDING_REVIEW",
+                    "REVIEW_REJECTED_REVISION",
+                    "APPROVED_BMC",
+                    "COMPLETED",
+                ];
+                const isCompletionSubmitted = COMPLETION_STATUSES.includes(
+                    data.approval.reportStatus,
+                );
+                if (!isCompletionSubmitted || data.estimations.length === 0)
+                    return null;
+
+                // Gather all realisasi items from rusak/not_ok items
+                const allRealisasi = data.items
+                    .filter(
+                        (i) =>
+                            i.condition === "RUSAK" ||
+                            i.preventiveCondition === "NOT_OK",
+                    )
+                    .flatMap((i) => i.realisasiItems ?? []);
+
+                const totalEstimasi = data.totalEstimation;
+                const totalRealisasi = allRealisasi.reduce(
+                    (sum, r) => sum + r.quantity * r.price,
+                    0,
+                );
+                const selisih = totalEstimasi - totalRealisasi;
+
+                // Build merged rows: each estimation paired with matching realisasi
+                const mergedRows = data.estimations.map((est) => {
+                    const real = allRealisasi.find(
+                        (r) => r.materialName === est.materialName,
+                    );
+                    return {
+                        material: est.materialName,
+                        qty: est.quantity,
+                        unit: est.unit,
+                        estPrice: est.price,
+                        estTotal: est.totalPrice,
+                        realPrice: real ? real.price : 0,
+                        realTotal: real ? real.quantity * real.price : 0,
+                    };
+                });
+                // Add realisasi items that don't match any estimation
+                allRealisasi.forEach((r) => {
+                    if (
+                        !data.estimations.some(
+                            (e) => e.materialName === r.materialName,
+                        )
+                    ) {
+                        mergedRows.push({
+                            material: r.materialName,
+                            qty: r.quantity,
+                            unit: r.unit,
+                            estPrice: 0,
+                            estTotal: 0,
+                            realPrice: r.price,
+                            realTotal: r.quantity * r.price,
+                        });
+                    }
+                });
+
+                const cellStyle = {
+                    ...styles.completionTableCell,
+                    fontSize: 7,
+                    padding: "2 3",
+                };
+                const headerCellStyle = {
+                    ...styles.completionTableHeaderCell,
+                    fontSize: 7,
+                    padding: "3 3",
+                };
+
+                return React.createElement(
+                    View,
+                    { style: styles.section },
+                    React.createElement(
+                        Text,
+                        { style: styles.sectionTitle },
+                        "Rekap Penyelesaian",
+                    ),
+                    React.createElement(
+                        View,
+                        { style: styles.completionTable },
+                        // Header
+                        React.createElement(
+                            View,
+                            { style: styles.completionTableHeader },
+                            React.createElement(
+                                Text,
+                                { style: { ...headerCellStyle, width: "28%" } },
+                                "Material",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "8%",
+                                        textAlign: "center",
+                                    },
+                                },
+                                "Jml",
+                            ),
+                            React.createElement(
+                                Text,
+                                { style: { ...headerCellStyle, width: "10%" } },
+                                "Satuan",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "13%",
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Harga Est.",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "13%",
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Total Est.",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "13%",
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Harga Real.",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "15%",
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Total Real.",
+                            ),
+                        ),
+                        // Data rows
+                        ...mergedRows.map((row, i) =>
+                            React.createElement(
                                 View,
-                                { wrap: false, style: styles.selfieSection },
+                                {
+                                    key: i,
+                                    style:
+                                        i % 2 === 0
+                                            ? styles.completionTableRow
+                                            : styles.completionTableRowAlt,
+                                },
                                 React.createElement(
-                                    View,
+                                    Text,
+                                    { style: { ...cellStyle, width: "28%" } },
+                                    row.material,
+                                ),
+                                React.createElement(
+                                    Text,
                                     {
                                         style: {
-                                            ...styles.completionNoteBox,
-                                            marginTop: 6,
+                                            ...cellStyle,
+                                            width: "8%",
+                                            textAlign: "center",
                                         },
                                     },
-                                    React.createElement(
-                                        Text,
-                                        { style: styles.completionNoteText },
-                                        data.completionNotes,
-                                    ),
+                                    String(row.qty),
                                 ),
-                            )
-                          : null,
+                                React.createElement(
+                                    Text,
+                                    { style: { ...cellStyle, width: "10%" } },
+                                    row.unit,
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...cellStyle,
+                                            width: "13%",
+                                            textAlign: "right",
+                                        },
+                                    },
+                                    row.estPrice
+                                        ? formatCurrency(row.estPrice)
+                                        : "—",
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...cellStyle,
+                                            width: "13%",
+                                            textAlign: "right",
+                                            fontFamily: "Helvetica-Bold",
+                                        },
+                                    },
+                                    row.estTotal
+                                        ? formatCurrency(row.estTotal)
+                                        : "—",
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...cellStyle,
+                                            width: "13%",
+                                            textAlign: "right",
+                                        },
+                                    },
+                                    row.realPrice
+                                        ? formatCurrency(row.realPrice)
+                                        : "—",
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...cellStyle,
+                                            width: "15%",
+                                            textAlign: "right",
+                                            fontFamily: "Helvetica-Bold",
+                                        },
+                                    },
+                                    row.realTotal
+                                        ? formatCurrency(row.realTotal)
+                                        : "—",
+                                ),
+                            ),
+                        ),
+                        // Total row in table (right-aligned)
+                        React.createElement(
+                            View,
+                            { style: styles.completionTotalRow },
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "72%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                "",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "13%",
+                                        fontSize: 7,
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Total Estimasi",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalValue,
+                                        width: "15%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                formatCurrency(totalEstimasi),
+                            ),
+                        ),
+                        React.createElement(
+                            View,
+                            { style: styles.completionTotalRow },
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "72%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                "",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "13%",
+                                        fontSize: 7,
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Total Realisasi",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalValue,
+                                        width: "15%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                formatCurrency(totalRealisasi),
+                            ),
+                        ),
+                        React.createElement(
+                            View,
+                            { style: styles.completionTotalRow },
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "72%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                "",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalLabel,
+                                        width: "13%",
+                                        fontSize: 7,
+                                        textAlign: "right",
+                                    },
+                                },
+                                "Selisih",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...styles.totalValue,
+                                        width: "15%",
+                                        fontSize: 7,
+                                    },
+                                },
+                                formatCurrency(selisih),
+                            ),
+                        ),
+                    ),
                 );
             })(),
 

@@ -62,11 +62,13 @@ import { BmsReportsMobile } from "./bms-reports-mobile";
 export type ReportData = {
     reportNumber: string;
     storeName: string;
+    storeCode: string | null;
     branchName: string;
     status: string;
     totalEstimation: number;
     createdAt: Date;
     updatedAt: Date;
+    rusakCount: number;
     _count: {
         items: number;
     };
@@ -366,9 +368,9 @@ export default function BmsReportsList({
 
             <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
                 {/* Action Bar: Search, Filter, Create */}
-                <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-                    <div className="flex flex-1 gap-2 flex-wrap">
-                        <div className="relative flex-1 min-w-48 md:max-w-sm">
+                <div className="flex flex-col gap-3 md:flex-row md:items-center justify-between">
+                    <div className="flex flex-col gap-2 md:flex-row md:flex-1 md:flex-wrap">
+                        <div className="relative w-full md:flex-1 md:min-w-48 md:max-w-sm">
                             <label htmlFor="report-search" className="sr-only">
                                 Cari laporan
                             </label>
@@ -384,100 +386,110 @@ export default function BmsReportsList({
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
                         </div>
-                        <Select
-                            value={statusFilter}
-                            onValueChange={handleStatusChange}
-                        >
-                            <SelectTrigger
-                                className="w-auto bg-background"
-                                aria-label="Filter berdasarkan status"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <Filter
-                                        className="h-4 w-4 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                    <SelectValue placeholder="Status" />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">
-                                    Semua Status
-                                </SelectItem>
-                                <SelectItem value="needs_action">
-                                    Perlu Tindakan
-                                </SelectItem>
-                                <SelectItem value="waiting_review">
-                                    Menunggu Review
-                                </SelectItem>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="pending_estimation">
-                                    Menunggu Persetujuan Estimasi
-                                </SelectItem>
-                                <SelectItem value="estimation_approved">
-                                    Estimasi Disetujui
-                                </SelectItem>
-                                <SelectItem value="estimation_rejected_revision">
-                                    Estimasi Ditolak (Revisi)
-                                </SelectItem>
-                                <SelectItem value="estimation_rejected">
-                                    Estimasi Ditolak
-                                </SelectItem>
-                                <SelectItem value="in_progress">
-                                    Sedang Dikerjakan
-                                </SelectItem>
-                                <SelectItem value="pending_review">
-                                    Menunggu Review Penyelesaian
-                                </SelectItem>
-                                <SelectItem value="review_rejected_revision">
-                                    Ditolak (Revisi)
-                                </SelectItem>
-                                <SelectItem value="approved_bmc">
-                                    Menunggu Persetujuan BnM Manager
-                                </SelectItem>
-                                <SelectItem value="completed">
-                                    Selesai
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <Select
-                            value={dateRangeFilter}
-                            onValueChange={handleDateRangeChange}
-                        >
-                            <SelectTrigger
-                                className="w-auto bg-background"
-                                aria-label="Filter berdasarkan periode waktu"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <CalendarDays
-                                        className="h-4 w-4 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                    <SelectValue placeholder="Periode" />
-                                </div>
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">Semua Waktu</SelectItem>
-                                <SelectItem value="this_month">
-                                    Bulan Ini
-                                </SelectItem>
-                                <SelectItem value="last_month">
-                                    Bulan Lalu
-                                </SelectItem>
-                                <SelectItem value="last_3_months">
-                                    3 Bulan Terakhir
-                                </SelectItem>
-                                <SelectItem value="last_6_months">
-                                    6 Bulan Terakhir
-                                </SelectItem>
-                                <SelectItem value="this_year">
-                                    Tahun Ini
-                                </SelectItem>
-                                <SelectItem value="last_year">
-                                    Tahun Lalu
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                            <div className="flex-1 md:flex-none">
+                                <Select
+                                    value={statusFilter}
+                                    onValueChange={handleStatusChange}
+                                >
+                                    <SelectTrigger
+                                        className="w-full md:w-auto bg-background"
+                                        aria-label="Filter berdasarkan status"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <Filter
+                                                className="h-4 w-4 text-muted-foreground"
+                                                aria-hidden="true"
+                                            />
+                                            <SelectValue placeholder="Status" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua Status
+                                        </SelectItem>
+                                        <SelectItem value="needs_action">
+                                            Perlu Tindakan
+                                        </SelectItem>
+                                        <SelectItem value="waiting_review">
+                                            Menunggu Review
+                                        </SelectItem>
+                                        <SelectItem value="draft">
+                                            Draft
+                                        </SelectItem>
+                                        <SelectItem value="pending_estimation">
+                                            Menunggu Persetujuan Estimasi
+                                        </SelectItem>
+                                        <SelectItem value="estimation_approved">
+                                            Estimasi Disetujui
+                                        </SelectItem>
+                                        <SelectItem value="estimation_rejected_revision">
+                                            Estimasi Ditolak (Revisi)
+                                        </SelectItem>
+                                        <SelectItem value="estimation_rejected">
+                                            Estimasi Ditolak
+                                        </SelectItem>
+                                        <SelectItem value="in_progress">
+                                            Sedang Dikerjakan
+                                        </SelectItem>
+                                        <SelectItem value="pending_review">
+                                            Menunggu Review Penyelesaian
+                                        </SelectItem>
+                                        <SelectItem value="review_rejected_revision">
+                                            Ditolak (Revisi)
+                                        </SelectItem>
+                                        <SelectItem value="approved_bmc">
+                                            Menunggu Persetujuan BnM Manager
+                                        </SelectItem>
+                                        <SelectItem value="completed">
+                                            Selesai
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="flex-1 md:flex-none">
+                                <Select
+                                    value={dateRangeFilter}
+                                    onValueChange={handleDateRangeChange}
+                                >
+                                    <SelectTrigger
+                                        className="w-full md:w-auto bg-background"
+                                        aria-label="Filter berdasarkan periode waktu"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <CalendarDays
+                                                className="h-4 w-4 text-muted-foreground"
+                                                aria-hidden="true"
+                                            />
+                                            <SelectValue placeholder="Periode" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">
+                                            Semua Waktu
+                                        </SelectItem>
+                                        <SelectItem value="this_month">
+                                            Bulan Ini
+                                        </SelectItem>
+                                        <SelectItem value="last_month">
+                                            Bulan Lalu
+                                        </SelectItem>
+                                        <SelectItem value="last_3_months">
+                                            3 Bulan Terakhir
+                                        </SelectItem>
+                                        <SelectItem value="last_6_months">
+                                            6 Bulan Terakhir
+                                        </SelectItem>
+                                        <SelectItem value="this_year">
+                                            Tahun Ini
+                                        </SelectItem>
+                                        <SelectItem value="last_year">
+                                            Tahun Lalu
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
                     </div>
 
                     <Button
