@@ -42,7 +42,6 @@ export function ReportSidebar({
         setActiveDialog,
         handleReviewEstimation,
         handleReviewCompletion,
-        handleApproveFinal,
     } = actions;
 
     const hasAction =
@@ -53,7 +52,7 @@ export function ReportSidebar({
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
                 report.status === "PENDING_REVIEW")) ||
-        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
+        false;
 
     return (
         <div className="lg:col-span-4 xl:col-span-3 space-y-4 lg:space-y-6 lg:sticky lg:top-10">
@@ -329,73 +328,6 @@ export function ReportSidebar({
                                         Tolak Pekerjaan
                                     </Button>
                                 </div>
-                            )}
-                        </div>
-                    )}
-
-                {/* ── BNM_MANAGER: approve final ── */}
-                {viewer.role === "BNM_MANAGER" &&
-                    report.status === "APPROVED_BMC" && (
-                        <div className="space-y-3">
-                            <div className="bg-teal-50 border border-teal-200 rounded-lg p-3">
-                                <p className="text-sm font-medium text-teal-800">
-                                    Disetujui BMC — Menunggu Persetujuan Final
-                                </p>
-                                <p className="text-xs text-teal-700 mt-0.5">
-                                    Berikan persetujuan final untuk
-                                    menyelesaikan laporan ini.
-                                </p>
-                            </div>
-                            {activeDialog === "approve_final" ? (
-                                <div className="space-y-2">
-                                    <textarea
-                                        className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-                                        rows={3}
-                                        placeholder="Catatan (opsional)..."
-                                        value={notesInput}
-                                        onChange={(e) =>
-                                            setNotesInput(e.target.value)
-                                        }
-                                    />
-                                    <Button
-                                        className="w-full"
-                                        size="sm"
-                                        onClick={handleApproveFinal}
-                                        disabled={isPending}
-                                    >
-                                        {isPending ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Memproses...
-                                            </>
-                                        ) : (
-                                            "Konfirmasi Selesai"
-                                        )}
-                                    </Button>
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="w-full"
-                                        onClick={() => {
-                                            setActiveDialog(null);
-                                            setNotesInput("");
-                                        }}
-                                    >
-                                        Batal
-                                    </Button>
-                                </div>
-                            ) : (
-                                <Button
-                                    className="w-full"
-                                    size="lg"
-                                    onClick={() =>
-                                        setActiveDialog("approve_final")
-                                    }
-                                    disabled={isPending}
-                                >
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                    Setujui &amp; Selesaikan
-                                </Button>
                             )}
                         </div>
                     )}

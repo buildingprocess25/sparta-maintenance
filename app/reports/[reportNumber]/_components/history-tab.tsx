@@ -50,7 +50,7 @@ const ACTIVITY_HISTORY_CONFIG: Record<
         negative: true,
     },
     WORK_APPROVED: {
-        label: "Menunggu Persetujuan BnM Manager",
+        label: "Penyelesaian Disetujui",
         positive: true,
         negative: false,
     },

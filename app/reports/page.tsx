@@ -61,11 +61,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
         "ESTIMATION_REJECTED_REVISION",
         "REVIEW_REJECTED_REVISION",
     ];
-    const BMS_WAITING_REVIEW = [
-        "PENDING_ESTIMATION",
-        "PENDING_REVIEW",
-        "APPROVED_BMC",
-    ];
+    const BMS_WAITING_REVIEW = ["PENDING_ESTIMATION", "PENDING_REVIEW"];
     const resolvedStatus: string | string[] | undefined =
         rawStatus === "all"
             ? undefined

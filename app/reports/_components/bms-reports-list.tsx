@@ -233,16 +233,6 @@ export default function BmsReportsList({
                         <X className="h-3 w-3" /> Ditolak (Revisi)
                     </Badge>
                 );
-            case "APPROVED_BMC":
-                return (
-                    <Badge
-                        variant="secondary"
-                        className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
-                    >
-                        <Check className="h-3 w-3" /> Menunggu Persetujuan BnM
-                        Manager
-                    </Badge>
-                );
             case "COMPLETED":
                 return (
                     <Badge
@@ -300,11 +290,6 @@ export default function BmsReportsList({
             label: "Revisi",
             icon: <Pencil className="h-3.5 w-3.5" />,
             cta: true,
-        },
-        APPROVED_BMC: {
-            label: "Lihat",
-            icon: <Eye className="h-3.5 w-3.5" />,
-            cta: false,
         },
         COMPLETED: {
             label: "Lihat",
@@ -437,9 +422,6 @@ export default function BmsReportsList({
                                         </SelectItem>
                                         <SelectItem value="review_rejected_revision">
                                             Ditolak (Revisi)
-                                        </SelectItem>
-                                        <SelectItem value="approved_bmc">
-                                            Menunggu Persetujuan BnM Manager
                                         </SelectItem>
                                         <SelectItem value="completed">
                                             Selesai

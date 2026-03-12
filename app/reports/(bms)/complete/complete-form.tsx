@@ -60,8 +60,8 @@ async function compressAndUpload(
     try {
         const supabase = getSupabaseClient();
         const compressed = await imageCompression(file, {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1920,
+            maxSizeMB: 0.15,
+            maxWidthOrHeight: 1280,
             useWebWorker: true,
         });
 
@@ -484,7 +484,7 @@ export function CompleteForm({
                             name: userName,
                             nik: userNIK,
                             role: "BMS",
-                            storeInfo: currentReport.storeName,
+                            storeInfo: `Toko: ${currentReport.storeName} | ${currentReport.reportNumber}`,
                         }}
                     />
                     <CompletionChecklistStep

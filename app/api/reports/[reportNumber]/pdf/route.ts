@@ -65,7 +65,7 @@ export async function GET(
 
         // BMS can only access their own reports (including drafts)
         // BMC can only access reports from their branches
-        // BNM_MANAGER can only access APPROVED_BMC and COMPLETED
+        // BNM_MANAGER can only access COMPLETED reports
         // ADMIN has unrestricted access
         if (user.role === "BMS") {
             if (report.createdByNIK !== user.NIK) {
@@ -82,7 +82,8 @@ export async function GET(
                 );
             }
         } else if (user.role === "BNM_MANAGER") {
-            if (!["APPROVED_BMC", "COMPLETED"].includes(report.status)) {
+            // BNM_MANAGER can only access COMPLETED reports
+            if (report.status !== "COMPLETED") {
                 return NextResponse.json(
                     { error: "Forbidden" },
                     { status: 403 },
@@ -170,6 +171,7 @@ export async function GET(
             storeCode: report.store ? report.store.code : "-",
             branchName: report.branchName,
             submittedBy: report.createdBy.name,
+            submittedByNIK: report.createdByNIK,
             submittedAt,
             items,
             estimations,

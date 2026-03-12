@@ -12,7 +12,7 @@ type ReviewDecision = "approve" | "reject_revision";
 
 /**
  * BMC reviews a PENDING_REVIEW (work completion) report.
- * - approve         → APPROVED_BMC  (forwarded to BnM Manager)
+ * - approve         → COMPLETED  (report finished)
  * - reject_revision → REVIEW_REJECTED_REVISION  (BMS must redo/resubmit)
  */
 export async function reviewCompletion(
@@ -44,7 +44,7 @@ export async function reviewCompletion(
 
         const newStatus =
             decision === "approve"
-                ? ReportStatus.APPROVED_BMC
+                ? ReportStatus.COMPLETED
                 : ReportStatus.REVIEW_REJECTED_REVISION;
 
         // For approvals, only store user-typed notes (null if empty) so the PDF
@@ -55,7 +55,7 @@ export async function reviewCompletion(
                 : notes || "Pekerjaan ditolak oleh BMC, BMS diminta merevisi";
 
         const completionReviewAction =
-            decision === "approve" ? "WORK_APPROVED" : "WORK_REJECTED_REVISION";
+            decision === "approve" ? "FINALIZED" : "WORK_REJECTED_REVISION";
 
         await prisma.$transaction([
             prisma.report.update({

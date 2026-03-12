@@ -90,8 +90,8 @@ async function compressAndUpload(
     try {
         const supabase = getSupabaseClient();
         const compressed = await imageCompression(file, {
-            maxSizeMB: 0.5,
-            maxWidthOrHeight: 1920,
+            maxSizeMB: 0.15,
+            maxWidthOrHeight: 1280,
             useWebWorker: true,
         });
 
@@ -158,7 +158,7 @@ function PhotoThumbnails({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StartWorkForm({ startableReports, prefillReport }: Props) {
+export function StartWorkForm({ startableReports, userName, userNIK, prefillReport }: Props) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -400,6 +400,16 @@ export function StartWorkForm({ startableReports, prefillReport }: Props) {
                 isOpen={cameraTarget !== null}
                 onCapture={handlePhotoCaptured}
                 onClose={() => setCameraTarget(null)}
+                watermarkInfo={
+                    currentReport
+                        ? {
+                              name: userName,
+                              nik: userNIK,
+                              role: "BMS",
+                              storeInfo: `Toko: ${currentReport.storeName} | ${currentReport.reportNumber}`,
+                          }
+                        : undefined
+                }
             />
 
             {/* Photo preview lightbox */}

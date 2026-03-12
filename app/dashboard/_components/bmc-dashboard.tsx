@@ -3,7 +3,7 @@ import {
     Clock,
     CheckCircle2,
     Wrench,
-    Hourglass,
+    FileText,
 } from "lucide-react";
 import { getBMCStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -20,6 +20,13 @@ import {
 import type { AuthUser } from "@/lib/authorization";
 
 const MENUS: DashboardMenuItem[] = [
+    {
+        title: "Buat PJUM",
+        description: "Pertanggungjawaban Uang Muka per minggu dari BMS",
+        icon: FileText,
+        href: "/reports/pjum",
+        variant: "default",
+    },
     {
         title: "Lihat Riwayat Approval",
         description: "Riwayat persetujuan estimasi & penyelesaian",
@@ -59,18 +66,9 @@ export async function BmcDashboard({ user }: { user: AuthUser }) {
             colorClass: "text-blue-600",
         },
         {
-            id: "awaiting-final",
-            label: "Menunggu Manager",
-            description: "Menunggu persetujuan final",
-            value: bmcStats.awaitingFinal,
-            icon: Hourglass,
-            href: "/reports?status=approved_bmc",
-            colorClass: "text-purple-600",
-        },
-        {
             id: "completed",
             label: "Selesai",
-            description: "Disetujui BnM Manager",
+            description: "Laporan selesai",
             value: bmcStats.completed,
             icon: CheckCircle2,
             href: "/reports?status=completed",

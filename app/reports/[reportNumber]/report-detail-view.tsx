@@ -13,7 +13,6 @@ import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
-import { approveFinal } from "@/app/reports/actions/approve-final";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -63,7 +62,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         "IN_PROGRESS",
         "PENDING_REVIEW",
         "REVIEW_REJECTED_REVISION",
-        "APPROVED_BMC",
         "COMPLETED",
     ];
     const showCompletionTab = COMPLETION_STATUSES.includes(report.status);
@@ -177,7 +175,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
-        handleApproveFinal,
     };
 
     const hasWorkflowAction =
@@ -187,8 +184,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
-                report.status === "PENDING_REVIEW")) ||
-        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
+                report.status === "PENDING_REVIEW"));
 
     return (
         <div className="min-h-screen flex flex-col bg-background/50">

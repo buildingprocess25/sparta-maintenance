@@ -33,9 +33,8 @@ export default async function ReportDetailPage({ params }: Props) {
         // BMC can view reports from their branches
         if (!user.branchNames.includes(report.branchName)) redirect("/reports");
     } else if (user.role === "BNM_MANAGER") {
-        // BnM Manager can view APPROVED_BMC and COMPLETED reports
-        if (!["APPROVED_BMC", "COMPLETED"].includes(report.status))
-            redirect("/reports");
+        // BnM Manager can view COMPLETED reports
+        if (report.status !== "COMPLETED") redirect("/reports");
     } else if (user.role !== "ADMIN") {
         redirect("/dashboard");
     }

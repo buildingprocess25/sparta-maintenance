@@ -139,16 +139,6 @@ const getStatusBadge = (status: string) => {
                     <X className="h-3 w-3" /> Ditolak (Revisi)
                 </Badge>
             );
-        case "APPROVED_BMC":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
-                >
-                    <Check className="h-3 w-3" /> Menunggu Persetujuan BnM
-                    Manager
-                </Badge>
-            );
         case "COMPLETED":
             return (
                 <Badge
@@ -169,8 +159,6 @@ const getActionLabel = (status: string, role: string): string => {
             return "Review Estimasi";
         case "PENDING_REVIEW":
             return "Review Pekerjaan";
-        case "APPROVED_BMC":
-            return role === "BNM_MANAGER" ? "Setujui Final" : "Lihat";
         default:
             return "Lihat";
     }
@@ -318,9 +306,6 @@ export function ApprovalReportsList({
                                         </SelectItem>
                                     </>
                                 )}
-                                <SelectItem value="approved_bmc">
-                                    Menunggu Persetujuan Final
-                                </SelectItem>
                                 <SelectItem value="completed">
                                     Selesai
                                 </SelectItem>
@@ -393,7 +378,6 @@ export function ApprovalReportsList({
                                         PENDING_REVIEW: "bg-purple-500",
                                         REVIEW_REJECTED_REVISION:
                                             "bg-orange-500",
-                                        APPROVED_BMC: "bg-teal-500",
                                         COMPLETED: "bg-emerald-500",
                                     };
                                     const statusBadge: Record<string, string> =
@@ -412,8 +396,6 @@ export function ApprovalReportsList({
                                                 "bg-purple-100 text-purple-700",
                                             REVIEW_REJECTED_REVISION:
                                                 "bg-orange-100 text-orange-700",
-                                            APPROVED_BMC:
-                                                "bg-teal-100 text-teal-700",
                                             COMPLETED:
                                                 "bg-emerald-100 text-emerald-700",
                                         };
@@ -430,8 +412,7 @@ export function ApprovalReportsList({
                                             PENDING_REVIEW: "Menunggu Review",
                                             REVIEW_REJECTED_REVISION:
                                                 "Ditolak (Revisi)",
-                                            APPROVED_BMC:
-                                                "Menunggu Persetujuan Final",
+
                                             COMPLETED: "Selesai",
                                         };
                                     const barColor =

@@ -58,15 +58,6 @@ export function StatusBadge({ status }: { status: string }) {
                     Ditolak (Revisi)
                 </Badge>
             );
-        case "APPROVED_BMC":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-teal-100 text-teal-800 hover:bg-teal-100/80"
-                >
-                    Menunggu Persetujuan BnM Manager
-                </Badge>
-            );
         case "COMPLETED":
             return (
                 <Badge

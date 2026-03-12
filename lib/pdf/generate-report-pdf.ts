@@ -9,10 +9,7 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
-import type {
-    ReportItemJson,
-    MaterialEstimationJson,
-} from "@/types/report";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 
 /**
@@ -29,8 +26,6 @@ function parseDimensionsFromUrl(url: string): {
     if (match) return { width: parseInt(match[1]), height: parseInt(match[2]) };
     return { width: 4, height: 3 };
 }
-
-
 
 const styles = StyleSheet.create({
     page: {
@@ -495,6 +490,7 @@ export type ReportPdfData = {
     storeCode: string;
     branchName: string;
     submittedBy: string;
+    submittedByNIK?: string;
     submittedAt: string;
     items: ReportItemJson[];
     estimations: MaterialEstimationJson[];
@@ -530,6 +526,8 @@ function groupEstimationsByItemId(estimations: MaterialEstimationJson[]) {
 
 function getStampLabelConfig(action: string): { label: string; color: string } {
     switch (action) {
+        case "CREATED":
+            return { label: "Dibuat", color: "#2563eb" };
         case "ESTIMATION_APPROVED":
             return { label: "Estimasi Disetujui", color: "#16a34a" };
         case "ESTIMATION_REJECTED":
@@ -550,6 +548,8 @@ function getStampLabelConfig(action: string): { label: string; color: string } {
 function roleLabel(role?: string, nik?: string): string {
     if (nik && ROLE_LABEL_OVERRIDES[nik]) return ROLE_LABEL_OVERRIDES[nik];
     switch (role) {
+        case "BMS":
+            return "Branch Maintenance Supervisor";
         case "BMC":
             return "Branch Maintenance Coordinator";
         case "BNM_MANAGER":
@@ -635,7 +635,6 @@ function renderStampBox(stamp: ReportStamp, idx: number) {
             : null,
     );
 }
-
 
 const BEFORE_AFTER_COL_WIDTH = (595 - 36 * 2 - 8) / 2; // ≈ 257.5pt
 const BEFORE_AFTER_MAX_HEIGHT = 260; // pt — increased to comfortably fit square photos without capping
@@ -740,11 +739,7 @@ function renderPhotoGrid2Col(
     return React.createElement(
         View,
         { wrap: false, style: { marginBottom: 8 } },
-        React.createElement(
-            Text,
-            { style: styles.completionSubLabel },
-            label,
-        ),
+        React.createElement(Text, { style: styles.completionSubLabel }, label),
         ...pairs.map((pair, rowIdx) =>
             React.createElement(
                 View,
@@ -820,7 +815,6 @@ function renderBeforeAfterRow(
             : null,
     );
 }
-
 
 function buildReportDocument(
     data: ReportPdfData,
@@ -1160,7 +1154,6 @@ function buildReportDocument(
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
                     "REVIEW_REJECTED_REVISION",
-                    "APPROVED_BMC",
                     "COMPLETED",
                 ];
                 const isCompletionSubmitted = COMPLETION_STATUSES.includes(
@@ -1374,7 +1367,6 @@ function buildReportDocument(
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
                     "REVIEW_REJECTED_REVISION",
-                    "APPROVED_BMC",
                     "COMPLETED",
                 ];
                 const isCompletionSubmitted = COMPLETION_STATUSES.includes(
@@ -1444,7 +1436,6 @@ function buildReportDocument(
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
                     "REVIEW_REJECTED_REVISION",
-                    "APPROVED_BMC",
                     "COMPLETED",
                 ];
                 const isCompletionSubmitted = COMPLETION_STATUSES.includes(
@@ -1509,7 +1500,6 @@ function buildReportDocument(
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
                     "REVIEW_REJECTED_REVISION",
-                    "APPROVED_BMC",
                     "COMPLETED",
                 ];
                 const isCompletionSubmitted = COMPLETION_STATUSES.includes(
@@ -1867,25 +1857,35 @@ function buildReportDocument(
                 );
             })(),
 
-            // Approval Section — only shown when relevant stamps exist
-            data.approval.stamps.length > 0
-                ? React.createElement(
-                      View,
-                      { style: styles.section },
-                      React.createElement(
-                          Text,
-                          { style: styles.sectionTitle },
-                          "Persetujuan",
-                      ),
-                      React.createElement(
-                          View,
-                          { style: styles.stampSectionContent },
-                          ...data.approval.stamps.map((stamp, idx) =>
-                              renderStampBox(stamp, idx),
-                          ),
-                      ),
-                  )
-                : null,
+            // Approval Section — always shown (DIBUAT stamp + any approval stamps)
+            (() => {
+                const dibuatStamp: ReportStamp = {
+                    action: "CREATED",
+                    approverName: data.submittedBy,
+                    approverNIK: data.submittedByNIK,
+                    approverRole: "BMS",
+                    approvedAt: data.submittedAt,
+                };
+                const allStamps = [dibuatStamp, ...data.approval.stamps];
+                return React.createElement(
+                    View,
+                    { style: styles.section },
+                    React.createElement(View, {
+                        style: {
+                            height: 1,
+                            backgroundColor: "#f5c6c2",
+                            marginBottom: 10,
+                        },
+                    }),
+                    React.createElement(
+                        View,
+                        { style: styles.stampSectionContent },
+                        ...allStamps.map((stamp, idx) =>
+                            renderStampBox(stamp, idx),
+                        ),
+                    ),
+                );
+            })(),
 
             // Footer
             React.createElement(

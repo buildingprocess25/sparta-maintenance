@@ -1,12 +1,12 @@
-import {
-    ClipboardCheck,
-    CheckCircle2,
-    FileText,
-} from "lucide-react";
+import { ClipboardCheck, CheckCircle2, FileText } from "lucide-react";
 import { getBNMStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
 import { ActivitySectionWide } from "./shared/activity-feed";
-import { DashboardStats, type DashboardHeroStat, type DashboardStatItem } from "./shared/dashboard-stats";
+import {
+    DashboardStats,
+    type DashboardHeroStat,
+    type DashboardStatItem,
+} from "./shared/dashboard-stats";
 import type { AuthUser } from "@/lib/authorization";
 
 export async function BnmDashboard({ user }: { user: AuthUser }) {
@@ -16,16 +16,16 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
     ]);
 
     const heroStat: DashboardHeroStat = {
-        id: "awaiting-approval",
-        label: "Persetujuan Final",
-        description: "Laporan siap mendapat persetujuan Anda",
-        value: bnmStats.awaitingApproval,
+        id: "pending-review",
+        label: "Menunggu Review",
+        description: "Laporan menunggu review penyelesaian dari Anda",
+        value: bnmStats.pendingReview,
         icon: ClipboardCheck,
-        href: "/reports?status=approved_bmc",
-        colorClass: "text-orange-600",
-        heroColorClass: "bg-orange-500 text-white hover:bg-orange-600",
-        heroTextColorClass: "text-orange-100",
-        heroTrendColorClass: "text-orange-200",
+        href: "/reports?status=pending_review",
+        colorClass: "text-purple-600",
+        heroColorClass: "bg-purple-500 text-white hover:bg-purple-600",
+        heroTextColorClass: "text-purple-100",
+        heroTrendColorClass: "text-purple-200",
     };
 
     const secondaryStats: DashboardStatItem[] = [
@@ -54,7 +54,10 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
             <div className="grid grid-cols-1 gap-4 lg:gap-6 items-start">
                 <div className="space-y-4">
                     {/* Stats Panel */}
-                    <DashboardStats hero={heroStat} secondary={secondaryStats} />
+                    <DashboardStats
+                        hero={heroStat}
+                        secondary={secondaryStats}
+                    />
 
                     {/* Activity Feed — wide layout */}
                     <ActivitySectionWide

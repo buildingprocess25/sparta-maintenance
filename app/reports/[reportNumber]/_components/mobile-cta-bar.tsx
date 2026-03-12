@@ -18,7 +18,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         setActiveDialog,
         handleReviewEstimation,
         handleReviewCompletion,
-        handleApproveFinal,
     } = actions;
 
     const hasWorkflowAction =
@@ -28,8 +27,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
-                report.status === "PENDING_REVIEW")) ||
-        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
+                report.status === "PENDING_REVIEW"));
 
     if (!hasWorkflowAction) return null;
 
@@ -225,59 +223,6 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                             Tolak
                         </Button>
                     </div>
-                ))}
-
-            {/* BNM_MANAGER: approve final */}
-            {viewer.role === "BNM_MANAGER" &&
-                report.status === "APPROVED_BMC" &&
-                (activeDialog === "approve_final" ? (
-                    <div className="space-y-2">
-                        <textarea
-                            className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
-                            rows={2}
-                            placeholder="Catatan (opsional)..."
-                            value={notesInput}
-                            onChange={(e) => setNotesInput(e.target.value)}
-                        />
-                        <div className="flex gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                className="flex-none"
-                                onClick={() => {
-                                    setActiveDialog(null);
-                                    setNotesInput("");
-                                }}
-                            >
-                                Batal
-                            </Button>
-                            <Button
-                                className="flex-1"
-                                size="sm"
-                                onClick={handleApproveFinal}
-                                disabled={isPending}
-                            >
-                                {isPending ? (
-                                    <>
-                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                        Memproses...
-                                    </>
-                                ) : (
-                                    "Konfirmasi Selesai"
-                                )}
-                            </Button>
-                        </div>
-                    </div>
-                ) : (
-                    <Button
-                        className="w-full"
-                        size="lg"
-                        onClick={() => setActiveDialog("approve_final")}
-                        disabled={isPending}
-                    >
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Setujui &amp; Selesaikan
-                    </Button>
                 ))}
         </div>
     );

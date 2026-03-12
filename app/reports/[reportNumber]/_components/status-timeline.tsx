@@ -2,6 +2,7 @@ import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STATUS_STEPS = [
+    { key: "DIBUAT", label: "Laporan Dibuat", icon: CheckCircle2 },
     {
         key: "PENDING_ESTIMATION",
         label: "Menunggu Persetujuan Estimasi",
@@ -18,23 +19,17 @@ const STATUS_STEPS = [
         label: "Menunggu Review Penyelesaian",
         icon: Clock,
     },
-    {
-        key: "APPROVED_BMC",
-        label: "Menunggu Persetujuan BnM Manager",
-        icon: CheckCircle2,
-    },
     { key: "COMPLETED", label: "Selesai", icon: CheckCircle2 },
 ];
 
 const STATUS_ORDER: Record<string, number> = {
-    PENDING_ESTIMATION: 0,
-    ESTIMATION_APPROVED: 1,
-    ESTIMATION_REJECTED_REVISION: 1,
-    ESTIMATION_REJECTED: 1,
-    IN_PROGRESS: 2,
-    PENDING_REVIEW: 3,
-    REVIEW_REJECTED_REVISION: 3,
-    APPROVED_BMC: 4,
+    PENDING_ESTIMATION: 1,
+    ESTIMATION_APPROVED: 2,
+    ESTIMATION_REJECTED_REVISION: 2,
+    ESTIMATION_REJECTED: 2,
+    IN_PROGRESS: 3,
+    PENDING_REVIEW: 4,
+    REVIEW_REJECTED_REVISION: 4,
     COMPLETED: 5,
 };
 
@@ -51,8 +46,8 @@ function getRejectionStep(status: string) {
         status === "ESTIMATION_REJECTED" ||
         status === "ESTIMATION_REJECTED_REVISION"
     )
-        return 1;
-    if (status === "REVIEW_REJECTED_REVISION") return 3;
+        return 2;
+    if (status === "REVIEW_REJECTED_REVISION") return 4;
     return -1;
 }
 

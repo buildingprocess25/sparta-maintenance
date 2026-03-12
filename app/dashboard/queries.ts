@@ -34,16 +34,12 @@ export async function getUserStats(userId: string) {
                     },
                 },
             }),
-            // Waiting for others (BMC / BNM)
+            // Waiting for others (BMC)
             prisma.report.count({
                 where: {
                     ...base,
                     status: {
-                        in: [
-                            "PENDING_ESTIMATION",
-                            "PENDING_REVIEW",
-                            "APPROVED_BMC",
-                        ],
+                        in: ["PENDING_ESTIMATION", "PENDING_REVIEW"],
                     },
                 },
             }),
@@ -76,7 +72,6 @@ export async function getUserStats(userId: string) {
  * Fetch report statistics for a BMC user, scoped to their branches.
  * - needsReview: Laporan yang perlu ditinjau BMC (estimasi / penyelesaian)
  * - inProgress: Laporan yang sedang dikerjakan BMS
- * - awaitingFinal: Sudah diapprove BMC, menunggu BnM Manager
  * - completed: Selesai
  */
 export async function getBMCStats(branchNames: string[]) {
@@ -86,44 +81,37 @@ export async function getBMCStats(branchNames: string[]) {
             status: { not: "DRAFT" as const },
         };
 
-        const [
-            totalReports,
-            needsReview,
-            inProgress,
-            awaitingFinal,
-            completed,
-        ] = await Promise.all([
-            prisma.report.count({ where: base }),
-            // Things BMC must act on: review estimation OR review completion
-            prisma.report.count({
-                where: {
-                    branchName: { in: branchNames },
-                    status: { in: ["PENDING_ESTIMATION", "PENDING_REVIEW"] },
-                },
-            }),
-            // Estimation approved + actively being worked on
-            prisma.report.count({
-                where: {
-                    branchName: { in: branchNames },
-                    status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
-                },
-            }),
-            prisma.report.count({
-                where: {
-                    branchName: { in: branchNames },
-                    status: "APPROVED_BMC",
-                },
-            }),
-            prisma.report.count({
-                where: { branchName: { in: branchNames }, status: "COMPLETED" },
-            }),
-        ]);
+        const [totalReports, needsReview, inProgress, completed] =
+            await Promise.all([
+                prisma.report.count({ where: base }),
+                // Things BMC must act on: review estimation OR review completion
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: {
+                            in: ["PENDING_ESTIMATION", "PENDING_REVIEW"],
+                        },
+                    },
+                }),
+                // Estimation approved + actively being worked on
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
+                    },
+                }),
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: "COMPLETED",
+                    },
+                }),
+            ]);
 
         return {
             totalReports,
             needsReview,
             inProgress,
-            awaitingFinal,
             completed,
         };
     } catch (error) {
@@ -138,17 +126,17 @@ export async function getBMCStats(branchNames: string[]) {
 
 /**
  * Fetch report statistics for a BnM Manager, scoped to their branches.
- * - awaitingApproval: Laporan yang menunggu persetujuan final
+ * - pendingReview: Laporan menunggu review penyelesaian
  * - completed: Laporan yang sudah selesai
  * - totalReports: Semua laporan (non-draft) di branch
  */
 export async function getBNMStats(branchNames: string[]) {
     try {
-        const [awaitingApproval, completed, totalReports] = await Promise.all([
+        const [pendingReview, completed, totalReports] = await Promise.all([
             prisma.report.count({
                 where: {
                     branchName: { in: branchNames },
-                    status: "APPROVED_BMC",
+                    status: "PENDING_REVIEW",
                 },
             }),
             prisma.report.count({
@@ -162,7 +150,7 @@ export async function getBNMStats(branchNames: string[]) {
             }),
         ]);
 
-        return { awaitingApproval, completed, totalReports };
+        return { pendingReview, completed, totalReports };
     } catch (error) {
         logger.error(
             { operation: "getBNMStats", branchNames },

@@ -29,8 +29,7 @@ enum ReportStatus {
   IN_PROGRESS                 // BMS is working on the report
   PENDING_REVIEW              // BMS finished, waiting BMC completion review
   REVIEW_REJECTED_REVISION    // BMC rejected work, BMS must revise
-  APPROVED_BMC                // BMC approved work, waiting BnM Manager
-  COMPLETED                   // BnM Manager approved — report done
+  COMPLETED                   // BMC approved work — report done
 }
 
 enum ItemCondition {
@@ -113,6 +112,9 @@ model Report {
 
   // Completion data
   completionSelfieUrl  String?   // selfie photo taken by BMS at finish
+
+  // PJUM — tracks when this report was included in a PJUM export
+  pjumExportedAt       DateTime?
   
   logs          ApprovalLog[]
   activities    ActivityLog[]

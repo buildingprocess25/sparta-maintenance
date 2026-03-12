@@ -130,7 +130,7 @@ export function usePhotoUpload({
 
             try {
                 const compressedFile = await imageCompression(file, {
-                    maxSizeMB: 0.1,
+                    maxSizeMB: 0.15,
                     maxWidthOrHeight: 1280,
                     useWebWorker: true,
                 });

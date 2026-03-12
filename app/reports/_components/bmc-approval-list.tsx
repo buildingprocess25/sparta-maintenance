@@ -61,12 +61,6 @@ function getStatusBadge(status: string) {
                     Menunggu Review Penyelesaian
                 </Badge>
             );
-        case "APPROVED_BMC":
-            return (
-                <Badge className="bg-teal-100 text-teal-800 hover:bg-teal-100/80 border-teal-200 shadow-none whitespace-nowrap">
-                    Menunggu Persetujuan BnM Manager
-                </Badge>
-            );
         default:
             return <Badge variant="outline">{status}</Badge>;
     }
@@ -78,8 +72,6 @@ function getActionLabel(status: string) {
             return "Review Estimasi";
         case "PENDING_REVIEW":
             return "Review Pekerjaan";
-        case "APPROVED_BMC":
-            return "Setujui Final";
         default:
             return "Lihat";
     }
@@ -102,14 +94,13 @@ export async function BmcApprovalList({
         "IN_PROGRESS",
         "PENDING_REVIEW",
         "REVIEW_REJECTED_REVISION",
-        "APPROVED_BMC",
         "COMPLETED",
     ] as const;
 
     // Build status filter based on role
     const roleStatuses =
         user.role === "BNM_MANAGER"
-            ? (["APPROVED_BMC"] as const)
+            ? (["COMPLETED"] as const)
             : (["PENDING_ESTIMATION", "PENDING_REVIEW"] as const);
 
     // view_all: show all non-draft (used by BNM "Total Laporan" stat card)
@@ -217,12 +208,12 @@ export async function BmcApprovalList({
 
     const pageTitle =
         user.role === "BNM_MANAGER"
-            ? "Persetujuan Final"
+            ? "Monitoring Laporan"
             : "Persetujuan Laporan";
 
     const pageDescription =
         user.role === "BNM_MANAGER"
-            ? "Laporan yang telah disetujui BMC dan menunggu persetujuan final Anda."
+            ? "Laporan yang telah selesai di area Anda."
             : "Laporan dari toko-toko di area Anda yang membutuhkan tindakan.";
 
     const formatCurrency = (amount: number | { toString(): string }) =>
@@ -248,9 +239,6 @@ export async function BmcApprovalList({
     ).length;
     const pendingReview = reports.filter(
         (r) => r.status === "PENDING_REVIEW",
-    ).length;
-    const pendingFinal = reports.filter(
-        (r) => r.status === "APPROVED_BMC",
     ).length;
 
     return (
@@ -302,17 +290,21 @@ export async function BmcApprovalList({
                         </Card>
                     )}
                     {user.role === "BNM_MANAGER" && (
-                        <Card className="border-teal-200/60 bg-teal-50/40">
+                        <Card className="border-emerald-200/60 bg-emerald-50/40">
                             <CardContent className="flex items-center gap-3">
-                                <div className="h-9 w-9 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
-                                    <CheckCircle2 className="h-4 w-4 text-teal-600" />
+                                <div className="h-9 w-9 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                                 </div>
                                 <div>
                                     <p className="text-xl font-bold leading-none">
-                                        {pendingFinal}
+                                        {
+                                            reports.filter(
+                                                (r) => r.status === "COMPLETED",
+                                            ).length
+                                        }
                                     </p>
                                     <p className="text-muted-foreground mt-0.5">
-                                        Perlu Persetujuan Final
+                                        Laporan Selesai
                                     </p>
                                 </div>
                             </CardContent>
