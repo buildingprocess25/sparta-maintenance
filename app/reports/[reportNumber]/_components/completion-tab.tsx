@@ -2,6 +2,7 @@ import {
     Camera,
     CheckCircle2,
     ClipboardList,
+    Eye,
     ImageIcon,
     Receipt,
     User,
@@ -17,14 +18,21 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import type { ReportItemJson } from "@/types/report";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 type Props = {
     items: ReportItemJson[];
+    estimations: MaterialEstimationJson[];
     startSelfieUrls: string[];
     startReceiptUrls: string[];
     formatCurrency: (n: number) => string;
     onPhotoClick: (src: string) => void;
+    /** Pass true when viewer is BMC reviewing PENDING_REVIEW */
+    isReviewer?: boolean;
+    /** Called whenever a photo in a tracked section is clicked */
+    onSectionViewed?: (sectionId: string) => void;
+    /** Set of section IDs already viewed (from parent state) */
+    viewedSections?: Set<string>;
 };
 
 function PhotoGrid({
@@ -62,11 +70,21 @@ function EmptyPhotos({ label }: { label: string }) {
 
 export function CompletionTab({
     items,
+    estimations,
     startSelfieUrls,
     startReceiptUrls,
     formatCurrency,
     onPhotoClick,
+    isReviewer = false,
+    onSectionViewed,
+    viewedSections = new Set(),
 }: Props) {
+    function makeClickHandler(sectionId: string) {
+        return (src: string) => {
+            onSectionViewed?.(sectionId);
+            onPhotoClick(src);
+        };
+    }
     // Items that are BMS-handled and broken/not-ok — show even if only before
     // photos exist (e.g. IN_PROGRESS: work started but not yet submitted).
     // `images` is the newer multi-photo field; `photoUrl` is the legacy single-
@@ -93,15 +111,28 @@ export function CompletionTab({
                 </CardHeader>
                 <CardContent className="space-y-5">
                     {/* Selfie */}
-                    <div className="space-y-2">
+                    <div id="review-selfie" className="space-y-2">
                         <p className="text-sm font-medium flex items-center gap-1.5">
                             <User className="h-3.5 w-3.5 text-muted-foreground" />
                             Foto Selfie
+                            {isReviewer &&
+                                startSelfieUrls.length > 0 &&
+                                (viewedSections.has("selfie") ? (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                                        Sudah ditinjau
+                                    </span>
+                                ) : (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                        <Eye className="h-3.5 w-3.5" /> Klik
+                                        foto untuk meninjau
+                                    </span>
+                                ))}
                         </p>
                         {startSelfieUrls.length > 0 ? (
                             <PhotoGrid
                                 urls={startSelfieUrls}
-                                onPhotoClick={onPhotoClick}
+                                onPhotoClick={makeClickHandler("selfie")}
                             />
                         ) : (
                             <EmptyPhotos label="Belum ada foto selfie." />
@@ -111,15 +142,28 @@ export function CompletionTab({
                     <Separator />
 
                     {/* Nota/struk awal */}
-                    <div className="space-y-2">
+                    <div id="review-nota" className="space-y-2">
                         <p className="text-sm font-medium flex items-center gap-1.5">
                             <Receipt className="h-3.5 w-3.5 text-muted-foreground" />
                             Foto Nota / Struk Belanja
+                            {isReviewer &&
+                                startReceiptUrls.length > 0 &&
+                                (viewedSections.has("nota") ? (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                                        Sudah ditinjau
+                                    </span>
+                                ) : (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                        <Eye className="h-3.5 w-3.5" /> Klik
+                                        foto untuk meninjau
+                                    </span>
+                                ))}
                         </p>
                         {startReceiptUrls.length > 0 ? (
                             <PhotoGrid
                                 urls={startReceiptUrls}
-                                onPhotoClick={onPhotoClick}
+                                onPhotoClick={makeClickHandler("nota")}
                             />
                         ) : (
                             <EmptyPhotos label="Belum ada foto nota/struk." />
@@ -156,10 +200,18 @@ export function CompletionTab({
                         <div className="divide-y">
                             {completedItems.map((item) => {
                                 const realisasi = item.realisasiItems ?? [];
+                                const estimasiItem = estimations.filter(
+                                    (e) => e.itemId === item.itemId,
+                                );
                                 const totalRealisasi = realisasi.reduce(
                                     (sum, r) => sum + r.totalPrice,
                                     0,
                                 );
+                                const totalEstimasi = estimasiItem.reduce(
+                                    (sum, e) => sum + e.totalPrice,
+                                    0,
+                                );
+                                const selisih = totalRealisasi - totalEstimasi;
 
                                 return (
                                     <div
@@ -210,8 +262,12 @@ export function CompletionTab({
                                                 afterUrls.length === 0
                                             )
                                                 return null;
+                                            const afterSectionId = `after-${item.itemId}`;
                                             return (
-                                                <div className="grid grid-cols-2 gap-4">
+                                                <div
+                                                    id={`review-${afterSectionId}`}
+                                                    className="grid grid-cols-2 gap-4"
+                                                >
                                                     <div className="space-y-1.5">
                                                         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                                                             Foto Sebelum
@@ -231,16 +287,33 @@ export function CompletionTab({
                                                         )}
                                                     </div>
                                                     <div className="space-y-1.5">
-                                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
                                                             Foto Sesudah
+                                                            {isReviewer &&
+                                                                afterUrls.length >
+                                                                    0 &&
+                                                                (viewedSections.has(
+                                                                    afterSectionId,
+                                                                ) ? (
+                                                                    <span className="flex items-center gap-1 text-emerald-600 normal-case">
+                                                                        <CheckCircle2 className="h-3 w-3" />{" "}
+                                                                        Ditinjau
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1 text-amber-600 normal-case">
+                                                                        <Eye className="h-3 w-3" />{" "}
+                                                                        Klik
+                                                                        foto
+                                                                    </span>
+                                                                ))}
                                                         </p>
                                                         {afterUrls.length >
                                                         0 ? (
                                                             <PhotoGrid
                                                                 urls={afterUrls}
-                                                                onPhotoClick={
-                                                                    onPhotoClick
-                                                                }
+                                                                onPhotoClick={makeClickHandler(
+                                                                    afterSectionId,
+                                                                )}
                                                             />
                                                         ) : (
                                                             <EmptyPhotos label="Belum ada foto." />
@@ -251,118 +324,328 @@ export function CompletionTab({
                                         })()}
 
                                         {/* Realisasi biaya table */}
-                                        {realisasi.length > 0 && (
+                                        {(realisasi.length > 0 ||
+                                            estimasiItem.length > 0) && (
                                             <div className="space-y-1.5">
                                                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                                                     Realisasi Biaya
                                                 </p>
-                                                {/* Desktop */}
-                                                <div className="hidden md:block rounded-md border overflow-hidden">
-                                                    <Table>
-                                                        <TableHeader>
-                                                            <TableRow className="hover:bg-transparent text-xs bg-muted/30">
-                                                                <TableHead className="h-8">
-                                                                    Material
-                                                                </TableHead>
-                                                                <TableHead className="text-right h-8 w-20">
-                                                                    Qty
-                                                                </TableHead>
-                                                                <TableHead className="text-right h-8 w-32">
-                                                                    Harga
-                                                                </TableHead>
-                                                                <TableHead className="text-right h-8 w-36">
-                                                                    Subtotal
-                                                                </TableHead>
-                                                            </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
+
+                                                {/* ── Estimasi (per item) ─────────────────────────── */}
+                                                {estimasiItem.length > 0 && (
+                                                    <div className="rounded-md border overflow-hidden">
+                                                        <div className="bg-muted/50 px-3 py-1.5">
+                                                            <p className="text-xs font-semibold text-muted-foreground">
+                                                                Estimasi
+                                                                Sebelumnya
+                                                            </p>
+                                                        </div>
+                                                        {/* Desktop */}
+                                                        <div className="hidden md:block">
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow className="hover:bg-transparent text-xs bg-muted/20">
+                                                                        <TableHead className="h-7 text-xs">
+                                                                            Material
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-20 text-xs">
+                                                                            Qty
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-32 text-xs">
+                                                                            Harga
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-36 text-xs">
+                                                                            Subtotal
+                                                                        </TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {estimasiItem.map(
+                                                                        (
+                                                                            e,
+                                                                            i,
+                                                                        ) => (
+                                                                            <TableRow
+                                                                                key={
+                                                                                    i
+                                                                                }
+                                                                                className="hover:bg-muted/10"
+                                                                            >
+                                                                                <TableCell className="text-sm py-1.5">
+                                                                                    {
+                                                                                        e.materialName
+                                                                                    }
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm text-muted-foreground py-1.5">
+                                                                                    {
+                                                                                        e.quantity
+                                                                                    }{" "}
+                                                                                    {
+                                                                                        e.unit
+                                                                                    }
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm font-mono text-muted-foreground py-1.5">
+                                                                                    {formatCurrency(
+                                                                                        e.price,
+                                                                                    )}
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm font-mono py-1.5">
+                                                                                    {formatCurrency(
+                                                                                        e.totalPrice,
+                                                                                    )}
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ),
+                                                                    )}
+                                                                    <TableRow className="bg-muted/20 hover:bg-muted/20 border-t border-dashed">
+                                                                        <TableCell
+                                                                            colSpan={
+                                                                                3
+                                                                            }
+                                                                            className="text-right text-xs font-semibold py-1.5 text-muted-foreground"
+                                                                        >
+                                                                            Total
+                                                                            Estimasi
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-sm font-bold font-mono text-muted-foreground py-1.5">
+                                                                            {formatCurrency(
+                                                                                totalEstimasi,
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                        {/* Mobile */}
+                                                        <div className="md:hidden divide-y">
+                                                            {estimasiItem.map(
+                                                                (e, i) => (
+                                                                    <div
+                                                                        key={i}
+                                                                        className="p-3 space-y-0.5"
+                                                                    >
+                                                                        <div className="flex justify-between items-start gap-2">
+                                                                            <p className="text-sm font-medium">
+                                                                                {
+                                                                                    e.materialName
+                                                                                }
+                                                                            </p>
+                                                                            <p className="text-sm font-mono shrink-0">
+                                                                                {formatCurrency(
+                                                                                    e.totalPrice,
+                                                                                )}
+                                                                            </p>
+                                                                        </div>
+                                                                        <p className="text-xs text-muted-foreground">
+                                                                            {
+                                                                                e.quantity
+                                                                            }{" "}
+                                                                            {
+                                                                                e.unit
+                                                                            }{" "}
+                                                                            ×{" "}
+                                                                            {formatCurrency(
+                                                                                e.price,
+                                                                            )}
+                                                                        </p>
+                                                                    </div>
+                                                                ),
+                                                            )}
+                                                            <div className="p-3 flex justify-between items-center bg-muted/20">
+                                                                <p className="text-xs font-semibold text-muted-foreground">
+                                                                    Total
+                                                                    Estimasi
+                                                                </p>
+                                                                <p className="text-sm font-bold font-mono text-muted-foreground">
+                                                                    {formatCurrency(
+                                                                        totalEstimasi,
+                                                                    )}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* ── Realisasi aktual ──────────────────────────── */}
+                                                {realisasi.length > 0 && (
+                                                    <div className="rounded-md border overflow-hidden">
+                                                        <div className="bg-primary/5 px-3 py-1.5">
+                                                            <p className="text-xs font-semibold text-primary">
+                                                                Realisasi Aktual
+                                                            </p>
+                                                        </div>
+                                                        {/* Desktop */}
+                                                        <div className="hidden md:block">
+                                                            <Table>
+                                                                <TableHeader>
+                                                                    <TableRow className="hover:bg-transparent text-xs bg-muted/20">
+                                                                        <TableHead className="h-7 text-xs">
+                                                                            Material
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-20 text-xs">
+                                                                            Qty
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-32 text-xs">
+                                                                            Harga
+                                                                        </TableHead>
+                                                                        <TableHead className="text-right h-7 w-36 text-xs">
+                                                                            Subtotal
+                                                                        </TableHead>
+                                                                    </TableRow>
+                                                                </TableHeader>
+                                                                <TableBody>
+                                                                    {realisasi.map(
+                                                                        (
+                                                                            r,
+                                                                            i,
+                                                                        ) => (
+                                                                            <TableRow
+                                                                                key={
+                                                                                    i
+                                                                                }
+                                                                                className="hover:bg-muted/10"
+                                                                            >
+                                                                                <TableCell className="text-sm py-1.5">
+                                                                                    {
+                                                                                        r.materialName
+                                                                                    }
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm text-muted-foreground py-1.5">
+                                                                                    {
+                                                                                        r.quantity
+                                                                                    }{" "}
+                                                                                    {
+                                                                                        r.unit
+                                                                                    }
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm font-mono text-muted-foreground py-1.5">
+                                                                                    {formatCurrency(
+                                                                                        r.price,
+                                                                                    )}
+                                                                                </TableCell>
+                                                                                <TableCell className="text-right text-sm font-mono font-medium py-1.5">
+                                                                                    {formatCurrency(
+                                                                                        r.totalPrice,
+                                                                                    )}
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ),
+                                                                    )}
+                                                                    <TableRow className="bg-primary/5 hover:bg-primary/5 border-t border-dashed">
+                                                                        <TableCell
+                                                                            colSpan={
+                                                                                3
+                                                                            }
+                                                                            className="text-right text-xs font-semibold py-1.5"
+                                                                        >
+                                                                            Total
+                                                                            Realisasi
+                                                                        </TableCell>
+                                                                        <TableCell className="text-right text-sm font-bold font-mono text-primary py-1.5">
+                                                                            {formatCurrency(
+                                                                                totalRealisasi,
+                                                                            )}
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                </TableBody>
+                                                            </Table>
+                                                        </div>
+                                                        {/* Mobile */}
+                                                        <div className="md:hidden divide-y">
                                                             {realisasi.map(
                                                                 (r, i) => (
-                                                                    <TableRow
+                                                                    <div
                                                                         key={i}
-                                                                        className="hover:bg-muted/10"
+                                                                        className="p-3 space-y-0.5"
                                                                     >
-                                                                        <TableCell className="text-sm py-2">
-                                                                            {
-                                                                                r.materialName
-                                                                            }
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-sm text-muted-foreground py-2">
+                                                                        <div className="flex justify-between items-start gap-2">
+                                                                            <p className="text-sm font-medium">
+                                                                                {
+                                                                                    r.materialName
+                                                                                }
+                                                                            </p>
+                                                                            <p className="text-sm font-mono font-semibold text-primary shrink-0">
+                                                                                {formatCurrency(
+                                                                                    r.totalPrice,
+                                                                                )}
+                                                                            </p>
+                                                                        </div>
+                                                                        <p className="text-xs text-muted-foreground">
                                                                             {
                                                                                 r.quantity
                                                                             }{" "}
                                                                             {
                                                                                 r.unit
-                                                                            }
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-sm font-mono text-muted-foreground py-2">
+                                                                            }{" "}
+                                                                            ×{" "}
                                                                             {formatCurrency(
                                                                                 r.price,
                                                                             )}
-                                                                        </TableCell>
-                                                                        <TableCell className="text-right text-sm font-mono font-medium py-2">
-                                                                            {formatCurrency(
-                                                                                r.totalPrice,
-                                                                            )}
-                                                                        </TableCell>
-                                                                    </TableRow>
+                                                                        </p>
+                                                                    </div>
                                                                 ),
                                                             )}
-                                                            <TableRow className="bg-muted/30 hover:bg-muted/30 border-t-2 border-dashed">
-                                                                <TableCell
-                                                                    colSpan={3}
-                                                                    className="text-right text-sm font-semibold py-2"
-                                                                >
+                                                            <div className="p-3 flex justify-between items-center bg-primary/5">
+                                                                <p className="text-sm font-semibold">
                                                                     Total
-                                                                </TableCell>
-                                                                <TableCell className="text-right font-bold font-mono text-primary py-2">
+                                                                    Realisasi
+                                                                </p>
+                                                                <p className="text-sm font-bold font-mono text-primary">
                                                                     {formatCurrency(
                                                                         totalRealisasi,
                                                                     )}
-                                                                </TableCell>
-                                                            </TableRow>
-                                                        </TableBody>
-                                                    </Table>
-                                                </div>
-                                                {/* Mobile */}
-                                                <div className="md:hidden rounded-md border divide-y">
-                                                    {realisasi.map((r, i) => (
-                                                        <div
-                                                            key={i}
-                                                            className="p-3 space-y-0.5"
-                                                        >
-                                                            <div className="flex justify-between items-start gap-2">
-                                                                <p className="text-sm font-medium">
-                                                                    {
-                                                                        r.materialName
-                                                                    }
-                                                                </p>
-                                                                <p className="text-sm font-mono font-semibold text-primary shrink-0">
-                                                                    {formatCurrency(
-                                                                        r.totalPrice,
-                                                                    )}
                                                                 </p>
                                                             </div>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {r.quantity}{" "}
-                                                                {r.unit} ×{" "}
-                                                                {formatCurrency(
-                                                                    r.price,
-                                                                )}
-                                                            </p>
                                                         </div>
-                                                    ))}
-                                                    <div className="p-3 flex justify-between items-center bg-muted/30">
-                                                        <p className="text-sm font-semibold">
-                                                            Total Realisasi
-                                                        </p>
-                                                        <p className="text-sm font-bold font-mono text-primary">
-                                                            {formatCurrency(
-                                                                totalRealisasi,
-                                                            )}
-                                                        </p>
                                                     </div>
-                                                </div>
+                                                )}
+
+                                                {/* ── Selisih ───────────────────────────────────── */}
+                                                {estimasiItem.length > 0 &&
+                                                    realisasi.length > 0 && (
+                                                        <div
+                                                            className={`flex items-center justify-between rounded-md border px-4 py-2.5 ${
+                                                                selisih > 0
+                                                                    ? "bg-red-50 border-red-200"
+                                                                    : selisih <
+                                                                        0
+                                                                      ? "bg-emerald-50 border-emerald-200"
+                                                                      : "bg-muted/30 border-border"
+                                                            }`}
+                                                        >
+                                                            <p className="text-sm font-semibold">
+                                                                Selisih
+                                                            </p>
+                                                            <div className="text-right">
+                                                                <p
+                                                                    className={`text-sm font-bold font-mono ${
+                                                                        selisih >
+                                                                        0
+                                                                            ? "text-red-600"
+                                                                            : selisih <
+                                                                                0
+                                                                              ? "text-emerald-600"
+                                                                              : "text-muted-foreground"
+                                                                    }`}
+                                                                >
+                                                                    {selisih > 0
+                                                                        ? "+"
+                                                                        : ""}
+                                                                    {formatCurrency(
+                                                                        selisih,
+                                                                    )}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {selisih > 0
+                                                                        ? "Melebihi estimasi"
+                                                                        : selisih <
+                                                                            0
+                                                                          ? "Di bawah estimasi"
+                                                                          : "Sesuai estimasi"}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                             </div>
                                         )}
 

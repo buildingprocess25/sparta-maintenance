@@ -903,13 +903,38 @@ function buildReportDocument(
             // Checklist Section
             (() => {
                 const totalItems = data.items.length;
-                const USE_TWO_COLUMNS = totalItems > 15; // Enable 2-column mode if there are many items
+                const USE_TWO_COLUMNS = totalItems > 0; // Always split into 2 columns
                 const tableContainerStyle = USE_TWO_COLUMNS
                     ? styles.twoColumnTableContainer
                     : { width: "100%" };
                 const columnStyle = USE_TWO_COLUMNS
                     ? styles.halfTableWidth
                     : styles.fullTableWidth;
+
+                // Compact style overrides — smaller to fit 2 columns side-by-side
+                const ckHeaderCell = {
+                    ...styles.tableHeaderCell,
+                    fontSize: 6,
+                    padding: "3 4",
+                };
+                const ckCell = {
+                    ...styles.tableCell,
+                    fontSize: 6,
+                    padding: "2 4",
+                };
+                const ckRow = { ...styles.tableRow, minHeight: 10 };
+                const ckRowAlt = { ...styles.tableRowAlt, minHeight: 10 };
+                const ckSubRow = {
+                    ...styles.tableSubRow,
+                    padding: "1 4 3 4",
+                    paddingLeft: "15%",
+                };
+                const ckSubCell = { ...styles.tableSubCell, fontSize: 5.5 };
+                const ckCatCell = {
+                    ...styles.categoryCell,
+                    fontSize: 6.5,
+                    padding: "2 4",
+                };
 
                 // Create a reusable header component
                 const TableHeader = () =>
@@ -920,7 +945,7 @@ function buildReportDocument(
                             Text,
                             {
                                 style: {
-                                    ...styles.tableHeaderCell,
+                                    ...ckHeaderCell,
                                     width: "15%",
                                 },
                             },
@@ -930,7 +955,7 @@ function buildReportDocument(
                             Text,
                             {
                                 style: {
-                                    ...styles.tableHeaderCell,
+                                    ...ckHeaderCell,
                                     width: "55%",
                                 },
                             },
@@ -940,7 +965,7 @@ function buildReportDocument(
                             Text,
                             {
                                 style: {
-                                    ...styles.tableHeaderCell,
+                                    ...ckHeaderCell,
                                     width: "30%",
                                 },
                             },
@@ -956,10 +981,7 @@ function buildReportDocument(
                     item: ReportItemJson;
                     itemIdx: number;
                 }) => {
-                    const rowStyle =
-                        itemIdx % 2 === 0
-                            ? styles.tableRow
-                            : styles.tableRowAlt;
+                    const rowStyle = itemIdx % 2 === 0 ? ckRow : ckRowAlt;
                     const cStyle = conditionStyle(
                         item.condition,
                         item.preventiveCondition,
@@ -986,7 +1008,7 @@ function buildReportDocument(
                                 Text,
                                 {
                                     style: {
-                                        ...styles.tableCell,
+                                        ...ckCell,
                                         width: "15%",
                                         color: "#9ca3af",
                                     },
@@ -997,7 +1019,7 @@ function buildReportDocument(
                                 Text,
                                 {
                                     style: {
-                                        ...styles.tableCell,
+                                        ...ckCell,
                                         width: "55%",
                                     },
                                 },
@@ -1007,7 +1029,7 @@ function buildReportDocument(
                                 Text,
                                 {
                                     style: {
-                                        ...styles.tableCell,
+                                        ...ckCell,
                                         width: "30%",
                                         ...cStyle,
                                     },
@@ -1022,11 +1044,11 @@ function buildReportDocument(
                         hasIssue && hasNotes
                             ? React.createElement(
                                   View,
-                                  { style: styles.tableSubRow },
+                                  { style: ckSubRow },
                                   item.handler
                                       ? React.createElement(
                                             Text,
-                                            { style: styles.tableSubCell },
+                                            { style: ckSubCell },
                                             React.createElement(
                                                 Text,
                                                 { style: styles.tableSubLabel },
@@ -1040,7 +1062,7 @@ function buildReportDocument(
                                             Text,
                                             {
                                                 style: {
-                                                    ...styles.tableSubCell,
+                                                    ...ckSubCell,
                                                     flex: 1,
                                                 },
                                             },
@@ -1097,7 +1119,7 @@ function buildReportDocument(
                             Text,
                             {
                                 style: {
-                                    ...styles.categoryCell,
+                                    ...ckCatCell,
                                     width: "100%",
                                 },
                             },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useMemo, useTransition } from "react";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { toast } from "sonner";
 import { Header } from "@/components/layout/header";
@@ -70,9 +70,37 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     const [notesInput, setNotesInput] = useState("");
     const [activeDialog, setActiveDialog] = useState<string | null>(null);
     const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
+    const [activeTab, setActiveTab] = useState("checklist");
+    const [viewedSections, setViewedSections] = useState<Set<string>>(
+        new Set(),
+    );
     const closeLightbox = useHistoryBackClose(!!lightboxSrc, () =>
         setLightboxSrc(null),
     );
+
+    const isBmcReviewer =
+        viewer.role === "BMC" && report.status === "PENDING_REVIEW";
+
+    const requiredSections = useMemo(() => {
+        if (!isBmcReviewer) return new Set<string>();
+        const s = new Set<string>();
+        if (report.startSelfieUrls.length > 0) s.add("selfie");
+        if (report.startReceiptUrls.length > 0) s.add("nota");
+        report.items
+            .filter(
+                (item) =>
+                    (item.condition === "RUSAK" ||
+                        item.preventiveCondition === "NOT_OK") &&
+                    item.handler === "BMS" &&
+                    (item.afterImages?.length ?? 0) > 0,
+            )
+            .forEach((item) => s.add(`after-${item.itemId}`));
+        return s;
+    }, [isBmcReviewer, report]);
+
+    function handleSectionViewed(sectionId: string) {
+        setViewedSections((prev) => new Set(prev).add(sectionId));
+    }
 
     const handleSubmitCompletion = () => {
         startTransition(async () => {
@@ -124,6 +152,33 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     const handleReviewCompletion = (
         decision: "approve" | "reject_revision",
     ) => {
+        if (decision === "approve" && isBmcReviewer) {
+            const unviewed = [...requiredSections].filter(
+                (id) => !viewedSections.has(id),
+            );
+            if (unviewed.length > 0) {
+                const firstId = unviewed[0];
+                const sectionLabel =
+                    firstId === "selfie"
+                        ? "Foto Selfie"
+                        : firstId === "nota"
+                          ? "Foto Nota / Struk Belanja"
+                          : `Foto Sesudah item ${firstId.replace("after-", "")}`;
+                toast.warning("Tinjau semua foto terlebih dahulu", {
+                    description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
+                });
+                setActiveTab("estimations");
+                setTimeout(() => {
+                    const el = document.getElementById(`review-${firstId}`);
+                    if (el)
+                        el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                }, 150);
+                return;
+            }
+        }
         startTransition(async () => {
             const result = await reviewCompletion(
                 report.reportNumber,
@@ -237,7 +292,11 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                 </Button>
                             </a>
                         </div>
-                        <Tabs defaultValue="checklist" className="w-full">
+                        <Tabs
+                            value={activeTab}
+                            onValueChange={setActiveTab}
+                            className="w-full"
+                        >
                             <div className="mb-5">
                                 <TabsList className="w-full bg-primary/10">
                                     <TabsTrigger
@@ -309,12 +368,16 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                 {showCompletionTab ? (
                                     <CompletionTab
                                         items={report.items}
+                                        estimations={report.estimations}
                                         startSelfieUrls={report.startSelfieUrls}
                                         startReceiptUrls={
                                             report.startReceiptUrls
                                         }
                                         formatCurrency={formatCurrency}
                                         onPhotoClick={setLightboxSrc}
+                                        isReviewer={isBmcReviewer}
+                                        onSectionViewed={handleSectionViewed}
+                                        viewedSections={viewedSections}
                                     />
                                 ) : (
                                     <EstimationsTab
