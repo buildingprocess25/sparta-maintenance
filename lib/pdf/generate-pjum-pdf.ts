@@ -4,7 +4,6 @@ import {
     Page,
     Text,
     View,
-    Image,
     StyleSheet,
     renderToBuffer,
 } from "@react-pdf/renderer";
@@ -19,43 +18,12 @@ const styles = StyleSheet.create({
         paddingHorizontal: 36,
         color: "#111827",
     },
-    header: {
-        marginBottom: 20,
-        backgroundColor: "#c0392b",
-        padding: "14 20",
-        flexDirection: "row",
-        alignItems: "center",
-    },
-    headerLogoAlfamart: { width: 60, height: 34 },
-    headerDivider: {
-        width: 1,
-        height: 28,
-        backgroundColor: "rgba(255,255,255,0.3)",
-        marginHorizontal: 10,
-    },
-    headerTextGroup: { marginLeft: 8, flexDirection: "column" },
-    headerTitle: {
-        fontSize: 14,
-        fontFamily: "Helvetica-Bold",
-        color: "#ffffff",
-        letterSpacing: 1.5,
-    },
-    headerSubtitle: {
-        fontSize: 7,
-        color: "rgba(255,255,255,0.7)",
-    },
     docTitle: {
         fontSize: 13,
         fontFamily: "Helvetica-Bold",
         color: "#c0392b",
-        marginBottom: 2,
-        textAlign: "center",
-    },
-    docSubtitle: {
-        fontSize: 9,
-        color: "#6b7280",
-        textAlign: "center",
         marginBottom: 14,
+        textAlign: "center",
     },
     infoGrid: {
         flexDirection: "row",
@@ -106,11 +74,10 @@ const styles = StyleSheet.create({
     },
     // Column widths
     colNo: { width: 22 },
-    colDate: { width: 60 },
+    colDate: { width: 68 },
+    colReportNumber: { width: 95 },
     colStore: { flex: 1 },
-    colStatus: { width: 70 },
     colTotal: { width: 80, textAlign: "right" },
-    colPjum: { width: 38, textAlign: "center" },
     totalRow: {
         flexDirection: "row",
         borderTop: "2px solid #c0392b",
@@ -131,6 +98,64 @@ const styles = StyleSheet.create({
         color: "#c0392b",
         textAlign: "right",
     },
+    // Stamp
+    stampSection: {
+        marginTop: 24,
+        flexDirection: "row",
+        justifyContent: "center",
+    },
+    stampBox: {
+        width: 160,
+        overflow: "hidden",
+    },
+    stampBadge: {
+        paddingVertical: 5,
+        paddingHorizontal: 12,
+        borderRadius: 3,
+        backgroundColor: "#2563eb",
+    },
+    stampBadgeText: {
+        fontFamily: "Helvetica-Bold",
+        fontSize: 7.5,
+        color: "#ffffff",
+        textAlign: "center",
+        letterSpacing: 0.8,
+    },
+    stampBody: {
+        paddingVertical: 7,
+        paddingHorizontal: 4,
+        alignItems: "center",
+        borderBottomWidth: 0.5,
+        borderBottomStyle: "solid",
+        borderBottomColor: "#d1d5db",
+    },
+    stampName: {
+        fontSize: 9,
+        fontFamily: "Helvetica-Bold",
+        textAlign: "center",
+        color: "#111827",
+        marginBottom: 2,
+    },
+    stampNik: {
+        fontSize: 7,
+        color: "#6b7280",
+        textAlign: "center",
+        marginBottom: 2,
+    },
+    stampDate: {
+        fontSize: 7,
+        color: "#6b7280",
+        textAlign: "center",
+    },
+    stampRoleWrapper: {
+        paddingVertical: 5,
+        paddingHorizontal: 4,
+    },
+    stampRole: {
+        fontSize: 7,
+        color: "#374151",
+        textAlign: "center",
+    },
     footer: {
         position: "absolute",
         bottom: 20,
@@ -141,20 +166,8 @@ const styles = StyleSheet.create({
         borderTop: "1px solid #e5e7eb",
         paddingTop: 5,
     },
-    footerText: { fontSize: 7, color: "#9ca3af" },
+    footerText: { fontSize: 7, color: "#9ca3af", fontStyle: "italic" },
 });
-
-const STATUS_LABELS: Record<string, string> = {
-    DRAFT: "Draft",
-    PENDING_ESTIMATION: "Menunggu Estimasi",
-    ESTIMATION_APPROVED: "Estimasi Disetujui",
-    ESTIMATION_REJECTED_REVISION: "Revisi Estimasi",
-    ESTIMATION_REJECTED: "Estimasi Ditolak",
-    IN_PROGRESS: "Sedang Dikerjakan",
-    PENDING_REVIEW: "Menunggu Review",
-    REVIEW_REJECTED_REVISION: "Revisi Pekerjaan",
-    COMPLETED: "Selesai",
-};
 
 function fmtCurrency(amount: number) {
     return `Rp ${Number(amount).toLocaleString("id-ID")}`;
@@ -182,16 +195,17 @@ export type PjumPdfData = {
     bmsName: string;
     bmsNIK: string;
     bmcName: string;
+    bmcNIK: string;
     branchName: string;
     from: string;
     to: string;
     exportedAt: string;
     reports: PjumPdfRow[];
-    alfamartLogoBase64: string;
 };
 
 function buildPjumDocument(data: PjumPdfData) {
     const totalAll = data.reports.reduce((s, r) => s + r.totalEstimation, 0);
+    const exportedDate = fmtDate(data.exportedAt);
 
     const tableRows = data.reports.map((r, i) =>
         React.createElement(
@@ -213,6 +227,13 @@ function buildPjumDocument(data: PjumPdfData) {
                 { style: { ...styles.tdCell, ...styles.colDate } },
                 fmtDate(r.createdAt),
             ),
+            // Report number
+            React.createElement(
+                Text,
+                { style: { ...styles.tdCell, ...styles.colReportNumber } },
+                r.reportNumber,
+            ),
+            // Store name (bold) + store code below (smaller, gray)
             React.createElement(
                 View,
                 { style: { ...styles.tdCell, ...styles.colStore } },
@@ -224,21 +245,17 @@ function buildPjumDocument(data: PjumPdfData) {
                             fontSize: 8,
                         },
                     },
-                    r.storeCode
-                        ? `${r.storeCode} — ${r.storeName}`
-                        : r.storeName || "—",
+                    r.storeName || "—",
                 ),
-                React.createElement(
-                    Text,
-                    { style: { fontSize: 7, color: "#6b7280" } },
-                    r.reportNumber,
-                ),
+                r.storeCode
+                    ? React.createElement(
+                          Text,
+                          { style: { fontSize: 7, color: "#6b7280" } },
+                          r.storeCode,
+                      )
+                    : null,
             ),
-            React.createElement(
-                Text,
-                { style: { ...styles.tdCell, ...styles.colStatus } },
-                STATUS_LABELS[r.status] ?? r.status,
-            ),
+            // Total estimation
             React.createElement(
                 Text,
                 { style: { ...styles.tdCell, ...styles.colTotal } },
@@ -253,43 +270,12 @@ function buildPjumDocument(data: PjumPdfData) {
         React.createElement(
             Page,
             { size: "A4", style: styles.page },
-            // ── Header ──
-            React.createElement(
-                View,
-                { style: styles.header, fixed: true },
-                data.alfamartLogoBase64
-                    ? React.createElement(Image, {
-                          src: `data:image/png;base64,${data.alfamartLogoBase64}`,
-                          style: styles.headerLogoAlfamart,
-                      })
-                    : null,
-                React.createElement(View, { style: styles.headerDivider }),
-                React.createElement(
-                    View,
-                    { style: styles.headerTextGroup },
-                    React.createElement(
-                        Text,
-                        { style: styles.headerTitle },
-                        "SPARTA",
-                    ),
-                    React.createElement(
-                        Text,
-                        { style: styles.headerSubtitle },
-                        "Sistem Pelaporan dan Tracking Aset Maintenance",
-                    ),
-                ),
-            ),
 
             // ── Document title ──
             React.createElement(
                 Text,
                 { style: styles.docTitle },
-                "PERTANGGUNGJAWABAN UANG MUKA (PJUM)",
-            ),
-            React.createElement(
-                Text,
-                { style: styles.docSubtitle },
-                `Dicetak pada ${fmtDate(data.exportedAt)}`,
+                "REKAPAN LAPORAN MAINTENANCE TOKO",
             ),
 
             // ── Info grid ──
@@ -304,7 +290,6 @@ function buildPjumDocument(data: PjumPdfData) {
                         value: `${fmtDate(data.from)} — ${fmtDate(data.to)}`,
                     },
                     { label: "Area / Cabang", value: data.branchName },
-                    { label: "Dibuat oleh", value: data.bmcName },
                     {
                         label: "Jumlah Laporan",
                         value: String(data.reports.length),
@@ -343,13 +328,13 @@ function buildPjumDocument(data: PjumPdfData) {
                 ),
                 React.createElement(
                     Text,
-                    { style: { ...styles.thCell, ...styles.colStore } },
-                    "Kode & Nama Toko / No. Laporan",
+                    { style: { ...styles.thCell, ...styles.colReportNumber } },
+                    "No. Laporan",
                 ),
                 React.createElement(
                     Text,
-                    { style: { ...styles.thCell, ...styles.colStatus } },
-                    "Status",
+                    { style: { ...styles.thCell, ...styles.colStore } },
+                    "Nama Toko",
                 ),
                 React.createElement(
                     Text,
@@ -377,6 +362,53 @@ function buildPjumDocument(data: PjumPdfData) {
                 ),
             ),
 
+            // ── Stamp (DIBUAT OLEH BMC) ──
+            React.createElement(
+                View,
+                { style: styles.stampSection },
+                React.createElement(
+                    View,
+                    { style: styles.stampBox },
+                    React.createElement(
+                        View,
+                        { style: styles.stampBadge },
+                        React.createElement(
+                            Text,
+                            { style: styles.stampBadgeText },
+                            "DIBUAT OLEH",
+                        ),
+                    ),
+                    React.createElement(
+                        View,
+                        { style: styles.stampBody },
+                        React.createElement(
+                            Text,
+                            { style: styles.stampName },
+                            data.bmcName,
+                        ),
+                        React.createElement(
+                            Text,
+                            { style: styles.stampNik },
+                            `NIK: ${data.bmcNIK}`,
+                        ),
+                        React.createElement(
+                            Text,
+                            { style: styles.stampDate },
+                            exportedDate,
+                        ),
+                    ),
+                    React.createElement(
+                        View,
+                        { style: styles.stampRoleWrapper },
+                        React.createElement(
+                            Text,
+                            { style: styles.stampRole },
+                            "Branch Maintenance Coordinator",
+                        ),
+                    ),
+                ),
+            ),
+
             // ── Footer ──
             React.createElement(
                 View,
@@ -384,7 +416,7 @@ function buildPjumDocument(data: PjumPdfData) {
                 React.createElement(
                     Text,
                     { style: styles.footerText },
-                    `SPARTA Maintenance — PJUM`,
+                    `Dokumen ini di generate otomatis oleh sistem SPARTA Maintenance`,
                 ),
                 React.createElement(Text, {
                     style: styles.footerText,

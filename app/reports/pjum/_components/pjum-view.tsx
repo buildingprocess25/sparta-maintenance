@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Search,
-    Download,
+    ExternalLink,
     AlertCircle,
     CheckCircle2,
     Loader2,
@@ -480,8 +480,8 @@ export function PjumView({ bmsUsers }: Props) {
                             rel="noopener noreferrer"
                         >
                             <Button size="sm" variant="outline">
-                                <Download className="h-4 w-4 mr-2" />
-                                Unduh PDF
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Buka PDF
                             </Button>
                         </a>
                     </div>
@@ -647,7 +647,6 @@ export function PjumView({ bmsUsers }: Props) {
                                                         <TableCell className="font-mono text-xs font-medium text-muted-foreground">
                                                             <Link
                                                                 href={`/reports/${r.reportNumber}`}
-                                                                target="_blank"
                                                                 className="hover:text-primary hover:underline transition-colors"
                                                                 onClick={(e) =>
                                                                     e.stopPropagation()

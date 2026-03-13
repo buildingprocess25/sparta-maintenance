@@ -186,7 +186,6 @@ export function ChecklistStep({
                                         {categoryIAvailableDate.toLocaleDateString(
                                             "id-ID",
                                             {
-                                                day: "numeric",
                                                 month: "long",
                                                 year: "numeric",
                                             },

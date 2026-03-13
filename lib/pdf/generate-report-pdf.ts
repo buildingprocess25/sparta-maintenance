@@ -221,6 +221,7 @@ const styles = StyleSheet.create({
     footerText: {
         fontSize: 7,
         color: "#9ca3af",
+        fontStyle: "italic",
     },
     // Stamp Styles
     stampSectionContent: {
@@ -549,7 +550,7 @@ function roleLabel(role?: string, nik?: string): string {
     if (nik && ROLE_LABEL_OVERRIDES[nik]) return ROLE_LABEL_OVERRIDES[nik];
     switch (role) {
         case "BMS":
-            return "Branch Maintenance Supervisor";
+            return "Branch Maintenance Support";
         case "BMC":
             return "Branch Maintenance Coordinator";
         case "BNM_MANAGER":
@@ -1398,6 +1399,7 @@ function buildReportDocument(
 
                 const completionItems = data.items.filter(
                     (i) =>
+                        i.handler === "BMS" &&
                         (i.condition === "RUSAK" ||
                             i.preventiveCondition === "NOT_OK") &&
                         ((i.images && i.images.length > 0) ||
@@ -1636,7 +1638,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Harga Est.",
+                                "Harga Estimasi",
                             ),
                             React.createElement(
                                 Text,
@@ -1647,7 +1649,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Total Est.",
+                                "Total Estimasi",
                             ),
                             React.createElement(
                                 Text,
@@ -1658,7 +1660,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Harga Real.",
+                                "Harga Realisasi",
                             ),
                             React.createElement(
                                 Text,
@@ -1669,7 +1671,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Total Real.",
+                                "Total Realisasi",
                             ),
                         ),
                         // Data rows
@@ -1916,7 +1918,7 @@ function buildReportDocument(
                 React.createElement(
                     Text,
                     { style: styles.footerText },
-                    `SPARTA Maintenance — ${data.reportNumber}`,
+                    `No. Laporan: ${data.reportNumber} — Dokumen ini di generate otomatis oleh sistem SPARTA Maintenance`,
                 ),
                 React.createElement(Text, {
                     style: styles.footerText,

@@ -24,17 +24,17 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
         bar: "bg-yellow-400",
     },
     ESTIMATION_APPROVED: {
-        label: "Siap Dikerjakan",
+        label: "Estimasi Disetujui",
         badge: "bg-green-100 text-green-700",
         bar: "bg-green-500",
     },
     ESTIMATION_REJECTED_REVISION: {
-        label: "Est. Ditolak — Revisi",
+        label: "Estimasi Ditolak — Revisi",
         badge: "bg-orange-100 text-orange-700",
         bar: "bg-orange-500",
     },
     ESTIMATION_REJECTED: {
-        label: "Est. Ditolak",
+        label: "Estimasi Ditolak",
         badge: "bg-red-100 text-red-700",
         bar: "bg-red-500",
     },

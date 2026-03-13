@@ -100,9 +100,55 @@ GMAIL_REFRESH_TOKEN="xxx"
 # App URL
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
+# Google Drive (PDF Archive)
+GOOGLE_DRIVE_CLIENT_EMAIL="service-account@project-id.iam.gserviceaccount.com"
+GOOGLE_DRIVE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+GOOGLE_DRIVE_ROOT_FOLDER_ID="your-google-drive-folder-id"
+# Optional (for Shared Drive)
+GOOGLE_DRIVE_SHARED_DRIVE_ID=""
+
 # Dev only (optional)
 DEV_EMAIL_RECIPIENT="dev@example.com"
 ```
+
+### 2.1 Google Drive Preparation
+
+1. Buka Google Cloud Console, pilih project, lalu buat Service Account.
+2. Generate key JSON untuk Service Account tersebut (menu `Keys` -> `Add key` -> `Create new key` -> `JSON`).
+3. Enable Google Drive API di project yang sama (`APIs & Services` -> `Enable APIs and Services`).
+4. Buat folder tujuan arsip PDF di Google Drive.
+5. Share folder tersebut ke email Service Account sebagai `Editor`.
+6. Isi env berikut dari file JSON:
+
+```env
+GOOGLE_DRIVE_CLIENT_EMAIL="<client_email dari JSON>"
+GOOGLE_DRIVE_PRIVATE_KEY="<private_key dari JSON, tetap dalam satu baris dengan \\n>"
+GOOGLE_DRIVE_ROOT_FOLDER_ID="<ID folder tujuan arsip>"
+GOOGLE_DRIVE_SHARED_DRIVE_ID=""
+```
+
+- Cara ambil `GOOGLE_DRIVE_ROOT_FOLDER_ID`:
+    - Buka folder di browser.
+    - URL contoh: `https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp`.
+    - Nilai ID adalah bagian setelah `/folders/`, yaitu `1AbCdEfGhIjKlMnOp`.
+
+- `GOOGLE_DRIVE_SHARED_DRIVE_ID`:
+    - Isi jika Anda memakai Shared Drive.
+    - Kosongkan jika hanya memakai My Drive + folder yang dishare ke Service Account.
+
+- Jalankan validasi koneksi:
+
+```bash
+npm run test:gdrive
+```
+
+- Jika berhasil, terminal akan menampilkan `Google Drive setup OK` dan metadata folder.
+
+Troubleshooting cepat:
+
+1. Error `GOOGLE_DRIVE_CLIENT_EMAIL env variable is not set`: cek nama env dan restart dev server.
+2. Error permission/404 folder: pastikan folder sudah di-share ke Service Account dan ID folder benar.
+3. Error private key: pastikan nilai `GOOGLE_DRIVE_PRIVATE_KEY` berisi escaped newline (`\\n`) dalam `.env`.
 
 ### 3. Setup Database
 
