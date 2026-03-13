@@ -364,25 +364,25 @@ export function PjumView({ bmsUsers }: Props) {
                     {/* Left: filter controls */}
                     <div className="flex flex-col sm:flex-row gap-3 sm:items-center flex-wrap flex-1">
                         {/* BMS selector */}
-                        <div className="flex-1 min-w-40 max-w-xs">
+                        <div className="w-fit max-w-full">
                             <Select
                                 value={selectedNIK}
                                 onValueChange={setSelectedNIK}
                             >
                                 <SelectTrigger
-                                    className="bg-background w-full"
+                                    className="bg-background w-auto min-w-40 max-w-full"
                                     aria-label="Pilih BMS"
                                 >
                                     <div className="flex items-center gap-2 min-w-0">
-                                        <User className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
+                                        <User className="h-4 w-4 text-muted-foreground shrink-0" />
                                         <SelectValue placeholder="Pilih BMS…" />
                                     </div>
                                 </SelectTrigger>
                                 <SelectContent>
                                     {bmsUsers.map((u) => (
                                         <SelectItem key={u.NIK} value={u.NIK}>
-                                            {u.name}{" "}
-                                            <span className="text-muted-foreground text-xs ml-1">
+                                            <span>{u.name}</span>
+                                            <span className="text-muted-foreground text-xs ml-1 shrink-0">
                                                 {u.NIK}
                                             </span>
                                         </SelectItem>
@@ -417,7 +417,7 @@ export function PjumView({ bmsUsers }: Props) {
                                 onValueChange={setWeekNumber}
                             >
                                 <SelectTrigger aria-label="Minggu ke">
-                                    <SelectValue placeholder="Minggu ke" />
+                                    <SelectValue placeholder="Minggu ke..." />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {[1, 2, 3, 4, 5].map((week) => (

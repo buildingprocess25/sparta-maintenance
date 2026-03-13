@@ -18,9 +18,7 @@ export async function generateReportNumber(
     storeCode?: string,
     tx?: PrismaTx | PrismaClient,
 ): Promise<string> {
-    const now = new Date();
-    const yy = now.getFullYear().toString().slice(-2);
-    const mm = (now.getMonth() + 1).toString().padStart(2, "0");
+    const { yy, mm } = getJakartaYearMonth(new Date());
     const kode = storeCode ? storeCode.toUpperCase() : "XXXX";
     const prefix = `${kode}-${yy}${mm}-`;
 
@@ -54,6 +52,26 @@ export async function generateReportNumber(
     } else {
         return prisma.$transaction((t) => executeOperation(t));
     }
+}
+
+function getJakartaYearMonth(date: Date): { yy: string; mm: string } {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Jakarta",
+        year: "2-digit",
+        month: "2-digit",
+    });
+
+    const parts = formatter.formatToParts(date);
+    const yy = parts.find((part) => part.type === "year")?.value;
+    const mm = parts.find((part) => part.type === "month")?.value;
+
+    if (!yy || !mm) {
+        throw new Error(
+            "Failed to compute Jakarta year-month for report number",
+        );
+    }
+
+    return { yy, mm };
 }
 
 function hashCode(str: string): number {
