@@ -4,6 +4,7 @@ import {
     CheckCircle2,
     Wrench,
     FileText,
+    Archive,
 } from "lucide-react";
 import { getBMCStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -33,6 +34,22 @@ const MENUS: DashboardMenuItem[] = [
         icon: FolderOpen,
         href: "/reports/history",
         variant: "outline",
+    },
+    {
+        title: "Arsip Laporan Selesai",
+        description: "Buka folder arsip laporan selesai cabang di Google Drive",
+        icon: Archive,
+        href: "/api/drive/report-archive",
+        variant: "outline",
+        newTab: true,
+    },
+    {
+        title: "Arsip PJUM",
+        description: "Buka folder arsip PJUM cabang di Google Drive",
+        icon: Archive,
+        href: "/api/drive/pjum-archive",
+        variant: "outline",
+        newTab: true,
     },
 ];
 

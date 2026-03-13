@@ -1,10 +1,7 @@
 import { google, type drive_v3 } from "googleapis";
 
 export type GoogleDriveConfig = {
-    clientEmail: string;
-    privateKey: string;
     rootFolderId: string;
-    sharedDriveId?: string;
 };
 
 let _drive: drive_v3.Drive | null = null;
@@ -16,22 +13,6 @@ function requiredEnv(name: string): string {
         throw new Error(`${name} env variable is not set`);
     }
     return value;
-}
-
-function getConfig(): GoogleDriveConfig {
-    if (_config) return _config;
-
-    _config = {
-        clientEmail: requiredEnv("GOOGLE_DRIVE_CLIENT_EMAIL"),
-        privateKey: requiredEnv("GOOGLE_DRIVE_PRIVATE_KEY").replace(
-            /\\n/g,
-            "\n",
-        ),
-        rootFolderId: requiredEnv("GOOGLE_DRIVE_ROOT_FOLDER_ID"),
-        sharedDriveId: process.env.GOOGLE_DRIVE_SHARED_DRIVE_ID || undefined,
-    };
-
-    return _config;
 }
 
 export function getGoogleDriveClient(): {
@@ -46,15 +27,18 @@ export function getGoogleDriveClient(): {
         return { drive: _drive, config: _config };
     }
 
-    const config = getConfig();
-
-    const auth = new google.auth.JWT({
-        email: config.clientEmail,
-        key: config.privateKey,
-        scopes: ["https://www.googleapis.com/auth/drive"],
+    const oauth2Client = new google.auth.OAuth2(
+        requiredEnv("GOOGLE_CLIENT_ID"),
+        requiredEnv("GOOGLE_CLIENT_SECRET"),
+    );
+    oauth2Client.setCredentials({
+        refresh_token: requiredEnv("GOOGLE_REFRESH_TOKEN"),
     });
 
-    _drive = google.drive({ version: "v3", auth });
+    _drive = google.drive({ version: "v3", auth: oauth2Client });
+    _config = {
+        rootFolderId: requiredEnv("GOOGLE_DRIVE_ROOT_FOLDER_ID"),
+    };
 
-    return { drive: _drive, config };
+    return { drive: _drive, config: _config };
 }

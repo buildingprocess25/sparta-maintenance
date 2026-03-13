@@ -199,6 +199,7 @@ export type PjumPdfData = {
     branchName: string;
     from: string;
     to: string;
+    weekNumber: number;
     exportedAt: string;
     reports: PjumPdfRow[];
 };
@@ -288,6 +289,10 @@ function buildPjumDocument(data: PjumPdfData) {
                     {
                         label: "Periode",
                         value: `${fmtDate(data.from)} — ${fmtDate(data.to)}`,
+                    },
+                    {
+                        label: "Minggu Ke",
+                        value: String(data.weekNumber),
                     },
                     { label: "Area / Cabang", value: data.branchName },
                     {

@@ -4,14 +4,20 @@ import {
     CheckCircle2,
     AlertCircle,
     Wrench,
-    TrendingUp,
     ClipboardCheck,
 } from "lucide-react";
 import { getUserStats, getBMSActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
 import { ActivitySectionWide } from "./shared/activity-feed";
-import { DashboardStats, type DashboardHeroStat, type DashboardStatItem } from "./shared/dashboard-stats";
-import { DashboardMenus, type DashboardMenuItem } from "./shared/dashboard-menus";
+import {
+    DashboardStats,
+    type DashboardHeroStat,
+    type DashboardStatItem,
+} from "./shared/dashboard-stats";
+import {
+    DashboardMenus,
+    type DashboardMenuItem,
+} from "./shared/dashboard-menus";
 import type { AuthUser } from "@/lib/authorization";
 
 const MENUS: DashboardMenuItem[] = [
@@ -90,7 +96,10 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                 {/* Right column: Stats + Activity (3/4) */}
                 <div className="space-y-4">
                     {/* Stats Panel */}
-                    <DashboardStats hero={heroStat} secondary={secondaryStats} />
+                    <DashboardStats
+                        hero={heroStat}
+                        secondary={secondaryStats}
+                    />
 
                     {/* Activity Feed — wide layout */}
                     <ActivitySectionWide

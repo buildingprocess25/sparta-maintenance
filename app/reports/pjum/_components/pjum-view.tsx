@@ -254,6 +254,7 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
 
 export function PjumView({ bmsUsers }: Props) {
     const [selectedNIK, setSelectedNIK] = useState<string>("");
+    const [weekNumber, setWeekNumber] = useState<string>("");
     const [fromDate, setFromDate] = useState<Date>(defaultFrom);
     const [toDate, setToDate] = useState<Date>(defaultTo);
     const [reports, setReports] = useState<PjumReportRow[] | null>(null);
@@ -293,15 +294,27 @@ export function PjumView({ bmsUsers }: Props) {
         [];
     const hasNonCompleted =
         reports?.some((r) => r.status !== "COMPLETED") ?? false;
-    const canExport = eligibleReports.length > 0 && !hasNonCompleted;
+    const canExport =
+        eligibleReports.length > 0 && !hasNonCompleted && !!weekNumber;
     const totalAll =
         reports?.reduce((sum, r) => sum + r.totalEstimation, 0) ?? 0;
 
     function handleExport() {
         if (!canExport) return;
         const nums = eligibleReports.map((r) => r.reportNumber);
+        const week = Number(weekNumber);
+        if (!Number.isInteger(week) || week < 1 || week > 5) {
+            toast.error("Minggu ke wajib dipilih (1-5)");
+            return;
+        }
         startExport(async () => {
-            const result = await exportPjum(nums);
+            const result = await exportPjum({
+                reportNumbers: nums,
+                bmsNIK: selectedNIK,
+                from,
+                to,
+                weekNumber: week,
+            });
             if (result.error) {
                 toast.error("Gagal membuat PJUM", {
                     description: result.error,
@@ -326,7 +339,7 @@ export function PjumView({ bmsUsers }: Props) {
     }
 
     const pdfUrl = exportDone
-        ? `/api/reports/pjum-pdf?ids=${exportedNumbers.join(",")}&bmsNIK=${selectedNIK}&from=${from}&to=${to}`
+        ? `/api/reports/pjum-pdf?ids=${exportedNumbers.join(",")}&bmsNIK=${selectedNIK}&from=${from}&to=${to}&week=${weekNumber}`
         : null;
 
     const headerDesc =
@@ -395,6 +408,28 @@ export function PjumView({ bmsUsers }: Props) {
                                 label="Tanggal akhir"
                                 minDate={fromDate}
                             />
+                        </div>
+
+                        {/* Week number */}
+                        <div className="w-36">
+                            <Select
+                                value={weekNumber}
+                                onValueChange={setWeekNumber}
+                            >
+                                <SelectTrigger aria-label="Minggu ke">
+                                    <SelectValue placeholder="Minggu ke" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {[1, 2, 3, 4, 5].map((week) => (
+                                        <SelectItem
+                                            key={week}
+                                            value={String(week)}
+                                        >
+                                            Minggu ke {week}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
 
                         {/* Search button */}

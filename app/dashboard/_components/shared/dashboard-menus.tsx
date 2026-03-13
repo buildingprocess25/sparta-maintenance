@@ -8,6 +8,7 @@ export interface DashboardMenuItem {
     icon: LucideIcon;
     href: string;
     variant: "default" | "outline";
+    newTab?: boolean;
 }
 
 export interface DashboardMenusProps {
@@ -16,7 +17,7 @@ export interface DashboardMenusProps {
 
 export function DashboardMenus({ menus }: DashboardMenusProps) {
     if (menus.length === 0) return null;
-    
+
     return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 shrink-0">
             {menus.map((menu, index) => {
@@ -29,9 +30,17 @@ export function DashboardMenus({ menus }: DashboardMenusProps) {
                         variant={isDefault ? "default" : "outline"}
                         className="w-full justify-start gap-2 h-auto text-left py-2.5"
                     >
-                        <Link href={menu.href}>
+                        <Link
+                            href={menu.href}
+                            target={menu.newTab ? "_blank" : undefined}
+                            rel={
+                                menu.newTab ? "noopener noreferrer" : undefined
+                            }
+                        >
                             <Icon className="h-4 w-4 shrink-0" />
-                            <span className="whitespace-normal leading-snug">{menu.title}</span>
+                            <span className="whitespace-normal leading-snug">
+                                {menu.title}
+                            </span>
                         </Link>
                     </Button>
                 );

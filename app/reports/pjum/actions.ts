@@ -6,6 +6,8 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
+import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 
 export type PjumBmsUser = {
     NIK: string;
@@ -25,6 +27,14 @@ export type PjumReportRow = {
 
 const exportSchema = z.object({
     reportNumbers: z.array(z.string().min(1)).min(1, "Pilih minimal 1 laporan"),
+    bmsNIK: z.string().min(1, "BMS wajib dipilih"),
+    from: z.string().min(1, "Tanggal mulai wajib diisi"),
+    to: z.string().min(1, "Tanggal akhir wajib diisi"),
+    weekNumber: z
+        .number()
+        .int("Minggu ke harus angka bulat")
+        .min(1, "Minggu ke minimal 1")
+        .max(5, "Minggu ke maksimal 5"),
 });
 
 /**
@@ -120,16 +130,24 @@ export async function searchPjumReports(
  * Mark the selected completed reports as PJUM-exported.
  * Validates: all checked = COMPLETED and none already exported.
  */
-export async function exportPjum(
-    reportNumbers: string[],
-): Promise<{ error: string | null }> {
+export async function exportPjum(input: {
+    reportNumbers: string[];
+    bmsNIK: string;
+    from: string;
+    to: string;
+    weekNumber: number;
+}): Promise<{ error: string | null }> {
     try {
         const user = await requireRole("BMC");
         await validateCSRF(await headers());
 
-        const { reportNumbers: safeNumbers } = exportSchema.parse({
-            reportNumbers,
-        });
+        const {
+            reportNumbers: safeNumbers,
+            bmsNIK,
+            from,
+            to,
+            weekNumber,
+        } = exportSchema.parse(input);
 
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: safeNumbers } },
@@ -160,6 +178,29 @@ export async function exportPjum(
                 };
             }
         }
+
+        const { buffer, monthName, year, branchName } =
+            await generatePjumPackagePdf({
+                reportNumbers: safeNumbers,
+                bmsNIK,
+                from,
+                to,
+                weekNumber,
+                requireExported: false,
+                requester: {
+                    NIK: user.NIK,
+                    name: user.name,
+                    branchNames: user.branchNames,
+                },
+            });
+
+        await uploadPjumToDrive({
+            branchName,
+            year,
+            monthName,
+            weekNumber,
+            pdfBuffer: buffer,
+        });
 
         await prisma.report.updateMany({
             where: { reportNumber: { in: safeNumbers } },

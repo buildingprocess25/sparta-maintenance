@@ -1,6 +1,9 @@
 import { Readable } from "stream";
 import { getGoogleDriveClient } from "@/lib/google-drive/client";
 
+const folderPathCache = new Map<string, string>();
+const folderLookupCache = new Map<string, string>();
+
 function escapeDriveQueryValue(value: string): string {
     return value.replace(/'/g, "\\'");
 }
@@ -51,14 +54,29 @@ export async function ensureDriveFolderPath(
     }
 
     const { config } = getGoogleDriveClient();
+    const normalizedSegments = pathSegments
+        .map((segment) => segment.trim())
+        .filter(Boolean);
+
+    const pathCacheKey = `${config.rootFolderId}/${normalizedSegments.join("/")}`;
+    const cachedPathFolderId = folderPathCache.get(pathCacheKey);
+    if (cachedPathFolderId) {
+        return cachedPathFolderId;
+    }
+
     let currentParentId = config.rootFolderId;
 
-    for (const rawSegment of pathSegments) {
-        const segment = rawSegment.trim();
-        if (!segment) continue;
+    for (const segment of normalizedSegments) {
+        const lookupKey = `${currentParentId}::${segment}`;
+        const cachedFolderId = folderLookupCache.get(lookupKey);
+        if (cachedFolderId) {
+            currentParentId = cachedFolderId;
+            continue;
+        }
 
         const existing = await findFolderByName(currentParentId, segment);
         if (existing?.id) {
+            folderLookupCache.set(lookupKey, existing.id);
             currentParentId = existing.id;
             continue;
         }
@@ -67,8 +85,11 @@ export async function ensureDriveFolderPath(
         if (!created.id) {
             throw new Error(`Failed to create folder '${segment}'`);
         }
+        folderLookupCache.set(lookupKey, created.id);
         currentParentId = created.id;
     }
+
+    folderPathCache.set(pathCacheKey, currentParentId);
 
     return currentParentId;
 }
