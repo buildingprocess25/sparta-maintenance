@@ -17,7 +17,14 @@ enum UserRole {
   BMS
   BMC
   BNM_MANAGER
+  BRANCH_ADMIN
   ADMIN
+}
+
+enum PjumStatus {
+  PENDING_APPROVAL    // BMC submitted, menunggu BnM Manager
+  APPROVED            // BnM Manager menyetujui
+  REJECTED            // BnM Manager menolak
 }
 
 enum ReportStatus {
@@ -166,4 +173,61 @@ model ActivityLog {
 
   @@index([reportNumber])
   @@index([actorNIK])
+}
+
+model PjumExport {
+  id              String      @id @default(uuid())
+  status          PjumStatus  @default(PENDING_APPROVAL)
+
+  // Filter context
+  bmsNIK          String
+  branchName      String
+  weekNumber      Int
+  fromDate        DateTime
+  toDate          DateTime
+
+  // Report numbers included in this PJUM
+  reportNumbers   String[]
+
+  // BMC who created
+  createdByNIK    String
+
+  // BnM Manager who approved
+  approvedByNIK   String?
+  approvedAt      DateTime?
+
+  // PUM data (filled by BnM Manager on approval)
+  pumBankAccountNo    String?
+  pumBankAccountName  String?
+  pumBankName         String?
+  pumWeekNumber       Int?
+  pumMonth            String?
+  pumYear             Int?
+
+  // Rejection notes
+  rejectionNotes  String?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([status])
+  @@index([branchName])
+  @@index([createdByNIK])
+}
+
+model PjumBankAccount {
+  id              String   @id @default(uuid())
+  bmsNIK          String
+  bankAccountNo   String
+  bankAccountName String
+  bankName        String
+
+  addedByNIK      String   // BnM Manager who added this
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([bmsNIK, bankAccountNo])
+  @@index([bmsNIK])
+  @@index([addedByNIK])
 }

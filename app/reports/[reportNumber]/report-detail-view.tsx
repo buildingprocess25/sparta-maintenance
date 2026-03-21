@@ -13,6 +13,7 @@ import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
+import { approveFinal } from "@/app/reports/actions/approve-final";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -230,6 +231,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
+        handleApproveFinal,
     };
 
     const hasWorkflowAction =

@@ -38,4 +38,5 @@ export type ActionState = {
         decision: "approve" | "reject_revision" | "reject",
     ) => void;
     handleReviewCompletion: (decision: "approve" | "reject_revision") => void;
+    handleApproveFinal: () => void;
 };

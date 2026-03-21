@@ -6,8 +6,6 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
-import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 
 export type PjumBmsUser = {
     NIK: string;
@@ -127,8 +125,9 @@ export async function searchPjumReports(
 }
 
 /**
- * Mark the selected completed reports as PJUM-exported.
- * Validates: all checked = COMPLETED and none already exported.
+ * Mark the selected completed reports as PJUM-exported
+ * and create a PjumExport record pending BnM Manager approval.
+ * GDrive upload + email happen after BnM Manager approves.
  */
 export async function exportPjum(input: {
     reportNumbers: string[];
@@ -136,7 +135,7 @@ export async function exportPjum(input: {
     from: string;
     to: string;
     weekNumber: number;
-}): Promise<{ error: string | null }> {
+}): Promise<{ error: string | null; pjumExportId: string | null }> {
     try {
         const user = await requireRole("BMC");
         await validateCSRF(await headers());
@@ -160,57 +159,66 @@ export async function exportPjum(input: {
         });
 
         if (reports.length !== safeNumbers.length) {
-            return { error: "Beberapa laporan tidak ditemukan" };
+            return { error: "Beberapa laporan tidak ditemukan", pjumExportId: null };
         }
 
         for (const r of reports) {
             if (!user.branchNames.includes(r.branchName)) {
-                return { error: "Laporan tidak dalam cabang Anda" };
+                return { error: "Laporan tidak dalam cabang Anda", pjumExportId: null };
             }
             if (r.status !== "COMPLETED") {
                 return {
                     error: `Laporan ${r.reportNumber} belum selesai — PJUM hanya dapat dibuat dari laporan yang sudah SELESAI`,
+                    pjumExportId: null,
                 };
             }
             if (r.pjumExportedAt) {
                 return {
                     error: `Laporan ${r.reportNumber} sudah pernah dimasukkan dalam PJUM sebelumnya`,
+                    pjumExportId: null,
                 };
             }
         }
 
-        const { buffer, monthName, year, branchName } =
-            await generatePjumPackagePdf({
-                reportNumbers: safeNumbers,
-                bmsNIK,
-                from,
-                to,
-                weekNumber,
-                requireExported: false,
-                requester: {
-                    NIK: user.NIK,
-                    name: user.name,
-                    branchNames: user.branchNames,
-                },
-            });
+        const branchName = reports[0].branchName;
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
 
-        await uploadPjumToDrive({
-            branchName,
-            year,
-            monthName,
-            weekNumber,
-            pdfBuffer: buffer,
+        // Create PjumExport record in PENDING_APPROVAL status
+        const pjumExport = await prisma.pjumExport.create({
+            data: {
+                status: "PENDING_APPROVAL",
+                bmsNIK,
+                branchName,
+                weekNumber,
+                fromDate,
+                toDate,
+                reportNumbers: safeNumbers,
+                createdByNIK: user.NIK,
+            },
         });
 
+        // Mark reports as included in PJUM
         await prisma.report.updateMany({
             where: { reportNumber: { in: safeNumbers } },
             data: { pjumExportedAt: new Date() },
         });
 
+        logger.info(
+            {
+                operation: "exportPjum",
+                pjumExportId: pjumExport.id,
+                reportCount: safeNumbers.length,
+                bmsNIK,
+                branchName,
+            },
+            "PJUM created, pending BnM Manager approval",
+        );
+
         revalidatePath("/reports/pjum");
-        return { error: null };
+        return { error: null, pjumExportId: pjumExport.id };
     } catch (error) {
-        logger.error({ operation: "exportPjum" }, "Failed to mark PJUM", error);
-        return { error: "Terjadi kesalahan saat membuat PJUM" };
+        logger.error({ operation: "exportPjum" }, "Failed to create PJUM", error);
+        return { error: "Terjadi kesalahan saat membuat PJUM", pjumExportId: null };
     }
 }

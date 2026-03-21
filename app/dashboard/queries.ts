@@ -161,6 +161,29 @@ export async function getBNMStats(branchNames: string[]) {
     }
 }
 
+/**
+ * Count PJUM exports pending BnM Manager approval.
+ */
+export async function getPendingPjumCount(
+    branchNames: string[],
+): Promise<number> {
+    try {
+        return await prisma.pjumExport.count({
+            where: {
+                branchName: { in: branchNames },
+                status: "PENDING_APPROVAL",
+            },
+        });
+    } catch (error) {
+        logger.error(
+            { operation: "getPendingPjumCount", branchNames },
+            "Failed",
+            error,
+        );
+        return 0;
+    }
+}
+
 export type ActivityItem = {
     id: string;
     reportNumber: string;

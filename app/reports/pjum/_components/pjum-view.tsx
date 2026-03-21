@@ -333,7 +333,9 @@ export function PjumView({ bmsUsers }: Props) {
                                 : r,
                         ) ?? null,
                 );
-                toast.success("PJUM berhasil dibuat");
+                toast.success("PJUM berhasil dibuat", {
+                    description: "Menunggu approval dari BnM Manager",
+                });
             }
         });
     }

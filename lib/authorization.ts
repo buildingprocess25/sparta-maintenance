@@ -5,7 +5,7 @@ import { logger } from "./logger";
 import { redirect } from "next/navigation";
 import { isConnectionError } from "./db-error";
 
-export type UserRole = "BMS" | "BMC" | "BNM_MANAGER" | "ADMIN";
+export type UserRole = "BMS" | "BMC" | "BNM_MANAGER" | "BRANCH_ADMIN" | "ADMIN";
 
 export type AuthUser = {
     NIK: string;

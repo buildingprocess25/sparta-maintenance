@@ -1,5 +1,5 @@
-import { ClipboardCheck, CheckCircle2, FileText } from "lucide-react";
-import { getBNMStats, getBranchActivity } from "../queries";
+import { ClipboardCheck, CheckCircle2, FileText, FileCheck } from "lucide-react";
+import { getBNMStats, getBranchActivity, getPendingPjumCount } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
 import { ActivitySectionWide } from "./shared/activity-feed";
 import {
@@ -10,9 +10,10 @@ import {
 import type { AuthUser } from "@/lib/authorization";
 
 export async function BnmDashboard({ user }: { user: AuthUser }) {
-    const [bnmStats, activities] = await Promise.all([
+    const [bnmStats, activities, pendingPjumCount] = await Promise.all([
         getBNMStats(user.branchNames),
         getBranchActivity(user.branchNames),
+        getPendingPjumCount(user.branchNames),
     ]);
 
     const heroStat: DashboardHeroStat = {
@@ -29,6 +30,15 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
     };
 
     const secondaryStats: DashboardStatItem[] = [
+        {
+            id: "pending-pjum",
+            label: "PJUM Menunggu Approval",
+            description: "PJUM yang perlu Anda setujui",
+            value: pendingPjumCount,
+            icon: FileCheck,
+            href: "/reports/pjum/approval",
+            colorClass: "text-amber-600",
+        },
         {
             id: "completed",
             label: "Selesai",

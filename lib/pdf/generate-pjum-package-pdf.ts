@@ -5,6 +5,11 @@ import path from "path";
 import prisma from "@/lib/prisma";
 import { generatePjumPdf } from "@/lib/pdf/generate-pjum-pdf";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
+import {
+    generatePjumFormPdf,
+    type PjumFormData,
+    type PumFormData,
+} from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { PDFDocument } from "pdf-lib";
 
@@ -33,6 +38,11 @@ export async function generatePjumPackagePdf(params: {
         NIK: string;
         name: string;
         branchNames: string[];
+    };
+    /** When provided, the PJUM+PUM form page is inserted after the recap */
+    pumData?: {
+        pjum: PjumFormData;
+        pum: PumFormData;
     };
 }) {
     const reports = await prisma.report.findMany({
@@ -209,8 +219,23 @@ export async function generatePjumPackagePdf(params: {
         }),
     );
 
+    // Build form PDF if PUM data is available (after BnM Manager approval)
+    let formBuffer: Buffer | null = null;
+    if (params.pumData) {
+        formBuffer = await generatePjumFormPdf(
+            params.pumData.pjum,
+            params.pumData.pum,
+        );
+    }
+
     const merged = await PDFDocument.create();
-    for (const buf of [pjumBuffer, ...reportBuffers]) {
+    // Order: 1. Recap (pjumBuffer) → 2. Form PJUM+PUM (if available) → 3..N Individual reports
+    const allBuffers = [
+        pjumBuffer,
+        ...(formBuffer ? [formBuffer] : []),
+        ...reportBuffers,
+    ];
+    for (const buf of allBuffers) {
         const src = await PDFDocument.load(buf);
         const pages = await merged.copyPages(src, src.getPageIndices());
         pages.forEach((p) => merged.addPage(p));
