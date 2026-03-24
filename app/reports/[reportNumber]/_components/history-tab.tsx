@@ -55,7 +55,7 @@ const ACTIVITY_HISTORY_CONFIG: Record<
         negative: false,
     },
     WORK_REJECTED_REVISION: {
-        label: "Pekerjaan Ditolak (Revisi)",
+        label: "Penyelesaian Ditolak (Revisi)",
         positive: false,
         negative: true,
     },

@@ -4,8 +4,6 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { generateReportNumber } from "@/lib/report-helpers";
-import type { Prisma } from "@prisma/client";
-import type { MaterialEstimationJson } from "@/types/report";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";

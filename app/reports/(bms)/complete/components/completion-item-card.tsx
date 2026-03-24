@@ -1,12 +1,10 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
     Camera,
     ChevronDown,
-    MapPin,
     Plus,
-    Store,
     Trash2,
     ZoomIn,
 } from "lucide-react";
@@ -32,8 +30,6 @@ import { LocalNotesTextarea } from "../../create/components/local-notes-textarea
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 import type {
     CompletionItemState,
-    LocalPhoto,
-    MaterialStoreEntry,
     RealisasiEntry,
 } from "../types";
 import { realisasiGrandTotal, realisasiTotal } from "../types";
@@ -67,8 +63,6 @@ function PriceInput({
     const [local, setLocal] = useState(fmt(value));
 
     useEffect(() => {
-        setLocal(fmt(value));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [value]);
 
     return (
@@ -97,8 +91,8 @@ function PhotoThumbnails({
     onPreview,
     variant = "full",
 }: {
-    photos: LocalPhoto[];
-    onRemove: (id: string) => void;
+    photos: { id: string; previewUrl: string }[];
+    onRemove?: (id: string) => void;
     onPreview: (url: string) => void;
     /** "full" = full-width (after photos), "thumb" = small squares (receipts) */
     variant?: "full" | "thumb";
@@ -117,13 +111,18 @@ function PhotoThumbnails({
                             className="h-20 w-20 object-cover rounded-lg border-2 border-green-200 cursor-zoom-in"
                             onClick={() => onPreview(p.previewUrl)}
                         />
-                        <button
-                            type="button"
-                            onClick={() => onRemove(p.id)}
-                            className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                        >
-                            <Trash2 className="h-3 w-3" />
-                        </button>
+                        {onRemove && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRemove(p.id);
+                                }}
+                                className="absolute -top-2 -right-2 bg-destructive text-white rounded-full h-6 w-6 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow z-10"
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </button>
+                        )}
                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                             <ZoomIn className="h-5 w-5 text-white drop-shadow-lg" />
                         </div>
@@ -144,13 +143,18 @@ function PhotoThumbnails({
                         className="w-full h-auto rounded-lg border-2 border-green-200 cursor-zoom-in block"
                         onClick={() => onPreview(p.previewUrl)}
                     />
-                    <button
-                        type="button"
-                        onClick={() => onRemove(p.id)}
-                        className="absolute -top-1.5 -right-1.5 bg-destructive text-white rounded-full h-5 w-5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
-                    >
-                        <Trash2 className="h-3 w-3" />
-                    </button>
+                    {onRemove && (
+                        <button
+                            type="button"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onRemove(p.id);
+                            }}
+                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full h-7 w-7 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow z-10"
+                        >
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                         <ZoomIn className="h-5 w-5 text-white drop-shadow-lg" />
                     </div>
@@ -332,83 +336,6 @@ function RealisasiTable({
     );
 }
 
-// ─── Material Store Rows ──────────────────────────────────────────────────────
-
-function MaterialStoreRows({
-    stores,
-    onChange,
-}: {
-    stores: MaterialStoreEntry[];
-    onChange: (stores: MaterialStoreEntry[]) => void;
-}) {
-    const update = (id: string, field: "name" | "city", value: string) =>
-        onChange(
-            stores.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
-        );
-
-    const remove = (id: string) => onChange(stores.filter((s) => s.id !== id));
-
-    const add = () =>
-        onChange([...stores, { id: genId(), name: "", city: "" }]);
-
-    return (
-        <div className="space-y-2">
-            {stores.map((store, idx) => (
-                <Fragment key={store.id}>
-                    {stores.length > 1 && (
-                        <p className="text-xs text-muted-foreground font-medium">
-                            Toko {idx + 1}
-                        </p>
-                    )}
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            <Input
-                                placeholder="Nama toko (contoh: Toko Bangunan Jaya)"
-                                value={store.name}
-                                onChange={(e) =>
-                                    update(store.id, "name", e.target.value)
-                                }
-                            />
-                            <div className="relative">
-                                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                    placeholder="Kota (contoh: Tangerang)"
-                                    value={store.city}
-                                    onChange={(e) =>
-                                        update(store.id, "city", e.target.value)
-                                    }
-                                    className="pl-9"
-                                />
-                            </div>
-                        </div>
-                        {stores.length > 1 && (
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className="h-9 w-9 shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                onClick={() => remove(store.id)}
-                            >
-                                <Trash2 className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </div>
-                </Fragment>
-            ))}
-            <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-primary hover:text-primary hover:bg-primary/10 mt-1"
-                onClick={add}
-            >
-                <Plus className="h-4 w-4 mr-1" />
-                Tambah Toko
-            </Button>
-        </div>
-    );
-}
-
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface CompletionItemCardProps {
@@ -434,7 +361,6 @@ export function CompletionItemCard({
 }: CompletionItemCardProps) {
     const beforeImages = item.images ?? (item.photoUrl ? [item.photoUrl] : []);
     const estimationTotal = estimations.reduce((s, e) => s + e.totalPrice, 0);
-    const grandTotal = realisasiGrandTotal(state.realisasiEntries);
 
     const fmt = (n: number) =>
         new Intl.NumberFormat("id-ID", {
@@ -474,25 +400,13 @@ export function CompletionItemCard({
                 <div>
                     <Label className="text-sm">Foto Sebelum</Label>
                     {beforeImages.length > 0 ? (
-                        <div className="mt-2 flex flex-col gap-1.5">
-                            {beforeImages.map((url) => (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <div
-                                    key={url}
-                                    className="relative group cursor-zoom-in w-full"
-                                    onClick={() => onPreview(url)}
-                                >
-                                    <img
-                                        src={url}
-                                        alt="Sebelum"
-                                        className="w-full aspect-video object-cover rounded-lg border-2 border-muted"
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                        <ZoomIn className="h-5 w-5 text-white drop-shadow-lg" />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <PhotoThumbnails
+                            photos={beforeImages.map((url) => ({
+                                id: url,
+                                previewUrl: url,
+                            }))}
+                            onPreview={onPreview}
+                        />
                     ) : (
                         <p className="text-xs text-muted-foreground mt-1 italic">
                             Tidak ada foto sebelum

@@ -44,9 +44,19 @@ export function ReportSidebar({
         handleReviewCompletion,
     } = actions;
 
+    const estimationRejectionNote = [...report.activities]
+        .reverse()
+        .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes || "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
+
+    const workRejectionNote = [...report.activities]
+        .reverse()
+        .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes || "Perbaiki dan kirim ulang laporan penyelesaian.";
+
+
     const hasAction =
         (viewer.role === "BMS" &&
             (report.status === "ESTIMATION_APPROVED" ||
+                report.status === "ESTIMATION_REJECTED_REVISION" ||
                 report.status === "IN_PROGRESS" ||
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
@@ -90,6 +100,31 @@ export function ReportSidebar({
                         </div>
                     )}
 
+                {/* ── BMS: edit estimation (revision) ── */}
+                {viewer.role === "BMS" &&
+                    report.status === "ESTIMATION_REJECTED_REVISION" && (
+                        <div className="space-y-3">
+                            <Link
+                                href={`/reports/edit/${report.reportNumber}`}
+                                className="block w-full"
+                            >
+                                <Button className="w-full">
+                                    <FileText className="h-4 w-4 mr-2" />
+                                    Edit & Kirim Estimasi
+                                </Button>
+                            </Link>
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <p className="text-sm font-medium text-red-800">
+                                    Estimasi Perlu Revisi
+                                </p>
+                                <p className="text-xs text-red-700 mt-0.5">
+                                    Catatan Penolakan: <br />
+                                    <span className="italic whitespace-pre-line">{estimationRejectionNote}</span>
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                 {/* ── BMS: submit completion ── */}
                 {viewer.role === "BMS" &&
                     (report.status === "IN_PROGRESS" ||
@@ -116,9 +151,14 @@ export function ReportSidebar({
                                 </p>
                                 <p className="text-xs text-blue-700 mt-0.5">
                                     {report.status ===
-                                    "REVIEW_REJECTED_REVISION"
-                                        ? "Perbaiki dan kirim ulang laporan penyelesaian."
-                                        : "Setelah selesai, kirim laporan untuk direview BMC."}
+                                    "REVIEW_REJECTED_REVISION" ? (
+                                        <>
+                                            Catatan Penolakan: <br />
+                                            <span className="italic whitespace-pre-line">{workRejectionNote}</span>
+                                        </>
+                                    ) : (
+                                        "Setelah selesai, kirim laporan untuk direview BMC."
+                                    )}
                                 </p>
                             </div>
                         </div>

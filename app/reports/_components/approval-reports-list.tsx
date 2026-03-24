@@ -136,7 +136,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                 >
-                    <X className="h-3 w-3" /> Ditolak (Revisi)
+                    <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
                 </Badge>
             );
         case "COMPLETED":
@@ -411,7 +411,7 @@ export function ApprovalReportsList({
                                             IN_PROGRESS: "Sedang Dikerjakan",
                                             PENDING_REVIEW: "Menunggu Review",
                                             REVIEW_REJECTED_REVISION:
-                                                "Ditolak (Revisi)",
+                                                "Penyelesaian Ditolak (Revisi)",
 
                                             COMPLETED: "Selesai",
                                         };

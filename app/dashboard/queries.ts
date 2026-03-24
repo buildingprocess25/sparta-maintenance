@@ -272,7 +272,7 @@ export async function getBMCApprovalHistory(
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED",
         "ESTIMATION_REJECTED_REVISION",
-        "WORK_APPROVED",
+        "FINALIZED",
         "WORK_REJECTED_REVISION",
     ];
     try {

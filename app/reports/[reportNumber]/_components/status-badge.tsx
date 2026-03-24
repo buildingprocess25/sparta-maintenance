@@ -55,7 +55,7 @@ export function StatusBadge({ status }: { status: string }) {
                     variant="secondary"
                     className="bg-orange-100 text-orange-800 hover:bg-orange-100/80"
                 >
-                    Ditolak (Revisi)
+                    Penyelesaian Ditolak (Revisi)
                 </Badge>
             );
         case "COMPLETED":

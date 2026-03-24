@@ -348,6 +348,8 @@ export async function approvePjumExport(input: {
         // Upload to GDrive
         await uploadPjumToDrive({
             branchName: result.branchName,
+            bmsNIK: pjumExport.bmsNIK,
+            bmsName,
             year: result.year,
             monthName: result.monthName,
             weekNumber: pjumExport.weekNumber,

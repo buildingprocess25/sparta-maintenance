@@ -540,7 +540,7 @@ function getStampLabelConfig(action: string): { label: string; color: string } {
         case "FINALIZED":
             return { label: "Penyelesaian Disetujui", color: "#0369a1" };
         case "WORK_REJECTED_REVISION":
-            return { label: "Penyelesaian Ditolak (Review)", color: "#d97706" };
+            return { label: "Penyelesaian Ditolak (Revisi)", color: "#d97706" };
         default:
             return { label: action, color: "#6b7280" };
     }
@@ -1890,7 +1890,35 @@ function buildReportDocument(
                     approverRole: "BMS",
                     approvedAt: data.submittedAt,
                 };
-                const allStamps = [dibuatStamp, ...data.approval.stamps];
+
+                const ESTIMATION_ACTIONS = [
+                    "ESTIMATION_APPROVED",
+                    "ESTIMATION_REJECTED",
+                    "ESTIMATION_REJECTED_REVISION",
+                ];
+                const WORK_ACTIONS = [
+                    "WORK_APPROVED",
+                    "WORK_REJECTED_REVISION",
+                    "FINALIZED",
+                ];
+
+                const processedStamps: ReportStamp[] = [];
+                for (const stamp of data.approval.stamps) {
+                    if (ESTIMATION_ACTIONS.includes(stamp.action)) {
+                        const existingIdx = processedStamps.findIndex((s) =>
+                            ESTIMATION_ACTIONS.includes(s.action),
+                        );
+                        if (existingIdx !== -1) processedStamps.splice(existingIdx, 1);
+                    } else if (WORK_ACTIONS.includes(stamp.action)) {
+                        const existingIdx = processedStamps.findIndex((s) =>
+                            WORK_ACTIONS.includes(s.action),
+                        );
+                        if (existingIdx !== -1) processedStamps.splice(existingIdx, 1);
+                    }
+                    processedStamps.push(stamp);
+                }
+
+                const allStamps = [dibuatStamp, ...processedStamps];
                 return React.createElement(
                     View,
                     { style: styles.section },

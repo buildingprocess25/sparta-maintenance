@@ -147,6 +147,8 @@ export async function uploadCompletedReportToDrive(params: {
 
 export async function uploadPjumToDrive(params: {
     branchName: string;
+    bmsNIK: string;
+    bmsName: string;
     year: number;
     monthName: string;
     weekNumber: number;
@@ -155,6 +157,7 @@ export async function uploadPjumToDrive(params: {
     const monthFolderId = await ensureDriveFolderPath([
         "PJUM",
         sanitizeDriveName(params.branchName),
+        `${params.bmsNIK}-${sanitizeDriveName(params.bmsName)}`,
         String(params.year),
         sanitizeDriveName(params.monthName),
     ]);

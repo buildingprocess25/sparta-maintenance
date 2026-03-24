@@ -62,7 +62,7 @@ export async function submitCompletionWork(
             report.status !== ReportStatus.REVIEW_REJECTED_REVISION
         ) {
             return {
-                error: "Laporan harus dalam status 'Sedang Dikerjakan' atau 'Ditolak (Revisi)' untuk mengajukan penyelesaian",
+                error: "Laporan harus dalam status 'Sedang Dikerjakan' atau 'Penyelesaian Ditolak (Revisi)' untuk mengajukan penyelesaian",
             };
         }
 

@@ -61,7 +61,7 @@ export function StatusTimeline({ status }: { status: string }) {
             ? "Estimasi Ditolak"
             : status === "ESTIMATION_REJECTED_REVISION"
               ? "Estimasi Ditolak (Revisi)"
-              : "Pekerjaan Ditolak (Revisi)"
+              : "Penyelesaian Ditolak (Revisi)"
         : (STATUS_STEPS[currentOrder]?.label ?? status);
 
     return (
@@ -164,7 +164,7 @@ export function StatusTimeline({ status }: { status: string }) {
                                     {isRejectedStep
                                         ? status === "ESTIMATION_REJECTED"
                                             ? "Estimasi Ditolak"
-                                            : "Ditolak (Revisi)"
+                                            : "Penyelesaian Ditolak (Revisi)"
                                         : step.label}
                                 </span>
                             </div>

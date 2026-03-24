@@ -212,7 +212,7 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none whitespace-nowrap"
                 >
-                    <X className="h-3 w-3" /> Ditolak (Revisi)
+                    <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
                 </Badge>
             );
         case "COMPLETED":
@@ -248,7 +248,7 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
     ESTIMATION_REJECTED: "Est. Ditolak",
     IN_PROGRESS: "Sedang Dikerjakan",
     PENDING_REVIEW: "Menunggu Review",
-    REVIEW_REJECTED_REVISION: "Ditolak (Revisi)",
+    REVIEW_REJECTED_REVISION: "Penyelesaian Ditolak (Revisi)",
     COMPLETED: "Selesai",
 };
 

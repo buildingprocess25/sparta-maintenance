@@ -230,7 +230,7 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                     >
-                        <X className="h-3 w-3" /> Ditolak (Revisi)
+                        <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
                     </Badge>
                 );
             case "COMPLETED":
@@ -421,7 +421,7 @@ export default function BmsReportsList({
                                             Menunggu Review Penyelesaian
                                         </SelectItem>
                                         <SelectItem value="review_rejected_revision">
-                                            Ditolak (Revisi)
+                                            Penyelesaian Ditolak (Revisi)
                                         </SelectItem>
                                         <SelectItem value="completed">
                                             Selesai

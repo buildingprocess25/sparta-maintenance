@@ -118,31 +118,64 @@ export function ChecklistTab({
                     const filledItems = categoryItems.filter(
                         (i) => i.condition || i.preventiveCondition,
                     ).length;
-                    const isCompleted =
-                        filledItems === totalItems && totalItems > 0;
+
+                    const damagedItems = categoryItems.filter(
+                        (i) =>
+                            i.condition === "RUSAK" ||
+                            i.preventiveCondition === "NOT_OK",
+                    );
+                    const damagedCount = damagedItems.length;
+                    const isAllOk = damagedCount === 0;
 
                     // Hide preventive categories where all items are in cooldown
                     if (category.isPreventive && totalItems === 0) return null;
 
                     return (
-                        <Collapsible key={category.id} defaultOpen={false}>
+                        <Collapsible
+                            key={category.id}
+                            defaultOpen={false}
+                            onOpenChange={(isOpen) => {
+                                if (isOpen && damagedCount > 0) {
+                                    setTimeout(() => {
+                                        const el = document.getElementById(
+                                            `checklistItem-${damagedItems[0].itemId}`,
+                                        );
+                                        if (el) {
+                                            el.scrollIntoView({
+                                                behavior: "smooth",
+                                                block: "center",
+                                            });
+                                        }
+                                    }, 250);
+                                }
+                            }}
+                        >
                             <CollapsibleTrigger asChild>
                                 <Button
                                     variant="outline"
                                     className="w-full justify-between"
                                 >
-                                    <div className="flex items-center gap-2">
-                                        {isCompleted ? (
+                                    <div className="flex items-center flex-wrap gap-2 text-left w-full pr-2">
+                                        {isAllOk ? (
                                             <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
                                         ) : (
-                                            <AlertCircle className="h-4 w-4 text-yellow-600 shrink-0" />
+                                            <AlertCircle className="h-4 w-4 text-destructive shrink-0" />
                                         )}
                                         <span className="font-medium text-left">
                                             {category.title}
                                         </span>
-                                        <span className="text-xs text-muted-foreground">
+                                        <span className="text-xs text-muted-foreground shrink-0">
                                             ({filledItems}/{totalItems})
                                         </span>
+                                        {!isAllOk && (
+                                            <Badge
+                                                variant="destructive"
+                                                className="ml-auto shrink-0 hidden md:block"
+                                            >
+                                                {damagedCount} Item Perlu
+                                                Perbaikan
+                                            </Badge>
+                                        )}
                                     </div>
                                     <ChevronDown className="h-4 w-4 shrink-0 opacity-50 transition-transform duration-200 in-data-[state=open]:rotate-180" />
                                 </Button>
@@ -184,7 +217,12 @@ export function ChecklistTab({
                                         return (
                                             <div
                                                 key={checklistItem.id}
-                                                className="space-y-3 p-3 bg-background rounded-md border"
+                                                id={`checklistItem-${checklistItem.id}`}
+                                                className={cn(
+                                                    "space-y-3 p-3 bg-background rounded-md border transition-colors",
+                                                    isDamaged &&
+                                                        "border-destructive/50 ring-1 ring-destructive/10",
+                                                )}
                                             >
                                                 {/* Name + badge */}
                                                 <div className="flex items-start justify-between gap-2">

@@ -1,4 +1,4 @@
-import { CheckCircle2, Loader2, WrenchIcon, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, WrenchIcon, XCircle, FileText } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { ReportData, Viewer, ActionState } from "./types";
@@ -20,9 +20,20 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         handleReviewCompletion,
     } = actions;
 
+    const estimationRejectionNote = [...report.activities]
+        .reverse()
+        .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes || "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
+
+    const workRejectionNote = [...report.activities]
+        .reverse()
+        .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes || "Perbaiki dan kirim ulang laporan penyelesaian.";
+
+
+
     const hasWorkflowAction =
         (viewer.role === "BMS" &&
             (report.status === "ESTIMATION_APPROVED" ||
+                report.status === "ESTIMATION_REJECTED_REVISION" ||
                 report.status === "IN_PROGRESS" ||
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
@@ -51,18 +62,55 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             {viewer.role === "BMS" &&
                 (report.status === "IN_PROGRESS" ||
                     report.status === "REVIEW_REJECTED_REVISION") && (
-                    <Link
-                        href={`/reports/complete?report=${report.reportNumber}`}
-                        className="block w-full"
-                    >
-                        <Button className="w-full" size="lg">
-                            <CheckCircle2 className="h-4 w-4 mr-2" />
-                            {report.status === "REVIEW_REJECTED_REVISION"
-                                ? "Kirim Ulang Laporan"
-                                : "Kirim Laporan Penyelesaian"}
-                        </Button>
-                    </Link>
+                    <div className="w-full space-y-3">
+                        {report.status === "REVIEW_REJECTED_REVISION" && (
+                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                <p className="text-xs font-semibold text-red-800">
+                                    Catatan Penolakan:
+                                </p>
+                                <p className="text-xs text-red-700 mt-0.5 italic whitespace-pre-line">
+                                    {workRejectionNote}
+                                </p>
+                            </div>
+                        )}
+                        <Link
+                            href={`/reports/complete?report=${report.reportNumber}`}
+                            className="block w-full"
+                        >
+                            <Button className="w-full" size="lg">
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                {report.status === "REVIEW_REJECTED_REVISION"
+                                    ? "Kirim Ulang Laporan"
+                                    : "Kirim Laporan Penyelesaian"}
+                            </Button>
+                        </Link>
+                    </div>
                 )}
+
+            {/* BMS: edit estimation (revision) */}
+            {viewer.role === "BMS" &&
+                report.status === "ESTIMATION_REJECTED_REVISION" && (
+                    <div className="w-full space-y-3">
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p className="text-xs font-semibold text-red-800">
+                                Catatan Penolakan:
+                            </p>
+                            <p className="text-xs text-red-700 mt-0.5 italic whitespace-pre-line">
+                                {estimationRejectionNote}
+                            </p>
+                        </div>
+                        <Link
+                            href={`/reports/edit/${report.reportNumber}`}
+                            className="block w-full"
+                        >
+                            <Button className="w-full" size="lg">
+                                <FileText className="h-4 w-4 mr-2" />
+                                Edit & Kirim Estimasi
+                            </Button>
+                        </Link>
+                    </div>
+                )}
+
 
             {/* BMC: review estimation */}
             {viewer.role === "BMC" &&

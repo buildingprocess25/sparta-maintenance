@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -25,7 +25,6 @@ export function Header({
     className,
     logo = true,
 }: HeaderProps) {
-    const router = useRouter();
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -65,13 +64,13 @@ export function Header({
                         {/* LEFT: Navigation & Title */}
                         <div className="flex items-center gap-3 md:gap-5 flex-1 min-w-0">
                             {showBackButton && (
-                                <button
-                                    onClick={() => router.back()}
+                                <Link
+                                    href={backHref}
                                     className="group relative flex h-9 w-9 md:h-10 md:w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition-all hover:bg-white/20 hover:scale-105 active:scale-95 border border-white/10 backdrop-blur-sm"
                                     title="Kembali"
                                 >
                                     <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-0.5" />
-                                </button>
+                                </Link>
                             )}
 
                             <div className="flex flex-col justify-center min-w-0">
