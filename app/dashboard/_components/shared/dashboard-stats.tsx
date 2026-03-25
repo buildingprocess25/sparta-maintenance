@@ -20,9 +20,10 @@ export interface DashboardHeroStat extends DashboardStatItem {
 export interface DashboardStatsProps {
     hero: DashboardHeroStat;
     secondary: DashboardStatItem[];
+    heroWidthClass?: string;
 }
 
-export function DashboardStats({ hero, secondary }: DashboardStatsProps) {
+export function DashboardStats({ hero, secondary, heroWidthClass }: DashboardStatsProps) {
     const HeroIcon = hero.icon;
     
     // Determine grid columns dynamically based on length (Tailwind safelist might be needed, or inline style, but since it's only 1, 2, or 3, we can use a map)
@@ -37,7 +38,7 @@ export function DashboardStats({ hero, secondary }: DashboardStatsProps) {
             {/* Hero stat */}
             <Link
                 href={hero.href}
-                className={`group shrink-0 lg:w-52 flex flex-row items-center justify-between gap-4 lg:flex-col lg:items-stretch lg:justify-between p-4 lg:p-5 transition-colors ${hero.heroColorClass}`}
+                className={`group shrink-0 ${heroWidthClass || 'lg:w-52'} flex flex-row items-center justify-between gap-4 lg:flex-col lg:items-stretch lg:justify-between p-4 lg:p-5 transition-colors ${hero.heroColorClass}`}
             >
                 <div>
                     <div className={`flex items-center gap-1.5 text-xs lg:text-base font-medium ${hero.heroTextColorClass}`}>

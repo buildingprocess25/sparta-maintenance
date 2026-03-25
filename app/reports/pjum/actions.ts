@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import type { ReportItemJson } from "@/types/report";
 
 export type PjumBmsUser = {
     NIK: string;
@@ -19,7 +20,7 @@ export type PjumReportRow = {
     storeCode: string | null;
     branchName: string;
     status: string;
-    totalEstimation: number;
+    totalRealisasi: number;
     pjumExportedAt: string | null; // ISO string or null
 };
 
@@ -98,24 +99,36 @@ export async function searchPjumReports(
                 storeCode: true,
                 branchName: true,
                 status: true,
-                totalEstimation: true,
+                items: true,
                 pjumExportedAt: true,
             },
             orderBy: { createdAt: "asc" },
         });
 
-        const data: PjumReportRow[] = reports.map((r) => ({
-            reportNumber: r.reportNumber,
-            createdAt: r.createdAt.toISOString(),
-            storeName: r.storeName,
-            storeCode: r.storeCode,
-            branchName: r.branchName,
-            status: r.status as string,
-            totalEstimation: Number(r.totalEstimation),
-            pjumExportedAt: r.pjumExportedAt
-                ? r.pjumExportedAt.toISOString()
-                : null,
-        }));
+        const data: PjumReportRow[] = reports.map((r) => {
+            const items = (r.items ?? []) as unknown as ReportItemJson[];
+            let totalRealisasi = 0;
+            for (const item of items) {
+                if (item.realisasiItems && item.realisasiItems.length > 0) {
+                    for (const real of item.realisasiItems) {
+                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                    }
+                }
+            }
+
+            return {
+                reportNumber: r.reportNumber,
+                createdAt: r.createdAt.toISOString(),
+                storeName: r.storeName,
+                storeCode: r.storeCode,
+                branchName: r.branchName,
+                status: r.status as string,
+                totalRealisasi,
+                pjumExportedAt: r.pjumExportedAt
+                    ? r.pjumExportedAt.toISOString()
+                    : null,
+            };
+        });
 
         return { data, error: null };
     } catch (error) {

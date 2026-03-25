@@ -5,7 +5,7 @@ import { getAuthUser } from "@/lib/authorization";
 
 export async function GET(request: NextRequest) {
     const user = await getAuthUser();
-    if (!user || user.role !== "BMC") {
+    if (!user || (user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

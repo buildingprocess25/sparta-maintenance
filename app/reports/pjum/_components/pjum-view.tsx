@@ -297,7 +297,7 @@ export function PjumView({ bmsUsers }: Props) {
     const canExport =
         eligibleReports.length > 0 && !hasNonCompleted && !!weekNumber;
     const totalAll =
-        reports?.reduce((sum, r) => sum + r.totalEstimation, 0) ?? 0;
+        reports?.reduce((sum, r) => sum + r.totalRealisasi, 0) ?? 0;
 
     function handleExport() {
         if (!canExport) return;
@@ -619,11 +619,11 @@ export function PjumView({ bmsUsers }: Props) {
                                                                 r.createdAt,
                                                             )}
                                                         </span>
-                                                        {r.totalEstimation >
+                                                        {r.totalRealisasi >
                                                             0 && (
                                                             <span className="font-medium text-foreground">
                                                                 {formatCurrency(
-                                                                    r.totalEstimation,
+                                                                    r.totalRealisasi,
                                                                 )}
                                                             </span>
                                                         )}
@@ -711,10 +711,10 @@ export function PjumView({ bmsUsers }: Props) {
                                                             )}
                                                         </TableCell>
                                                         <TableCell className="text-right font-mono text-sm">
-                                                            {r.totalEstimation >
+                                                            {r.totalRealisasi >
                                                             0
                                                                 ? formatCurrency(
-                                                                      r.totalEstimation,
+                                                                      r.totalRealisasi,
                                                                   )
                                                                 : "—"}
                                                         </TableCell>

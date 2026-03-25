@@ -10,6 +10,7 @@ import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData, PumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
+import type { ReportItemJson } from "@/types/report";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -45,7 +46,7 @@ export type PjumExportDetail = {
         reportNumber: string;
         storeName: string;
         storeCode: string | null;
-        totalEstimation: number;
+        totalRealisasi: number;
     }[];
     totalExpenditure: number;
 };
@@ -64,7 +65,10 @@ export type BankAccountOption = {
 /**
  * List PJUM exports pending approval for the BnM Manager's branches.
  */
-export async function getPendingPjumExports(): Promise<{
+export async function getPendingPjumExports(filters?: {
+    search?: string;
+    dateRange?: string;
+}): Promise<{
     data: PjumExportListItem[] | null;
     error: string | null;
 }> {
@@ -87,7 +91,7 @@ export async function getPendingPjumExports(): Promise<{
         });
         const bmsMap = new Map(bmsUsers.map((u) => [u.NIK, u.name]));
 
-        const data: PjumExportListItem[] = exports.map((e) => ({
+        let data: PjumExportListItem[] = exports.map((e) => ({
             id: e.id,
             status: e.status,
             bmsNIK: e.bmsNIK,
@@ -99,6 +103,36 @@ export async function getPendingPjumExports(): Promise<{
             reportCount: e.reportNumbers.length,
             createdAt: e.createdAt.toISOString(),
         }));
+
+        // Apply filters in memory since pending list is typically small
+        if (filters?.search) {
+            const q = filters.search.toLowerCase();
+            data = data.filter(
+                (item) =>
+                    item.bmsName.toLowerCase().includes(q) ||
+                    item.bmsNIK.toLowerCase().includes(q) ||
+                    item.branchName.toLowerCase().includes(q)
+            );
+        }
+
+        if (filters?.dateRange && filters.dateRange !== "all") {
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            
+            let startDate = new Date(0);
+            if (filters.dateRange === "today") {
+                startDate = today;
+            } else if (filters.dateRange === "week") {
+                startDate = new Date(today);
+                startDate.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
+            } else if (filters.dateRange === "month") {
+                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+
+            if (startDate.getTime() > 0) {
+                data = data.filter((item) => new Date(item.createdAt) >= startDate);
+            }
+        }
 
         return { data, error: null };
     } catch (error) {
@@ -152,13 +186,31 @@ export async function getPjumExportDetail(
                 reportNumber: true,
                 storeName: true,
                 storeCode: true,
-                totalEstimation: true,
+                items: true,
             },
             orderBy: { createdAt: "asc" },
         });
 
-        const totalExpenditure = reports.reduce(
-            (sum, r) => sum + Number(r.totalEstimation),
+        const reportSummaries = reports.map(r => {
+            const items = (r.items ?? []) as unknown as ReportItemJson[];
+            let totalRealisasi = 0;
+            for (const item of items) {
+                if (item.realisasiItems && item.realisasiItems.length > 0) {
+                    for (const real of item.realisasiItems) {
+                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                    }
+                }
+            }
+            return {
+                reportNumber: r.reportNumber,
+                storeName: r.storeName,
+                storeCode: r.storeCode,
+                totalRealisasi,
+            };
+        });
+
+        const totalExpenditure = reportSummaries.reduce(
+            (sum, r) => sum + r.totalRealisasi,
             0,
         );
 
@@ -175,11 +227,11 @@ export async function getPjumExportDetail(
             createdByNIK: pjumExport.createdByNIK,
             createdByName: bmcUser?.name ?? pjumExport.createdByNIK,
             createdAt: pjumExport.createdAt.toISOString(),
-            reports: reports.map((r) => ({
+            reports: reportSummaries.map((r) => ({
                 reportNumber: r.reportNumber,
                 storeName: r.storeName,
                 storeCode: r.storeCode,
-                totalEstimation: Number(r.totalEstimation),
+                totalRealisasi: r.totalRealisasi,
             })),
             totalExpenditure,
         };
@@ -316,15 +368,25 @@ export async function approvePjumExport(input: {
             branchName: pjumExport.branchName,
         };
 
-        // Calculate total expenditure from reports
+        // Calculate total expenditure from actual reports
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: pjumExport.reportNumbers } },
-            select: { totalEstimation: true },
+            select: { items: true },
         });
-        pjumFormData.totalExpenditure = reports.reduce(
-            (sum, r) => sum + Number(r.totalEstimation),
-            0,
-        );
+        
+        let totalExpenditure = 0;
+        for (const r of reports) {
+            const items = (r.items ?? []) as unknown as ReportItemJson[];
+            for (const item of items) {
+                if (item.realisasiItems && item.realisasiItems.length > 0) {
+                    for (const real of item.realisasiItems) {
+                        totalExpenditure += (real.quantity || 0) * (real.price || 0);
+                    }
+                }
+            }
+        }
+        
+        pjumFormData.totalExpenditure = totalExpenditure;
 
         // Generate final PDF with form pages
         const result = await generatePjumPackagePdf({
@@ -420,7 +482,7 @@ export async function approvePjumExport(input: {
             "PJUM approved successfully",
         );
 
-        revalidatePath("/reports/pjum/approval");
+        revalidatePath("/reports/pjum");
         return { error: null };
     } catch (error) {
         logger.error(
@@ -485,7 +547,7 @@ export async function rejectPjumExport(input: {
             "PJUM rejected",
         );
 
-        revalidatePath("/reports/pjum/approval");
+        revalidatePath("/reports/pjum");
         return { error: null };
     } catch (error) {
         logger.error(

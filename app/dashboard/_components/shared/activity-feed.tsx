@@ -3,7 +3,7 @@ import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import type { ActivityItem } from "../../queries";
+import type { ActivityItem, PjumActivityItem } from "../../queries";
 
 const ACTIVITY_CONFIG: Record<
     string,
@@ -13,6 +13,16 @@ const ACTIVITY_CONFIG: Record<
         label: "Laporan diajukan",
         color: "bg-yellow-100 text-yellow-700 border-yellow-200",
         dot: "bg-yellow-500",
+    },
+    PJUM_CREATED: {
+        label: "PJUM diajukan",
+        color: "bg-amber-100 text-amber-700 border-amber-200",
+        dot: "bg-amber-500",
+    },
+    PJUM_APPROVED: {
+        label: "PJUM disetujui",
+        color: "bg-emerald-100 text-emerald-700 border-emerald-200",
+        dot: "bg-emerald-500",
     },
     RESUBMITTED_ESTIMATION: {
         label: "Laporan direvisi & diajukan ulang",
@@ -269,6 +279,89 @@ export function ActivitySectionWide({
                                         )}
                                     </div>
                                 </Link>
+                            </li>
+                        );
+                    })}
+                </ul>
+            )}
+        </div>
+    );
+}
+
+export interface PjumActivitySectionProps {
+    activities: PjumActivityItem[];
+    emptyMessage?: string;
+}
+
+export function PjumActivitySectionWide({
+    activities,
+    emptyMessage,
+}: PjumActivitySectionProps) {
+    return (
+        <div className="rounded-xl border shadow-sm overflow-hidden bg-card">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+                <h2 className="text-sm font-semibold flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-primary" />
+                    Aktivitas PJUM Terbaru
+                </h2>
+                <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs text-primary"
+                    asChild
+                >
+                    <Link href="/activity">Lihat Semua</Link>
+                </Button>
+            </div>
+
+            {activities.length === 0 ? (
+                <div className="p-8 flex flex-col items-center justify-center text-center space-y-3">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                        <Activity className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <p className="text-sm text-muted-foreground max-w-xs">
+                        {emptyMessage ??
+                            "Aktivitas PJUM terbaru akan muncul di sini."}
+                    </p>
+                </div>
+            ) : (
+                <ul className="divide-y">
+                    {activities.map((item) => {
+                        const cfg =
+                            ACTIVITY_CONFIG[item.action] ??
+                            ACTIVITY_CONFIG["PJUM_CREATED"];
+                        return (
+                            <li key={item.id}>
+                                <div className="flex flex-col md:grid md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-1.5 md:gap-x-4 px-4 py-3 md:py-2.5 hover:bg-muted/40 transition-colors">
+                                    {/* Left: dot + badge */}
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <span
+                                            className={`h-2 w-2 rounded-full shrink-0 ${cfg.dot}`}
+                                        />
+                                        <Badge
+                                            variant="outline"
+                                            className={`text-xs px-1.5 py-0 h-4.5 border whitespace-nowrap ${cfg.color}`}
+                                        >
+                                            {cfg.label}
+                                        </Badge>
+                                    </div>
+
+                                    {/* Middle: label */}
+                                    <div className="w-full min-w-0 flex items-center gap-2 md:gap-3 pl-4 md:pl-0">
+                                        <span className="text-xs font-mono font-medium text-foreground shrink-0 truncate">
+                                            {item.label}
+                                        </span>
+                                    </div>
+
+                                    {/* Right: actor · time */}
+                                    <div className="text-xs text-muted-foreground whitespace-nowrap shrink-0 pl-4 md:pl-0">
+                                        {item.actor.name} ·{" "}
+                                        {formatRelativeDate(
+                                            new Date(item.createdAt),
+                                        )}
+                                    </div>
+                                </div>
                             </li>
                         );
                     })}

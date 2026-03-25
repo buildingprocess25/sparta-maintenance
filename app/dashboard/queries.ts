@@ -126,19 +126,12 @@ export async function getBMCStats(branchNames: string[]) {
 
 /**
  * Fetch report statistics for a BnM Manager, scoped to their branches.
- * - pendingReview: Laporan menunggu review penyelesaian
  * - completed: Laporan yang sudah selesai
  * - totalReports: Semua laporan (non-draft) di branch
  */
 export async function getBNMStats(branchNames: string[]) {
     try {
-        const [pendingReview, completed, totalReports] = await Promise.all([
-            prisma.report.count({
-                where: {
-                    branchName: { in: branchNames },
-                    status: "PENDING_REVIEW",
-                },
-            }),
+        const [completed, totalReports] = await Promise.all([
             prisma.report.count({
                 where: { branchName: { in: branchNames }, status: "COMPLETED" },
             }),
@@ -150,7 +143,7 @@ export async function getBNMStats(branchNames: string[]) {
             }),
         ]);
 
-        return { pendingReview, completed, totalReports };
+        return { completed, totalReports };
     } catch (error) {
         logger.error(
             { operation: "getBNMStats", branchNames },
@@ -254,6 +247,90 @@ export async function getBranchActivity(
     } catch (error) {
         logger.error(
             { operation: "getBranchActivity", branchNames },
+            "Failed",
+            error,
+        );
+        return [];
+    }
+}
+
+export type PjumActivityItem = {
+    id: string;
+    label: string;
+    action: string;
+    createdAt: Date;
+    actor: { name: string; NIK: string };
+    branchName: string;
+};
+
+/**
+ * Fetch activity for PJUM exports in the given branches.
+ * Returns both created and approved activities based on status/timestamps.
+ */
+export async function getPjumActivity(
+    branchNames: string[],
+    limit = 5,
+): Promise<PjumActivityItem[]> {
+    try {
+        const exports = await prisma.pjumExport.findMany({
+            where: { branchName: { in: branchNames } },
+            orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
+            take: limit,
+        });
+
+        // Collect unique NIKs
+        const niks = new Set<string>();
+        exports.forEach((e) => {
+            niks.add(e.createdByNIK);
+            if (e.approvedByNIK) niks.add(e.approvedByNIK);
+        });
+
+        // Fetch user records to get actual names
+        const users = await prisma.user.findMany({
+            where: { NIK: { in: Array.from(niks) } },
+            select: { NIK: true, name: true },
+        });
+        const userMap = new Map(users.map((u) => [u.NIK, u.name]));
+
+        const activities: PjumActivityItem[] = [];
+
+        for (const pjum of exports) {
+            // Include created activity
+            activities.push({
+                id: `${pjum.id}-created`,
+                label: `PJUM Minggu ke-${pjum.weekNumber}`,
+                action: "PJUM_CREATED",
+                createdAt: pjum.createdAt,
+                actor: {
+                    name: userMap.get(pjum.createdByNIK) ?? pjum.createdByNIK,
+                    NIK: pjum.createdByNIK,
+                },
+                branchName: pjum.branchName,
+            });
+
+            // If approved, also include approved activity
+            if (pjum.status === "APPROVED" && pjum.approvedAt && pjum.approvedByNIK) {
+                activities.push({
+                    id: `${pjum.id}-approved`,
+                    label: `PJUM Minggu ke-${pjum.weekNumber}`,
+                    action: "PJUM_APPROVED",
+                    createdAt: pjum.approvedAt,
+                    actor: {
+                        name: userMap.get(pjum.approvedByNIK) ?? pjum.approvedByNIK,
+                        NIK: pjum.approvedByNIK,
+                    },
+                    branchName: pjum.branchName,
+                });
+            }
+        }
+
+        // Sort combined activities and limit
+        return activities
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .slice(0, limit);
+    } catch (error) {
+        logger.error(
+            { operation: "getPjumActivity", branchNames },
             "Failed",
             error,
         );

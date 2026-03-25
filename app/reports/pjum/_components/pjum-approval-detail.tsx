@@ -1,17 +1,20 @@
 "use client";
 
-import { useState, useEffect, useTransition, useCallback } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
 import {
     Loader2,
-    AlertCircle,
     CheckCircle2,
     XCircle,
     CreditCard,
     FileText,
+    Building2,
+    User,
+    CalendarDays,
+    Hash,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -42,12 +45,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
-    getPjumExportDetail,
-    getBmsBankAccounts,
     approvePjumExport,
     type PjumExportDetail as PjumExportDetailType,
     type BankAccountOption,
-} from "../actions";
+} from "../approval-actions";
 
 const MONTHS = [
     "Januari",
@@ -68,59 +69,31 @@ function fmtCurrency(amount: number): string {
     return Number(amount).toLocaleString("id-ID");
 }
 
-export function PjumApprovalDetail({
-    pjumExportId,
-}: {
-    pjumExportId: string;
-}) {
+type Props = {
+    detail: PjumExportDetailType;
+    bankAccounts: BankAccountOption[];
+};
+
+export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
     const router = useRouter();
-    const [detail, setDetail] = useState<PjumExportDetailType | null>(null);
-    const [bankAccounts, setBankAccounts] = useState<BankAccountOption[]>([]);
-    const [error, setError] = useState<string | null>(null);
-    const [isLoading, startLoadTransition] = useTransition();
     const [isApproving, startApproveTransition] = useTransition();
 
-    // PUM form state
-    const [bankAccountNo, setBankAccountNo] = useState("");
-    const [bankAccountName, setBankAccountName] = useState("");
-    const [bankName, setBankName] = useState("");
-    const [pumWeekNumber, setPumWeekNumber] = useState<number>(1);
-    const [pumMonth, setPumMonth] = useState("");
-    const [pumYear, setPumYear] = useState<number>(new Date().getFullYear());
-
-    const loadData = useCallback(() => {
-        startLoadTransition(async () => {
-            const result = await getPjumExportDetail(pjumExportId);
-            if (result.error) {
-                setError(result.error);
-                return;
-            }
-            if (result.data) {
-                setDetail(result.data);
-
-                // Auto-fill PUM week/month/year from PJUM data
-                setPumWeekNumber(result.data.weekNumber);
-                const fromDate = new Date(result.data.fromDate);
-                setPumMonth(fromDate.toLocaleString("id-ID", { month: "long" }));
-                setPumYear(fromDate.getFullYear());
-
-                // Load saved bank accounts
-                const bankResult = await getBmsBankAccounts(result.data.bmsNIK);
-                if (bankResult.data.length > 0) {
-                    setBankAccounts(bankResult.data);
-                    // Pre-fill with most recent
-                    const latest = bankResult.data[0];
-                    setBankAccountNo(latest.bankAccountNo);
-                    setBankAccountName(latest.bankAccountName);
-                    setBankName(latest.bankName);
-                }
-            }
-        });
-    }, [pjumExportId]);
-
-    useEffect(() => {
-        loadData();
-    }, [loadData]);
+    // PUM form state — auto-filled from PJUM data
+    const fromDate = new Date(detail.fromDate);
+    const [bankAccountNo, setBankAccountNo] = useState(
+        bankAccounts[0]?.bankAccountNo ?? "",
+    );
+    const [bankAccountName, setBankAccountName] = useState(
+        bankAccounts[0]?.bankAccountName ?? "",
+    );
+    const [bankName, setBankName] = useState(
+        bankAccounts[0]?.bankName ?? "",
+    );
+    const [pumWeekNumber, setPumWeekNumber] = useState(detail.weekNumber);
+    const [pumMonth, setPumMonth] = useState(
+        fromDate.toLocaleString("id-ID", { month: "long" }),
+    );
+    const [pumYear, setPumYear] = useState(fromDate.getFullYear());
 
     function selectBank(accountId: string) {
         const acct = bankAccounts.find((a) => a.id === accountId);
@@ -147,7 +120,7 @@ export function PjumApprovalDetail({
 
         startApproveTransition(async () => {
             const result = await approvePjumExport({
-                pjumExportId,
+                pjumExportId: detail.id,
                 bankAccountNo: bankAccountNo.trim(),
                 bankAccountName: bankAccountName.trim(),
                 bankName: bankName.trim(),
@@ -162,107 +135,75 @@ export function PjumApprovalDetail({
                 toast.success(
                     "PJUM disetujui! PDF telah diupload ke Google Drive.",
                 );
-                router.push("/reports/pjum/approval");
+                router.push("/reports/pjum");
             }
         });
     }
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen flex flex-col bg-background/50">
-                <Header
-                    variant="dashboard"
-                    title="Detail PJUM"
-                    description="Memuat data..."
-                    showBackButton
-                    backHref="/reports/pjum/approval"
-                    logo={false}
-                />
-                <main className="flex-1 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                </main>
-                <Footer />
-            </div>
-        );
-    }
-
-    if (error || !detail) {
-        return (
-            <div className="min-h-screen flex flex-col bg-background/50">
-                <Header
-                    variant="dashboard"
-                    title="Detail PJUM"
-                    description="Terjadi kesalahan"
-                    showBackButton
-                    backHref="/reports/pjum/approval"
-                    logo={false}
-                />
-                <main className="flex-1 container mx-auto px-4 py-4 md:py-8 max-w-7xl pb-24 lg:pb-8">
-                    <Card className="border-destructive">
-                        <CardContent className="flex items-center gap-2 py-4">
-                            <AlertCircle className="h-5 w-5 text-destructive" />
-                            <span className="text-destructive">
-                                {error ?? "PJUM tidak ditemukan"}
-                            </span>
-                        </CardContent>
-                    </Card>
-                </main>
-                <Footer />
-            </div>
-        );
-    }
-
     const selisih = 1_000_000 - detail.totalExpenditure;
+    const periode = `${format(fromDate, "d MMM", { locale: localeId })} – ${format(new Date(detail.toDate), "d MMM yyyy", { locale: localeId })}`;
 
     return (
-        <div className="min-h-screen flex flex-col bg-background/50">
+        <div className="min-h-screen flex flex-col bg-background">
             <Header
                 variant="dashboard"
                 title="Detail PJUM"
                 description="Tinjau laporan dan isi informasi PUM untuk menyetujui"
                 showBackButton
-                backHref="/reports/pjum/approval"
+                backHref="/reports/pjum"
                 logo={false}
             />
             <main className="flex-1 container mx-auto px-4 py-4 md:py-8 max-w-4xl pb-24 lg:pb-8 space-y-6">
-
-                {/* PJUM Info Card */}
+                {/* ── PJUM Info Card ──────────────────────────────────── */}
                 <Card>
-                    <CardHeader>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-lg flex items-center gap-2">
                             <FileText className="h-5 w-5" />
                             Informasi PJUM
                         </CardTitle>
+                        <Button variant="outline" size="sm" asChild>
+                            <a
+                                href={`/api/reports/pjum-pdf?ids=${detail.reportNumbers.join(",")}&bmsNIK=${detail.bmsNIK}&from=${detail.fromDate}&to=${detail.toDate}&week=${detail.weekNumber}`}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <FileText className="h-4 w-4 mr-2" />
+                                Lihat Laporan Lengkap
+                            </a>
+                        </Button>
                     </CardHeader>
-                    <CardContent className="space-y-3">
+                    <CardContent className="space-y-3 pt-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                             <div>
-                                <span className="text-muted-foreground">
-                                    BMS:
+                                <span className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
+                                    <User className="h-3.5 w-3.5" />
+                                    BMS
                                 </span>
                                 <p className="font-medium">
                                     {detail.bmsName}
                                 </p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">
-                                    NIK BMS:
+                                <span className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
+                                    <Hash className="h-3.5 w-3.5" />
+                                    NIK BMS
                                 </span>
-                                <p className="font-medium">
+                                <p className="font-medium font-mono">
                                     {detail.bmsNIK}
                                 </p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">
-                                    Cabang:
+                                <span className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
+                                    <Building2 className="h-3.5 w-3.5" />
+                                    Cabang
                                 </span>
                                 <p className="font-medium">
                                     {detail.branchName}
                                 </p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">
-                                    Minggu ke:
+                                <span className="text-muted-foreground mb-0.5 block">
+                                    Minggu ke
                                 </span>
                                 <p className="font-medium">
                                     <Badge variant="outline">
@@ -271,26 +212,15 @@ export function PjumApprovalDetail({
                                 </p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">
-                                    Periode:
+                                <span className="text-muted-foreground flex items-center gap-1.5 mb-0.5">
+                                    <CalendarDays className="h-3.5 w-3.5" />
+                                    Periode
                                 </span>
-                                <p className="font-medium">
-                                    {format(
-                                        new Date(detail.fromDate),
-                                        "d MMM",
-                                        { locale: localeId },
-                                    )}{" "}
-                                    –{" "}
-                                    {format(
-                                        new Date(detail.toDate),
-                                        "d MMM yyyy",
-                                        { locale: localeId },
-                                    )}
-                                </p>
+                                <p className="font-medium">{periode}</p>
                             </div>
                             <div>
-                                <span className="text-muted-foreground">
-                                    Dibuat oleh:
+                                <span className="text-muted-foreground mb-0.5 block">
+                                    Dibuat oleh
                                 </span>
                                 <p className="font-medium">
                                     {detail.createdByName}
@@ -334,64 +264,106 @@ export function PjumApprovalDetail({
                     </CardContent>
                 </Card>
 
-                {/* Reports table */}
+                {/* ── Reports Table ───────────────────────────────────── */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="text-lg">
                             Laporan ({detail.reports.length})
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>No</TableHead>
-                                    <TableHead>No Laporan</TableHead>
-                                    <TableHead>Toko</TableHead>
-                                    <TableHead className="text-right">
-                                        Estimasi
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {detail.reports.map((r, i) => (
-                                    <TableRow key={r.reportNumber}>
-                                        <TableCell>{i + 1}</TableCell>
-                                        <TableCell className="font-mono text-sm">
-                                            {r.reportNumber}
-                                        </TableCell>
-                                        <TableCell>
+                    <CardContent className="p-0 md:p-6 md:pt-0">
+                        {/* Mobile card list */}
+                        <div className="md:hidden divide-y">
+                            {detail.reports.map((r, i) => (
+                                <div
+                                    key={r.reportNumber}
+                                    className="px-4 py-3 flex items-center justify-between gap-2"
+                                >
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium truncate">
+                                            {i + 1}.{" "}
                                             {r.storeCode
                                                 ? `${r.storeCode} — `
                                                 : ""}
                                             {r.storeName}
+                                        </p>
+                                        <p className="text-xs font-mono text-muted-foreground mt-0.5">
+                                            {r.reportNumber}
+                                        </p>
+                                    </div>
+                                    <span className="text-sm font-medium whitespace-nowrap">
+                                        Rp {fmtCurrency(r.totalRealisasi)}
+                                    </span>
+                                </div>
+                            ))}
+                            <div className="px-4 py-3 flex items-center justify-between bg-muted/30">
+                                <span className="font-semibold text-sm">
+                                    Total
+                                </span>
+                                <span className="font-semibold text-sm">
+                                    Rp{" "}
+                                    {fmtCurrency(detail.totalExpenditure)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Desktop table */}
+                        <div className="hidden md:block">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                        <TableHead className="w-12">
+                                            No
+                                        </TableHead>
+                                        <TableHead>No Laporan</TableHead>
+                                        <TableHead>Toko</TableHead>
+                                        <TableHead className="text-right">
+                                            Estimasi
+                                        </TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {detail.reports.map((r, i) => (
+                                        <TableRow key={r.reportNumber}>
+                                            <TableCell>{i + 1}</TableCell>
+                                            <TableCell className="font-mono text-sm">
+                                                {r.reportNumber}
+                                            </TableCell>
+                                            <TableCell>
+                                                {r.storeCode
+                                                    ? `${r.storeCode} — `
+                                                    : ""}
+                                                {r.storeName}
+                                            </TableCell>
+                                            <TableCell className="text-right">
+                                                Rp{" "}
+                                                {fmtCurrency(
+                                                    r.totalRealisasi,
+                                                )}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    <TableRow>
+                                        <TableCell
+                                            colSpan={3}
+                                            className="font-semibold text-right"
+                                        >
+                                            Total
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right font-semibold">
                                             Rp{" "}
-                                            {fmtCurrency(r.totalEstimation)}
+                                            {fmtCurrency(
+                                                detail.totalExpenditure,
+                                            )}
                                         </TableCell>
                                     </TableRow>
-                                ))}
-                                <TableRow>
-                                    <TableCell
-                                        colSpan={3}
-                                        className="font-semibold text-right"
-                                    >
-                                        Total
-                                    </TableCell>
-                                    <TableCell className="text-right font-semibold">
-                                        Rp{" "}
-                                        {fmtCurrency(
-                                            detail.totalExpenditure,
-                                        )}
-                                    </TableCell>
-                                </TableRow>
-                            </TableBody>
-                        </Table>
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
 
-                {/* PUM Form — only show if pending */}
+                {/* ── PUM Form — only show if pending ────────────────── */}
                 {detail.status === "PENDING_APPROVAL" && (
                     <Card className="border-primary/30">
                         <CardHeader>
@@ -400,7 +372,8 @@ export function PjumApprovalDetail({
                                 Form PUM — Informasi Transfer
                             </CardTitle>
                             <CardDescription>
-                                Isi informasi transfer ke BMS dan keperluan PUM
+                                Isi informasi transfer ke BMS dan keperluan
+                                PUM
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-6">
@@ -451,7 +424,9 @@ export function PjumApprovalDetail({
                                         id="bankAccountName"
                                         value={bankAccountName}
                                         onChange={(e) =>
-                                            setBankAccountName(e.target.value)
+                                            setBankAccountName(
+                                                e.target.value,
+                                            )
                                         }
                                         placeholder="Nama di rekening"
                                     />
@@ -491,14 +466,18 @@ export function PjumApprovalDetail({
                                                 <SelectValue />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {[1, 2, 3, 4, 5].map((w) => (
-                                                    <SelectItem
-                                                        key={w}
-                                                        value={String(w)}
-                                                    >
-                                                        Minggu {w}
-                                                    </SelectItem>
-                                                ))}
+                                                {[1, 2, 3, 4, 5].map(
+                                                    (w) => (
+                                                        <SelectItem
+                                                            key={w}
+                                                            value={String(
+                                                                w,
+                                                            )}
+                                                        >
+                                                            Minggu {w}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -570,7 +549,7 @@ export function PjumApprovalDetail({
                     </Card>
                 )}
 
-                {/* Already processed status */}
+                {/* ── Already processed status ───────────────────────── */}
                 {detail.status !== "PENDING_APPROVAL" && (
                     <Card>
                         <CardContent className="flex items-center gap-2 py-4">

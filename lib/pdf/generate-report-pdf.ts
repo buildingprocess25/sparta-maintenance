@@ -554,7 +554,7 @@ function roleLabel(role?: string, nik?: string): string {
         case "BMC":
             return "Branch Maintenance Coordinator";
         case "BNM_MANAGER":
-            return "Branch Building & Maintenance Manager";
+            return "Building & Maintenance Manager";
         default:
             return role ?? "";
     }
@@ -1548,7 +1548,6 @@ function buildReportDocument(
                 );
                 const selisih = totalEstimasi - totalRealisasi;
 
-                // Build merged rows: each estimation paired with matching realisasi
                 const mergedRows = data.estimations.map((est) => {
                     const real = allRealisasi.find(
                         (r) => r.materialName === est.materialName,
@@ -1559,6 +1558,7 @@ function buildReportDocument(
                         unit: est.unit,
                         estPrice: est.price,
                         estTotal: est.totalPrice,
+                        realQty: real ? real.quantity : 0,
                         realPrice: real ? real.price : 0,
                         realTotal: real ? real.quantity * real.price : 0,
                     };
@@ -1572,10 +1572,11 @@ function buildReportDocument(
                     ) {
                         mergedRows.push({
                             material: r.materialName,
-                            qty: r.quantity,
+                            qty: 0,
                             unit: r.unit,
                             estPrice: 0,
                             estTotal: 0,
+                            realQty: r.quantity,
                             realPrice: r.price,
                             realTotal: r.quantity * r.price,
                         });
@@ -1610,7 +1611,7 @@ function buildReportDocument(
                             { style: styles.completionTableHeader },
                             React.createElement(
                                 Text,
-                                { style: { ...headerCellStyle, width: "28%" } },
+                                { style: { ...headerCellStyle, width: "25%" } },
                                 "Material",
                             ),
                             React.createElement(
@@ -1622,12 +1623,23 @@ function buildReportDocument(
                                         textAlign: "center",
                                     },
                                 },
-                                "Jml",
+                                "Jml Est.",
                             ),
                             React.createElement(
                                 Text,
-                                { style: { ...headerCellStyle, width: "10%" } },
-                                "Satuan",
+                                {
+                                    style: {
+                                        ...headerCellStyle,
+                                        width: "8%",
+                                        textAlign: "center",
+                                    },
+                                },
+                                "Jml Real.",
+                            ),
+                            React.createElement(
+                                Text,
+                                { style: { ...headerCellStyle, width: "7%" } },
+                                "Sat",
                             ),
                             React.createElement(
                                 Text,
@@ -1638,7 +1650,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Harga Estimasi",
+                                "Harga Est.",
                             ),
                             React.createElement(
                                 Text,
@@ -1649,7 +1661,7 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Total Estimasi",
+                                "Total Est.",
                             ),
                             React.createElement(
                                 Text,
@@ -1660,18 +1672,18 @@ function buildReportDocument(
                                         textAlign: "right",
                                     },
                                 },
-                                "Harga Realisasi",
+                                "Harga Real.",
                             ),
                             React.createElement(
                                 Text,
                                 {
                                     style: {
                                         ...headerCellStyle,
-                                        width: "15%",
+                                        width: "13%",
                                         textAlign: "right",
                                     },
                                 },
-                                "Total Realisasi",
+                                "Total Real.",
                             ),
                         ),
                         // Data rows
@@ -1687,7 +1699,7 @@ function buildReportDocument(
                                 },
                                 React.createElement(
                                     Text,
-                                    { style: { ...cellStyle, width: "28%" } },
+                                    { style: { ...cellStyle, width: "25%" } },
                                     row.material,
                                 ),
                                 React.createElement(
@@ -1703,7 +1715,18 @@ function buildReportDocument(
                                 ),
                                 React.createElement(
                                     Text,
-                                    { style: { ...cellStyle, width: "10%" } },
+                                    {
+                                        style: {
+                                            ...cellStyle,
+                                            width: "8%",
+                                            textAlign: "center",
+                                        },
+                                    },
+                                    String(row.realQty),
+                                ),
+                                React.createElement(
+                                    Text,
+                                    { style: { ...cellStyle, width: "7%" } },
                                     row.unit,
                                 ),
                                 React.createElement(
@@ -1726,7 +1749,6 @@ function buildReportDocument(
                                             ...cellStyle,
                                             width: "13%",
                                             textAlign: "right",
-                                            fontFamily: "Helvetica-Bold",
                                         },
                                     },
                                     row.estTotal
@@ -1751,7 +1773,7 @@ function buildReportDocument(
                                     {
                                         style: {
                                             ...cellStyle,
-                                            width: "15%",
+                                            width: "13%",
                                             textAlign: "right",
                                             fontFamily: "Helvetica-Bold",
                                         },
@@ -1771,7 +1793,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalLabel,
-                                        width: "72%",
+                                        width: "74%",
                                         fontSize: 7,
                                     },
                                 },
@@ -1794,7 +1816,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalValue,
-                                        width: "15%",
+                                        width: "13%",
                                         fontSize: 7,
                                     },
                                 },
@@ -1809,7 +1831,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalLabel,
-                                        width: "72%",
+                                        width: "74%",
                                         fontSize: 7,
                                     },
                                 },
@@ -1832,7 +1854,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalValue,
-                                        width: "15%",
+                                        width: "13%",
                                         fontSize: 7,
                                     },
                                 },
@@ -1847,7 +1869,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalLabel,
-                                        width: "72%",
+                                        width: "74%",
                                         fontSize: 7,
                                     },
                                 },
@@ -1870,7 +1892,7 @@ function buildReportDocument(
                                 {
                                     style: {
                                         ...styles.totalValue,
-                                        width: "15%",
+                                        width: "13%",
                                         fontSize: 7,
                                     },
                                 },

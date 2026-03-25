@@ -1,7 +1,11 @@
-import { ClipboardCheck, CheckCircle2, FileText, FileCheck } from "lucide-react";
-import { getBNMStats, getBranchActivity, getPendingPjumCount } from "../queries";
+import { CheckCircle2, FileText, FileCheck } from "lucide-react";
+import {
+    getBNMStats,
+    getPjumActivity,
+    getPendingPjumCount,
+} from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
-import { ActivitySectionWide } from "./shared/activity-feed";
+import { PjumActivitySectionWide } from "./shared/activity-feed";
 import {
     DashboardStats,
     type DashboardHeroStat,
@@ -12,37 +16,28 @@ import type { AuthUser } from "@/lib/authorization";
 export async function BnmDashboard({ user }: { user: AuthUser }) {
     const [bnmStats, activities, pendingPjumCount] = await Promise.all([
         getBNMStats(user.branchNames),
-        getBranchActivity(user.branchNames),
+        getPjumActivity(user.branchNames),
         getPendingPjumCount(user.branchNames),
     ]);
 
     const heroStat: DashboardHeroStat = {
-        id: "pending-review",
-        label: "Menunggu Review",
-        description: "Laporan menunggu review penyelesaian dari Anda",
-        value: bnmStats.pendingReview,
-        icon: ClipboardCheck,
-        href: "/reports?status=pending_review",
-        colorClass: "text-purple-600",
-        heroColorClass: "bg-purple-500 text-white hover:bg-purple-600",
-        heroTextColorClass: "text-purple-100",
-        heroTrendColorClass: "text-purple-200",
+        id: "pending-pjum",
+        label: "PJUM Menunggu Approval",
+        description: "Dokumen PJUM yang perlu Anda setujui",
+        value: pendingPjumCount,
+        icon: FileCheck,
+        href: "/reports/pjum",
+        colorClass: "text-amber-600",
+        heroColorClass: "bg-amber-500 text-white hover:bg-amber-600",
+        heroTextColorClass: "text-amber-100",
+        heroTrendColorClass: "text-amber-200",
     };
 
     const secondaryStats: DashboardStatItem[] = [
         {
-            id: "pending-pjum",
-            label: "PJUM Menunggu Approval",
-            description: "PJUM yang perlu Anda setujui",
-            value: pendingPjumCount,
-            icon: FileCheck,
-            href: "/reports/pjum/approval",
-            colorClass: "text-amber-600",
-        },
-        {
             id: "completed",
             label: "Selesai",
-            description: "Telah disetujui",
+            description: "Laporan yang sudah selesai",
             value: bnmStats.completed,
             icon: CheckCircle2,
             href: "/reports?status=completed",
@@ -67,12 +62,13 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
                     <DashboardStats
                         hero={heroStat}
                         secondary={secondaryStats}
+                        heroWidthClass="lg:w-100"
                     />
 
                     {/* Activity Feed — wide layout */}
-                    <ActivitySectionWide
+                    <PjumActivitySectionWide
                         activities={activities}
-                        emptyMessage="Aktivitas laporan cabang akan muncul di sini."
+                        emptyMessage="Aktivitas PJUM terbaru akan muncul di sini."
                     />
                 </div>
             </div>

@@ -61,6 +61,7 @@ export async function generatePjumPackagePdf(params: {
             branchName: true,
             status: true,
             totalEstimation: true,
+            items: true,
             createdByNIK: true,
             createdBy: { select: { name: true } },
             pjumExportedAt: true,
@@ -85,25 +86,58 @@ export async function generatePjumPackagePdf(params: {
             ? params.requester.branchNames[0]
             : reports[0].branchName;
 
+    let bmcName = params.requester.name;
+    let bmcNIK = params.requester.NIK;
+
+    if (params.requireExported) {
+        const pjumExport = await prisma.pjumExport.findFirst({
+            where: { reportNumbers: { has: reports[0].reportNumber } },
+            select: { createdByNIK: true },
+        });
+
+        if (pjumExport?.createdByNIK) {
+            const creator = await prisma.user.findUnique({
+                where: { NIK: pjumExport.createdByNIK },
+                select: { name: true, NIK: true },
+            });
+            if (creator) {
+                bmcName = creator.name;
+                bmcNIK = creator.NIK;
+            }
+        }
+    }
+
     const pjumBuffer = await generatePjumPdf({
         bmsName: bmsUser?.name ?? params.bmsNIK,
         bmsNIK: bmsUser?.NIK ?? params.bmsNIK,
-        bmcName: params.requester.name,
-        bmcNIK: params.requester.NIK,
+        bmcName,
+        bmcNIK,
         branchName,
         from: params.from || reports[0].createdAt.toISOString(),
         to: params.to || reports[reports.length - 1].createdAt.toISOString(),
         exportedAt,
         weekNumber: params.weekNumber,
-        reports: reports.map((r) => ({
-            reportNumber: r.reportNumber,
-            createdAt: r.createdAt.toISOString(),
-            storeName: r.storeName,
-            storeCode: r.storeCode,
-            branchName: r.branchName,
-            status: r.status as string,
-            totalEstimation: Number(r.totalEstimation),
-        })),
+        reports: reports.map((r) => {
+            const items = (r.items ?? []) as unknown as ReportItemJson[];
+            let totalRealisasi = 0;
+            for (const item of items) {
+                if (item.realisasiItems && item.realisasiItems.length > 0) {
+                    for (const real of item.realisasiItems) {
+                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                    }
+                }
+            }
+
+            return {
+                reportNumber: r.reportNumber,
+                createdAt: r.createdAt.toISOString(),
+                storeName: r.storeName,
+                storeCode: r.storeCode,
+                branchName: r.branchName,
+                status: r.status as string,
+                totalRealisasi,
+            };
+        }),
     });
 
     const fullReports = await prisma.report.findMany({

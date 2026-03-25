@@ -188,7 +188,7 @@ export type PjumPdfRow = {
     storeCode: string | null;
     branchName: string;
     status: string;
-    totalEstimation: number;
+    totalRealisasi: number;
 };
 
 export type PjumPdfData = {
@@ -205,7 +205,7 @@ export type PjumPdfData = {
 };
 
 function buildPjumDocument(data: PjumPdfData) {
-    const totalAll = data.reports.reduce((s, r) => s + r.totalEstimation, 0);
+    const totalAll = data.reports.reduce((s, r) => s + r.totalRealisasi, 0);
     const exportedDate = fmtDate(data.exportedAt);
 
     const tableRows = data.reports.map((r, i) =>
@@ -256,11 +256,11 @@ function buildPjumDocument(data: PjumPdfData) {
                       )
                     : null,
             ),
-            // Total estimation
+            // Total realization
             React.createElement(
                 Text,
                 { style: { ...styles.tdCell, ...styles.colTotal } },
-                r.totalEstimation > 0 ? fmtCurrency(r.totalEstimation) : "—",
+                r.totalRealisasi > 0 ? fmtCurrency(r.totalRealisasi) : "—",
             ),
         ),
     );
