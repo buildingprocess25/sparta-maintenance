@@ -10,7 +10,6 @@ import {
 } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-// import { sendReportNotification } from "@/lib/email/send-report-notification"; // TODO: Re-enable when ready
 import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
@@ -102,15 +101,6 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         revalidatePath("/reports");
         revalidatePath(`/reports/${reportNumber}`);
-
-        // TODO: Re-enable email when ready
-        // sendReportNotification(reportNumber).catch((err) => {
-        //     logger.error(
-        //         { operation: "resubmitReport", reportNumber },
-        //         "Failed to send notification email",
-        //         err,
-        //     );
-        // });
 
         return { success: true, reportId: reportNumber };
     } catch (error) {

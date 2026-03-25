@@ -44,17 +44,6 @@ export type SendEmailOptions = {
 };
 
 export async function sendEmail(options: SendEmailOptions): Promise<void> {
-    // ── EMAIL DISABLED ──────────────────────────────────────────────────────
-    // Email sending is intentionally disabled. Remove this block to re-enable.
-    console.warn(
-        "[mailer] sendEmail called but email is disabled. Recipient:",
-        options.to,
-        "| Subject:",
-        options.subject,
-    );
-    return;
-    // ── END DISABLE ─────────────────────────────────────────────────────────
-
     const transporter = await createTransporter();
 
     await transporter.sendMail({
