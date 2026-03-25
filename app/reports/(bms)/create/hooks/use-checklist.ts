@@ -41,9 +41,26 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
     const [categoryIAvailableDate, setCategoryIAvailableDate] =
         useState<Date | null>(null);
 
-    // In edit/revisi mode the report already has preventive items — always enable them
+    const preventiveItemIds = new Set(
+        checklistCategories
+            .filter((cat) => cat.isPreventive)
+            .flatMap((cat) => cat.items.map((item) => item.id)),
+    );
+
+    const hasPreventiveItemsInChecklist = Array.from(checklist.keys()).some(
+        (itemId) => preventiveItemIds.has(itemId),
+    );
+
+    // During cooldown, preventive category is hidden.
+    // In edit/revisi mode, only keep it visible if the loaded report already
+    // contains preventive items, so existing data can still be revised.
     const activeCategories = checklistCategories.filter(
-        (cat) => !(cat.isPreventive && isCategoryICoolingDown && !isEditMode),
+        (cat) =>
+            !(
+                cat.isPreventive &&
+                isCategoryICoolingDown &&
+                (!isEditMode || !hasPreventiveItemsInChecklist)
+            ),
     );
 
     const handleStoreChange = useCallback(
