@@ -107,7 +107,7 @@ export async function submitCompletionWork(
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
                     items: updatedItems as unknown as Prisma.InputJsonValue,
-                    completionSelfieUrl: selfieUrlValue || null,
+                    startSelfieUrl: selfieUrlValue || null,
                 },
             }),
             prisma.activityLog.create({

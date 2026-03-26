@@ -189,6 +189,7 @@ export async function BmcApprovalList({
             totalEstimation: true,
             createdAt: true,
             updatedAt: true,
+            finishedAt: true,
             createdBy: {
                 select: { name: true },
             },
@@ -377,6 +378,9 @@ export async function BmcApprovalList({
                                                     Diperbarui
                                                 </TableHead>
                                                 <TableHead className="text-sm">
+                                                    Selesai
+                                                </TableHead>
+                                                <TableHead className="text-sm">
                                                     Aksi
                                                 </TableHead>
                                             </TableRow>
@@ -419,6 +423,13 @@ export async function BmcApprovalList({
                                                         {formatDate(
                                                             report.updatedAt,
                                                         )}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-muted-foreground">
+                                                        {report.finishedAt
+                                                            ? formatDate(
+                                                                  report.finishedAt,
+                                                              )
+                                                            : "—"}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Link

@@ -85,16 +85,18 @@ export async function searchPjumReports(
         const toDate = new Date(to);
         toDate.setHours(23, 59, 59, 999); // include full last day
 
+        // Only show COMPLETED reports (exclude PENDING_ESTIMATION and other statuses)
+        // Use finishedAt for date range filtering (when report was actually completed)
         const reports = await prisma.report.findMany({
             where: {
                 createdByNIK: bmsNIK,
                 branchName: { in: user.branchNames },
-                status: { not: "DRAFT" },
-                createdAt: { gte: fromDate, lte: toDate },
+                status: "COMPLETED", // Only completed reports
+                finishedAt: { gte: fromDate, lte: toDate }, // Use finishedAt instead of createdAt
             },
             select: {
                 reportNumber: true,
-                createdAt: true,
+                finishedAt: true,
                 storeName: true,
                 storeCode: true,
                 branchName: true,
@@ -102,7 +104,7 @@ export async function searchPjumReports(
                 items: true,
                 pjumExportedAt: true,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { finishedAt: "asc" },
         });
 
         const data: PjumReportRow[] = reports.map((r) => {
@@ -111,14 +113,15 @@ export async function searchPjumReports(
             for (const item of items) {
                 if (item.realisasiItems && item.realisasiItems.length > 0) {
                     for (const real of item.realisasiItems) {
-                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                        totalRealisasi +=
+                            (real.quantity || 0) * (real.price || 0);
                     }
                 }
             }
 
             return {
                 reportNumber: r.reportNumber,
-                createdAt: r.createdAt.toISOString(),
+                createdAt: r.finishedAt.toISOString(), // Use finishedAt as the report completion date
                 storeName: r.storeName,
                 storeCode: r.storeCode,
                 branchName: r.branchName,
@@ -161,6 +164,25 @@ export async function exportPjum(input: {
             weekNumber,
         } = exportSchema.parse(input);
 
+        // Check if this date range has already been exported for this BMS
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+        const existingExport = await prisma.pjumExport.findFirst({
+            where: {
+                bmsNIK,
+                fromDate: fromDate,
+                toDate: toDate,
+                status: { in: ["PENDING_APPROVAL", "APPROVED"] }, // Approved or pending exports
+            },
+        });
+
+        if (existingExport) {
+            return {
+                error: `Tanggal ${from} sampai ${to} sudah pernah di-export untuk BMS ini pada ${existingExport.createdAt.toLocaleDateString("id-ID")}`,
+                pjumExportId: null,
+            };
+        }
+
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: safeNumbers } },
             select: {
@@ -172,12 +194,18 @@ export async function exportPjum(input: {
         });
 
         if (reports.length !== safeNumbers.length) {
-            return { error: "Beberapa laporan tidak ditemukan", pjumExportId: null };
+            return {
+                error: "Beberapa laporan tidak ditemukan",
+                pjumExportId: null,
+            };
         }
 
         for (const r of reports) {
             if (!user.branchNames.includes(r.branchName)) {
-                return { error: "Laporan tidak dalam cabang Anda", pjumExportId: null };
+                return {
+                    error: "Laporan tidak dalam cabang Anda",
+                    pjumExportId: null,
+                };
             }
             if (r.status !== "COMPLETED") {
                 return {
@@ -231,7 +259,14 @@ export async function exportPjum(input: {
         revalidatePath("/reports/pjum");
         return { error: null, pjumExportId: pjumExport.id };
     } catch (error) {
-        logger.error({ operation: "exportPjum" }, "Failed to create PJUM", error);
-        return { error: "Terjadi kesalahan saat membuat PJUM", pjumExportId: null };
+        logger.error(
+            { operation: "exportPjum" },
+            "Failed to create PJUM",
+            error,
+        );
+        return {
+            error: "Terjadi kesalahan saat membuat PJUM",
+            pjumExportId: null,
+        };
     }
 }

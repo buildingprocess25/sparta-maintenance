@@ -63,6 +63,7 @@ export type ApprovalReportData = {
     totalEstimation: number;
     createdAt: Date;
     updatedAt: Date;
+    finishedAt: Date | null;
     createdByName: string;
 };
 
@@ -511,6 +512,7 @@ export function ApprovalReportsList({
                                         </TableHead>
                                         <TableHead>Dilaporkan Oleh</TableHead>
                                         <TableHead>Tanggal</TableHead>
+                                        <TableHead>Selesai</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">
                                             Estimasi
@@ -551,6 +553,13 @@ export function ApprovalReportsList({
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {formatDate(report.updatedAt)}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {report.finishedAt
+                                                    ? formatDate(
+                                                          report.finishedAt,
+                                                      )
+                                                    : "—"}
                                             </TableCell>
                                             <TableCell>
                                                 {getStatusBadge(report.status)}

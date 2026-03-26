@@ -144,6 +144,13 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                                     <CalendarDays className="h-3 w-3 shrink-0" />
                                     {formatDateShort(report.createdAt)}
                                 </span>
+                                {report.finishedAt && (
+                                    <span className="flex items-center gap-1 text-green-600">
+                                        <CalendarDays className="h-3 w-3 shrink-0" />
+                                        Selesai:{" "}
+                                        {formatDateShort(report.finishedAt)}
+                                    </span>
+                                )}
                                 {report.rusakCount > 0 && (
                                     <span className="flex items-center gap-1 text-red-600">
                                         <Wrench className="h-3 w-3 shrink-0" />

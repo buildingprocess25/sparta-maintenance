@@ -9,7 +9,10 @@ import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
-import type { PjumFormData, PumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
+import type {
+    PjumFormData,
+    PumFormData,
+} from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson } from "@/types/report";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -111,14 +114,18 @@ export async function getPendingPjumExports(filters?: {
                 (item) =>
                     item.bmsName.toLowerCase().includes(q) ||
                     item.bmsNIK.toLowerCase().includes(q) ||
-                    item.branchName.toLowerCase().includes(q)
+                    item.branchName.toLowerCase().includes(q),
             );
         }
 
         if (filters?.dateRange && filters.dateRange !== "all") {
             const now = new Date();
-            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
+            const today = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+            );
+
             let startDate = new Date(0);
             if (filters.dateRange === "today") {
                 startDate = today;
@@ -130,17 +137,15 @@ export async function getPendingPjumExports(filters?: {
             }
 
             if (startDate.getTime() > 0) {
-                data = data.filter((item) => new Date(item.createdAt) >= startDate);
+                data = data.filter(
+                    (item) => new Date(item.createdAt) >= startDate,
+                );
             }
         }
 
         return { data, error: null };
     } catch (error) {
-        logger.error(
-            { operation: "getPendingPjumExports" },
-            "Failed",
-            error,
-        );
+        logger.error({ operation: "getPendingPjumExports" }, "Failed", error);
         return { data: null, error: "Gagal memuat daftar PJUM" };
     }
 }
@@ -191,13 +196,14 @@ export async function getPjumExportDetail(
             orderBy: { createdAt: "asc" },
         });
 
-        const reportSummaries = reports.map(r => {
+        const reportSummaries = reports.map((r) => {
             const items = (r.items ?? []) as unknown as ReportItemJson[];
             let totalRealisasi = 0;
             for (const item of items) {
                 if (item.realisasiItems && item.realisasiItems.length > 0) {
                     for (const real of item.realisasiItems) {
-                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                        totalRealisasi +=
+                            (real.quantity || 0) * (real.price || 0);
                     }
                 }
             }
@@ -238,11 +244,7 @@ export async function getPjumExportDetail(
 
         return { data, error: null };
     } catch (error) {
-        logger.error(
-            { operation: "getPjumExportDetail", id },
-            "Failed",
-            error,
-        );
+        logger.error({ operation: "getPjumExportDetail", id }, "Failed", error);
         return { data: null, error: "Gagal memuat detail PJUM" };
     }
 }
@@ -287,13 +289,10 @@ const approveSchema = z.object({
     bankAccountNo: z.string().min(1, "No. Rekening wajib diisi"),
     bankAccountName: z.string().min(1, "Atas Nama wajib diisi"),
     bankName: z.string().min(1, "Nama Bank wajib diisi"),
-    pumWeekNumber: z
-        .number()
-        .int()
-        .min(1, "Minggu ke minimal 1")
-        .max(5, "Minggu ke maksimal 5"),
-    pumMonth: z.string().min(1, "Bulan PUM wajib diisi"),
-    pumYear: z.number().int().min(2024).max(2099),
+    // PUM fields now optional (PUM feature disabled per business request)
+    pumWeekNumber: z.number().int().min(1).max(5).optional(),
+    pumMonth: z.string().optional(),
+    pumYear: z.number().int().min(2024).max(2099).optional(),
 });
 
 /**
@@ -305,9 +304,9 @@ export async function approvePjumExport(input: {
     bankAccountNo: string;
     bankAccountName: string;
     bankName: string;
-    pumWeekNumber: number;
-    pumMonth: string;
-    pumYear: number;
+    pumWeekNumber?: number;
+    pumMonth?: string;
+    pumYear?: number;
 }): Promise<{ error: string | null }> {
     const startTime = Date.now();
     try {
@@ -373,19 +372,20 @@ export async function approvePjumExport(input: {
             where: { reportNumber: { in: pjumExport.reportNumbers } },
             select: { items: true },
         });
-        
+
         let totalExpenditure = 0;
         for (const r of reports) {
             const items = (r.items ?? []) as unknown as ReportItemJson[];
             for (const item of items) {
                 if (item.realisasiItems && item.realisasiItems.length > 0) {
                     for (const real of item.realisasiItems) {
-                        totalExpenditure += (real.quantity || 0) * (real.price || 0);
+                        totalExpenditure +=
+                            (real.quantity || 0) * (real.price || 0);
                     }
                 }
             }
         }
-        
+
         pjumFormData.totalExpenditure = totalExpenditure;
 
         // Generate final PDF with form pages

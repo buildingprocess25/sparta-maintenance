@@ -1491,10 +1491,83 @@ function buildReportDocument(
 
                     // Receipt photos in 2-column grid
                     hasReceipts
-                        ? renderPhotoGrid2Col(
-                              data.startReceiptUrls,
-                              "Nota / Struk Belanja",
-                              dimensionMap,
+                        ? React.createElement(
+                              View,
+                              { style: { marginBottom: 8 } },
+                              renderPhotoGrid2Col(
+                                  data.startReceiptUrls,
+                                  "Nota / Struk Belanja",
+                                  dimensionMap,
+                              ),
+                              // Store info below receipt photos
+                              (() => {
+                                  // Extract unique stores from completion items
+                                  const completionItems = data.items.filter(
+                                      (i) =>
+                                          i.materialStores &&
+                                          i.materialStores.length > 0,
+                                  );
+                                  if (completionItems.length === 0) return null;
+
+                                  const stores = new Map<
+                                      string,
+                                      { name: string; city: string }
+                                  >();
+                                  for (const item of completionItems) {
+                                      item.materialStores?.forEach((store) => {
+                                          stores.set(
+                                              `${store.name}-${store.city}`,
+                                              store,
+                                          );
+                                      });
+                                  }
+
+                                  if (stores.size === 0) return null;
+
+                                  return React.createElement(
+                                      View,
+                                      {
+                                          style: {
+                                              backgroundColor: "#fffbeb",
+                                              borderLeft: "2px solid #d97706",
+                                              paddingVertical: 4,
+                                              paddingHorizontal: 6,
+                                              marginTop: 4,
+                                          },
+                                      },
+                                      React.createElement(
+                                          Text,
+                                          {
+                                              style: {
+                                                  fontSize: 7,
+                                                  fontFamily: "Helvetica-Bold",
+                                                  color: "#92400e",
+                                                  marginBottom: 3,
+                                              },
+                                          },
+                                          "Toko Material",
+                                      ),
+                                      ...Array.from(stores.values()).map(
+                                          (store, idx) =>
+                                              React.createElement(
+                                                  Text,
+                                                  {
+                                                      key: idx,
+                                                      style: {
+                                                          fontSize: 7,
+                                                          color: "#92400e",
+                                                          marginBottom:
+                                                              idx <
+                                                              stores.size - 1
+                                                                  ? 2
+                                                                  : 0,
+                                                      },
+                                                  },
+                                                  `${store.name}, ${store.city}`,
+                                              ),
+                                      ),
+                                  );
+                              })(),
                           )
                         : null,
 
@@ -1930,12 +2003,14 @@ function buildReportDocument(
                         const existingIdx = processedStamps.findIndex((s) =>
                             ESTIMATION_ACTIONS.includes(s.action),
                         );
-                        if (existingIdx !== -1) processedStamps.splice(existingIdx, 1);
+                        if (existingIdx !== -1)
+                            processedStamps.splice(existingIdx, 1);
                     } else if (WORK_ACTIONS.includes(stamp.action)) {
                         const existingIdx = processedStamps.findIndex((s) =>
                             WORK_ACTIONS.includes(s.action),
                         );
-                        if (existingIdx !== -1) processedStamps.splice(existingIdx, 1);
+                        if (existingIdx !== -1)
+                            processedStamps.splice(existingIdx, 1);
                     }
                     processedStamps.push(stamp);
                 }

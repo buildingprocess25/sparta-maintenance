@@ -79,7 +79,10 @@ export async function reviewCompletion(
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
-                data: { status: newStatus },
+                data: {
+                    status: newStatus,
+                    ...(decision === "approve" && { finishedAt: new Date() }),
+                },
             }),
             prisma.approvalLog.create({
                 data: {

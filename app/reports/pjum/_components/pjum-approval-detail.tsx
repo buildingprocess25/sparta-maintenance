@@ -133,10 +133,7 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
             toast.error("Informasi rekening wajib diisi");
             return;
         }
-        if (!pumMonth) {
-            toast.error("Bulan PUM wajib dipilih");
-            return;
-        }
+        // PUM validation removed (feature disabled)
 
         startApproveTransition(async () => {
             const result = await approvePjumExport({
@@ -144,9 +141,7 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                 bankAccountNo: bankAccountNo.trim(),
                 bankAccountName: bankAccountName.trim(),
                 bankName: bankName.trim(),
-                pumWeekNumber,
-                pumMonth,
-                pumYear,
+                // PUM fields no longer required (feature disabled)
             });
 
             if (result.error) {
@@ -631,117 +626,13 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                         </div>
                                     </div>
 
-                                    {/* PUM period fields */}
-                                    <div className="space-y-3 pt-2 border-t">
+                                    {/* PUM feature disabled - per business request */}
+                                    {/* <div className="space-y-3 pt-2 border-t">
                                         <Label className="text-sm font-semibold">
                                             Keperluan PUM
                                         </Label>
-                                        <div className="grid grid-cols-3 gap-3">
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor="pumWeekNumber"
-                                                    className="text-xs"
-                                                >
-                                                    Minggu ke{" "}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <Select
-                                                    value={String(
-                                                        pumWeekNumber,
-                                                    )}
-                                                    onValueChange={(v) =>
-                                                        setPumWeekNumber(
-                                                            Number(v),
-                                                        )
-                                                    }
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {[1, 2, 3, 4, 5].map(
-                                                            (w) => (
-                                                                <SelectItem
-                                                                    key={w}
-                                                                    value={String(
-                                                                        w,
-                                                                    )}
-                                                                >
-                                                                    Minggu {w}
-                                                                </SelectItem>
-                                                            ),
-                                                        )}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor="pumMonth"
-                                                    className="text-xs"
-                                                >
-                                                    Bulan{" "}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <Select
-                                                    value={pumMonth}
-                                                    onValueChange={setPumMonth}
-                                                >
-                                                    <SelectTrigger>
-                                                        <SelectValue placeholder="Bulan" />
-                                                    </SelectTrigger>
-                                                    <SelectContent>
-                                                        {MONTHS.map((m) => (
-                                                            <SelectItem
-                                                                key={m}
-                                                                value={m}
-                                                            >
-                                                                {m}
-                                                            </SelectItem>
-                                                        ))}
-                                                    </SelectContent>
-                                                </Select>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label
-                                                    htmlFor="pumYear"
-                                                    className="text-xs"
-                                                >
-                                                    Tahun{" "}
-                                                    <span className="text-red-500">
-                                                        *
-                                                    </span>
-                                                </Label>
-                                                <Input
-                                                    id="pumYear"
-                                                    type="number"
-                                                    min={2024}
-                                                    max={2099}
-                                                    value={pumYear}
-                                                    onChange={(e) =>
-                                                        setPumYear(
-                                                            Number(
-                                                                e.target.value,
-                                                            ),
-                                                        )
-                                                    }
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Keperluan — hardcoded display */}
-                                        <div className="space-y-2">
-                                            <Label className="text-xs">
-                                                Keperluan
-                                            </Label>
-                                            <div className="px-3 py-2.5 rounded-md bg-muted/60 text-sm text-muted-foreground border border-muted">
-                                                {keperluanText}
-                                            </div>
-                                        </div>
-                                    </div>
+                                        ... (PUM fields removed)
+                                    </div> */}
                                 </CardContent>
                             </Card>
                         ) : (

@@ -9,6 +9,7 @@
         "lint": "eslint",
         "auth:google": "tsx scripts/generate-google-refresh-token.ts",
         "test:gdrive": "tsx scripts/test-google-drive.ts",
+        "cleanup:pending": "tsx scripts/cleanup-pending-reports.ts",
         "db:generate": "prisma generate",
         "db:push": "prisma db push",
         "db:studio": "prisma studio",

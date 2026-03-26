@@ -126,7 +126,8 @@ model Report {
   startReceiptUrls     Json      @default("[]")  // nota/receipt photos taken at start
 
   // Completion data
-  completionSelfieUrl  String?   // selfie photo taken by BMS at finish
+  completionNotes      String?   // notes during completion
+  finishedAt           DateTime? // when report was marked as finished/completed
 
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?

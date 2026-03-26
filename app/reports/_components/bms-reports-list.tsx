@@ -68,6 +68,7 @@ export type ReportData = {
     totalEstimation: number;
     createdAt: Date;
     updatedAt: Date;
+    finishedAt: Date | null;
     rusakCount: number;
     _count: {
         items: number;
@@ -513,6 +514,7 @@ export default function BmsReportsList({
                                             Toko & Cabang
                                         </TableHead>
                                         <TableHead>Tanggal</TableHead>
+                                        <TableHead>Selesai</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">
                                             Estimasi
@@ -554,6 +556,13 @@ export default function BmsReportsList({
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {formatDate(report.createdAt)}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {report.finishedAt
+                                                    ? formatDate(
+                                                          report.finishedAt,
+                                                      )
+                                                    : "—"}
                                             </TableCell>
                                             <TableCell>
                                                 {getStatusBadge(report.status)}

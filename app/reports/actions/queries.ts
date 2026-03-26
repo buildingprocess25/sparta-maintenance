@@ -267,6 +267,7 @@ export async function getApprovalReports(params: {
                 totalEstimation: true,
                 createdAt: true,
                 updatedAt: true,
+                finishedAt: true,
                 createdBy: {
                     select: { name: true },
                 },
