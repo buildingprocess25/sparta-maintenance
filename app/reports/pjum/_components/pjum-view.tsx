@@ -158,7 +158,7 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none whitespace-nowrap"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Estimasi
+                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Estimasi
                 </Badge>
             );
         case "ESTIMATION_APPROVED":
@@ -242,7 +242,7 @@ const STATUS_BADGE_MOBILE: Record<string, string> = {
 };
 
 const STATUS_LABEL_MOBILE: Record<string, string> = {
-    PENDING_ESTIMATION: "Menunggu Estimasi",
+    PENDING_ESTIMATION: "Menunggu Persetujuan Estimasi",
     ESTIMATION_APPROVED: "Estimasi Disetujui",
     ESTIMATION_REJECTED_REVISION: "Est. Ditolak (Revisi)",
     ESTIMATION_REJECTED: "Est. Ditolak",

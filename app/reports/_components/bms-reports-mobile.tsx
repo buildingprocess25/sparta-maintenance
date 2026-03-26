@@ -19,7 +19,7 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
         bar: "bg-gray-300",
     },
     PENDING_ESTIMATION: {
-        label: "Menunggu Estimasi",
+        label: "Menunggu Persetujuan Estimasi",
         badge: "bg-yellow-100 text-yellow-700",
         bar: "bg-yellow-400",
     },

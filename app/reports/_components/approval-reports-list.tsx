@@ -402,7 +402,7 @@ export function ApprovalReportsList({
                                     const statusLabel: Record<string, string> =
                                         {
                                             PENDING_ESTIMATION:
-                                                "Menunggu Estimasi",
+                                                "Menunggu Persetujuan Estimasi",
                                             ESTIMATION_APPROVED:
                                                 "Estimasi Disetujui",
                                             ESTIMATION_REJECTED_REVISION:

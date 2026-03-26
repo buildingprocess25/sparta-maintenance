@@ -36,16 +36,17 @@ const MENUS: DashboardMenuItem[] = [
         variant: "outline",
     },
     {
-        title: "Arsip Laporan Selesai",
-        description: "Buka folder arsip laporan selesai cabang di Google Drive",
+        title: "Arsip Dokumen Laporan Selesai",
+        description:
+            "Buka folder arsip dokumen laporan selesai cabang di Google Drive",
         icon: Archive,
         href: "/api/drive/report-archive",
         variant: "outline",
         newTab: true,
     },
     {
-        title: "Arsip PJUM",
-        description: "Buka folder arsip PJUM cabang di Google Drive",
+        title: "Arsip Dokumen PJUM",
+        description: "Buka folder arsip dokumen PJUM cabang di Google Drive",
         icon: Archive,
         href: "/api/drive/pjum-archive",
         variant: "outline",
