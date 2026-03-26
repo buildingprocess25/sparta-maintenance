@@ -8,15 +8,34 @@ Sistem Pelaporan dan Tracking Aset Maintenance untuk PT Sumber Alfaria Trijaya. 
 
 ```bash
 npm run dev           # start dev server
-npm run db:push       # push schema changes (uses DIRECT_URL via prisma.config.ts)
 npm run db:generate   # regenerate Prisma client after schema changes
 npm run db:studio     # Prisma Studio GUI
 npm run create-user   # create user via CLI (tsx scripts/create-user.ts)
 npm run db:seed       # seed DB
 ```
 
-Always run `db:push && db:generate` together after editing `prisma/schema.prisma`.
+Never use `db:push` in this project. Use migration workflow only:
+
+1. create migration (`npx prisma migrate dev --name <migration_name>`)
+2. review SQL
+3. run migration on target environment (`npx prisma migrate deploy`)
+4. run `db:generate`
+
 `prisma.config.ts` feeds `DIRECT_URL` (non-pooled) to Prisma CLI — this is separate from `DATABASE_URL` (pooled, used at runtime).
+
+## Data Safety Policy (Hard Stop)
+
+- Absolutely reject destructive data operations by default.
+- Forbidden commands/patterns unless user gives explicit written approval and confirms backup/restore availability:
+    - `prisma db push --force-reset`
+    - `prisma db push`
+    - `prisma migrate reset`
+    - `DROP`, `TRUNCATE`, mass `DELETE`, or any operation that can remove production data
+- Before any potentially destructive DB action, the agent must:
+    1. stop and warn about irreversible impact,
+    2. ask for explicit confirmation,
+    3. require a backup + restore plan,
+    4. if any item is missing, refuse the action.
 
 ## UI Design Approach
 
@@ -137,7 +156,7 @@ const handleAction = () =>
 - `ReportStatus` enum — 10 values; always filter DRAFT out from branch-scoped queries
 - `ActivityAction` enum — 11 values for audit trail
 - `branchNames` is `String[]` on User — BMC/BNM scope all queries with `branchName: { in: branchNames }`
-- Run schema changes: `npm run db:push && npm run db:generate`
+- Run schema changes with migration workflow only (never `db:push`)
 
 ## Development
 
