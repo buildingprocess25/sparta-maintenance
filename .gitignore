@@ -20,6 +20,8 @@
 # production
 /build
 
+/backup
+
 # .agent
 .agents
 .github/skills

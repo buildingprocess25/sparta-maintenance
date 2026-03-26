@@ -9,12 +9,11 @@
         "lint": "eslint",
         "auth:google": "tsx scripts/generate-google-refresh-token.ts",
         "test:gdrive": "tsx scripts/test-google-drive.ts",
+        "backup:db": "tsx scripts/backup-db.ts",
         "cleanup:pending": "tsx scripts/cleanup-pending-reports.ts",
         "db:generate": "prisma generate",
-        "db:push": "prisma db push",
         "db:studio": "prisma studio",
         "db:seed": "tsx prisma/seed.ts",
-        "db:reset": "prisma migrate reset",
         "postinstall": "prisma generate"
     },
     "dependencies": {
@@ -62,6 +61,7 @@
         "eslint": "^9",
         "eslint-config-next": "16.1.6",
         "prisma": "^7.4.0",
+        "supabase": "^2.84.4",
         "tailwindcss": "^4",
         "tsx": "^4.21.0",
         "typescript": "^5"
