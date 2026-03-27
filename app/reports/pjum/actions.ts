@@ -15,7 +15,7 @@ export type PjumBmsUser = {
 
 export type PjumReportRow = {
     reportNumber: string;
-    createdAt: string; // ISO string
+    finishedAt: string; // ISO string
     storeName: string;
     storeCode: string | null;
     branchName: string;
@@ -121,7 +121,7 @@ export async function searchPjumReports(
 
             return {
                 reportNumber: r.reportNumber,
-                createdAt: (r.finishedAt ?? new Date()).toISOString(), // finishedAt is required by query filter
+                finishedAt: (r.finishedAt ?? new Date()).toISOString(), // finishedAt is required by query filter
                 storeName: r.storeName,
                 storeCode: r.storeCode,
                 branchName: r.branchName,

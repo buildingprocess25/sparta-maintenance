@@ -48,6 +48,7 @@ export async function submitCompletionWork(
                 createdByNIK: true,
                 status: true,
                 items: true,
+                startSelfieUrl: true,
             },
         });
 
@@ -95,11 +96,16 @@ export async function submitCompletionWork(
                 ? "RESUBMITTED_WORK"
                 : "COMPLETION_SUBMITTED";
 
-        // Store selfie URLs: JSON array string (supports multiple; backward compat when 1)
+        // Keep previous start selfie when completion form doesn't send new selfies.
+        const validSelfieUrls = selfieUrls.filter(
+            (url) => url.trim().length > 0,
+        );
         const selfieUrlValue =
-            selfieUrls.length === 1
-                ? selfieUrls[0]
-                : JSON.stringify(selfieUrls);
+            validSelfieUrls.length > 0
+                ? validSelfieUrls.length === 1
+                    ? validSelfieUrls[0]
+                    : JSON.stringify(validSelfieUrls)
+                : report.startSelfieUrl;
 
         await prisma.$transaction([
             prisma.report.update({

@@ -7,10 +7,12 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import type { MaterialStoreJson } from "@/types/report";
 
 export interface StartWorkPhotoInput {
     selfieUrls: string[];
     receiptUrls: string[];
+    materialStores: MaterialStoreJson[];
 }
 
 /**
@@ -46,11 +48,30 @@ export async function startWorkWithPhotos(
             };
         }
 
-        // Store selfie URLs: single string or JSON array (backward compat with completionSelfieUrl pattern)
+        const validSelfieUrls = photos.selfieUrls.filter(
+            (url) => url.trim().length > 0,
+        );
+        if (validSelfieUrls.length === 0) {
+            return {
+                error: "Foto selfie wajib diunggah sebelum memulai pengerjaan",
+            };
+        }
+
+        const validReceiptUrls = photos.receiptUrls.filter(
+            (url) => url.trim().length > 0,
+        );
+        const validMaterialStores = photos.materialStores
+            .map((store) => ({
+                name: store.name.trim(),
+                city: store.city.trim(),
+            }))
+            .filter((store) => store.name.length > 0 && store.city.length > 0);
+
+        // Store selfie URLs as plain URL (single) or JSON array (multiple).
         const selfieUrlValue =
-            photos.selfieUrls.length === 1
-                ? photos.selfieUrls[0]
-                : JSON.stringify(photos.selfieUrls);
+            validSelfieUrls.length === 1
+                ? validSelfieUrls[0]
+                : JSON.stringify(validSelfieUrls);
 
         await prisma.$transaction([
             prisma.report.update({
@@ -59,7 +80,9 @@ export async function startWorkWithPhotos(
                     status: ReportStatus.IN_PROGRESS,
                     startSelfieUrl: selfieUrlValue || null,
                     startReceiptUrls:
-                        photos.receiptUrls as unknown as Prisma.InputJsonValue,
+                        validReceiptUrls as unknown as Prisma.InputJsonValue,
+                    startMaterialStores:
+                        validMaterialStores as unknown as Prisma.InputJsonValue,
                 },
             }),
             prisma.activityLog.create({

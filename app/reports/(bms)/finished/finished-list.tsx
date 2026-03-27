@@ -42,6 +42,7 @@ type ReportData = {
     status: string;
     totalEstimation: number;
     createdAt: Date;
+    finishedAt: Date | null;
     updatedAt: Date;
     _count: {
         items: number;
@@ -149,6 +150,17 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                                 </span>
                                             </div>
                                             <div className="flex items-center gap-2">
+                                                <Calendar className="h-3.5 w-3.5 shrink-0" />
+                                                <span>
+                                                    Selesai:{" "}
+                                                    {report.finishedAt
+                                                        ? formatDate(
+                                                              report.finishedAt,
+                                                          )
+                                                        : "—"}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
                                                 <Clock className="h-3.5 w-3.5 shrink-0" />
                                                 <span>
                                                     {formatCurrency(
@@ -192,7 +204,13 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                         </TableHead>
                                         <TableHead>
                                             <div className="flex items-center gap-1 cursor-pointer hover:text-foreground">
-                                                Tanggal{" "}
+                                                Dilaporkan{" "}
+                                                <ArrowUpDown className="h-3 w-3" />
+                                            </div>
+                                        </TableHead>
+                                        <TableHead>
+                                            <div className="flex items-center gap-1 cursor-pointer hover:text-foreground">
+                                                Selesai{" "}
                                                 <ArrowUpDown className="h-3 w-3" />
                                             </div>
                                         </TableHead>
@@ -228,6 +246,13 @@ export default function FinishedList({ reports, total }: FinishedListProps) {
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {formatDate(report.createdAt)}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-muted-foreground">
+                                                {report.finishedAt
+                                                    ? formatDate(
+                                                          report.finishedAt,
+                                                      )
+                                                    : "—"}
                                             </TableCell>
                                             <TableCell>
                                                 <Badge

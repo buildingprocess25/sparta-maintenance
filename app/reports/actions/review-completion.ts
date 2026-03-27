@@ -12,6 +12,7 @@ import path from "path";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import { uploadCompletedReportToDrive } from "@/lib/google-drive/archive";
+import { parseMaterialStores } from "@/lib/report-material-stores";
 
 type ReviewDecision = "approve" | "reject_revision";
 
@@ -142,6 +143,9 @@ export async function reviewCompletion(
                         });
 
                     const submittedAt = formatDate(reportWithDetails.createdAt);
+                    const finishedAt = reportWithDetails.finishedAt
+                        ? formatDate(reportWithDetails.finishedAt)
+                        : undefined;
 
                     const STAMP_ACTIONS = [
                         "ESTIMATION_APPROVED",
@@ -179,6 +183,9 @@ export async function reviewCompletion(
                             (rawReceipts as string).startsWith("[")
                           ? (JSON.parse(rawReceipts as string) as string[])
                           : [];
+                    const startMaterialStores = parseMaterialStores(
+                        reportWithDetails.startMaterialStores,
+                    );
 
                     const completionLog = reportWithDetails.activities.find(
                         (l) =>
@@ -199,6 +206,7 @@ export async function reviewCompletion(
                         submittedBy: reportWithDetails.createdBy.name,
                         submittedByNIK: reportWithDetails.createdByNIK,
                         submittedAt,
+                        finishedAt,
                         items,
                         estimations,
                         totalEstimation: Number(
@@ -208,6 +216,7 @@ export async function reviewCompletion(
                         buildingLogoBase64: BUILDING_LOGO_BASE64,
                         completionSelfieUrls,
                         startReceiptUrls,
+                        startMaterialStores,
                         completionNotes,
                         approval: {
                             reportStatus: reportWithDetails.status,

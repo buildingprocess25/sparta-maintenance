@@ -3,6 +3,7 @@ import { requireAuth } from "@/lib/authorization";
 import prisma from "@/lib/prisma";
 import { ReportDetailView } from "./report-detail-view";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import { parseMaterialStores } from "@/lib/report-material-stores";
 
 type Props = {
     params: Promise<{ reportNumber: string }>;
@@ -46,14 +47,36 @@ export default async function ReportDetailPage({ params }: Props) {
     // Parse selvie URL — stored as plain URL (1 photo) or JSON array (multiple)
     function parseUrlField(raw: string | null | undefined): string[] {
         if (!raw) return [];
-        if (raw.startsWith("[")) {
+        const trimmed = raw.trim();
+
+        if (trimmed === "[]") return [];
+
+        if (trimmed.startsWith("[")) {
             try {
-                return JSON.parse(raw) as string[];
+                const parsed = JSON.parse(trimmed);
+                return Array.isArray(parsed)
+                    ? parsed.filter(
+                          (url): url is string =>
+                              typeof url === "string" && url.trim().length > 0,
+                      )
+                    : [];
             } catch {
                 return [];
             }
         }
-        return [raw];
+
+        if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (typeof parsed === "string" && parsed.trim().length > 0) {
+                    return [parsed];
+                }
+            } catch {
+                return [];
+            }
+        }
+
+        return trimmed.length > 0 ? [trimmed] : [];
     }
 
     // Parse receipt URLs — stored as JSONB array, but may come back as a JSON
@@ -94,6 +117,9 @@ export default async function ReportDetailPage({ params }: Props) {
                 })),
                 startSelfieUrls: parseUrlField(report.startSelfieUrl),
                 startReceiptUrls: parseJsonArray(report.startReceiptUrls),
+                startMaterialStores: parseMaterialStores(
+                    report.startMaterialStores,
+                ),
             }}
             viewer={{ role: user.role, nik: user.NIK }}
         />

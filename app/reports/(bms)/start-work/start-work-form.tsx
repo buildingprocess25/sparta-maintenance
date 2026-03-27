@@ -307,7 +307,7 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
             (materialStores.length === 0 ||
                 materialStores.some((s) => !s.name.trim() || !s.city.trim()))
         ) {
-            toast.error("Semua toko material harus memiliki nama dan kota");
+            toast.error("Semua toko material harus memiliki nama dan alamat");
             return;
         }
 
@@ -359,6 +359,10 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
             const result = await startWorkWithPhotos(rn, {
                 selfieUrls: uploadedSelfieUrls,
                 receiptUrls: uploadedReceiptUrls,
+                materialStores: materialStores.map((store) => ({
+                    name: store.name.trim(),
+                    city: store.city.trim(),
+                })),
             });
 
             toast.dismiss(loadingId);
@@ -578,10 +582,10 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
                                                 </div>
                                                 <div>
                                                     <Label className="text-xs text-muted-foreground mb-1 block">
-                                                        Kota
+                                                        Alamat
                                                     </Label>
                                                     <Input
-                                                        placeholder="Kota..."
+                                                        placeholder="Alamat..."
                                                         value={store.city}
                                                         onChange={(e) =>
                                                             handleStoreChange(

@@ -12,6 +12,7 @@ import {
 } from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { PDFDocument } from "pdf-lib";
+import { parseMaterialStores } from "@/lib/report-material-stores";
 
 const _assetsDir = path.join(process.cwd(), "public", "assets");
 let ALFAMART_LOGO_BASE64 = "";
@@ -56,6 +57,7 @@ export async function generatePjumPackagePdf(params: {
         select: {
             reportNumber: true,
             createdAt: true,
+            finishedAt: true,
             storeName: true,
             storeCode: true,
             branchName: true,
@@ -66,7 +68,7 @@ export async function generatePjumPackagePdf(params: {
             createdBy: { select: { name: true } },
             pjumExportedAt: true,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { finishedAt: "asc" },
     });
 
     if (reports.length === 0) {
@@ -130,7 +132,7 @@ export async function generatePjumPackagePdf(params: {
 
             return {
                 reportNumber: r.reportNumber,
-                createdAt: r.createdAt.toISOString(),
+                createdAt: (r.finishedAt ?? r.createdAt).toISOString(),
                 storeName: r.storeName,
                 storeCode: r.storeCode,
                 branchName: r.branchName,
@@ -157,7 +159,7 @@ export async function generatePjumPackagePdf(params: {
                 },
             },
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { finishedAt: "asc" },
     });
 
     const STAMP_ACTIONS = [
@@ -195,6 +197,9 @@ export async function generatePjumPackagePdf(params: {
                 hour: "2-digit",
                 minute: "2-digit",
             });
+            const finishedAt = report.finishedAt
+                ? formatDate(report.finishedAt)
+                : undefined;
 
             const stamps = report.activities
                 .filter((l) => STAMP_ACTIONS.includes(l.action))
@@ -221,6 +226,9 @@ export async function generatePjumPackagePdf(params: {
                     (rawReceipts as string).startsWith("[")
                   ? (JSON.parse(rawReceipts as string) as string[])
                   : [];
+            const startMaterialStores = parseMaterialStores(
+                report.startMaterialStores,
+            );
 
             const completionLog = report.activities.find(
                 (l) =>
@@ -237,6 +245,7 @@ export async function generatePjumPackagePdf(params: {
                 submittedBy: report.createdBy.name,
                 submittedByNIK: report.createdByNIK,
                 submittedAt,
+                finishedAt,
                 items,
                 estimations,
                 totalEstimation: Number(report.totalEstimation),
@@ -244,6 +253,7 @@ export async function generatePjumPackagePdf(params: {
                 buildingLogoBase64: BUILDING_LOGO_BASE64,
                 completionSelfieUrls,
                 startReceiptUrls,
+                startMaterialStores,
                 completionNotes,
                 approval: {
                     reportStatus: report.status,

@@ -1,4 +1,8 @@
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import type {
+    ReportItemJson,
+    MaterialEstimationJson,
+    MaterialStoreJson,
+} from "@/types/report";
 
 export type ActivityEntry = {
     action: string;
@@ -22,6 +26,7 @@ export type ReportData = {
     activities: ActivityEntry[];
     startSelfieUrls: string[];
     startReceiptUrls: string[];
+    startMaterialStores: MaterialStoreJson[];
 };
 
 export type Viewer = { role: string; nik: string };

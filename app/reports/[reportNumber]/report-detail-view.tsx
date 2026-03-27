@@ -375,6 +375,9 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         startReceiptUrls={
                                             report.startReceiptUrls
                                         }
+                                        startMaterialStores={
+                                            report.startMaterialStores
+                                        }
                                         formatCurrency={formatCurrency}
                                         onPhotoClick={setLightboxSrc}
                                         isReviewer={isBmcReviewer}

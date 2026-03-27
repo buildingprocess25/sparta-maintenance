@@ -18,11 +18,16 @@ export async function GET() {
             branchName: "Cabang Jakarta Pusat",
             submittedBy: "Budi Santoso (BMS)",
             submittedAt: "Senin, 12 Februari 2024 - 14:30",
+            finishedAt: "Rabu, 14 Februari 2024 - 10:30",
             totalEstimation: 1500000,
             alfamartLogoBase64: PLACEHOLDER_LOGO,
             buildingLogoBase64: PLACEHOLDER_LOGO,
             completionSelfieUrls: [],
             startReceiptUrls: [],
+            startMaterialStores: [
+                { name: "TB Makmur Jaya", city: "Jakarta" },
+                { name: "Sumber Bangunan", city: "Depok" },
+            ],
             completionNotes: undefined,
             approval: {
                 reportStatus: "COMPLETED",

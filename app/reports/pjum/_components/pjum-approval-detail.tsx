@@ -359,6 +359,20 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                                 <p className="text-xs font-mono text-muted-foreground mt-0.5">
                                                     {r.reportNumber}
                                                 </p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
+                                                    Selesai:{" "}
+                                                    {r.finishedAt
+                                                        ? format(
+                                                              new Date(
+                                                                  r.finishedAt,
+                                                              ),
+                                                              "dd MMM yyyy",
+                                                              {
+                                                                  locale: localeId,
+                                                              },
+                                                          )
+                                                        : "—"}
+                                                </p>
                                             </div>
                                             <span className="text-sm font-medium whitespace-nowrap">
                                                 Rp{" "}
@@ -391,6 +405,7 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                                     No Laporan
                                                 </TableHead>
                                                 <TableHead>Toko</TableHead>
+                                                <TableHead>Selesai</TableHead>
                                                 <TableHead className="text-right">
                                                     Realisasi
                                                 </TableHead>
@@ -411,6 +426,19 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                                             : ""}
                                                         {r.storeName}
                                                     </TableCell>
+                                                    <TableCell className="text-muted-foreground">
+                                                        {r.finishedAt
+                                                            ? format(
+                                                                  new Date(
+                                                                      r.finishedAt,
+                                                                  ),
+                                                                  "dd MMM yyyy",
+                                                                  {
+                                                                      locale: localeId,
+                                                                  },
+                                                              )
+                                                            : "—"}
+                                                    </TableCell>
                                                     <TableCell className="text-right">
                                                         Rp{" "}
                                                         {fmtCurrency(
@@ -421,7 +449,7 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                             ))}
                                             <TableRow className="bg-muted/30 font-semibold">
                                                 <TableCell
-                                                    colSpan={3}
+                                                    colSpan={4}
                                                     className="text-right"
                                                 >
                                                     Total Realisasi

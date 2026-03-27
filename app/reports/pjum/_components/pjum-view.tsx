@@ -611,12 +611,13 @@ export function PjumView({ bmsUsers }: Props) {
                                                             {r.reportNumber}
                                                         </span>
                                                     </div>
-                                                    {/* Row 4: date + estimation */}
+                                                    {/* Row 4: completion date + estimation */}
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span className="flex items-center gap-1">
                                                             <CalendarDays className="h-3 w-3 shrink-0" />
+                                                            Selesai:{" "}
                                                             {formatDate(
-                                                                r.createdAt,
+                                                                r.finishedAt,
                                                             )}
                                                         </span>
                                                         {r.totalRealisasi >
@@ -657,7 +658,7 @@ export function PjumView({ bmsUsers }: Props) {
                                                     Nomor Laporan
                                                 </TableHead>
                                                 <TableHead>Toko</TableHead>
-                                                <TableHead>Tanggal</TableHead>
+                                                <TableHead>Selesai</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">
                                                     Total Realisasi
@@ -702,7 +703,7 @@ export function PjumView({ bmsUsers }: Props) {
                                                         </TableCell>
                                                         <TableCell className="text-sm text-muted-foreground">
                                                             {formatDate(
-                                                                r.createdAt,
+                                                                r.finishedAt,
                                                             )}
                                                         </TableCell>
                                                         <TableCell>

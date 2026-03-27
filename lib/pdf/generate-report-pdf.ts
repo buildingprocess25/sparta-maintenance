@@ -9,8 +9,13 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import type {
+    ReportItemJson,
+    MaterialEstimationJson,
+    MaterialStoreJson,
+} from "@/types/report";
 import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
+import { extractMaterialStoresFromItems } from "@/lib/report-material-stores";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -395,38 +400,43 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     completionStoreBadge: {
-        backgroundColor: "#eff6ff",
-        borderRadius: 3,
-        paddingVertical: 3,
+        width: "48%",
+        backgroundColor: "#f9fafb",
+        borderRadius: 4,
+        border: "1px solid #e5e7eb",
+        paddingVertical: 5,
         paddingHorizontal: 7,
+        marginBottom: 6,
     },
     completionStoreName: {
         fontSize: 7.5,
-        color: "#1d4ed8",
+        color: "#111827",
         fontFamily: "Helvetica-Bold",
+        marginBottom: 1,
     },
     completionStoreCity: {
         fontSize: 7,
         color: "#6b7280",
     },
-    // Nota table: header shows store name + city
+    // Nota table: header shows store name + address
     notaTableHeader: {
-        backgroundColor: "#f3f4f6",
-        borderTopLeftRadius: 2,
-        borderTopRightRadius: 2,
-        paddingVertical: 4,
+        backgroundColor: "#fffbeb",
+        borderTopLeftRadius: 4,
+        borderTopRightRadius: 4,
+        paddingVertical: 5,
         paddingHorizontal: 6,
-        marginBottom: 3,
-        borderLeft: "2px solid #9ca3af",
+        marginTop: 6,
+        marginBottom: 6,
+        borderLeft: "3px solid #d97706",
     },
     notaTableStoreName: {
         fontSize: 7.5,
         fontFamily: "Helvetica-Bold",
-        color: "#111827",
+        color: "#92400e",
     },
     notaTableStoreCity: {
         fontSize: 7,
-        color: "#6b7280",
+        color: "#b45309",
     },
     selfieSection: {
         marginTop: 8,
@@ -493,6 +503,7 @@ export type ReportPdfData = {
     submittedBy: string;
     submittedByNIK?: string;
     submittedAt: string;
+    finishedAt?: string;
     items: ReportItemJson[];
     estimations: MaterialEstimationJson[];
     totalEstimation: number;
@@ -500,6 +511,7 @@ export type ReportPdfData = {
     buildingLogoBase64: string;
     completionSelfieUrls: string[];
     startReceiptUrls: string[];
+    startMaterialStores: MaterialStoreJson[];
     completionNotes?: string;
     approval: {
         reportStatus: string;
@@ -523,6 +535,14 @@ function groupEstimationsByItemId(estimations: MaterialEstimationJson[]) {
         groups[est.itemId].push(est);
     }
     return groups;
+}
+
+function getReceiptStores(data: ReportPdfData): MaterialStoreJson[] {
+    if (data.startMaterialStores.length > 0) {
+        return data.startMaterialStores;
+    }
+
+    return extractMaterialStoresFromItems(data.items);
 }
 
 function getStampLabelConfig(action: string): { label: string; color: string } {
@@ -881,6 +901,7 @@ function buildReportDocument(
                         ["Cabang", data.branchName],
                         ["Kode Toko", data.storeCode],
                         ["Tanggal Submit", data.submittedAt],
+                        ["Laporan Selesai", data.finishedAt ?? "—"],
                         ["Item Rusak / NOK", `${rusakItems.length} item`],
                     ].map(([label, value], i) =>
                         React.createElement(
@@ -1501,70 +1522,51 @@ function buildReportDocument(
                               ),
                               // Store info below receipt photos
                               (() => {
-                                  // Extract unique stores from completion items
-                                  const completionItems = data.items.filter(
-                                      (i) =>
-                                          i.materialStores &&
-                                          i.materialStores.length > 0,
-                                  );
-                                  if (completionItems.length === 0) return null;
-
-                                  const stores = new Map<
-                                      string,
-                                      { name: string; city: string }
-                                  >();
-                                  for (const item of completionItems) {
-                                      item.materialStores?.forEach((store) => {
-                                          stores.set(
-                                              `${store.name}-${store.city}`,
-                                              store,
-                                          );
-                                      });
-                                  }
-
-                                  if (stores.size === 0) return null;
+                                  const stores = getReceiptStores(data);
+                                  if (stores.length === 0) return null;
 
                                   return React.createElement(
                                       View,
-                                      {
-                                          style: {
-                                              backgroundColor: "#fffbeb",
-                                              borderLeft: "2px solid #d97706",
-                                              paddingVertical: 4,
-                                              paddingHorizontal: 6,
-                                              marginTop: 4,
-                                          },
-                                      },
+                                      null,
                                       React.createElement(
-                                          Text,
-                                          {
-                                              style: {
-                                                  fontSize: 7,
-                                                  fontFamily: "Helvetica-Bold",
-                                                  color: "#92400e",
-                                                  marginBottom: 3,
+                                          View,
+                                          { style: styles.notaTableHeader },
+                                          React.createElement(
+                                              Text,
+                                              {
+                                                  style: styles.notaTableStoreName,
                                               },
-                                          },
-                                          "Toko Material",
+                                              "Toko Material",
+                                          ),
                                       ),
-                                      ...Array.from(stores.values()).map(
-                                          (store, idx) =>
+                                      React.createElement(
+                                          View,
+                                          {
+                                              style: styles.completionStoreRow,
+                                          },
+                                          ...stores.map((store) =>
                                               React.createElement(
-                                                  Text,
+                                                  View,
                                                   {
-                                                      key: idx,
-                                                      style: {
-                                                          fontSize: 7,
-                                                          color: "#92400e",
-                                                          marginBottom:
-                                                              idx <
-                                                              stores.size - 1
-                                                                  ? 2
-                                                                  : 0,
-                                                      },
+                                                      key: `${store.name}-${store.city}`,
+                                                      style: styles.completionStoreBadge,
                                                   },
-                                                  `${store.name}, ${store.city}`,
+                                                  React.createElement(
+                                                      Text,
+                                                      {
+                                                          style: styles.completionStoreName,
+                                                      },
+                                                      store.name,
+                                                  ),
+                                                  React.createElement(
+                                                      Text,
+                                                      {
+                                                          style: styles.completionStoreCity,
+                                                      },
+                                                      `Alamat: ${store.city}`,
+                                                  ),
                                               ),
+                                          ),
                                       ),
                                   );
                               })(),
@@ -1579,12 +1581,13 @@ function buildReportDocument(
                                   wrap: false,
                                   style: {
                                       ...styles.completionNoteBox,
-                                      marginTop: 6,
+                                      marginTop: 2,
                                   },
                               },
                               React.createElement(
                                   Text,
                                   { style: styles.completionNoteText },
+                                  "Catatan Penyelesaian: ",
                                   data.completionNotes,
                               ),
                           )

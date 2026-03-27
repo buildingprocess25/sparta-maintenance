@@ -18,13 +18,18 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import type {
+    ReportItemJson,
+    MaterialEstimationJson,
+    MaterialStoreJson,
+} from "@/types/report";
 
 type Props = {
     items: ReportItemJson[];
     estimations: MaterialEstimationJson[];
     startSelfieUrls: string[];
     startReceiptUrls: string[];
+    startMaterialStores: MaterialStoreJson[];
     formatCurrency: (n: number) => string;
     onPhotoClick: (src: string) => void;
     /** Pass true when viewer is BMC reviewing PENDING_REVIEW */
@@ -73,6 +78,7 @@ export function CompletionTab({
     estimations,
     startSelfieUrls,
     startReceiptUrls,
+    startMaterialStores,
     formatCurrency,
     onPhotoClick,
     isReviewer = false,
@@ -161,10 +167,38 @@ export function CompletionTab({
                                 ))}
                         </p>
                         {startReceiptUrls.length > 0 ? (
-                            <PhotoGrid
-                                urls={startReceiptUrls}
-                                onPhotoClick={makeClickHandler("nota")}
-                            />
+                            <>
+                                <PhotoGrid
+                                    urls={startReceiptUrls}
+                                    onPhotoClick={makeClickHandler("nota")}
+                                />
+                                {startMaterialStores.length > 0 ? (
+                                    <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-3">
+                                        <div className="mb-3">
+                                            <p className="text-sm font-semibold text-amber-900">
+                                                Toko Material
+                                            </p>
+                                        </div>
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            {startMaterialStores.map(
+                                                (store) => (
+                                                    <div
+                                                        key={`${store.name}-${store.city}`}
+                                                        className="rounded-md border border-border/70 bg-background px-3 py-2"
+                                                    >
+                                                        <p className="text-sm font-medium text-foreground">
+                                                            {store.name}
+                                                        </p>
+                                                        <p className="text-xs text-muted-foreground mt-0.5">
+                                                            Alamat: {store.city}
+                                                        </p>
+                                                    </div>
+                                                ),
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : null}
+                            </>
                         ) : (
                             <EmptyPhotos label="Belum ada foto nota/struk." />
                         )}

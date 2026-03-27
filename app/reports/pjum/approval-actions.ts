@@ -49,6 +49,7 @@ export type PjumExportDetail = {
         reportNumber: string;
         storeName: string;
         storeCode: string | null;
+        finishedAt: string | null;
         totalRealisasi: number;
     }[];
     totalExpenditure: number;
@@ -191,9 +192,10 @@ export async function getPjumExportDetail(
                 reportNumber: true,
                 storeName: true,
                 storeCode: true,
+                finishedAt: true,
                 items: true,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { finishedAt: "asc" },
         });
 
         const reportSummaries = reports.map((r) => {
@@ -211,6 +213,7 @@ export async function getPjumExportDetail(
                 reportNumber: r.reportNumber,
                 storeName: r.storeName,
                 storeCode: r.storeCode,
+                finishedAt: r.finishedAt ? r.finishedAt.toISOString() : null,
                 totalRealisasi,
             };
         });
@@ -237,6 +240,7 @@ export async function getPjumExportDetail(
                 reportNumber: r.reportNumber,
                 storeName: r.storeName,
                 storeCode: r.storeCode,
+                finishedAt: r.finishedAt,
                 totalRealisasi: r.totalRealisasi,
             })),
             totalExpenditure,

@@ -5,7 +5,11 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import { getAuthUser } from "@/lib/authorization";
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import type {
+    ReportItemJson,
+    MaterialEstimationJson,
+} from "@/types/report";
+import { parseMaterialStores } from "@/lib/report-material-stores";
 
 // Load logos once at module initialization — avoids disk I/O on every request
 const _assetsDir = path.join(process.cwd(), "public", "assets");
@@ -104,6 +108,17 @@ export async function GET(
             hour: "2-digit",
             minute: "2-digit",
         });
+        const finishedAt = report.finishedAt
+            ? report.finishedAt.toLocaleDateString("id-ID", {
+                  timeZone: "Asia/Jakarta",
+                  weekday: "long",
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+              })
+            : undefined;
 
         const formatDate = (d: Date) =>
             d.toLocaleDateString("id-ID", {
@@ -141,11 +156,37 @@ export async function GET(
         // Parse selfie URLs — now stored in startSelfieUrl (set at start-work).
         // Format: plain URL (1 photo) or JSON-stringified array (multiple photos).
         const rawSelfie = report.startSelfieUrl;
-        const completionSelfieUrls: string[] = rawSelfie
-            ? rawSelfie.startsWith("[")
-                ? (JSON.parse(rawSelfie) as string[])
-                : [rawSelfie]
-            : [];
+        const completionSelfieUrls: string[] = (() => {
+            if (!rawSelfie) return [];
+            const trimmed = rawSelfie.trim();
+            if (trimmed === "[]") return [];
+            if (trimmed.startsWith("[")) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return Array.isArray(parsed)
+                        ? parsed.filter(
+                              (url): url is string =>
+                                  typeof url === "string" &&
+                                  url.trim().length > 0,
+                          )
+                        : [];
+                } catch {
+                    return [];
+                }
+            }
+            if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    return typeof parsed === "string" &&
+                        parsed.trim().length > 0
+                        ? [parsed]
+                        : [];
+                } catch {
+                    return [];
+                }
+            }
+            return trimmed.length > 0 ? [trimmed] : [];
+        })();
 
         // Parse start-work receipt URLs — stored as JSONB, may come back as a
         // raw JSON string from the DB driver. Handle both forms defensively.
@@ -156,6 +197,9 @@ export async function GET(
                 (rawReceipts as string).startsWith("[")
               ? (JSON.parse(rawReceipts as string) as string[])
               : [];
+        const startMaterialStores = parseMaterialStores(
+            report.startMaterialStores,
+        );
 
         // Pull completion notes from the activity log
         const completionLog = report.activities.find(
@@ -173,6 +217,7 @@ export async function GET(
             submittedBy: report.createdBy.name,
             submittedByNIK: report.createdByNIK,
             submittedAt,
+            finishedAt,
             items,
             estimations,
             totalEstimation: Number(report.totalEstimation),
@@ -180,6 +225,7 @@ export async function GET(
             buildingLogoBase64: BUILDING_LOGO_BASE64,
             completionSelfieUrls,
             startReceiptUrls,
+            startMaterialStores,
             completionNotes,
             approval: {
                 reportStatus: report.status,
