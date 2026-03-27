@@ -31,6 +31,24 @@ export type PjumBlockedRange = {
     status: string;
 };
 
+export type PjumHistoryRow = {
+    id: string;
+    status: "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+    bmsNIK: string;
+    bmsName: string;
+    branchName: string;
+    weekNumber: number;
+    fromDate: string;
+    toDate: string;
+    reportNumbers: string[];
+    reportCount: number;
+    totalRealisasi: number;
+    createdAt: string;
+    approvedAt: string | null;
+    approvedByName: string | null;
+    rejectionNotes: string | null;
+};
+
 const exportSchema = z.object({
     reportNumbers: z.array(z.string().min(1)).min(1, "Pilih minimal 1 laporan"),
     bmsNIK: z.string().min(1, "BMS wajib dipilih"),
@@ -75,6 +93,21 @@ function getPjumFilterDate(report: PjumReportCandidate): Date {
         return report.finishedAt ?? report.createdAt;
     }
     return report.createdAt;
+}
+
+function calculateTotalRealisasi(items: unknown): number {
+    const reportItems = (items ?? []) as unknown as ReportItemJson[];
+    let totalRealisasi = 0;
+
+    for (const item of reportItems) {
+        if (item.realisasiItems && item.realisasiItems.length > 0) {
+            for (const real of item.realisasiItems) {
+                totalRealisasi += (real.quantity || 0) * (real.price || 0);
+            }
+        }
+    }
+
+    return totalRealisasi;
 }
 
 async function getReportsInRangeByPjumDate(params: {
@@ -141,6 +174,78 @@ export async function getPjumBmsUsers(
         orderBy: { name: "asc" },
     });
     return users;
+}
+
+/**
+ * Get PJUM creation history for the current BMC user.
+ */
+export async function getBmcPjumHistory(limit = 100): Promise<PjumHistoryRow[]> {
+    try {
+        const user = await requireRole("BMC");
+
+        const exports = await prisma.pjumExport.findMany({
+            where: {
+                branchName: { in: user.branchNames },
+                createdByNIK: user.NIK,
+            },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+        });
+
+        if (exports.length === 0) return [];
+
+        const nikSet = new Set<string>();
+        for (const row of exports) {
+            nikSet.add(row.bmsNIK);
+            if (row.approvedByNIK) nikSet.add(row.approvedByNIK);
+        }
+
+        const users = await prisma.user.findMany({
+            where: { NIK: { in: Array.from(nikSet) } },
+            select: { NIK: true, name: true },
+        });
+        const userMap = new Map(users.map((u) => [u.NIK, u.name]));
+
+        const allReportNumbers = Array.from(
+            new Set(exports.flatMap((row) => row.reportNumbers)),
+        );
+        const reports = await prisma.report.findMany({
+            where: { reportNumber: { in: allReportNumbers } },
+            select: { reportNumber: true, items: true },
+        });
+        const reportTotalMap = new Map(
+            reports.map((report) => [
+                report.reportNumber,
+                calculateTotalRealisasi(report.items),
+            ]),
+        );
+
+        return exports.map((row) => ({
+            id: row.id,
+            status: row.status,
+            bmsNIK: row.bmsNIK,
+            bmsName: userMap.get(row.bmsNIK) ?? row.bmsNIK,
+            branchName: row.branchName,
+            weekNumber: row.weekNumber,
+            fromDate: row.fromDate.toISOString(),
+            toDate: row.toDate.toISOString(),
+            reportNumbers: row.reportNumbers,
+            reportCount: row.reportNumbers.length,
+            totalRealisasi: row.reportNumbers.reduce(
+                (sum, reportNumber) => sum + (reportTotalMap.get(reportNumber) ?? 0),
+                0,
+            ),
+            createdAt: row.createdAt.toISOString(),
+            approvedAt: row.approvedAt ? row.approvedAt.toISOString() : null,
+            approvedByName: row.approvedByNIK
+                ? (userMap.get(row.approvedByNIK) ?? row.approvedByNIK)
+                : null,
+            rejectionNotes: row.rejectionNotes,
+        }));
+    } catch (error) {
+        logger.error({ operation: "getBmcPjumHistory" }, "Failed", error);
+        return [];
+    }
 }
 
 /**

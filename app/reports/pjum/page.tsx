@@ -1,5 +1,5 @@
 import { requireAuth } from "@/lib/authorization";
-import { getPjumBmsUsers } from "./actions";
+import { getBmcPjumHistory, getPjumBmsUsers } from "./actions";
 import { getPendingPjumExports } from "./approval-actions";
 import { PjumView } from "./_components/pjum-view";
 import { PjumApprovalList } from "./_components/pjum-approval-list";
@@ -28,8 +28,11 @@ export default async function PjumPage({
 
     // BMC → Create PJUM view
     if (user.role === "BMC") {
-        const bmsUsers = await getPjumBmsUsers(user.branchNames);
-        return <PjumView bmsUsers={bmsUsers} />;
+        const [bmsUsers, historyItems] = await Promise.all([
+            getPjumBmsUsers(user.branchNames),
+            getBmcPjumHistory(),
+        ]);
+        return <PjumView bmsUsers={bmsUsers} historyItems={historyItems} />;
     }
 
     // Other roles: redirect or show nothing

@@ -40,11 +40,19 @@ export async function generatePjumPackagePdf(params: {
         name: string;
         branchNames: string[];
     };
+    /** When provided, a PJUM-only form page is inserted after the recap */
+    pjumData?: PjumFormData;
     /** When provided, the PJUM+PUM form page is inserted after the recap */
     pumData?: {
         pjum: PjumFormData;
         pum: PumFormData;
     };
+    /** BnM approver data (used when generating package during approval flow) */
+    approver?: {
+        NIK: string;
+        name: string;
+    };
+    approvedAt?: string;
 }) {
     const reports = await prisma.report.findMany({
         where: {
@@ -90,11 +98,23 @@ export async function generatePjumPackagePdf(params: {
 
     let bmcName = params.requester.name;
     let bmcNIK = params.requester.NIK;
+    let bnmName: string | null = null;
+    let bnmNIK: string | null = null;
+    let approvedAt: string | null = null;
+    let exportCreatedAt: string | null = null;
+    let canIncludeFallbackPjumForm = false;
 
     if (params.requireExported) {
         const pjumExport = await prisma.pjumExport.findFirst({
             where: { reportNumbers: { has: reports[0].reportNumber } },
-            select: { createdByNIK: true },
+            select: {
+                createdByNIK: true,
+                approvedByNIK: true,
+                approvedAt: true,
+                createdAt: true,
+                status: true,
+            },
+            orderBy: { createdAt: "desc" },
         });
 
         if (pjumExport?.createdByNIK) {
@@ -107,39 +127,67 @@ export async function generatePjumPackagePdf(params: {
                 bmcNIK = creator.NIK;
             }
         }
+
+        if (pjumExport?.createdAt) {
+            exportCreatedAt = pjumExport.createdAt.toISOString();
+        }
+
+        canIncludeFallbackPjumForm = pjumExport?.status === "APPROVED";
+
+        if (pjumExport?.approvedByNIK && pjumExport.approvedAt) {
+            const approverUser = await prisma.user.findUnique({
+                where: { NIK: pjumExport.approvedByNIK },
+                select: { name: true, NIK: true },
+            });
+            bnmName = approverUser?.name ?? pjumExport.approvedByNIK;
+            bnmNIK = approverUser?.NIK ?? pjumExport.approvedByNIK;
+            approvedAt = pjumExport.approvedAt.toISOString();
+        }
     }
+
+    if (params.approver) {
+        bnmName = params.approver.name;
+        bnmNIK = params.approver.NIK;
+        approvedAt = params.approvedAt ?? new Date().toISOString();
+        canIncludeFallbackPjumForm = true;
+    }
+
+    const recapRows = reports.map((r) => {
+        const items = (r.items ?? []) as unknown as ReportItemJson[];
+        let totalRealisasi = 0;
+        for (const item of items) {
+            if (item.realisasiItems && item.realisasiItems.length > 0) {
+                for (const real of item.realisasiItems) {
+                    totalRealisasi += (real.quantity || 0) * (real.price || 0);
+                }
+            }
+        }
+
+        return {
+            reportNumber: r.reportNumber,
+            createdAt: (r.finishedAt ?? r.createdAt).toISOString(),
+            storeName: r.storeName,
+            storeCode: r.storeCode,
+            branchName: r.branchName,
+            status: r.status as string,
+            totalRealisasi,
+        };
+    });
 
     const pjumBuffer = await generatePjumPdf({
         bmsName: bmsUser?.name ?? params.bmsNIK,
         bmsNIK: bmsUser?.NIK ?? params.bmsNIK,
         bmcName,
         bmcNIK,
+        bnmName,
+        bnmNIK,
+        approvedAt,
         branchName,
         from: params.from || reports[0].createdAt.toISOString(),
         to: params.to || reports[reports.length - 1].createdAt.toISOString(),
         exportedAt,
         weekNumber: params.weekNumber,
-        reports: reports.map((r) => {
-            const items = (r.items ?? []) as unknown as ReportItemJson[];
-            let totalRealisasi = 0;
-            for (const item of items) {
-                if (item.realisasiItems && item.realisasiItems.length > 0) {
-                    for (const real of item.realisasiItems) {
-                        totalRealisasi += (real.quantity || 0) * (real.price || 0);
-                    }
-                }
-            }
-
-            return {
-                reportNumber: r.reportNumber,
-                createdAt: (r.finishedAt ?? r.createdAt).toISOString(),
-                storeName: r.storeName,
-                storeCode: r.storeCode,
-                branchName: r.branchName,
-                status: r.status as string,
-                totalRealisasi,
-            };
-        }),
+        reports: recapRows,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -263,17 +311,41 @@ export async function generatePjumPackagePdf(params: {
         }),
     );
 
-    // Build form PDF if PUM data is available (after BnM Manager approval)
+    // Build form PDF if PJUM/PUM form data is available
     let formBuffer: Buffer | null = null;
     if (params.pumData) {
         formBuffer = await generatePjumFormPdf(
             params.pumData.pjum,
             params.pumData.pum,
         );
+    } else {
+        const fallbackPjumData =
+            params.pjumData ??
+            (params.requireExported && canIncludeFallbackPjumForm
+                ? {
+                      weekNumber: params.weekNumber,
+                      monthName: new Date(
+                          params.from || reports[0].createdAt.toISOString(),
+                      ).toLocaleString("id-ID", { month: "long" }),
+                      year: new Date(
+                          params.from || reports[0].createdAt.toISOString(),
+                      ).getFullYear(),
+                      bmsName: bmsUser?.name ?? params.bmsNIK,
+                      submissionDate: exportCreatedAt ?? exportedAt,
+                      totalExpenditure: recapRows.reduce(
+                          (sum, row) => sum + row.totalRealisasi,
+                          0,
+                      ),
+                  }
+                : null);
+
+        if (fallbackPjumData) {
+            formBuffer = await generatePjumFormPdf(fallbackPjumData);
+        }
     }
 
     const merged = await PDFDocument.create();
-    // Order: 1. Recap (pjumBuffer) → 2. Form PJUM+PUM (if available) → 3..N Individual reports
+    // Order: 1. Recap (pjumBuffer) → 2. Form PJUM/PUM (if available) → 3..N Individual reports
     const allBuffers = [
         pjumBuffer,
         ...(formBuffer ? [formBuffer] : []),

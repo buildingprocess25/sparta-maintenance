@@ -76,7 +76,8 @@ const styles = StyleSheet.create({
     colNo: { width: 22 },
     colDate: { width: 68 },
     colReportNumber: { width: 95 },
-    colStore: { flex: 1 },
+    colStoreCode: { width: 58 },
+    colStoreName: { flex: 1 },
     colTotal: { width: 80, textAlign: "right" },
     totalRow: {
         flexDirection: "row",
@@ -196,6 +197,9 @@ export type PjumPdfData = {
     bmsNIK: string;
     bmcName: string;
     bmcNIK: string;
+    bnmName?: string | null;
+    bnmNIK?: string | null;
+    approvedAt?: string | null;
     branchName: string;
     from: string;
     to: string;
@@ -207,6 +211,8 @@ export type PjumPdfData = {
 function buildPjumDocument(data: PjumPdfData) {
     const totalAll = data.reports.reduce((s, r) => s + r.totalRealisasi, 0);
     const exportedDate = fmtDate(data.exportedAt);
+    const approvedDate = data.approvedAt ? fmtDate(data.approvedAt) : null;
+    const showBnmStamp = !!(data.bnmName && data.bnmNIK && approvedDate);
 
     const tableRows = data.reports.map((r, i) =>
         React.createElement(
@@ -234,27 +240,23 @@ function buildPjumDocument(data: PjumPdfData) {
                 { style: { ...styles.tdCell, ...styles.colReportNumber } },
                 r.reportNumber,
             ),
-            // Store name (bold) + store code below (smaller, gray)
+            // Store code
             React.createElement(
-                View,
-                { style: { ...styles.tdCell, ...styles.colStore } },
-                React.createElement(
-                    Text,
-                    {
-                        style: {
-                            fontFamily: "Helvetica-Bold",
-                            fontSize: 8,
-                        },
+                Text,
+                { style: { ...styles.tdCell, ...styles.colStoreCode } },
+                r.storeCode || "—",
+            ),
+            // Store name
+            React.createElement(
+                Text,
+                {
+                    style: {
+                        ...styles.tdCell,
+                        ...styles.colStoreName,
+                        fontFamily: "Helvetica-Bold",
                     },
-                    r.storeName || "—",
-                ),
-                r.storeCode
-                    ? React.createElement(
-                          Text,
-                          { style: { fontSize: 7, color: "#6b7280" } },
-                          r.storeCode,
-                      )
-                    : null,
+                },
+                r.storeName || "—",
             ),
             // Total realization
             React.createElement(
@@ -285,11 +287,11 @@ function buildPjumDocument(data: PjumPdfData) {
                 { style: styles.infoGrid },
                 ...[
                     { label: "Nama BMS", value: data.bmsName },
-                    { label: "NIK BMS", value: data.bmsNIK },
                     {
                         label: "Periode",
                         value: `${fmtDate(data.from)} — ${fmtDate(data.to)}`,
                     },
+                    { label: "NIK BMS", value: data.bmsNIK },
                     {
                         label: "Minggu Ke",
                         value: String(data.weekNumber),
@@ -338,7 +340,12 @@ function buildPjumDocument(data: PjumPdfData) {
                 ),
                 React.createElement(
                     Text,
-                    { style: { ...styles.thCell, ...styles.colStore } },
+                    { style: { ...styles.thCell, ...styles.colStoreCode } },
+                    "Kode Toko",
+                ),
+                React.createElement(
+                    Text,
+                    { style: { ...styles.thCell, ...styles.colStoreName } },
                     "Nama Toko",
                 ),
                 React.createElement(
@@ -367,13 +374,17 @@ function buildPjumDocument(data: PjumPdfData) {
                 ),
             ),
 
-            // ── Stamp (DIBUAT OLEH BMC) ──
+            // ── Stamp (BMC + BnM) ──
             React.createElement(
                 View,
                 { style: styles.stampSection },
                 React.createElement(
                     View,
-                    { style: styles.stampBox },
+                    {
+                        style: showBnmStamp
+                            ? { ...styles.stampBox, marginRight: 18 }
+                            : styles.stampBox,
+                    },
                     React.createElement(
                         View,
                         { style: styles.stampBadge },
@@ -412,6 +423,54 @@ function buildPjumDocument(data: PjumPdfData) {
                         ),
                     ),
                 ),
+                showBnmStamp
+                    ? React.createElement(
+                          View,
+                          { style: styles.stampBox },
+                          React.createElement(
+                              View,
+                              {
+                                  style: {
+                                      ...styles.stampBadge,
+                                      backgroundColor: "#16a34a",
+                                  },
+                              },
+                              React.createElement(
+                                  Text,
+                                  { style: styles.stampBadgeText },
+                                  "DISETUJUI OLEH",
+                              ),
+                          ),
+                          React.createElement(
+                              View,
+                              { style: styles.stampBody },
+                              React.createElement(
+                                  Text,
+                                  { style: styles.stampName },
+                                  data.bnmName,
+                              ),
+                              React.createElement(
+                                  Text,
+                                  { style: styles.stampNik },
+                                  `NIK: ${data.bnmNIK}`,
+                              ),
+                              React.createElement(
+                                  Text,
+                                  { style: styles.stampDate },
+                                  approvedDate,
+                              ),
+                          ),
+                          React.createElement(
+                              View,
+                              { style: styles.stampRoleWrapper },
+                              React.createElement(
+                                  Text,
+                                  { style: styles.stampRole },
+                                  "BnM Manager",
+                              ),
+                          ),
+                      )
+                    : null,
             ),
 
             // ── Footer ──

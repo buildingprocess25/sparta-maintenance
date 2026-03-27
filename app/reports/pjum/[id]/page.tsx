@@ -1,9 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import { notFound } from "next/navigation";
-import {
-    getPjumExportDetail,
-    getBmsBankAccounts,
-} from "../approval-actions";
+import { getPjumExportDetail } from "../approval-actions";
 import { PjumApprovalDetail } from "../_components/pjum-approval-detail";
 
 export const metadata = {
@@ -23,12 +20,5 @@ export default async function PjumDetailPage({
         notFound();
     }
 
-    const bankResult = await getBmsBankAccounts(result.data.bmsNIK);
-
-    return (
-        <PjumApprovalDetail
-            detail={result.data}
-            bankAccounts={bankResult.data}
-        />
-    );
+    return <PjumApprovalDetail detail={result.data} />;
 }

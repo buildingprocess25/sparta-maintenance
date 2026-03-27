@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -9,20 +9,16 @@ import {
     Loader2,
     CheckCircle2,
     XCircle,
-    CreditCard,
     FileText,
     Building2,
     User,
     CalendarDays,
     Hash,
-    X,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
     Card,
     CardContent,
@@ -41,7 +37,6 @@ import {
 import {
     approvePjumExport,
     type PjumExportDetail as PjumExportDetailType,
-    type BankAccountOption,
 } from "../approval-actions";
 
 function fmtCurrency(amount: number): string {
@@ -50,52 +45,18 @@ function fmtCurrency(amount: number): string {
 
 type Props = {
     detail: PjumExportDetailType;
-    bankAccounts: BankAccountOption[];
 };
 
-export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
+export function PjumApprovalDetail({ detail }: Props) {
     const router = useRouter();
     const [isApproving, startApproveTransition] = useTransition();
 
-    // PUM form state — auto-filled from PJUM data
     const fromDate = new Date(detail.fromDate);
-    const [bankAccountNo, setBankAccountNo] = useState("");
-    const [bankAccountName, setBankAccountName] = useState("");
-    const [bankName, setBankName] = useState("");
-    const [isAccountNameFocused, setIsAccountNameFocused] = useState(false);
-
-    const filteredBankAccounts = bankAccounts.filter(
-        (acc) =>
-            acc.bankAccountName
-                .toLowerCase()
-                .includes(bankAccountName.toLowerCase()) ||
-            acc.bankAccountNo.includes(bankAccountName),
-    );
-
-    function clearAllBankFields() {
-        setBankAccountName("");
-        setBankAccountNo("");
-        setBankName("");
-    }
 
     function handleApprove() {
-        if (
-            !bankAccountNo.trim() ||
-            !bankAccountName.trim() ||
-            !bankName.trim()
-        ) {
-            toast.error("Informasi rekening wajib diisi");
-            return;
-        }
-        // PUM validation removed (feature disabled)
-
         startApproveTransition(async () => {
             const result = await approvePjumExport({
                 pjumExportId: detail.id,
-                bankAccountNo: bankAccountNo.trim(),
-                bankAccountName: bankAccountName.trim(),
-                bankName: bankName.trim(),
-                // PUM fields no longer required (feature disabled)
             });
 
             if (result.error) {
@@ -118,7 +79,7 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
             <Header
                 variant="dashboard"
                 title="Detail PJUM"
-                description="Tinjau laporan dan isi informasi PUM untuk menyetujui"
+                description="Tinjau laporan sebelum menyetujui PJUM"
                 showBackButton
                 backHref="/reports/pjum"
                 logo={false}
@@ -127,7 +88,9 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
             <main className="flex-1 container mx-auto px-4 py-4 md:py-8 max-w-7xl pb-24 lg:pb-32">
                 <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                     {/* ── LEFT COLUMN (3/5) ─────────────────────────────── */}
-                    <div className="lg:col-span-3 space-y-6">
+                    <div
+                        className={`${isPending ? "lg:col-span-5" : "lg:col-span-3"} space-y-6`}
+                    >
                         {/* PJUM Info Card */}
                         <Card>
                             <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-4">
@@ -406,202 +369,9 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                     </div>
 
                     {/* ── RIGHT COLUMN (2/5) ───────────────────────────── */}
-                    <div className="lg:col-span-2 space-y-6">
-                        {isPending ? (
-                            <Card className="border-primary/20">
-                                <CardHeader>
-                                    <CardTitle className="text-lg flex items-center gap-2">
-                                        <CreditCard className="h-5 w-5 text-primary" />
-                                        Form PUM — Informasi Transfer
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Isi informasi transfer ke BMS untuk
-                                        menyetujui PJUM
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-5">
-                                    {/* Bank fields */}
-                                    <div className="space-y-4">
-                                        <div className="space-y-2 relative">
-                                            <Label htmlFor="bankAccountName">
-                                                Atas Nama{" "}
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="bankAccountName"
-                                                    value={bankAccountName}
-                                                    onFocus={() =>
-                                                        setIsAccountNameFocused(
-                                                            true,
-                                                        )
-                                                    }
-                                                    onBlur={() =>
-                                                        setTimeout(
-                                                            () =>
-                                                                setIsAccountNameFocused(
-                                                                    false,
-                                                                ),
-                                                            200,
-                                                        )
-                                                    }
-                                                    onChange={(e) =>
-                                                        setBankAccountName(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="Nama pemilik rekening"
-                                                    autoComplete="off"
-                                                    className={
-                                                        bankAccountName
-                                                            ? "pr-10"
-                                                            : ""
-                                                    }
-                                                />
-                                                {bankAccountName && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={
-                                                            clearAllBankFields
-                                                        }
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                            {isAccountNameFocused &&
-                                                filteredBankAccounts.length >
-                                                    0 && (
-                                                    <ul className="absolute top-full left-0 mt-1 z-50 w-full bg-popover text-popover-foreground border shadow-md rounded-md max-h-60 overflow-auto py-1">
-                                                        {filteredBankAccounts.map(
-                                                            (acc, i) => (
-                                                                <li
-                                                                    key={i}
-                                                                    className="px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer flex flex-col"
-                                                                    onMouseDown={(
-                                                                        e,
-                                                                    ) => {
-                                                                        e.preventDefault();
-                                                                        setBankAccountName(
-                                                                            acc.bankAccountName,
-                                                                        );
-                                                                        setBankAccountNo(
-                                                                            acc.bankAccountNo,
-                                                                        );
-                                                                        setBankName(
-                                                                            acc.bankName,
-                                                                        );
-                                                                        setIsAccountNameFocused(
-                                                                            false,
-                                                                        );
-                                                                    }}
-                                                                >
-                                                                    <span className="font-medium">
-                                                                        {
-                                                                            acc.bankAccountName
-                                                                        }
-                                                                    </span>
-                                                                    <span className="text-xs">
-                                                                        {
-                                                                            acc.bankName
-                                                                        }{" "}
-                                                                        -{" "}
-                                                                        {
-                                                                            acc.bankAccountNo
-                                                                        }
-                                                                    </span>
-                                                                </li>
-                                                            ),
-                                                        )}
-                                                    </ul>
-                                                )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="bankAccountNo">
-                                                No. Rekening{" "}
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="bankAccountNo"
-                                                    value={bankAccountNo}
-                                                    onChange={(e) =>
-                                                        setBankAccountNo(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="Nomor rekening BMS"
-                                                    className={
-                                                        bankAccountNo
-                                                            ? "pr-10"
-                                                            : ""
-                                                    }
-                                                />
-                                                {bankAccountNo && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={
-                                                            clearAllBankFields
-                                                        }
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="bankName">
-                                                Nama Bank{" "}
-                                                <span className="text-red-500">
-                                                    *
-                                                </span>
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="bankName"
-                                                    value={bankName}
-                                                    onChange={(e) =>
-                                                        setBankName(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    placeholder="BCA / BNI / Mandiri"
-                                                    className={
-                                                        bankName ? "pr-10" : ""
-                                                    }
-                                                />
-                                                {bankName && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={
-                                                            clearAllBankFields
-                                                        }
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                                                    >
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* PUM feature disabled - per business request */}
-                                    {/* <div className="space-y-3 pt-2 border-t">
-                                        <Label className="text-sm font-semibold">
-                                            Keperluan PUM
-                                        </Label>
-                                        ... (PUM fields removed)
-                                    </div> */}
-                                </CardContent>
-                            </Card>
-                        ) : (
-                            /* Already processed status */
+                    {!isPending && (
+                        <div className="lg:col-span-2 space-y-6">
+                            {/* Already processed status */}
                             <Card>
                                 <CardContent className="flex items-center gap-3 py-5">
                                     {detail.status === "APPROVED" ? (
@@ -631,8 +401,8 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                                     )}
                                 </CardContent>
                             </Card>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
             </main>
 

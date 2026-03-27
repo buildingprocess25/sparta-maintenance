@@ -319,7 +319,7 @@ const s = StyleSheet.create({
 // React-PDF Document Builder
 // ─────────────────────────────────────────────────────────────────────────────
 
-function buildPjumFormDocument(pjum: PjumFormData, pum: PumFormData) {
+function buildPjumFormDocument(pjum: PjumFormData, pum?: PumFormData) {
     const selisih = FIXED_UM - pjum.totalExpenditure;
     const selisihStr =
         selisih >= 0
@@ -327,7 +327,9 @@ function buildPjumFormDocument(pjum: PjumFormData, pum: PumFormData) {
             : `(${fmtCurrency(Math.abs(selisih))})`;
 
     const keperluanPjum = `Biaya perbaikan toko minggu ke ${pjum.weekNumber} bulan ${pjum.monthName} ${pjum.year}, 1 BMS a/n ${pjum.bmsName}`;
-    const keperluanPum = `Biaya Perbaikan toko minggu ke ${pum.pumWeekNumber} Bulan ${pum.pumMonth} ${pum.pumYear} untuk 1 BMS`;
+    const keperluanPum = pum
+        ? `Biaya Perbaikan toko minggu ke ${pum.pumWeekNumber} Bulan ${pum.pumMonth} ${pum.pumYear} untuk 1 BMS`
+        : "";
 
     return React.createElement(
         Document,
@@ -579,11 +581,12 @@ function buildPjumFormDocument(pjum: PjumFormData, pum: PumFormData) {
             ),
 
             // ════════════════════════════════════════════════════════════════
-            // BOTTOM: PUM Form
+            // BOTTOM: PUM Form (optional)
             // ════════════════════════════════════════════════════════════════
-            React.createElement(
-                View,
-                { style: s.pumContainer },
+            pum
+                ? React.createElement(
+                      View,
+                      { style: s.pumContainer },
 
                 // Header
                 React.createElement(
@@ -948,7 +951,8 @@ function buildPjumFormDocument(pjum: PjumFormData, pum: PumFormData) {
                         ),
                     ),
                 ),
-            ),
+            )
+                : null,
         ),
     );
 }
@@ -959,7 +963,7 @@ function buildPjumFormDocument(pjum: PjumFormData, pum: PumFormData) {
 
 export async function generatePjumFormPdf(
     pjum: PjumFormData,
-    pum: PumFormData,
+    pum?: PumFormData,
 ): Promise<Buffer> {
     const doc = buildPjumFormDocument(pjum, pum);
     const buffer = await renderToBuffer(doc);

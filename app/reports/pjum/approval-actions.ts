@@ -9,10 +9,7 @@ import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
-import type {
-    PjumFormData,
-    PumFormData,
-} from "@/lib/pdf/generate-pjum-form-pdf";
+import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson } from "@/types/report";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -290,9 +287,9 @@ export async function getBmsBankAccounts(
 
 const approveSchema = z.object({
     pjumExportId: z.string().uuid(),
-    bankAccountNo: z.string().min(1, "No. Rekening wajib diisi"),
-    bankAccountName: z.string().min(1, "Atas Nama wajib diisi"),
-    bankName: z.string().min(1, "Nama Bank wajib diisi"),
+    bankAccountNo: z.string().optional(),
+    bankAccountName: z.string().optional(),
+    bankName: z.string().optional(),
     // PUM fields now optional (PUM feature disabled per business request)
     pumWeekNumber: z.number().int().min(1).max(5).optional(),
     pumMonth: z.string().optional(),
@@ -300,14 +297,14 @@ const approveSchema = z.object({
 });
 
 /**
- * Approve a PJUM export: generate final PDF (with form), upload to GDrive,
- * send email to Branch Admin, and save bank account for auto-fill.
+ * Approve a PJUM export: generate final PDF package, upload to GDrive,
+ * and send email to Branch Admin.
  */
 export async function approvePjumExport(input: {
     pjumExportId: string;
-    bankAccountNo: string;
-    bankAccountName: string;
-    bankName: string;
+    bankAccountNo?: string;
+    bankAccountName?: string;
+    bankName?: string;
     pumWeekNumber?: number;
     pumMonth?: string;
     pumYear?: number;
@@ -346,42 +343,20 @@ export async function approvePjumExport(input: {
         ]);
 
         const bmsName = bmsUser?.name ?? pjumExport.bmsNIK;
+        const bankAccountNo = validated.bankAccountNo?.trim() || null;
+        const bankAccountName = validated.bankAccountName?.trim() || null;
+        const bankName = validated.bankName?.trim() || null;
+        const approvedAtDate = new Date();
 
-        // Build form data for PDF
-        const pjumFormData: PjumFormData = {
-            weekNumber: pjumExport.weekNumber,
-            monthName: pjumExport.fromDate.toLocaleString("id-ID", {
-                month: "long",
-            }),
-            year: pjumExport.fromDate.getFullYear(),
-            bmsName,
-            submissionDate: new Date().toISOString(),
-            totalExpenditure: 0, // will be filled from reports
-        };
-
-        const pumFormData: PumFormData = {
-            bmsName,
-            bmsNIK: pjumExport.bmsNIK,
-            bankAccountNo: validated.bankAccountNo,
-            bankAccountName: validated.bankAccountName,
-            bankName: validated.bankName,
-            pumWeekNumber: validated.pumWeekNumber ?? pjumExport.weekNumber,
-            pumMonth:
-                validated.pumMonth ??
-                pjumExport.fromDate.toLocaleString("id-ID", { month: "long" }),
-            pumYear: validated.pumYear ?? pjumExport.fromDate.getFullYear(),
-            branchName: pjumExport.branchName,
-        };
-
-        // Calculate total expenditure from actual reports
+        // Keep PJUM form page in final package even when PUM is disabled.
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: pjumExport.reportNumbers } },
             select: { items: true },
         });
 
         let totalExpenditure = 0;
-        for (const r of reports) {
-            const items = (r.items ?? []) as unknown as ReportItemJson[];
+        for (const report of reports) {
+            const items = (report.items ?? []) as unknown as ReportItemJson[];
             for (const item of items) {
                 if (item.realisasiItems && item.realisasiItems.length > 0) {
                     for (const real of item.realisasiItems) {
@@ -392,9 +367,18 @@ export async function approvePjumExport(input: {
             }
         }
 
-        pjumFormData.totalExpenditure = totalExpenditure;
+        const pjumFormData: PjumFormData = {
+            weekNumber: pjumExport.weekNumber,
+            monthName: pjumExport.fromDate.toLocaleString("id-ID", {
+                month: "long",
+            }),
+            year: pjumExport.fromDate.getFullYear(),
+            bmsName,
+            submissionDate: approvedAtDate.toISOString(),
+            totalExpenditure,
+        };
 
-        // Generate final PDF with form pages
+        // Generate final PDF package (PUM form is temporarily disabled)
         const result = await generatePjumPackagePdf({
             reportNumbers: pjumExport.reportNumbers,
             bmsNIK: pjumExport.bmsNIK,
@@ -407,10 +391,12 @@ export async function approvePjumExport(input: {
                 name: bmcUser?.name ?? pjumExport.createdByNIK,
                 branchNames: [pjumExport.branchName],
             },
-            pumData: {
-                pjum: pjumFormData,
-                pum: pumFormData,
+            pjumData: pjumFormData,
+            approver: {
+                NIK: user.NIK,
+                name: user.name,
             },
+            approvedAt: approvedAtDate.toISOString(),
         });
 
         // Upload to GDrive
@@ -430,10 +416,10 @@ export async function approvePjumExport(input: {
             data: {
                 status: "APPROVED",
                 approvedByNIK: user.NIK,
-                approvedAt: new Date(),
-                pumBankAccountNo: validated.bankAccountNo,
-                pumBankAccountName: validated.bankAccountName,
-                pumBankName: validated.bankName,
+                approvedAt: approvedAtDate,
+                pumBankAccountNo: bankAccountNo,
+                pumBankAccountName: bankAccountName,
+                pumBankName: bankName,
                 pumWeekNumber: validated.pumWeekNumber,
                 pumMonth: validated.pumMonth,
                 pumYear: validated.pumYear,
@@ -441,26 +427,28 @@ export async function approvePjumExport(input: {
         });
 
         // Save bank account for future auto-fill
-        await prisma.pjumBankAccount.upsert({
-            where: {
-                bmsNIK_bankAccountNo: {
-                    bmsNIK: pjumExport.bmsNIK,
-                    bankAccountNo: validated.bankAccountNo,
+        if (bankAccountNo && bankAccountName && bankName) {
+            await prisma.pjumBankAccount.upsert({
+                where: {
+                    bmsNIK_bankAccountNo: {
+                        bmsNIK: pjumExport.bmsNIK,
+                        bankAccountNo,
+                    },
                 },
-            },
-            create: {
-                bmsNIK: pjumExport.bmsNIK,
-                bankAccountNo: validated.bankAccountNo,
-                bankAccountName: validated.bankAccountName,
-                bankName: validated.bankName,
-                addedByNIK: user.NIK,
-            },
-            update: {
-                bankAccountName: validated.bankAccountName,
-                bankName: validated.bankName,
-                addedByNIK: user.NIK,
-            },
-        });
+                create: {
+                    bmsNIK: pjumExport.bmsNIK,
+                    bankAccountNo,
+                    bankAccountName,
+                    bankName,
+                    addedByNIK: user.NIK,
+                },
+                update: {
+                    bankAccountName,
+                    bankName,
+                    addedByNIK: user.NIK,
+                },
+            });
+        }
 
         // Send email to Branch Admin (fire-and-forget)
         sendPjumNotification({
