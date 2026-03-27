@@ -112,6 +112,8 @@ export async function submitCompletionWork(
                 where: { reportNumber },
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
+                    // Tanggal selesai diisi saat BMS submit penyelesaian.
+                    finishedAt: new Date(),
                     items: updatedItems as unknown as Prisma.InputJsonValue,
                     startSelfieUrl: selfieUrlValue || null,
                 },

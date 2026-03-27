@@ -504,63 +504,15 @@ export async function approvePjumExport(input: {
 }
 
 /**
- * Reject a PJUM export (optional, for future use).
+ * Reject flow is temporarily disabled per business request.
  */
 export async function rejectPjumExport(input: {
     pjumExportId: string;
     notes: string;
 }): Promise<{ error: string | null }> {
-    try {
-        const user = await requireRole("BNM_MANAGER");
-        await validateCSRF(await headers());
-
-        const pjumExport = await prisma.pjumExport.findUnique({
-            where: { id: input.pjumExportId },
-        });
-
-        if (!pjumExport) {
-            return { error: "PJUM tidak ditemukan" };
-        }
-        if (!user.branchNames.includes(pjumExport.branchName)) {
-            return { error: "PJUM tidak dalam cabang Anda" };
-        }
-        if (pjumExport.status !== "PENDING_APPROVAL") {
-            return { error: "PJUM sudah diproses sebelumnya" };
-        }
-
-        await prisma.pjumExport.update({
-            where: { id: pjumExport.id },
-            data: {
-                status: "REJECTED",
-                approvedByNIK: user.NIK,
-                approvedAt: new Date(),
-                rejectionNotes: input.notes,
-            },
-        });
-
-        // Unmark reports so they can be re-included in a new PJUM
-        await prisma.report.updateMany({
-            where: { reportNumber: { in: pjumExport.reportNumbers } },
-            data: { pjumExportedAt: null },
-        });
-
-        logger.info(
-            {
-                operation: "rejectPjumExport",
-                pjumExportId: pjumExport.id,
-                rejectedBy: user.NIK,
-            },
-            "PJUM rejected",
-        );
-
-        revalidatePath("/reports/pjum");
-        return { error: null };
-    } catch (error) {
-        logger.error(
-            { operation: "rejectPjumExport" },
-            "Failed to reject PJUM",
-            error,
-        );
-        return { error: "Terjadi kesalahan saat menolak PJUM" };
-    }
+    logger.warn(
+        { operation: "rejectPjumExport", pjumExportId: input.pjumExportId },
+        "Reject PJUM is disabled",
+    );
+    return { error: "Fitur penolakan PJUM sementara dinonaktifkan" };
 }

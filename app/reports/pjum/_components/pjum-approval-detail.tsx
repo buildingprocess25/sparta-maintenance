@@ -15,7 +15,6 @@ import {
     User,
     CalendarDays,
     Hash,
-    AlertTriangle,
     X,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
@@ -24,7 +23,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
     Card,
     CardContent,
@@ -41,43 +39,10 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
     approvePjumExport,
-    rejectPjumExport,
     type PjumExportDetail as PjumExportDetailType,
     type BankAccountOption,
 } from "../approval-actions";
-
-const MONTHS = [
-    "Januari",
-    "Februari",
-    "Maret",
-    "April",
-    "Mei",
-    "Juni",
-    "Juli",
-    "Agustus",
-    "September",
-    "Oktober",
-    "November",
-    "Desember",
-];
 
 function fmtCurrency(amount: number): string {
     return Number(amount).toLocaleString("id-ID");
@@ -91,9 +56,6 @@ type Props = {
 export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
     const router = useRouter();
     const [isApproving, startApproveTransition] = useTransition();
-    const [isRejecting, startRejectTransition] = useTransition();
-    const [showRejectDialog, setShowRejectDialog] = useState(false);
-    const [rejectionNotes, setRejectionNotes] = useState("");
 
     // PUM form state — auto-filled from PJUM data
     const fromDate = new Date(detail.fromDate);
@@ -109,14 +71,6 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                 .includes(bankAccountName.toLowerCase()) ||
             acc.bankAccountNo.includes(bankAccountName),
     );
-    const [pumWeekNumber, setPumWeekNumber] = useState(detail.weekNumber);
-    const [pumMonth, setPumMonth] = useState(
-        fromDate.toLocaleString("id-ID", { month: "long" }),
-    );
-    const [pumYear, setPumYear] = useState(fromDate.getFullYear());
-
-    // Keperluan text — matches format used in PUM form PDF
-    const keperluanText = `Biaya Perbaikan toko minggu ke ${pumWeekNumber} Bulan ${pumMonth} ${pumYear} untuk 1 BMS`;
 
     function clearAllBankFields() {
         setBankAccountName("");
@@ -153,23 +107,6 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                 router.push("/reports/pjum");
             }
         });
-    }
-
-    function handleReject() {
-        startRejectTransition(async () => {
-            const result = await rejectPjumExport({
-                pjumExportId: detail.id,
-                notes: rejectionNotes.trim(),
-            });
-
-            if (result.error) {
-                toast.error(result.error);
-            } else {
-                toast.success("PJUM berhasil ditolak.");
-                router.push("/reports/pjum");
-            }
-        });
-        setShowRejectDialog(false);
     }
 
     const selisih = 1_000_000 - detail.totalExpenditure;
@@ -704,20 +641,10 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                 <div className="fixed bottom-0 inset-x-0 z-50 bg-background border-t shadow-[0_-12px_12px_-12px_rgba(0,0,0,0.1)]">
                     <div className="container mx-auto px-4 py-5 max-w-7xl flex items-center justify-end gap-4 h-24">
                         <Button
-                            variant="destructive"
-                            size="lg"
-                            className="gap-2"
-                            onClick={() => setShowRejectDialog(true)}
-                            disabled={isApproving || isRejecting}
-                        >
-                            <XCircle className="h-4 w-4" />
-                            Tolak PJUM
-                        </Button>
-                        <Button
                             size="lg"
                             className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
                             onClick={handleApprove}
-                            disabled={isApproving || isRejecting}
+                            disabled={isApproving}
                         >
                             {isApproving ? (
                                 <>
@@ -734,56 +661,6 @@ export function PjumApprovalDetail({ detail, bankAccounts }: Props) {
                     </div>
                 </div>
             )}
-
-            {/* ── Reject Confirmation Dialog ───────────────────────────── */}
-            <AlertDialog
-                open={showRejectDialog}
-                onOpenChange={setShowRejectDialog}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle className="flex items-center gap-2 text-destructive">
-                            <AlertTriangle className="h-5 w-5" />
-                            Tolak PJUM?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Tindakan ini tidak dapat dibatalkan. Laporan dalam
-                            paket ini akan dikembalikan ke status siap ekspor.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <div className="space-y-2 px-1">
-                        <Label htmlFor="rejectionNotes">
-                            Catatan penolakan (opsional)
-                        </Label>
-                        <Textarea
-                            id="rejectionNotes"
-                            value={rejectionNotes}
-                            onChange={(e) => setRejectionNotes(e.target.value)}
-                            placeholder="Tulis alasan penolakan..."
-                            rows={3}
-                        />
-                    </div>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isRejecting}>
-                            Batal
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            onClick={handleReject}
-                            disabled={isRejecting}
-                        >
-                            {isRejecting ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Menolak...
-                                </>
-                            ) : (
-                                "Ya, Tolak PJUM"
-                            )}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
 
             <Footer />
         </div>

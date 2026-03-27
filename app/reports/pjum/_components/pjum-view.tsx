@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     Search,
@@ -51,8 +51,8 @@ import {
     EmptyTitle,
     EmptyDescription,
 } from "@/components/ui/empty";
-import type { PjumBmsUser, PjumReportRow } from "../actions";
-import { searchPjumReports, exportPjum } from "../actions";
+import type { PjumBmsUser, PjumReportRow, PjumBlockedRange } from "../actions";
+import { searchPjumReports, exportPjum, getPjumBlockedRanges } from "../actions";
 
 type Props = {
     bmsUsers: PjumBmsUser[];
@@ -81,16 +81,6 @@ function formatDate(iso: string) {
     });
 }
 
-// Default date range: 7 days ago → today
-function defaultFrom(): Date {
-    const d = new Date();
-    d.setDate(d.getDate() - 7);
-    return d;
-}
-function defaultTo(): Date {
-    return new Date();
-}
-
 function toIsoDate(d: Date): string {
     return [
         d.getFullYear(),
@@ -99,18 +89,52 @@ function toIsoDate(d: Date): string {
     ].join("-");
 }
 
+function startOfDay(date: Date): Date {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+function isDateInBlockedRanges(date: Date, ranges: PjumBlockedRange[]): boolean {
+    const day = startOfDay(date).getTime();
+    return ranges.some((range) => {
+        const from = startOfDay(new Date(range.fromDate)).getTime();
+        const to = startOfDay(new Date(range.toDate)).getTime();
+        return day >= from && day <= to;
+    });
+}
+
+function findOverlappingRange(
+    fromDate: Date,
+    toDate: Date,
+    ranges: PjumBlockedRange[],
+): PjumBlockedRange | null {
+    const from = startOfDay(fromDate).getTime();
+    const to = startOfDay(toDate).getTime();
+
+    return (
+        ranges.find((range) => {
+            const blockedFrom = startOfDay(new Date(range.fromDate)).getTime();
+            const blockedTo = startOfDay(new Date(range.toDate)).getTime();
+            return from <= blockedTo && to >= blockedFrom;
+        }) ?? null
+    );
+}
+
 function DatePickerField({
     value,
     onChange,
     label,
     minDate,
     maxDate,
+    blockedRanges,
 }: {
-    value: Date;
+    value?: Date;
     onChange: (d: Date) => void;
     label: string;
     minDate?: Date;
     maxDate?: Date;
+    blockedRanges: PjumBlockedRange[];
 }) {
     const [open, setOpen] = useState(false);
     return (
@@ -123,7 +147,11 @@ function DatePickerField({
                 >
                     <CalendarDays className="h-4 w-4 mr-2 text-muted-foreground shrink-0" />
                     <span className="text-sm">
-                        {format(value, "dd MMM yyyy", { locale: localeId })}
+                        {value
+                            ? format(value, "dd MMM yyyy", {
+                                  locale: localeId,
+                              })
+                            : "Pilih tanggal"}
                     </span>
                 </Button>
             </PopoverTrigger>
@@ -138,8 +166,11 @@ function DatePickerField({
                         }
                     }}
                     disabled={(d) => {
-                        if (minDate && d < minDate) return true;
-                        if (maxDate && d > maxDate) return true;
+                        const day = startOfDay(d);
+                        if (minDate && day < startOfDay(minDate)) return true;
+                        if (maxDate && day > startOfDay(maxDate)) return true;
+                        if (isDateInBlockedRanges(day, blockedRanges))
+                            return true;
                         return false;
                     }}
                     locale={localeId}
@@ -255,26 +286,75 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
 export function PjumView({ bmsUsers }: Props) {
     const [selectedNIK, setSelectedNIK] = useState<string>("");
     const [weekNumber, setWeekNumber] = useState<string>("");
-    const [fromDate, setFromDate] = useState<Date>(defaultFrom);
-    const [toDate, setToDate] = useState<Date>(defaultTo);
+    const [fromDate, setFromDate] = useState<Date>();
+    const [toDate, setToDate] = useState<Date>();
     const [reports, setReports] = useState<PjumReportRow[] | null>(null);
+    const [blockedRanges, setBlockedRanges] = useState<PjumBlockedRange[]>([]);
+    const [isLoadingBlockedRanges, setIsLoadingBlockedRanges] = useState(false);
     const [isSearching, startSearch] = useTransition();
     const [isExporting, startExport] = useTransition();
     const [exportDone, setExportDone] = useState(false);
     const [exportedNumbers, setExportedNumbers] = useState<string[]>([]);
+    const blockedRangeRequestRef = useRef(0);
 
     const selectedBms = bmsUsers.find((u) => u.NIK === selectedNIK);
 
-    const from = toIsoDate(fromDate);
-    const to = toIsoDate(toDate);
+    const from = fromDate ? toIsoDate(fromDate) : "";
+    const to = toDate ? toIsoDate(toDate) : "";
+
+    async function loadBlockedRanges(nik: string) {
+        const requestId = blockedRangeRequestRef.current + 1;
+        blockedRangeRequestRef.current = requestId;
+        setIsLoadingBlockedRanges(true);
+
+        try {
+            const result = await getPjumBlockedRanges(nik);
+            if (requestId !== blockedRangeRequestRef.current) return;
+
+            if (result.error) {
+                toast.error(result.error);
+                setBlockedRanges([]);
+                return;
+            }
+
+            setBlockedRanges(result.data ?? []);
+        } catch {
+            if (requestId !== blockedRangeRequestRef.current) return;
+            toast.error("Gagal memuat rentang tanggal PJUM yang sudah digunakan");
+            setBlockedRanges([]);
+        } finally {
+            if (requestId !== blockedRangeRequestRef.current) return;
+            setIsLoadingBlockedRanges(false);
+        }
+    }
+
+    const overlappingRange = useMemo(() => {
+        if (!fromDate || !toDate) return null;
+        return findOverlappingRange(fromDate, toDate, blockedRanges);
+    }, [fromDate, toDate, blockedRanges]);
+
+    const isSearchReady = !!selectedNIK && !!weekNumber && !!fromDate && !!toDate;
+    const canSearch =
+        isSearchReady &&
+        !isSearching &&
+        !isLoadingBlockedRanges &&
+        !overlappingRange;
 
     function handleSearch() {
-        if (!selectedNIK) {
-            toast.error("Pilih BMS terlebih dahulu");
+        if (!selectedNIK || !fromDate || !toDate || !weekNumber) {
+            toast.error(
+                "Lengkapi BMS, rentang tanggal, dan minggu ke sebelum mencari laporan",
+            );
             return;
         }
         if (from > to) {
             toast.error("Tanggal mulai tidak boleh melebihi tanggal akhir");
+            return;
+        }
+        if (overlappingRange) {
+            toast.error(
+                `Rentang tanggal overlap dengan PJUM sebelumnya (${formatDate(overlappingRange.fromDate)} - ${formatDate(overlappingRange.toDate)})`,
+            );
             return;
         }
         setReports(null);
@@ -295,12 +375,25 @@ export function PjumView({ bmsUsers }: Props) {
     const hasNonCompleted =
         reports?.some((r) => r.status !== "COMPLETED") ?? false;
     const canExport =
-        eligibleReports.length > 0 && !hasNonCompleted && !!weekNumber;
+        eligibleReports.length > 0 &&
+        !hasNonCompleted &&
+        !!weekNumber &&
+        !overlappingRange;
     const totalAll =
         reports?.reduce((sum, r) => sum + r.totalRealisasi, 0) ?? 0;
 
     function handleExport() {
         if (!canExport) return;
+        if (!fromDate || !toDate) {
+            toast.error("Rentang tanggal belum lengkap");
+            return;
+        }
+        if (overlappingRange) {
+            toast.error(
+                `Rentang tanggal overlap dengan PJUM sebelumnya (${formatDate(overlappingRange.fromDate)} - ${formatDate(overlappingRange.toDate)})`,
+            );
+            return;
+        }
         const nums = eligibleReports.map((r) => r.reportNumber);
         const week = Number(weekNumber);
         if (!Number.isInteger(week) || week < 1 || week > 5) {
@@ -369,7 +462,20 @@ export function PjumView({ bmsUsers }: Props) {
                         <div className="w-fit max-w-full">
                             <Select
                                 value={selectedNIK}
-                                onValueChange={setSelectedNIK}
+                                onValueChange={(value) => {
+                                    setSelectedNIK(value);
+                                    setWeekNumber("");
+                                    setBlockedRanges([]);
+                                    setFromDate(undefined);
+                                    setToDate(undefined);
+                                    setReports(null);
+                                    setExportDone(false);
+                                    if (!value) {
+                                        setIsLoadingBlockedRanges(false);
+                                        return;
+                                    }
+                                    void loadBlockedRanges(value);
+                                }}
                             >
                                 <SelectTrigger
                                     className="bg-background w-auto min-w-40 max-w-full"
@@ -397,18 +503,54 @@ export function PjumView({ bmsUsers }: Props) {
                         <div className="flex items-center gap-2">
                             <DatePickerField
                                 value={fromDate}
-                                onChange={setFromDate}
+                                onChange={(date) => {
+                                    if (
+                                        toDate &&
+                                        findOverlappingRange(
+                                            date,
+                                            toDate,
+                                            blockedRanges,
+                                        )
+                                    ) {
+                                        toast.error(
+                                            "Rentang tanggal overlap dengan PJUM yang sudah ada",
+                                        );
+                                        return;
+                                    }
+                                    setFromDate(date);
+                                    setReports(null);
+                                    setExportDone(false);
+                                }}
                                 label="Tanggal mulai"
                                 maxDate={toDate}
+                                blockedRanges={blockedRanges}
                             />
                             <span className="text-muted-foreground text-sm">
                                 —
                             </span>
                             <DatePickerField
                                 value={toDate}
-                                onChange={setToDate}
+                                onChange={(date) => {
+                                    if (
+                                        fromDate &&
+                                        findOverlappingRange(
+                                            fromDate,
+                                            date,
+                                            blockedRanges,
+                                        )
+                                    ) {
+                                        toast.error(
+                                            "Rentang tanggal overlap dengan PJUM yang sudah ada",
+                                        );
+                                        return;
+                                    }
+                                    setToDate(date);
+                                    setReports(null);
+                                    setExportDone(false);
+                                }}
                                 label="Tanggal akhir"
                                 minDate={fromDate}
+                                blockedRanges={blockedRanges}
                             />
                         </div>
 
@@ -416,7 +558,11 @@ export function PjumView({ bmsUsers }: Props) {
                         <div className="w-36">
                             <Select
                                 value={weekNumber}
-                                onValueChange={setWeekNumber}
+                                onValueChange={(value) => {
+                                    setWeekNumber(value);
+                                    setReports(null);
+                                    setExportDone(false);
+                                }}
                             >
                                 <SelectTrigger aria-label="Minggu ke">
                                     <SelectValue placeholder="Minggu ke..." />
@@ -435,11 +581,16 @@ export function PjumView({ bmsUsers }: Props) {
                         </div>
 
                         {/* Search button */}
-                        <Button onClick={handleSearch} disabled={isSearching}>
+                        <Button onClick={handleSearch} disabled={!canSearch}>
                             {isSearching ? (
                                 <>
                                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                                     Mencari…
+                                </>
+                            ) : isLoadingBlockedRanges ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Memuat range…
                                 </>
                             ) : (
                                 <>
@@ -449,6 +600,14 @@ export function PjumView({ bmsUsers }: Props) {
                             )}
                         </Button>
                     </div>
+
+                    {overlappingRange && (
+                        <span className="text-xs text-destructive">
+                            Rentang tanggal overlap dengan PJUM sebelumnya (
+                            {formatDate(overlappingRange.fromDate)} -{" "}
+                            {formatDate(overlappingRange.toDate)}).
+                        </span>
+                    )}
 
                     {/* Right: action panel — slides in when results exist */}
                     <div
@@ -533,7 +692,8 @@ export function PjumView({ bmsUsers }: Props) {
                         <EmptyHeader>
                             <EmptyTitle>Belum ada pencarian</EmptyTitle>
                             <EmptyDescription>
-                                Pilih BMS dan rentang tanggal, lalu klik{" "}
+                                Pilih BMS, rentang tanggal, dan minggu ke, lalu
+                                klik{" "}
                                 <strong>Cari Laporan</strong> untuk menampilkan
                                 daftar laporan.
                             </EmptyDescription>
@@ -615,7 +775,11 @@ export function PjumView({ bmsUsers }: Props) {
                                                     <div className="flex items-center gap-3 text-xs text-muted-foreground">
                                                         <span className="flex items-center gap-1">
                                                             <CalendarDays className="h-3 w-3 shrink-0" />
-                                                            Selesai:{" "}
+                                                            {r.status ===
+                                                            "COMPLETED"
+                                                                ? "Selesai"
+                                                                : "Dibuat"}
+                                                            :{" "}
                                                             {formatDate(
                                                                 r.finishedAt,
                                                             )}
@@ -658,7 +822,7 @@ export function PjumView({ bmsUsers }: Props) {
                                                     Nomor Laporan
                                                 </TableHead>
                                                 <TableHead>Toko</TableHead>
-                                                <TableHead>Selesai</TableHead>
+                                                <TableHead>Tanggal</TableHead>
                                                 <TableHead>Status</TableHead>
                                                 <TableHead className="text-right">
                                                     Total Realisasi

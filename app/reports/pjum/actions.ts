@@ -24,6 +24,13 @@ export type PjumReportRow = {
     pjumExportedAt: string | null; // ISO string or null
 };
 
+export type PjumBlockedRange = {
+    id: string;
+    fromDate: string; // ISO string
+    toDate: string; // ISO string
+    status: string;
+};
+
 const exportSchema = z.object({
     reportNumbers: z.array(z.string().min(1)).min(1, "Pilih minimal 1 laporan"),
     bmsNIK: z.string().min(1, "BMS wajib dipilih"),
@@ -35,6 +42,89 @@ const exportSchema = z.object({
         .min(1, "Minggu ke minimal 1")
         .max(5, "Minggu ke maksimal 5"),
 });
+
+const SEARCHABLE_PJUM_STATUSES = [
+    "ESTIMATION_APPROVED",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "REVIEW_REJECTED_REVISION",
+    "COMPLETED",
+] as const;
+
+const NON_COMPLETED_PJUM_STATUSES = [
+    "ESTIMATION_APPROVED",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+type PjumReportCandidate = {
+    reportNumber: string;
+    createdAt: Date;
+    finishedAt: Date | null;
+    storeName: string;
+    storeCode: string | null;
+    branchName: string;
+    status: string;
+    items: unknown;
+    pjumExportedAt: Date | null;
+};
+
+function getPjumFilterDate(report: PjumReportCandidate): Date {
+    if (report.status === "COMPLETED") {
+        return report.finishedAt ?? report.createdAt;
+    }
+    return report.createdAt;
+}
+
+async function getReportsInRangeByPjumDate(params: {
+    bmsNIK: string;
+    branchNames: string[];
+    fromDate: Date;
+    toDate: Date;
+}): Promise<PjumReportCandidate[]> {
+    const { bmsNIK, branchNames, fromDate, toDate } = params;
+
+    const reports = await prisma.report.findMany({
+        where: {
+            createdByNIK: bmsNIK,
+            branchName: { in: branchNames },
+            status: { in: [...SEARCHABLE_PJUM_STATUSES] },
+            OR: [
+                {
+                    status: "COMPLETED",
+                    finishedAt: { not: null, gte: fromDate, lte: toDate },
+                },
+                {
+                    status: "COMPLETED",
+                    finishedAt: null,
+                    createdAt: { gte: fromDate, lte: toDate },
+                },
+                {
+                    status: { in: [...NON_COMPLETED_PJUM_STATUSES] },
+                    createdAt: { gte: fromDate, lte: toDate },
+                },
+            ],
+        },
+        select: {
+            reportNumber: true,
+            createdAt: true,
+            finishedAt: true,
+            storeName: true,
+            storeCode: true,
+            branchName: true,
+            status: true,
+            items: true,
+            pjumExportedAt: true,
+        },
+    });
+
+    return reports.sort((a, b) => {
+        const left = getPjumFilterDate(a as PjumReportCandidate);
+        const right = getPjumFilterDate(b as PjumReportCandidate);
+        return left.getTime() - right.getTime();
+    }) as PjumReportCandidate[];
+}
 
 /**
  * Get all BMS users in the given branches (called server-side from page.tsx).
@@ -51,6 +141,69 @@ export async function getPjumBmsUsers(
         orderBy: { name: "asc" },
     });
     return users;
+}
+
+/**
+ * Get all PJUM ranges that have ever been used by a BMS.
+ * Used by UI to disable overlapping date selections.
+ */
+export async function getPjumBlockedRanges(
+    bmsNIK: string,
+): Promise<{ data: PjumBlockedRange[] | null; error: string | null }> {
+    try {
+        const user = await requireRole("BMC");
+        await validateCSRF(await headers());
+
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { branchNames: true, role: true },
+        });
+
+        if (!bmsUser || bmsUser.role !== "BMS") {
+            return { data: null, error: "BMS tidak ditemukan" };
+        }
+
+        const hasAccess = bmsUser.branchNames.some((branch) =>
+            user.branchNames.includes(branch),
+        );
+        if (!hasAccess) {
+            return { data: null, error: "BMS tidak dalam cabang Anda" };
+        }
+
+        const ranges = await prisma.pjumExport.findMany({
+            where: {
+                bmsNIK,
+                branchName: { in: user.branchNames },
+            },
+            select: {
+                id: true,
+                fromDate: true,
+                toDate: true,
+                status: true,
+            },
+            orderBy: { fromDate: "asc" },
+        });
+
+        return {
+            data: ranges.map((range) => ({
+                id: range.id,
+                fromDate: range.fromDate.toISOString(),
+                toDate: range.toDate.toISOString(),
+                status: range.status,
+            })),
+            error: null,
+        };
+    } catch (error) {
+        logger.error(
+            { operation: "getPjumBlockedRanges", bmsNIK },
+            "Failed",
+            error,
+        );
+        return {
+            data: null,
+            error: "Terjadi kesalahan saat memuat rentang PJUM yang sudah digunakan",
+        };
+    }
 }
 
 /**
@@ -82,29 +235,22 @@ export async function searchPjumReports(
         }
 
         const fromDate = new Date(from);
+        fromDate.setHours(0, 0, 0, 0);
         const toDate = new Date(to);
         toDate.setHours(23, 59, 59, 999); // include full last day
 
-        // Only show COMPLETED reports (exclude PENDING_ESTIMATION and other statuses)
-        // Use finishedAt for date range filtering (when report was actually completed)
-        const reports = await prisma.report.findMany({
-            where: {
-                createdByNIK: bmsNIK,
-                branchName: { in: user.branchNames },
-                status: "COMPLETED", // Only completed reports
-                finishedAt: { not: null, gte: fromDate, lte: toDate }, // Use finishedAt instead of createdAt
-            },
-            select: {
-                reportNumber: true,
-                finishedAt: true,
-                storeName: true,
-                storeCode: true,
-                branchName: true,
-                status: true,
-                items: true,
-                pjumExportedAt: true,
-            },
-            orderBy: { finishedAt: "asc" },
+        if (fromDate > toDate) {
+            return { data: null, error: "Tanggal mulai tidak valid" };
+        }
+
+        // Date filter rule:
+        // - COMPLETED uses finishedAt
+        // - selain COMPLETED uses createdAt
+        const reports = await getReportsInRangeByPjumDate({
+            bmsNIK,
+            branchNames: user.branchNames,
+            fromDate,
+            toDate,
         });
 
         const data: PjumReportRow[] = reports.map((r) => {
@@ -119,9 +265,11 @@ export async function searchPjumReports(
                 }
             }
 
+            const dateForFilter = getPjumFilterDate(r);
+
             return {
                 reportNumber: r.reportNumber,
-                finishedAt: (r.finishedAt ?? new Date()).toISOString(), // finishedAt is required by query filter
+                finishedAt: dateForFilter.toISOString(),
                 storeName: r.storeName,
                 storeCode: r.storeCode,
                 branchName: r.branchName,
@@ -164,64 +312,79 @@ export async function exportPjum(input: {
             weekNumber,
         } = exportSchema.parse(input);
 
-        // Check if this date range has already been exported for this BMS
         const rangeFromDate = new Date(from);
+        rangeFromDate.setHours(0, 0, 0, 0);
         const rangeToDate = new Date(to);
-        const existingExport = await prisma.pjumExport.findFirst({
+        rangeToDate.setHours(0, 0, 0, 0);
+        const rangeToEndOfDay = new Date(rangeToDate);
+        rangeToEndOfDay.setHours(23, 59, 59, 999);
+
+        if (rangeFromDate > rangeToDate) {
+            return {
+                error: "Rentang tanggal tidak valid",
+                pjumExportId: null,
+            };
+        }
+
+        // Block all overlapping ranges that have ever been used for this BMS.
+        const overlappingExport = await prisma.pjumExport.findFirst({
             where: {
                 bmsNIK,
-                fromDate: rangeFromDate,
-                toDate: rangeToDate,
-                status: { in: ["PENDING_APPROVAL", "APPROVED"] }, // Approved or pending exports
+                branchName: { in: user.branchNames },
+                fromDate: { lte: rangeToDate },
+                toDate: { gte: rangeFromDate },
             },
+            orderBy: { fromDate: "asc" },
         });
 
-        if (existingExport) {
+        if (overlappingExport) {
             return {
-                error: `Tanggal ${from} sampai ${to} sudah pernah di-export untuk BMS ini pada ${existingExport.createdAt.toLocaleDateString("id-ID")}`,
+                error: `Rentang tanggal ${from} sampai ${to} overlap dengan PJUM yang sudah ada (${overlappingExport.fromDate.toLocaleDateString("id-ID")} - ${overlappingExport.toDate.toLocaleDateString("id-ID")})`,
                 pjumExportId: null,
             };
         }
 
-        const reports = await prisma.report.findMany({
-            where: { reportNumber: { in: safeNumbers } },
-            select: {
-                reportNumber: true,
-                status: true,
-                branchName: true,
-                pjumExportedAt: true,
-            },
+        // Use same dataset/logic as search.
+        const rangeReports = await getReportsInRangeByPjumDate({
+            bmsNIK,
+            branchNames: user.branchNames,
+            fromDate: rangeFromDate,
+            toDate: rangeToEndOfDay,
         });
 
-        if (reports.length !== safeNumbers.length) {
+        if (rangeReports.length === 0) {
             return {
-                error: "Beberapa laporan tidak ditemukan",
+                error: "Tidak ada laporan dalam rentang tanggal yang dipilih",
                 pjumExportId: null,
             };
         }
 
-        for (const r of reports) {
-            if (!user.branchNames.includes(r.branchName)) {
-                return {
-                    error: "Laporan tidak dalam cabang Anda",
-                    pjumExportId: null,
-                };
-            }
-            if (r.status !== "COMPLETED") {
-                return {
-                    error: `Laporan ${r.reportNumber} belum selesai — PJUM hanya dapat dibuat dari laporan yang sudah SELESAI`,
-                    pjumExportId: null,
-                };
-            }
-            if (r.pjumExportedAt) {
-                return {
-                    error: `Laporan ${r.reportNumber} sudah pernah dimasukkan dalam PJUM sebelumnya`,
-                    pjumExportId: null,
-                };
-            }
+        const nonCompletedReport = rangeReports.find(
+            (report) => report.status !== "COMPLETED",
+        );
+        if (nonCompletedReport) {
+            return {
+                error: `Masih ada laporan dengan status ${nonCompletedReport.status}. PJUM hanya bisa dibuat jika semua laporan dalam rentang tanggal sudah SELESAI`,
+                pjumExportId: null,
+            };
         }
 
-        const branchName = reports[0].branchName;
+        const eligibleReportNumbers = rangeReports
+            .filter((report) => !report.pjumExportedAt)
+            .map((report) => report.reportNumber);
+        const eligibleSet = new Set(eligibleReportNumbers);
+
+        if (
+            safeNumbers.length !== eligibleReportNumbers.length ||
+            safeNumbers.some((reportNumber) => !eligibleSet.has(reportNumber))
+        ) {
+            return {
+                error: "Data laporan berubah. Klik Cari Laporan lagi sebelum membuat PJUM",
+                pjumExportId: null,
+            };
+        }
+
+        const branchName = rangeReports[0].branchName;
 
         // Create PjumExport record in PENDING_APPROVAL status
         const pjumExport = await prisma.pjumExport.create({
@@ -239,7 +402,11 @@ export async function exportPjum(input: {
 
         // Mark reports as included in PJUM
         await prisma.report.updateMany({
-            where: { reportNumber: { in: safeNumbers } },
+            where: {
+                reportNumber: { in: safeNumbers },
+                status: "COMPLETED",
+                pjumExportedAt: null,
+            },
             data: { pjumExportedAt: new Date() },
         });
 

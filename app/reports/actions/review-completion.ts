@@ -47,7 +47,7 @@ export async function reviewCompletion(
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { status: true, branchName: true },
+            select: { status: true, branchName: true, finishedAt: true },
         });
 
         if (!report) return { error: "Laporan tidak ditemukan" };
@@ -82,7 +82,10 @@ export async function reviewCompletion(
                 where: { reportNumber },
                 data: {
                     status: newStatus,
-                    ...(decision === "approve" && { finishedAt: new Date() }),
+                    // Keep existing finishedAt from completion submission.
+                    // Backfill only for legacy rows where finishedAt is still null.
+                    ...(decision === "approve" &&
+                        !report.finishedAt && { finishedAt: new Date() }),
                 },
             }),
             prisma.approvalLog.create({
