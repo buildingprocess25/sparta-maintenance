@@ -13,7 +13,7 @@
 
 import "dotenv/config";
 import { exec } from "node:child_process";
-import { promises as fs } from "node:fs";
+import { createReadStream, promises as fs } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { google } from "googleapis";
@@ -104,8 +104,8 @@ async function uploadToGoogleDrive(
 
         const drive = google.drive({ version: "v3", auth: oauth2Client });
 
-        const fileContent = await fs.readFile(backupFile);
         const filename = backupFile.split("/").pop() || "backup.sql";
+        const fileStream = createReadStream(backupFile);
 
         const response = await drive.files.create({
             requestBody: {
@@ -116,7 +116,7 @@ async function uploadToGoogleDrive(
             },
             media: {
                 mimeType: "text/plain",
-                body: fileContent as Buffer,
+                body: fileStream,
             },
         });
 
