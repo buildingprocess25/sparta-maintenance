@@ -1,6 +1,6 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export default function DashboardLoading() {
     return (
@@ -12,75 +12,74 @@ export default function DashboardLoading() {
                 backHref="/"
             />
 
-            <main className="flex-1 container mx-auto px-4 md:px-8 py-8 max-w-7xl space-y-8">
-                {/* Welcome Section Skeleton */}
-                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <div className="space-y-2">
-                        <div className="h-7 md:h-9 w-64 rounded-md bg-muted animate-pulse" />
-                        <div className="h-4 w-48 rounded-md bg-muted animate-pulse" />
-                    </div>
-                    <div className="flex items-center gap-3">
-                        <div className="h-8 w-44 rounded-full bg-muted animate-pulse" />
-                        <div className="h-9 w-9 rounded-md bg-muted animate-pulse" />
-                    </div>
-                </div>
-
-                {/* Stats Grid Skeleton — 4 columns */}
-                <div className="grid grid-cols-4 gap-4">
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <Card key={i} className="gap-2 py-3 md:py-6">
-                            <CardHeader className="flex flex-row items-center px-0 md:px-6 justify-center md:justify-between space-y-0">
-                                <div className="h-4 w-12 md:w-24 rounded bg-muted animate-pulse" />
-                                <div className="h-4 w-4 rounded bg-muted animate-pulse hidden md:block" />
-                            </CardHeader>
-                            <CardContent className="md:items-start justify-center items-center gap-1 flex md:flex-col">
-                                <div className="h-6 md:h-8 w-8 rounded bg-muted animate-pulse" />
-                                <div className="h-3 w-3 rounded bg-muted animate-pulse md:hidden" />
-                                <div className="h-3 w-20 rounded bg-muted animate-pulse hidden md:block mt-1" />
-                            </CardContent>
-                        </Card>
-                    ))}
-                </div>
-
-                {/* Main Grid: Menu (2 col) + Activity (1 col) */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {/* Menu Section */}
-                    <div className="md:col-span-2 space-y-6">
-                        <div className="flex items-center gap-2">
-                            <div className="h-5 w-5 rounded bg-muted animate-pulse" />
-                            <div className="h-5 w-28 rounded bg-muted animate-pulse" />
+            <main className="flex-1 container mx-auto px-4 md:px-8 py-6 md:py-8 max-w-7xl space-y-6 md:space-y-8">
+                <div className="md:rounded-xl md:border-l-4 md:border-l-primary md:border md:border-border md:bg-card md:shadow-sm">
+                    <div className="flex-1 md:px-6 md:py-5">
+                        <div className="md:hidden space-y-3">
+                            <div className="h-6 w-44 rounded bg-muted animate-pulse" />
+                            <div className="h-5 w-56 rounded-full bg-muted animate-pulse" />
+                            <div className="h-4 w-36 rounded bg-muted animate-pulse" />
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {Array.from({ length: 3 }).map((_, i) => (
-                                <Card key={i} className="h-full">
-                                    <CardContent className="p-5 py-0 flex flex-row items-start gap-4">
-                                        <div className="h-12 w-12 rounded-xl bg-muted animate-pulse shrink-0" />
-                                        <div className="space-y-2 flex-1">
-                                            <div className="h-5 w-36 rounded bg-muted animate-pulse" />
-                                            <div className="h-3 w-full rounded bg-muted animate-pulse" />
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
 
-                    {/* Activity Sidebar */}
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <div className="h-5 w-5 rounded bg-muted animate-pulse" />
-                                <div className="h-5 w-32 rounded bg-muted animate-pulse" />
+                        <div className="hidden md:flex md:items-center justify-between gap-4">
+                            <div className="space-y-3">
+                                <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+                                <div className="h-8 w-64 rounded bg-muted animate-pulse" />
+                                <div className="h-5 w-80 rounded-full bg-muted animate-pulse" />
                             </div>
-                            <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+                            <div className="flex items-center gap-5 shrink-0">
+                                <div className="h-12 w-28 rounded bg-muted animate-pulse" />
+                                <div className="w-px h-10 bg-border" />
+                                <div className="h-9 w-24 rounded-md bg-muted animate-pulse" />
+                            </div>
                         </div>
-                        <Card className="h-fit">
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-4 lg:gap-6 items-start">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2 shrink-0">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="h-14 rounded-md bg-muted animate-pulse"
+                            />
+                        ))}
+                    </div>
+
+                    <div className="space-y-4">
+                        <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row bg-card">
+                            <div className="lg:w-52 p-4 lg:p-5 bg-muted/50 space-y-4">
+                                <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+                                <div className="h-12 w-20 rounded bg-muted animate-pulse" />
+                            </div>
+                            <div className="flex-1 grid grid-cols-2 lg:grid-cols-3 divide-x divide-y lg:divide-y-0 bg-card">
+                                {Array.from({ length: 3 }).map((_, index) => (
+                                    <div key={index} className="p-4 space-y-3">
+                                        <div className="h-4 w-4 rounded bg-muted animate-pulse" />
+                                        <div className="h-8 w-12 rounded bg-muted animate-pulse" />
+                                        <div className="h-4 w-24 rounded bg-muted animate-pulse" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        <Card className="rounded-xl overflow-hidden border shadow-sm">
                             <CardContent className="p-0">
-                                <div className="p-6 flex flex-col items-center justify-center text-center space-y-3 min-h-50">
-                                    <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
-                                    <div className="h-4 w-32 rounded bg-muted animate-pulse" />
-                                    <div className="h-3 w-44 rounded bg-muted animate-pulse" />
+                                <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+                                    <div className="h-4 w-36 rounded bg-muted animate-pulse" />
+                                    <div className="h-3 w-20 rounded bg-muted animate-pulse" />
                                 </div>
+                                {Array.from({ length: 5 }).map((_, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex items-center gap-4 px-4 py-3 border-b last:border-b-0"
+                                    >
+                                        <div className="h-2 w-2 rounded-full bg-muted animate-pulse" />
+                                        <div className="h-5 w-32 rounded-full bg-muted animate-pulse" />
+                                        <div className="h-3 w-40 rounded bg-muted animate-pulse" />
+                                        <div className="h-3 w-24 rounded bg-muted animate-pulse ml-auto" />
+                                    </div>
+                                ))}
                             </CardContent>
                         </Card>
                     </div>

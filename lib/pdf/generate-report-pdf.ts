@@ -901,8 +901,8 @@ function buildReportDocument(
                         ["Cabang", data.branchName],
                         ["Kode Toko", data.storeCode],
                         ["Tanggal Submit", data.submittedAt],
-                        ["Laporan Selesai", data.finishedAt ?? "—"],
                         ["Item Rusak / NOK", `${rusakItems.length} item`],
+                        ["Laporan Selesai", data.finishedAt ?? "—"],
                     ].map(([label, value], i) =>
                         React.createElement(
                             View,
