@@ -92,7 +92,7 @@ export async function searchPjumReports(
                 createdByNIK: bmsNIK,
                 branchName: { in: user.branchNames },
                 status: "COMPLETED", // Only completed reports
-                finishedAt: { gte: fromDate, lte: toDate }, // Use finishedAt instead of createdAt
+                finishedAt: { not: null, gte: fromDate, lte: toDate }, // Use finishedAt instead of createdAt
             },
             select: {
                 reportNumber: true,
@@ -121,7 +121,7 @@ export async function searchPjumReports(
 
             return {
                 reportNumber: r.reportNumber,
-                createdAt: r.finishedAt.toISOString(), // Use finishedAt as the report completion date
+                createdAt: (r.finishedAt ?? new Date()).toISOString(), // finishedAt is required by query filter
                 storeName: r.storeName,
                 storeCode: r.storeCode,
                 branchName: r.branchName,
@@ -165,13 +165,13 @@ export async function exportPjum(input: {
         } = exportSchema.parse(input);
 
         // Check if this date range has already been exported for this BMS
-        const fromDate = new Date(from);
-        const toDate = new Date(to);
+        const rangeFromDate = new Date(from);
+        const rangeToDate = new Date(to);
         const existingExport = await prisma.pjumExport.findFirst({
             where: {
                 bmsNIK,
-                fromDate: fromDate,
-                toDate: toDate,
+                fromDate: rangeFromDate,
+                toDate: rangeToDate,
                 status: { in: ["PENDING_APPROVAL", "APPROVED"] }, // Approved or pending exports
             },
         });
@@ -222,8 +222,6 @@ export async function exportPjum(input: {
         }
 
         const branchName = reports[0].branchName;
-        const fromDate = new Date(from);
-        const toDate = new Date(to);
 
         // Create PjumExport record in PENDING_APPROVAL status
         const pjumExport = await prisma.pjumExport.create({
@@ -232,8 +230,8 @@ export async function exportPjum(input: {
                 bmsNIK,
                 branchName,
                 weekNumber,
-                fromDate,
-                toDate,
+                fromDate: rangeFromDate,
+                toDate: rangeToDate,
                 reportNumbers: safeNumbers,
                 createdByNIK: user.NIK,
             },

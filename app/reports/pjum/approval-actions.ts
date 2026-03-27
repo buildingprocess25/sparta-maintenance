@@ -361,9 +361,11 @@ export async function approvePjumExport(input: {
             bankAccountNo: validated.bankAccountNo,
             bankAccountName: validated.bankAccountName,
             bankName: validated.bankName,
-            pumWeekNumber: validated.pumWeekNumber,
-            pumMonth: validated.pumMonth,
-            pumYear: validated.pumYear,
+            pumWeekNumber: validated.pumWeekNumber ?? pjumExport.weekNumber,
+            pumMonth:
+                validated.pumMonth ??
+                pjumExport.fromDate.toLocaleString("id-ID", { month: "long" }),
+            pumYear: validated.pumYear ?? pjumExport.fromDate.getFullYear(),
             branchName: pjumExport.branchName,
         };
 
