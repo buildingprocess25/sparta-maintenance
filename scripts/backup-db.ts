@@ -28,6 +28,8 @@ interface BackupResult {
     error?: string;
 }
 
+const DRIVE_BACKUP_KEEP_LATEST = 10;
+
 function requiredEnv(name: string): string {
     const value = process.env[name];
     if (!value) {
@@ -122,11 +124,72 @@ async function uploadToGoogleDrive(
 
         if (response.data.id) {
             console.log(`✅ Uploaded to Drive: ${response.data.id}`);
+            await enforceDriveRetention(drive, folderId, DRIVE_BACKUP_KEEP_LATEST);
             return response.data.id;
         }
     } catch (error) {
         console.error("❌ Google Drive upload failed:", error);
         // Don't fail entirely if Drive upload fails
+    }
+}
+
+async function enforceDriveRetention(
+    drive: ReturnType<typeof google.drive>,
+    folderId: string,
+    keepLatest: number,
+): Promise<void> {
+    if (keepLatest < 1) return;
+
+    const files: Array<{
+        id: string;
+        name: string;
+        createdTime?: string | null;
+    }> = [];
+
+    let nextPageToken: string | undefined;
+
+    do {
+        const response = await drive.files.list({
+            q: `'${folderId}' in parents and trashed = false and name contains 'sparta-db-' and name contains '.sql'`,
+            fields: "nextPageToken, files(id, name, createdTime)",
+            orderBy: "createdTime desc",
+            pageSize: 100,
+            pageToken: nextPageToken,
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
+        });
+
+        for (const file of response.data.files ?? []) {
+            if (!file.id || !file.name) continue;
+            files.push({
+                id: file.id,
+                name: file.name,
+                createdTime: file.createdTime,
+            });
+        }
+
+        nextPageToken = response.data.nextPageToken ?? undefined;
+    } while (nextPageToken);
+
+    if (files.length <= keepLatest) {
+        console.log(`🧹 Drive retention OK: ${files.length} backup file(s), no deletion needed.`);
+        return;
+    }
+
+    const toDelete = files.slice(keepLatest);
+    for (const file of toDelete) {
+        try {
+            await drive.files.delete({
+                fileId: file.id,
+                supportsAllDrives: true,
+            });
+            console.log(`🗑️  Drive retention deleted: ${file.name}`);
+        } catch (error) {
+            console.warn(
+                `⚠️  Failed to delete old Drive backup (${file.name}):`,
+                error,
+            );
+        }
     }
 }
 

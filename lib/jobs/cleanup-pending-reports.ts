@@ -13,6 +13,11 @@ type ParsedStoragePath = {
     objectPath: string;
 };
 
+type PhotoDeleteResult = {
+    deletedCount: number;
+    errorCount: number;
+};
+
 export type CleanupPendingReportsResult = {
     cutoffDate: string;
     reportsFound: number;
@@ -90,22 +95,40 @@ function parseStoragePath(url: string): ParsedStoragePath | null {
     }
 }
 
-async function deletePhotosFromSupabase(urls: string[]): Promise<number> {
-    if (urls.length === 0) return 0;
+async function deletePhotosFromSupabase(
+    urls: string[],
+): Promise<PhotoDeleteResult> {
+    if (urls.length === 0) return { deletedCount: 0, errorCount: 0 };
 
     const grouped = new Map<string, Set<string>>();
+    let errorCount = 0;
 
     for (const rawUrl of urls) {
         if (!rawUrl) continue;
         const parsed = parseStoragePath(rawUrl);
-        if (!parsed) continue;
+        if (!parsed) {
+            // If a Supabase URL can't be parsed, treat it as a deletion failure.
+            if (rawUrl.includes("supabase.co")) {
+                errorCount += 1;
+                logger.warn(
+                    {
+                        operation: "cleanupPendingReports.deletePhotos",
+                        url: rawUrl,
+                    },
+                    "Failed to parse Supabase storage URL",
+                );
+            }
+            continue;
+        }
 
         const existing = grouped.get(parsed.bucket) ?? new Set<string>();
         existing.add(parsed.objectPath);
         grouped.set(parsed.bucket, existing);
     }
 
-    if (grouped.size === 0) return 0;
+    if (grouped.size === 0) {
+        return { deletedCount: 0, errorCount };
+    }
 
     const supabase = getSupabaseClient();
     let deletedCount = 0;
@@ -118,6 +141,7 @@ async function deletePhotosFromSupabase(urls: string[]): Promise<number> {
             const { error } = await supabase.storage.from(bucket).remove(batch);
 
             if (error) {
+                errorCount += batch.length;
                 logger.warn(
                     {
                         operation: "cleanupPendingReports.deletePhotos",
@@ -132,14 +156,17 @@ async function deletePhotosFromSupabase(urls: string[]): Promise<number> {
         }
     }
 
-    return deletedCount;
+    return { deletedCount, errorCount };
 }
 
 function extractStartSelfieUrls(rawSelfie: string | null): string[] {
     if (!rawSelfie) return [];
-    if (rawSelfie.startsWith("[")) {
+    const trimmed = rawSelfie.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("[")) {
         try {
-            const parsed = JSON.parse(rawSelfie);
+            const parsed = JSON.parse(trimmed);
             return Array.isArray(parsed)
                 ? parsed.filter(
                       (url): url is string =>
@@ -150,7 +177,53 @@ function extractStartSelfieUrls(rawSelfie: string | null): string[] {
             return [];
         }
     }
-    return rawSelfie.trim() ? [rawSelfie] : [];
+
+    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+        try {
+            const parsed = JSON.parse(trimmed);
+            return typeof parsed === "string" && parsed.trim().length > 0
+                ? [parsed]
+                : [];
+        } catch {
+            return [];
+        }
+    }
+
+    return [trimmed];
+}
+
+function extractStartReceiptUrls(rawReceipts: unknown): string[] {
+    if (!rawReceipts) return [];
+
+    if (Array.isArray(rawReceipts)) {
+        return rawReceipts.filter(
+            (url): url is string => typeof url === "string" && url.length > 0,
+        );
+    }
+
+    if (typeof rawReceipts === "string") {
+        const trimmed = rawReceipts.trim();
+        if (!trimmed) return [];
+
+        if (trimmed.startsWith("[")) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                return Array.isArray(parsed)
+                    ? parsed.filter(
+                          (url): url is string =>
+                              typeof url === "string" && url.length > 0,
+                      )
+                    : [];
+            } catch {
+                return [];
+            }
+        }
+
+        // Legacy fallback: single string URL.
+        return [trimmed];
+    }
+
+    return [];
 }
 
 export async function cleanupPendingReports(): Promise<CleanupPendingReportsResult> {
@@ -194,13 +267,25 @@ export async function cleanupPendingReports(): Promise<CleanupPendingReportsResu
             const photoUrls: string[] = [];
             photoUrls.push(...extractPhotoUrls(report.items));
             photoUrls.push(...extractStartSelfieUrls(report.startSelfieUrl));
-            if (Array.isArray(report.startReceiptUrls)) {
-                photoUrls.push(
-                    ...(report.startReceiptUrls as string[]).filter(Boolean),
-                );
-            }
+            photoUrls.push(...extractStartReceiptUrls(report.startReceiptUrls));
 
-            const deletedPhotos = await deletePhotosFromSupabase(photoUrls);
+            const { deletedCount, errorCount } = await deletePhotosFromSupabase(
+                photoUrls,
+            );
+            result.photosDeleted += deletedCount;
+
+            if (errorCount > 0) {
+                result.failedReports.push(report.reportNumber);
+                logger.error(
+                    {
+                        operation: "cleanupPendingReports",
+                        reportNumber: report.reportNumber,
+                        photoDeleteErrors: errorCount,
+                    },
+                    "Skipping report deletion because some photos failed to delete",
+                );
+                continue;
+            }
 
             await prisma.$transaction([
                 prisma.activityLog.deleteMany({
@@ -215,7 +300,6 @@ export async function cleanupPendingReports(): Promise<CleanupPendingReportsResu
             ]);
 
             result.reportsDeleted += 1;
-            result.photosDeleted += deletedPhotos;
         } catch (error) {
             result.failedReports.push(report.reportNumber);
             logger.error(

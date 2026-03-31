@@ -45,63 +45,84 @@ async function confirm(): Promise<boolean> {
 
 // ─── Delete photos from Supabase Storage ──────────────────────────────────────
 
-async function purgeStorage(reportNumbers: string[]): Promise<void> {
-    if (reportNumbers.length === 0) return;
+type StorageListItem = {
+    id: string | null;
+    name: string;
+};
 
+const LIST_LIMIT = 100;
+const DELETE_BATCH_SIZE = 100;
+
+async function listAllStorageObjects(
+    bucket: ReturnType<ReturnType<typeof getSupabaseClient>["storage"]["from"]>,
+    prefix = "",
+): Promise<string[]> {
+    let offset = 0;
+    const objectPaths: string[] = [];
+
+    while (true) {
+        const { data, error } = await bucket.list(prefix, {
+            limit: LIST_LIMIT,
+            offset,
+        });
+
+        if (error) {
+            throw new Error(
+                `Gagal membaca bucket di "${prefix || "/"}": ${error.message}`,
+            );
+        }
+
+        const rows = (data ?? []) as StorageListItem[];
+        if (rows.length === 0) break;
+
+        for (const row of rows) {
+            const fullPath = prefix ? `${prefix}/${row.name}` : row.name;
+
+            // Folder pseudo-entry has id = null.
+            if (!row.id) {
+                const childPaths = await listAllStorageObjects(bucket, fullPath);
+                objectPaths.push(...childPaths);
+            } else {
+                objectPaths.push(fullPath);
+            }
+        }
+
+        if (rows.length < LIST_LIMIT) break;
+        offset += LIST_LIMIT;
+    }
+
+    return objectPaths;
+}
+
+async function purgeStorage(): Promise<void> {
     const supabase = getSupabaseClient();
     const bucket = supabase.storage.from("reports");
 
     let totalDeleted = 0;
     let totalErrors = 0;
 
-    // List all objects inside each reportNumber folder
-    // Supabase storage doesn't support recursive delete by prefix directly,
-    // so we list then batch-delete.
-    for (const reportNumber of reportNumbers) {
-        const { data: files, error: listError } = await bucket.list(
-            reportNumber,
-            { limit: 1000 },
-        );
+    const objectPaths = await listAllStorageObjects(bucket);
 
-        if (listError) {
-            console.warn(
-                `  ⚠ Gagal list storage untuk ${reportNumber}: ${listError.message}`,
-            );
+    if (objectPaths.length === 0) {
+        console.log("  ✓ Storage: tidak ada file yang perlu dihapus");
+        return;
+    }
+
+    for (let i = 0; i < objectPaths.length; i += DELETE_BATCH_SIZE) {
+        const chunk = objectPaths.slice(i, i + DELETE_BATCH_SIZE);
+        const { error } = await bucket.remove(chunk);
+
+        if (error) {
+            console.warn(`  ⚠ Gagal hapus batch storage: ${error.message}`);
             totalErrors++;
             continue;
         }
 
-        if (!files || files.length === 0) continue;
-
-        const paths = files.map((f) => `${reportNumber}/${f.name}`);
-        const { error: removeError } = await bucket.remove(paths);
-
-        if (removeError) {
-            console.warn(
-                `  ⚠ Gagal hapus ${paths.length} file untuk ${reportNumber}: ${removeError.message}`,
-            );
-            totalErrors++;
-        } else {
-            totalDeleted += paths.length;
-        }
-    }
-
-    // Also clean up any leftover DRAFT-* folders not tied to a report
-    const { data: rootFolders } = await bucket.list("", { limit: 1000 });
-    if (rootFolders) {
-        for (const folder of rootFolders) {
-            // Supabase returns "folders" as items without extensions
-            // DRAFT folders pattern: "{branch}/{storeCode}/DRAFT-{NIK}/"
-            // Top-level entries are branch folders — skip them
-            if (folder.name && !folder.id) {
-                // It's a pseudo-folder, skip (can't delete non-empty dirs directly)
-                continue;
-            }
-        }
+        totalDeleted += chunk.length;
     }
 
     console.log(
-        `  ✓ Storage: ${totalDeleted} file dihapus${totalErrors > 0 ? `, ${totalErrors} folder gagal` : ""}`,
+        `  ✓ Storage: ${totalDeleted} file dihapus${totalErrors > 0 ? `, ${totalErrors} batch gagal` : ""}`,
     );
 }
 
@@ -116,7 +137,7 @@ async function main() {
 
     console.log("\n🗑  Memulai penghapusan data...\n");
 
-    // 1. Kumpulkan semua report numbers (untuk storage)
+    // 1. Kumpulkan semua report numbers (untuk log)
     const allReports = await prisma.report.findMany({
         select: { reportNumber: true },
     });
@@ -125,7 +146,7 @@ async function main() {
 
     // 2. Hapus foto di Supabase Storage
     console.log("  Menghapus foto dari Supabase Storage...");
-    await purgeStorage(reportNumbers);
+    await purgeStorage();
 
     // 3. Hapus data DB dalam satu transaksi — urutan: child → parent
     console.log("  Menghapus data database...");

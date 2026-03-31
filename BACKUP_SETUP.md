@@ -100,7 +100,7 @@ ls -lh backups/
 
 - Local backups: Dihapus otomatis setelah 30 hari
 - GitHub Artifacts: Dihapus otomatis setelah 7 hari
-- Google Drive: **Manual** — hapus sendiri jika perlu space
+- Google Drive: Otomatis menyimpan **10 backup terbaru** (backup terlama akan dihapus)
 
 ## 🆘 Troubleshooting
 
