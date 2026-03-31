@@ -13,7 +13,6 @@ import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
-import { approveFinal } from "@/app/reports/actions/approve-final";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -202,25 +201,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         });
     };
 
-    const handleApproveFinal = () => {
-        startTransition(async () => {
-            const result = await approveFinal(
-                report.reportNumber,
-                notesInput || undefined,
-            );
-            if (result.error) {
-                toast.error("Gagal melakukan persetujuan final", {
-                    description: result.error,
-                });
-            } else {
-                toast.success("Laporan selesai!", {
-                    description: "Status laporan diubah menjadi 'Selesai'.",
-                });
-                setActiveDialog(null);
-                setNotesInput("");
-            }
-        });
-    };
 
     const actions: ActionState = {
         isPending,
@@ -231,7 +211,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
-        handleApproveFinal,
     };
 
     const hasWorkflowAction =

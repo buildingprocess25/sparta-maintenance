@@ -5,6 +5,7 @@ import {
     Wrench,
     FileText,
     Archive,
+    Database,
 } from "lucide-react";
 import { getBMCStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -51,6 +52,13 @@ const MENUS: DashboardMenuItem[] = [
         href: "/api/drive/pjum-archive",
         variant: "outline",
         newTab: true,
+    },
+    {
+        title: "Kelola Database",
+        description: "Kelola data user dan toko cabang",
+        icon: Database,
+        href: "/bmc/database",
+        variant: "outline",
     },
 ];
 
