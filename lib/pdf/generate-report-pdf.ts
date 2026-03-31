@@ -43,7 +43,7 @@ const styles = StyleSheet.create({
     },
     header: {
         marginBottom: 20,
-        backgroundColor: "#c0392b",
+        backgroundColor: "#0069a7",
         padding: "14 20",
         flexDirection: "row",
         alignItems: "center",
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 10,
         fontFamily: "Helvetica-Bold",
-        color: "#c0392b",
+        color: "#0069a7",
         marginBottom: 6,
         paddingBottom: 3,
         borderBottom: "1px solid #f5c6c2",
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: "row",
-        backgroundColor: "#c0392b",
+        backgroundColor: "#0069a7",
         borderRadius: 2,
         marginBottom: 1,
     },
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     },
     tableSubLabel: {
         fontFamily: "Helvetica-Bold",
-        color: "#991b1b",
+        color: "#004b77",
     },
     twoColumnTableContainer: {
         flexDirection: "row",
@@ -174,18 +174,18 @@ const styles = StyleSheet.create({
     },
     categoryRow: {
         flexDirection: "row",
-        backgroundColor: "#fdf2f2",
+        backgroundColor: "#e0f2fe",
         marginTop: 4,
         marginBottom: 1,
     },
     categoryCell: {
         fontSize: 7.5,
         fontFamily: "Helvetica-Bold",
-        color: "#c0392b",
+        color: "#0069a7",
         padding: "3 6",
     },
     badgeRusak: {
-        color: "#c0392b",
+        color: "#0069a7",
         fontFamily: "Helvetica-Bold",
     },
     badgeBaik: {
@@ -196,20 +196,20 @@ const styles = StyleSheet.create({
     },
     totalRow: {
         flexDirection: "row",
-        backgroundColor: "#fdf2f2",
+        backgroundColor: "#e0f2fe",
         borderRadius: 2,
         marginTop: 4,
     },
     totalLabel: {
         fontFamily: "Helvetica-Bold",
         fontSize: 9,
-        color: "#c0392b",
+        color: "#0069a7",
         padding: "6 6",
     },
     totalValue: {
         fontFamily: "Helvetica-Bold",
         fontSize: 9,
-        color: "#c0392b",
+        color: "#0069a7",
         padding: "6 6",
         textAlign: "right",
     },
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
         paddingVertical: 4,
         paddingHorizontal: 6,
         marginBottom: 8,
-        borderLeft: "3px solid #c0392b",
+        borderLeft: "3px solid #0069a7",
     },
     completionItemTitle: {
         fontSize: 8,
@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     },
     completionTableHeader: {
         flexDirection: "row",
-        backgroundColor: "#c0392b",
+        backgroundColor: "#0069a7",
         borderRadius: 2,
         marginBottom: 1,
     },
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     },
     completionTotalRow: {
         flexDirection: "row",
-        backgroundColor: "#fdf2f2",
+        backgroundColor: "#e0f2fe",
         borderRadius: 2,
         marginTop: 4,
     },

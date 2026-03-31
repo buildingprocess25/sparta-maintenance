@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     docTitle: {
         fontSize: 13,
         fontFamily: "Helvetica-Bold",
-        color: "#c0392b",
+        color: "#0069a7",
         marginBottom: 14,
         textAlign: "center",
     },
@@ -47,7 +47,7 @@ const styles = StyleSheet.create({
     },
     tableHeader: {
         flexDirection: "row",
-        backgroundColor: "#c0392b",
+        backgroundColor: "#0069a7",
         borderRadius: 2,
         marginBottom: 2,
     },
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     colTotal: { width: 80, textAlign: "right" },
     totalRow: {
         flexDirection: "row",
-        borderTop: "2px solid #c0392b",
+        borderTop: "2px solid #0069a7",
         marginTop: 4,
         paddingTop: 5,
     },
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
         width: 80,
         fontSize: 9,
         fontFamily: "Helvetica-Bold",
-        color: "#c0392b",
+        color: "#0069a7",
         textAlign: "right",
     },
     // Stamp

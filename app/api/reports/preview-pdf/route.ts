@@ -10,6 +10,11 @@ const PLACEHOLDER_LOGO =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
 export async function GET() {
+    // Disable this preview endpoint on public deployments.
+    if (process.env.NODE_ENV === "production") {
+        return new NextResponse("Not Found", { status: 404 });
+    }
+
     try {
         const mockData: ReportPdfData = {
             reportNumber: "RPT-2024-001",

@@ -230,88 +230,14 @@ export async function generatePjumPackagePdf(params: {
             minute: "2-digit",
         });
 
-    const reportBuffers = await Promise.all(
-        fullReports.map(async (report) => {
-            const items = (report.items ?? []) as unknown as ReportItemJson[];
-            const estimations = (report.estimations ??
-                []) as unknown as MaterialEstimationJson[];
+    const merged = await PDFDocument.create();
 
-            const submittedAt = report.createdAt.toLocaleDateString("id-ID", {
-                timeZone: "Asia/Jakarta",
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "2-digit",
-                minute: "2-digit",
-            });
-            const finishedAt = report.finishedAt
-                ? formatDate(report.finishedAt)
-                : undefined;
+    // 1. Insert Recap (pjumBuffer)
+    const pjumDoc = await PDFDocument.load(pjumBuffer);
+    const pjumPages = await merged.copyPages(pjumDoc, pjumDoc.getPageIndices());
+    pjumPages.forEach((p) => merged.addPage(p));
 
-            const stamps = report.activities
-                .filter((l) => STAMP_ACTIONS.includes(l.action))
-                .map((log) => ({
-                    action: log.action,
-                    approverName: log.actor?.name ?? undefined,
-                    approverNIK: log.actor?.NIK ?? undefined,
-                    approverRole: log.actor?.role ?? undefined,
-                    approvedAt: formatDate(log.createdAt),
-                    notes: log.notes ?? undefined,
-                }));
-
-            const rawSelfie = report.startSelfieUrl;
-            const completionSelfieUrls: string[] = rawSelfie
-                ? rawSelfie.startsWith("[")
-                    ? (JSON.parse(rawSelfie) as string[])
-                    : [rawSelfie]
-                : [];
-
-            const rawReceipts = report.startReceiptUrls;
-            const startReceiptUrls: string[] = Array.isArray(rawReceipts)
-                ? (rawReceipts as string[])
-                : typeof rawReceipts === "string" &&
-                    (rawReceipts as string).startsWith("[")
-                  ? (JSON.parse(rawReceipts as string) as string[])
-                  : [];
-            const startMaterialStores = parseMaterialStores(
-                report.startMaterialStores,
-            );
-
-            const completionLog = report.activities.find(
-                (l) =>
-                    l.action === "COMPLETION_SUBMITTED" ||
-                    l.action === "RESUBMITTED_WORK",
-            );
-            const completionNotes = completionLog?.notes ?? undefined;
-
-            return generateReportPdf({
-                reportNumber: report.reportNumber,
-                storeName: report.store ? report.store.name : report.storeName,
-                storeCode: report.store ? report.store.code : "-",
-                branchName: report.branchName,
-                submittedBy: report.createdBy.name,
-                submittedByNIK: report.createdByNIK,
-                submittedAt,
-                finishedAt,
-                items,
-                estimations,
-                totalEstimation: Number(report.totalEstimation),
-                alfamartLogoBase64: ALFAMART_LOGO_BASE64,
-                buildingLogoBase64: BUILDING_LOGO_BASE64,
-                completionSelfieUrls,
-                startReceiptUrls,
-                startMaterialStores,
-                completionNotes,
-                approval: {
-                    reportStatus: report.status,
-                    stamps,
-                },
-            });
-        }),
-    );
-
-    // Build form PDF if PJUM/PUM form data is available
+    // 2. Build and insert form PDF if PJUM/PUM form data is available
     let formBuffer: Buffer | null = null;
     if (params.pumData) {
         formBuffer = await generatePjumFormPdf(
@@ -344,16 +270,97 @@ export async function generatePjumPackagePdf(params: {
         }
     }
 
-    const merged = await PDFDocument.create();
-    // Order: 1. Recap (pjumBuffer) → 2. Form PJUM/PUM (if available) → 3..N Individual reports
-    const allBuffers = [
-        pjumBuffer,
-        ...(formBuffer ? [formBuffer] : []),
-        ...reportBuffers,
-    ];
-    for (const buf of allBuffers) {
-        const src = await PDFDocument.load(buf);
-        const pages = await merged.copyPages(src, src.getPageIndices());
+    if (formBuffer) {
+        const formDoc = await PDFDocument.load(formBuffer);
+        const formPages = await merged.copyPages(
+            formDoc,
+            formDoc.getPageIndices(),
+        );
+        formPages.forEach((p) => merged.addPage(p));
+    }
+
+    // 3. Generate & merge individual reports sequentially to avoid memory spikes
+    for (const report of fullReports) {
+        const items = (report.items ?? []) as unknown as ReportItemJson[];
+        const estimations = (report.estimations ??
+            []) as unknown as MaterialEstimationJson[];
+
+        const submittedAt = report.createdAt.toLocaleDateString("id-ID", {
+            timeZone: "Asia/Jakarta",
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+        });
+        const finishedAt = report.finishedAt
+            ? formatDate(report.finishedAt)
+            : undefined;
+
+        const stamps = report.activities
+            .filter((l) => STAMP_ACTIONS.includes(l.action))
+            .map((log) => ({
+                action: log.action,
+                approverName: log.actor?.name ?? undefined,
+                approverNIK: log.actor?.NIK ?? undefined,
+                approverRole: log.actor?.role ?? undefined,
+                approvedAt: formatDate(log.createdAt),
+                notes: log.notes ?? undefined,
+            }));
+
+        const rawSelfie = report.startSelfieUrl;
+        const completionSelfieUrls: string[] = rawSelfie
+            ? rawSelfie.startsWith("[")
+                ? (JSON.parse(rawSelfie) as string[])
+                : [rawSelfie]
+            : [];
+
+        const rawReceipts = report.startReceiptUrls;
+        const startReceiptUrls: string[] = Array.isArray(rawReceipts)
+            ? (rawReceipts as string[])
+            : typeof rawReceipts === "string" &&
+                (rawReceipts as string).startsWith("[")
+              ? (JSON.parse(rawReceipts as string) as string[])
+              : [];
+        const startMaterialStores = parseMaterialStores(
+            report.startMaterialStores,
+        );
+
+        const completionLog = report.activities.find(
+            (l) =>
+                l.action === "COMPLETION_SUBMITTED" ||
+                l.action === "RESUBMITTED_WORK",
+        );
+        const completionNotes = completionLog?.notes ?? undefined;
+
+        const reportPdfBuffer = await generateReportPdf({
+            reportNumber: report.reportNumber,
+            storeName: report.store ? report.store.name : report.storeName,
+            storeCode: report.store ? report.store.code : "-",
+            branchName: report.branchName,
+            submittedBy: report.createdBy.name,
+            submittedByNIK: report.createdByNIK,
+            submittedAt,
+            finishedAt,
+            items,
+            estimations,
+            totalEstimation: Number(report.totalEstimation),
+            alfamartLogoBase64: ALFAMART_LOGO_BASE64,
+            buildingLogoBase64: BUILDING_LOGO_BASE64,
+            completionSelfieUrls,
+            startReceiptUrls,
+            startMaterialStores,
+            completionNotes,
+            approval: {
+                reportStatus: report.status,
+                stamps,
+            },
+        });
+
+        // Load into main document and clear buffer from memory
+        const srcDoc = await PDFDocument.load(reportPdfBuffer);
+        const pages = await merged.copyPages(srcDoc, srcDoc.getPageIndices());
         pages.forEach((p) => merged.addPage(p));
     }
 
