@@ -37,9 +37,9 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
     // Inline form errors handle display — no duplicate toast needed
 
-    // Handle password input - convert to uppercase
+    // Handle password input
     const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        setPassword(e.target.value.toUpperCase());
+        setPassword(e.target.value);
     };
 
     // Handle email input
@@ -118,7 +118,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
                                         type={
                                             showPassword ? "text" : "password"
                                         }
-                                        placeholder="Masukkan nama cabang"
+                                        placeholder="Masukkan password"
                                         value={password}
                                         onChange={handlePasswordChange}
                                         required
@@ -157,8 +157,20 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
                                 </div>
                             )}
 
+                            {/* Forgot Password — coming soon */}
+                            <div className="flex justify-end">
+                                <button
+                                    type="button"
+                                    disabled
+                                    className="text-sm text-muted-foreground/50 cursor-not-allowed"
+                                    title="Fitur ini akan segera hadir"
+                                >
+                                    Lupa Password?
+                                </button>
+                            </div>
+
                             {/* Submit Button */}
-                            <ButtonGroup className="w-full mt-2">
+                            <ButtonGroup className="w-full">
                                 <Button
                                     type="submit"
                                     className="flex-1"

@@ -7,6 +7,9 @@ const SESSION_COOKIE_NAME = "app_session";
 // Route prefixes that require authentication
 const protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"];
 
+// Routes allowed when user must change password (whitelist)
+const changePasswordAllowList = ["/change-password", "/login", "/api"];
+
 function getSecretKey() {
     const secret = process.env.SESSION_SECRET;
     if (!secret) return null;
@@ -32,6 +35,7 @@ export default async function proxy(request: NextRequest) {
     // Read and verify JWT session cookie (optimistic check — no DB call)
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     let isAuthenticated = false;
+    let mustChangePassword = false;
 
     if (sessionCookie) {
         try {
@@ -40,6 +44,8 @@ export default async function proxy(request: NextRequest) {
                 const { payload } = await jwtVerify(sessionCookie, key);
                 if (payload.userId) {
                     isAuthenticated = true;
+                    mustChangePassword =
+                        (payload.mustChangePassword as boolean) ?? false;
                 }
             }
         } catch {
@@ -53,8 +59,26 @@ export default async function proxy(request: NextRequest) {
         return NextResponse.redirect(loginUrl);
     }
 
+    // Force password change: block all routes except whitelist
+    if (isAuthenticated && mustChangePassword) {
+        const isAllowed = changePasswordAllowList.some(
+            (prefix) =>
+                pathname === prefix || pathname.startsWith(prefix + "/"),
+        );
+        if (!isAllowed) {
+            return NextResponse.redirect(
+                new URL("/change-password", request.url),
+            );
+        }
+    }
+
     // Redirect authenticated users away from login page
     if (isLoginRoute && isAuthenticated) {
+        if (mustChangePassword) {
+            return NextResponse.redirect(
+                new URL("/change-password", request.url),
+            );
+        }
         const dashboardUrl = new URL("/dashboard", request.url);
         return NextResponse.redirect(dashboardUrl);
     }

@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { createSession } from "@/lib/session";
+import { verifyPassword } from "@/lib/password";
 import { getDbErrorMessage } from "@/lib/db-error";
 import { logger } from "@/lib/logger";
 import { redirect } from "next/navigation";
@@ -32,10 +33,19 @@ export async function loginAction(
         return { errors };
     }
 
+    let mustChangePassword = false;
+
     try {
         // 2. Cari User berdasarkan Email
         const user = await prisma.user.findUnique({
             where: { email },
+            select: {
+                NIK: true,
+                role: true,
+                branchNames: true,
+                passwordHash: true,
+                mustChangePassword: true,
+            },
         });
 
         if (!user) {
@@ -46,15 +56,22 @@ export async function loginAction(
             };
         }
 
-        // 3. Validasi Password
-        // Password harus sama dengan salah satu branchName yang dimiliki user (case-insensitive)
-        const isPasswordValid =
-            user.branchNames.length > 0 &&
-            user.branchNames.some(
-                (branch) =>
-                    branch.trim().toUpperCase() ===
-                    password.trim().toUpperCase(),
-            );
+        // 3. Validasi Password — dual path
+        let isPasswordValid = false;
+
+        if (user.passwordHash) {
+            // User sudah punya password hash → bcrypt verify (case-sensitive)
+            isPasswordValid = await verifyPassword(password, user.passwordHash);
+        } else {
+            // Legacy: user belum set password → compare dengan branch name (case-insensitive)
+            isPasswordValid =
+                user.branchNames.length > 0 &&
+                user.branchNames.some(
+                    (branch) =>
+                        branch.trim().toUpperCase() ===
+                        password.trim().toUpperCase(),
+                );
+        }
 
         if (!isPasswordValid) {
             return {
@@ -64,8 +81,10 @@ export async function loginAction(
             };
         }
 
-        // 4. Buat Sesi Login
-        await createSession(user.NIK, user.role);
+        mustChangePassword = user.mustChangePassword;
+
+        // 4. Buat Sesi Login (termasuk flag mustChangePassword)
+        await createSession(user.NIK, user.role, mustChangePassword);
     } catch (error) {
         logger.error({ operation: "login" }, "Login failed", error);
         const message = getDbErrorMessage(error);
@@ -76,7 +95,11 @@ export async function loginAction(
         };
     }
 
-    // 5. Redirect jika sukses (Dilakukan di luar try-catch karena redirect melempar error NEXT_REDIRECT)
+    // 5. Redirect — jika harus ganti password, ke halaman change-password
+    if (mustChangePassword) {
+        redirect("/change-password");
+    }
+
     const callbackUrl = formData.get("callbackUrl") as string | null;
     // Validate: must start with / but not // (prevents open redirect)
     const safeRedirect =

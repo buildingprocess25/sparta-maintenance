@@ -13,11 +13,15 @@ function getSecretKey() {
     return new TextEncoder().encode(secret);
 }
 
-export async function createSession(userId: string, role: string) {
+export async function createSession(
+    userId: string,
+    role: string,
+    mustChangePassword: boolean,
+) {
     const expiresAt = new Date(Date.now() + SESSION_EXPIRY_MS);
 
     // Sign session with HMAC-SHA256 via jose
-    const token = await new SignJWT({ userId, role })
+    const token = await new SignJWT({ userId, role, mustChangePassword })
         .setProtectedHeader({ alg: "HS256" })
         .setExpirationTime(expiresAt)
         .setIssuedAt()
@@ -48,6 +52,8 @@ export async function getSession() {
         return {
             userId: payload.userId as string,
             role: payload.role as string,
+            mustChangePassword:
+                (payload.mustChangePassword as boolean) ?? false,
         };
     } catch {
         // Token expired or invalid signature — return null.

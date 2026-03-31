@@ -15,6 +15,9 @@ import {
     CheckCircle,
     AlertCircle,
     ClipboardCheck,
+    LogIn,
+    KeyRound,
+    ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/layout/header";
@@ -43,6 +46,66 @@ export default function UserManualPage() {
                     </p>
                 </div>
 
+                {/* Login & Password */}
+                <Card className="mb-8 border-2">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <LogIn className="h-5 w-5 text-primary" />
+                            Login & Password
+                        </CardTitle>
+                        <CardDescription>
+                            Cara masuk dan mengelola password akun Anda
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                        <div className="flex items-start gap-3">
+                            <KeyRound className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium text-foreground">
+                                    Login Pertama Kali
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Gunakan email yang terdaftar dan{" "}
+                                    <strong>nama cabang</strong> sebagai
+                                    password awal. Contoh: jika cabang Anda
+                                    &quot;JAKARTA PUSAT&quot;, masukkan
+                                    &quot;JAKARTA PUSAT&quot; sebagai password.
+                                </p>
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="flex items-start gap-3">
+                            <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium text-foreground">
+                                    Buat Password Baru
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Setelah login pertama, Anda akan diminta{" "}
+                                    <strong>wajib membuat password baru</strong>{" "}
+                                    (minimal 6 karakter). Password ini yang akan
+                                    digunakan untuk login selanjutnya.
+                                </p>
+                            </div>
+                        </div>
+                        <Separator />
+                        <div className="flex items-start gap-3">
+                            <LogIn className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                            <div>
+                                <p className="font-medium text-foreground">
+                                    Login Selanjutnya
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    Gunakan email dan password baru yang telah
+                                    Anda buat. Password bersifat{" "}
+                                    <strong>case-sensitive</strong> (huruf besar
+                                    dan kecil berbeda).
+                                </p>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* System Flow Overview */}
                 <Card className="mb-8 border-2">
                     <CardHeader>
@@ -51,7 +114,7 @@ export default function UserManualPage() {
                             Alur Sistem
                         </CardTitle>
                         <CardDescription>
-                            Proses lengkap dari pelaporan hingga approval
+                            Proses lengkap dari pelaporan hingga selesai
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-3">
@@ -61,12 +124,11 @@ export default function UserManualPage() {
                             </Badge>
                             <div>
                                 <p className="font-medium text-foreground">
-                                    Maintenance Support membuat laporan
-                                    kerusakan
+                                    BMS membuat laporan kerusakan
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Upload foto, estimasi biaya, lokasi
-                                    kerusakan
+                                    Upload foto, estimasi biaya, pilih toko dan
+                                    jenis kerusakan
                                 </p>
                             </div>
                         </div>
@@ -77,10 +139,11 @@ export default function UserManualPage() {
                             </Badge>
                             <div>
                                 <p className="font-medium text-foreground">
-                                    Pelaksanaan perbaikan & upload bukti
+                                    BMC review estimasi
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Foto sebelum/sesudah, nota pembelian
+                                    Setujui, minta revisi, atau tolak estimasi
+                                    biaya
                                 </p>
                             </div>
                         </div>
@@ -91,10 +154,11 @@ export default function UserManualPage() {
                             </Badge>
                             <div>
                                 <p className="font-medium text-foreground">
-                                    COS/ACOS verifikasi hasil di lapangan
+                                    BMS melakukan perbaikan
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Cek material, nota, dan hasil perbaikan
+                                    Mulai pekerjaan, upload foto sebelum/sesudah
+                                    dan nota
                                 </p>
                             </div>
                         </div>
@@ -105,10 +169,11 @@ export default function UserManualPage() {
                             </Badge>
                             <div>
                                 <p className="font-medium text-foreground">
-                                    Coordinator monitoring & konfirmasi
+                                    BMC review hasil pekerjaan
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Pengecekan kelengkapan administratif
+                                    Verifikasi hasil perbaikan, setujui atau
+                                    minta revisi
                                 </p>
                             </div>
                         </div>
@@ -119,24 +184,11 @@ export default function UserManualPage() {
                             </Badge>
                             <div>
                                 <p className="font-medium text-foreground">
-                                    Admin Building proses SPJ
+                                    BnM Manager approval akhir (PJUM)
                                 </p>
                                 <p className="text-sm text-muted-foreground">
-                                    Generate dokumen dan arsip
-                                </p>
-                            </div>
-                        </div>
-                        <Separator />
-                        <div className="flex items-start gap-3">
-                            <Badge variant="secondary" className="mt-1">
-                                6
-                            </Badge>
-                            <div>
-                                <p className="font-medium text-foreground">
-                                    Manager approval akhir
-                                </p>
-                                <p className="text-sm text-muted-foreground">
-                                    Review & approve/reject
+                                    Review dan approve/reject Pengajuan Uang
+                                    Muka (PJUM)
                                 </p>
                             </div>
                         </div>
@@ -157,57 +209,83 @@ export default function UserManualPage() {
                     <CardContent>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge className="mb-2">DRAFT</Badge>
+                                <Badge className="mb-2">Draft</Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Laporan dalam proses pembuatan
+                                    Laporan dalam proses pembuatan oleh BMS
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge variant="secondary" className="mb-2">
-                                    OPEN
+                                <Badge
+                                    variant="secondary"
+                                    className="mb-2 bg-yellow-100 text-yellow-700 border-yellow-200"
+                                >
+                                    Menunggu Persetujuan Estimasi
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Laporan telah disubmit
+                                    BMS sudah submit, menunggu BMC review
+                                    estimasi
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge variant="secondary" className="mb-2">
-                                    ON_PROGRESS
+                                <Badge className="mb-2 bg-green-100 text-green-700 border-green-200">
+                                    Estimasi Disetujui
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Perbaikan sedang berlangsung
+                                    BMC menyetujui estimasi, BMS bisa mulai
+                                    kerja
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge variant="secondary" className="mb-2">
-                                    SOLVE
+                                <Badge className="mb-2 bg-orange-100 text-orange-700 border-orange-200">
+                                    Estimasi Ditolak (Revisi)
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Perbaikan selesai, menunggu verifikasi
+                                    BMC minta revisi estimasi, BMS harus
+                                    perbaiki dan submit ulang
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge variant="destructive" className="mb-2">
-                                    REVISION
+                                <Badge className="mb-2 bg-red-100 text-red-700 border-red-200">
+                                    Estimasi Ditolak
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Perlu perbaikan/revisi
+                                    BMC menolak estimasi secara permanen,
+                                    laporan ditutup
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge className="mb-2 bg-green-600">
-                                    APPROVED
+                                <Badge className="mb-2 bg-blue-100 text-blue-700 border-blue-200">
+                                    Sedang Dikerjakan
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Disetujui manager
+                                    BMS sedang mengerjakan perbaikan di lapangan
                                 </p>
                             </div>
                             <div className="p-3 rounded-lg border bg-muted/50">
-                                <Badge className="mb-2 bg-blue-600">
-                                    CLOSE
+                                <Badge className="mb-2 bg-purple-100 text-purple-700 border-purple-200">
+                                    Menunggu Review
                                 </Badge>
                                 <p className="text-sm text-muted-foreground">
-                                    Laporan selesai & ditutup
+                                    BMS sudah selesai, menunggu BMC review hasil
+                                    pekerjaan
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-lg border bg-muted/50">
+                                <Badge className="mb-2 bg-orange-100 text-orange-700 border-orange-200">
+                                    Penyelesaian Ditolak (Revisi)
+                                </Badge>
+                                <p className="text-sm text-muted-foreground">
+                                    BMC minta revisi hasil pekerjaan, BMS harus
+                                    perbaiki
+                                </p>
+                            </div>
+                            <div className="p-3 rounded-lg border bg-muted/50">
+                                <Badge className="mb-2 bg-emerald-100 text-emerald-700 border-emerald-200">
+                                    Selesai
+                                </Badge>
+                                <p className="text-sm text-muted-foreground">
+                                    BMC menyetujui hasil pekerjaan — laporan
+                                    selesai
                                 </p>
                             </div>
                         </div>
@@ -221,10 +299,12 @@ export default function UserManualPage() {
                         Panduan Per Role
                     </h3>
 
-                    {/* Maintenance Support */}
+                    {/* BMS */}
                     <Card className="border-2">
                         <CardHeader>
-                            <CardTitle>1. Maintenance Support (MS)</CardTitle>
+                            <CardTitle>
+                                1. BMS (Building Maintenance Support)
+                            </CardTitle>
                             <CardDescription>
                                 Pelapor & Pelaksana Perbaikan
                             </CardDescription>
@@ -238,7 +318,8 @@ export default function UserManualPage() {
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         Pilih toko, jenis kerusakan, lokasi,
-                                        estimasi biaya, upload foto
+                                        estimasi biaya, dan upload foto
+                                        kerusakan
                                     </p>
                                 </div>
                             </div>
@@ -246,32 +327,49 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Lakukan Perbaikan
+                                        Mulai Pekerjaan
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Datang ke toko dan kerjakan perbaikan
+                                        Setelah estimasi disetujui BMC, mulai
+                                        proses perbaikan di lapangan
                                     </p>
                                 </div>
                             </div>
                             <div className="flex gap-3">
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
-                                    <p className="font-medium">Upload Bukti</p>
+                                    <p className="font-medium">
+                                        Upload Bukti Pekerjaan
+                                    </p>
                                     <p className="text-sm text-muted-foreground">
                                         Foto sebelum, sesudah, dan nota
-                                        pembelian
+                                        pembelian material
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-medium">
+                                        Revisi Jika Ditolak
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Perbaiki estimasi atau hasil kerja
+                                        sesuai catatan BMC, lalu submit ulang
                                     </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* COS/ACOS */}
+                    {/* BMC */}
                     <Card className="border-2">
                         <CardHeader>
-                            <CardTitle>2. COS / ACOS</CardTitle>
+                            <CardTitle>
+                                2. BMC (Building Maintenance Coordinator)
+                            </CardTitle>
                             <CardDescription>
-                                Verifikasi Material & Hasil Perbaikan
+                                Review Estimasi & Hasil Pekerjaan
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -279,11 +377,11 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Lihat Laporan Toko
+                                        Review Estimasi Biaya
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Dashboard menampilkan laporan untuk toko
-                                        Anda
+                                        Periksa estimasi biaya dari BMS —
+                                        setujui, minta revisi, atau tolak
                                     </p>
                                 </div>
                             </div>
@@ -291,10 +389,11 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Verifikasi Lapangan
+                                        Review Hasil Pekerjaan
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Cek material, nota, dan hasil perbaikan
+                                        Verifikasi foto, nota, dan hasil
+                                        perbaikan — setujui atau minta revisi
                                     </p>
                                 </div>
                             </div>
@@ -302,22 +401,37 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Approve/Reject
+                                        Buat PJUM (Pengajuan Uang Muka)
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Setujui atau tolak dengan catatan
+                                        Rekap laporan selesai per BMS dan kirim
+                                        ke BnM Manager untuk approval
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex gap-3">
+                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-medium">
+                                        Kelola Database
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                        Tambah, edit, hapus data user dan toko
+                                        di cabang Anda
                                     </p>
                                 </div>
                             </div>
                         </CardContent>
                     </Card>
 
-                    {/* Coordinator */}
+                    {/* BnM Manager */}
                     <Card className="border-2">
                         <CardHeader>
-                            <CardTitle>3. Maintenance Coordinator</CardTitle>
+                            <CardTitle>
+                                3. BnM Manager (Building & Maintenance Manager)
+                            </CardTitle>
                             <CardDescription>
-                                Monitoring & Konfirmasi
+                                Approval Akhir & PJUM
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -328,7 +442,8 @@ export default function UserManualPage() {
                                         Dashboard Monitoring
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Lihat semua laporan dari berbagai toko
+                                        Lihat semua PJUM (Pengajuan Uang Muka)
+                                        yang membutuhkan approval
                                     </p>
                                 </div>
                             </div>
@@ -336,100 +451,11 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Filter & Analisa
+                                        Approve / Reject PJUM
                                     </p>
                                     <p className="text-sm text-muted-foreground">
-                                        Filter berdasarkan status, toko, atau
-                                        periode
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">
-                                        Konfirmasi Kelengkapan
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Pastikan data lengkap sebelum ke Admin
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Admin */}
-                    <Card className="border-2">
-                        <CardHeader>
-                            <CardTitle>
-                                4. Admin Building & Maintenance
-                            </CardTitle>
-                            <CardDescription>
-                                Administrasi & SPJ
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">
-                                        Verifikasi Dokumen
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Cek nota asli, foto, dan kelengkapan
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">Generate SPJ</p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Buat dokumen Surat Pertanggungjawaban
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">
-                                        Kirim ke Manager
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Forward untuk approval akhir
-                                    </p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    {/* Manager */}
-                    <Card className="border-2">
-                        <CardHeader>
-                            <CardTitle>5. Manager</CardTitle>
-                            <CardDescription>Approval Akhir</CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">
-                                        Review Laporan & SPJ
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Periksa detail dan pertanggungjawaban
-                                    </p>
-                                </div>
-                            </div>
-                            <div className="flex gap-3">
-                                <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                                <div>
-                                    <p className="font-medium">
-                                        Final Decision
-                                    </p>
-                                    <p className="text-sm text-muted-foreground">
-                                        Approve untuk menutup atau reject untuk
-                                        revisi
+                                        Review detail pengajuan dan berikan
+                                        keputusan akhir beserta info transfer
                                     </p>
                                 </div>
                             </div>
