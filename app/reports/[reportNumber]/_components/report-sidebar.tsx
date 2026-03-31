@@ -44,14 +44,17 @@ export function ReportSidebar({
         handleReviewCompletion,
     } = actions;
 
-    const estimationRejectionNote = [...report.activities]
-        .reverse()
-        .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes || "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
+    const estimationRejectionNote =
+        [...report.activities]
+            .reverse()
+            .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes ||
+        "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
 
-    const workRejectionNote = [...report.activities]
-        .reverse()
-        .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes || "Perbaiki dan kirim ulang laporan penyelesaian.";
-
+    const workRejectionNote =
+        [...report.activities]
+            .reverse()
+            .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes ||
+        "Perbaiki dan kirim ulang laporan penyelesaian.";
 
     const hasAction =
         (viewer.role === "BMS" &&
@@ -110,7 +113,7 @@ export function ReportSidebar({
                             >
                                 <Button className="w-full">
                                     <FileText className="h-4 w-4 mr-2" />
-                                    Edit & Kirim Estimasi
+                                    Revisi Estimasi
                                 </Button>
                             </Link>
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -119,7 +122,9 @@ export function ReportSidebar({
                                 </p>
                                 <p className="text-xs text-red-700 mt-0.5">
                                     Catatan Penolakan: <br />
-                                    <span className="italic whitespace-pre-line">{estimationRejectionNote}</span>
+                                    <span className="italic whitespace-pre-line">
+                                        {estimationRejectionNote}
+                                    </span>
                                 </p>
                             </div>
                         </div>
@@ -154,7 +159,9 @@ export function ReportSidebar({
                                     "REVIEW_REJECTED_REVISION" ? (
                                         <>
                                             Catatan Penolakan: <br />
-                                            <span className="italic whitespace-pre-line">{workRejectionNote}</span>
+                                            <span className="italic whitespace-pre-line">
+                                                {workRejectionNote}
+                                            </span>
                                         </>
                                     ) : (
                                         "Setelah selesai, kirim laporan untuk direview BMC."

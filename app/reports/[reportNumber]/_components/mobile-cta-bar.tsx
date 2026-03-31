@@ -1,4 +1,10 @@
-import { CheckCircle2, Loader2, WrenchIcon, XCircle, FileText } from "lucide-react";
+import {
+    CheckCircle2,
+    Loader2,
+    WrenchIcon,
+    XCircle,
+    FileText,
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { ReportData, Viewer, ActionState } from "./types";
@@ -20,15 +26,17 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         handleReviewCompletion,
     } = actions;
 
-    const estimationRejectionNote = [...report.activities]
-        .reverse()
-        .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes || "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
+    const estimationRejectionNote =
+        [...report.activities]
+            .reverse()
+            .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes ||
+        "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
 
-    const workRejectionNote = [...report.activities]
-        .reverse()
-        .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes || "Perbaiki dan kirim ulang laporan penyelesaian.";
-
-
+    const workRejectionNote =
+        [...report.activities]
+            .reverse()
+            .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes ||
+        "Perbaiki dan kirim ulang laporan penyelesaian.";
 
     const hasWorkflowAction =
         (viewer.role === "BMS" &&
@@ -105,12 +113,11 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                         >
                             <Button className="w-full" size="lg">
                                 <FileText className="h-4 w-4 mr-2" />
-                                Edit & Kirim Estimasi
+                                Revisi Estimasi
                             </Button>
                         </Link>
                     </div>
                 )}
-
 
             {/* BMC: review estimation */}
             {viewer.role === "BMC" &&

@@ -455,7 +455,7 @@ export default function UserManualPage() {
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         Review detail pengajuan dan berikan
-                                        keputusan akhir beserta info transfer
+                                        keputusan akhir.
                                     </p>
                                 </div>
                             </div>
