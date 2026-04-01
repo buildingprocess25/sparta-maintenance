@@ -24,6 +24,8 @@ export type LoginState = {
     success?: boolean;
 };
 
+const LOGIN_ALLOWED_ROLES = new Set(["BMS", "BMC", "BNM_MANAGER", "ADMIN"]);
+
 function formatWaitTime(seconds: number): string {
     const total = Math.max(1, Math.floor(seconds));
     const minutes = Math.floor(total / 60);
@@ -107,6 +109,16 @@ export async function loginAction(
         });
 
         if (!user) {
+            recordLoginFailure(rateLimitKey);
+            return {
+                errors: {
+                    form: ["Email atau password salah."],
+                },
+            };
+        }
+
+        // Role gate: BRANCH_ADMIN dan role lain di luar whitelist tidak diizinkan login.
+        if (!LOGIN_ALLOWED_ROLES.has(user.role)) {
             recordLoginFailure(rateLimitKey);
             return {
                 errors: {
