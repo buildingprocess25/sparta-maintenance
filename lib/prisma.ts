@@ -4,7 +4,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import dotenv from "dotenv";
 
 // Load environment variables
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const prismaClientSingleton = () => {
     // Use DATABASE_URL (Supabase transaction pooler) for runtime.

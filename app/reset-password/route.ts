@@ -50,9 +50,12 @@ export async function GET(request: NextRequest) {
         return loginRedirect(request, "success");
     } catch (error) {
         logger.warn(
-            { operation: "resetPasswordByEmail" },
+            {
+                operation: "resetPasswordByEmail",
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+            },
             "Password reset link invalid or expired",
-            error,
         );
         return loginRedirect(request, "expired");
     }
