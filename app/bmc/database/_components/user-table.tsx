@@ -17,6 +17,14 @@ import {
     EmptyTitle,
     EmptyDescription,
 } from "@/components/ui/empty";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Users, Pencil } from "lucide-react";
 import { UserFormDialog } from "./user-form-dialog";
 import { DeleteDialog } from "./delete-dialog";
@@ -38,15 +46,27 @@ type UserRow = {
 type Props = {
     users: UserRow[];
     branchNames: string[];
+    totalCount: number;
+    currentPage: number;
+    totalPages: number;
 };
 
-export function UserTable({ users, branchNames }: Props) {
+export function UserTable({
+    users,
+    branchNames,
+    totalCount,
+    currentPage,
+    totalPages,
+}: Props) {
+    const createHref = (page: number) =>
+        `/bmc/database?tab=users&userPage=${page}`;
+
     return (
         <div className="space-y-4">
             {/* Action bar */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                    {users.length} user ditemukan
+                    {totalCount} user ditemukan
                 </p>
                 <UserFormDialog branchNames={branchNames} />
             </div>
@@ -130,6 +150,43 @@ export function UserTable({ users, branchNames }: Props) {
                         ))}
                     </TableBody>
                 </Table>
+            )}
+
+            {totalPages > 1 && (
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                href={createHref(Math.max(1, currentPage - 1))}
+                                className={
+                                    currentPage <= 1
+                                        ? "pointer-events-none opacity-50"
+                                        : undefined
+                                }
+                            />
+                        </PaginationItem>
+                        <PaginationItem>
+                            <PaginationLink
+                                href={createHref(currentPage)}
+                                isActive
+                            >
+                                {currentPage}
+                            </PaginationLink>
+                        </PaginationItem>
+                        <PaginationItem>
+                            <PaginationNext
+                                href={createHref(
+                                    Math.min(totalPages, currentPage + 1),
+                                )}
+                                className={
+                                    currentPage >= totalPages
+                                        ? "pointer-events-none opacity-50"
+                                        : undefined
+                                }
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             )}
         </div>
     );

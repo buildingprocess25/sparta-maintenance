@@ -16,6 +16,14 @@ import {
     EmptyTitle,
     EmptyDescription,
 } from "@/components/ui/empty";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Store, Pencil } from "lucide-react";
 import { StoreFormDialog } from "./store-form-dialog";
 import { DeleteDialog } from "./delete-dialog";
@@ -30,15 +38,27 @@ type StoreRow = {
 type Props = {
     stores: StoreRow[];
     branchNames: string[];
+    totalCount: number;
+    currentPage: number;
+    totalPages: number;
 };
 
-export function StoreTable({ stores, branchNames }: Props) {
+export function StoreTable({
+    stores,
+    branchNames,
+    totalCount,
+    currentPage,
+    totalPages,
+}: Props) {
+    const createHref = (page: number) =>
+        `/bmc/database?tab=stores&storePage=${page}`;
+
     return (
         <div className="space-y-4">
             {/* Action bar */}
             <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">
-                    {stores.length} toko ditemukan
+                    {totalCount} toko ditemukan
                 </p>
                 <StoreFormDialog branchNames={branchNames} />
             </div>
@@ -103,6 +123,43 @@ export function StoreTable({ stores, branchNames }: Props) {
                         ))}
                     </TableBody>
                 </Table>
+            )}
+
+            {totalPages > 1 && (
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                href={createHref(Math.max(1, currentPage - 1))}
+                                className={
+                                    currentPage <= 1
+                                        ? "pointer-events-none opacity-50"
+                                        : undefined
+                                }
+                            />
+                        </PaginationItem>
+                        <PaginationItem>
+                            <PaginationLink
+                                href={createHref(currentPage)}
+                                isActive
+                            >
+                                {currentPage}
+                            </PaginationLink>
+                        </PaginationItem>
+                        <PaginationItem>
+                            <PaginationNext
+                                href={createHref(
+                                    Math.min(totalPages, currentPage + 1),
+                                )}
+                                className={
+                                    currentPage >= totalPages
+                                        ? "pointer-events-none opacity-50"
+                                        : undefined
+                                }
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             )}
         </div>
     );

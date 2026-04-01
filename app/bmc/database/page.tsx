@@ -9,12 +9,28 @@ import { Users, Store } from "lucide-react";
 import { UserTable } from "./_components/user-table";
 import { StoreTable } from "./_components/store-table";
 
-export default async function BmcDatabasePage() {
-    const user = await requireRole("BMC");
+type SearchParams = {
+    tab?: string;
+    userPage?: string;
+    storePage?: string;
+};
 
-    const [users, stores] = await Promise.all([
-        getUsersByBranches(user.branchNames),
-        getStoresByBranches(user.branchNames),
+export default async function BmcDatabasePage({
+    searchParams,
+}: {
+    searchParams?: Promise<SearchParams>;
+}) {
+    const user = await requireRole("BMC");
+    const resolvedSearchParams = (await searchParams) ?? {};
+
+    const activeTab =
+        resolvedSearchParams.tab === "stores" ? "stores" : "users";
+    const userPage = Math.max(1, Number(resolvedSearchParams.userPage) || 1);
+    const storePage = Math.max(1, Number(resolvedSearchParams.storePage) || 1);
+
+    const [usersResult, storesResult] = await Promise.all([
+        getUsersByBranches(user.branchNames, { page: userPage, limit: 10 }),
+        getStoresByBranches(user.branchNames, { page: storePage, limit: 10 }),
     ]);
 
     return (
@@ -28,7 +44,6 @@ export default async function BmcDatabasePage() {
             />
 
             <main className="flex-1 container mx-auto px-4 md:px-8 py-6 md:py-8 max-w-5xl space-y-5">
-                {/* Branch context */}
                 <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-muted-foreground">Cabang:</span>
                     {user.branchNames.map((branch) => (
@@ -36,8 +51,7 @@ export default async function BmcDatabasePage() {
                     ))}
                 </div>
 
-                {/* Tabs: User & Toko */}
-                <Tabs defaultValue="users">
+                <Tabs defaultValue={activeTab} className="w-full">
                     <div className="mb-5">
                         <TabsList className="w-full bg-primary/10">
                             <TabsTrigger
@@ -52,7 +66,7 @@ export default async function BmcDatabasePage() {
                                     variant="secondary"
                                     className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
                                 >
-                                    {users.length}
+                                    {usersResult.total}
                                 </Badge>
                             </TabsTrigger>
                             <TabsTrigger
@@ -67,7 +81,7 @@ export default async function BmcDatabasePage() {
                                     variant="secondary"
                                     className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
                                 >
-                                    {stores.length}
+                                    {storesResult.total}
                                 </Badge>
                             </TabsTrigger>
                         </TabsList>
@@ -82,8 +96,11 @@ export default async function BmcDatabasePage() {
                             </CardHeader>
                             <CardContent>
                                 <UserTable
-                                    users={users}
+                                    users={usersResult.users}
                                     branchNames={user.branchNames}
+                                    totalCount={usersResult.total}
+                                    currentPage={usersResult.page}
+                                    totalPages={usersResult.totalPages}
                                 />
                             </CardContent>
                         </Card>
@@ -96,8 +113,11 @@ export default async function BmcDatabasePage() {
                             </CardHeader>
                             <CardContent>
                                 <StoreTable
-                                    stores={stores}
+                                    stores={storesResult.stores}
                                     branchNames={user.branchNames}
+                                    totalCount={storesResult.total}
+                                    currentPage={storesResult.page}
+                                    totalPages={storesResult.totalPages}
                                 />
                             </CardContent>
                         </Card>

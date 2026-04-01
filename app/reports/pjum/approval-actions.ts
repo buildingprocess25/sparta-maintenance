@@ -69,20 +69,93 @@ export type BankAccountOption = {
 export async function getPendingPjumExports(filters?: {
     search?: string;
     dateRange?: string;
+    page?: number;
+    limit?: number;
 }): Promise<{
     data: PjumExportListItem[] | null;
+    total: number;
+    page: number;
+    limit: number;
     error: string | null;
 }> {
     try {
         const user = await requireRole("BNM_MANAGER");
 
-        const exports = await prisma.pjumExport.findMany({
-            where: {
-                branchName: { in: user.branchNames },
-                status: "PENDING_APPROVAL",
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        const page = Math.max(1, filters?.page ?? 1);
+        const limit = Math.max(1, filters?.limit ?? 10);
+        const skip = (page - 1) * limit;
+
+        let dateFrom: Date | undefined;
+        if (filters?.dateRange && filters.dateRange !== "all") {
+            const now = new Date();
+            const today = new Date(
+                now.getFullYear(),
+                now.getMonth(),
+                now.getDate(),
+            );
+
+            if (filters.dateRange === "today") {
+                dateFrom = today;
+            } else if (filters.dateRange === "week") {
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+                dateFrom = startOfWeek;
+            } else if (filters.dateRange === "month") {
+                dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+            }
+        }
+
+        const q = filters?.search?.trim();
+        let nikFromName: string[] = [];
+        if (q) {
+            const matchedUsers = await prisma.user.findMany({
+                where: {
+                    role: "BMS",
+                    name: { contains: q, mode: "insensitive" },
+                },
+                select: { NIK: true },
+            });
+            nikFromName = matchedUsers.map((u) => u.NIK);
+        }
+
+        const where: {
+            branchName: { in: string[] };
+            status: "PENDING_APPROVAL";
+            createdAt?: { gte: Date };
+            OR?: Array<
+                | { bmsNIK: { contains: string; mode: "insensitive" } }
+                | { branchName: { contains: string; mode: "insensitive" } }
+                | { bmsNIK: { in: string[] } }
+            >;
+        } = {
+            branchName: { in: user.branchNames },
+            status: "PENDING_APPROVAL",
+        };
+
+        if (dateFrom) {
+            where.createdAt = { gte: dateFrom };
+        }
+
+        if (q) {
+            where.OR = [
+                { bmsNIK: { contains: q, mode: "insensitive" } },
+                { branchName: { contains: q, mode: "insensitive" } },
+            ];
+
+            if (nikFromName.length > 0) {
+                where.OR.push({ bmsNIK: { in: nikFromName } });
+            }
+        }
+
+        const [exports, total] = await Promise.all([
+            prisma.pjumExport.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip,
+                take: limit,
+            }),
+            prisma.pjumExport.count({ where }),
+        ]);
 
         // Batch-fetch BMS names
         const bmsNIKs = [...new Set(exports.map((e) => e.bmsNIK))];
@@ -92,7 +165,7 @@ export async function getPendingPjumExports(filters?: {
         });
         const bmsMap = new Map(bmsUsers.map((u) => [u.NIK, u.name]));
 
-        let data: PjumExportListItem[] = exports.map((e) => ({
+        const data: PjumExportListItem[] = exports.map((e) => ({
             id: e.id,
             status: e.status,
             bmsNIK: e.bmsNIK,
@@ -105,46 +178,16 @@ export async function getPendingPjumExports(filters?: {
             createdAt: e.createdAt.toISOString(),
         }));
 
-        // Apply filters in memory since pending list is typically small
-        if (filters?.search) {
-            const q = filters.search.toLowerCase();
-            data = data.filter(
-                (item) =>
-                    item.bmsName.toLowerCase().includes(q) ||
-                    item.bmsNIK.toLowerCase().includes(q) ||
-                    item.branchName.toLowerCase().includes(q),
-            );
-        }
-
-        if (filters?.dateRange && filters.dateRange !== "all") {
-            const now = new Date();
-            const today = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-            );
-
-            let startDate = new Date(0);
-            if (filters.dateRange === "today") {
-                startDate = today;
-            } else if (filters.dateRange === "week") {
-                startDate = new Date(today);
-                startDate.setDate(today.getDate() - today.getDay()); // Start of week (Sunday)
-            } else if (filters.dateRange === "month") {
-                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-            }
-
-            if (startDate.getTime() > 0) {
-                data = data.filter(
-                    (item) => new Date(item.createdAt) >= startDate,
-                );
-            }
-        }
-
-        return { data, error: null };
+        return { data, total, page, limit, error: null };
     } catch (error) {
         logger.error({ operation: "getPendingPjumExports" }, "Failed", error);
-        return { data: null, error: "Gagal memuat daftar PJUM" };
+        return {
+            data: null,
+            total: 0,
+            page: 1,
+            limit: 10,
+            error: "Gagal memuat daftar PJUM",
+        };
     }
 }
 

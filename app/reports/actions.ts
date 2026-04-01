@@ -16,7 +16,6 @@ export { reviewCompletion } from "./actions/review-completion";
 export {
     getStoresByBranch,
     getMyReports,
-    getFinishedReports,
     getLastCategoryIDate,
     getApprovalReports,
 } from "./actions/queries";

@@ -92,7 +92,11 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                         ? "/reports/create?restore=1"
                         : `/reports/${report.reportNumber}`;
 
-                const estFormatted = formatCurrency(report.totalEstimation);
+                const amountFormatted = formatCurrency(
+                    report.status === "COMPLETED"
+                        ? report.totalRealisasi
+                        : report.totalEstimation,
+                );
                 const storeLabel = report.storeCode
                     ? `${report.storeCode} – ${report.storeName || "—"}`
                     : report.storeName || "—";
@@ -157,9 +161,9 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                                         {report.rusakCount} perlu perbaikan
                                     </span>
                                 )}
-                                {estFormatted && (
+                                {amountFormatted && (
                                     <span className="font-medium text-foreground">
-                                        {estFormatted}
+                                        {amountFormatted}
                                     </span>
                                 )}
                             </div>

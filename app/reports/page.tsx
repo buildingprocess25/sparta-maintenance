@@ -86,6 +86,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
         ...r,
         status: r.status as string,
         totalEstimation: Number(r.totalEstimation),
+        totalRealisasi: Number(r.totalRealisasi ?? 0),
     }));
 
     return (

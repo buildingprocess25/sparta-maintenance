@@ -18,12 +18,32 @@ export default async function PjumPage({
 
     // BNM_MANAGER → Approval list
     if (user.role === "BNM_MANAGER") {
-        const search = typeof params.search === "string" ? params.search : undefined;
-        const dateRange = typeof params.dateRange === "string" ? params.dateRange : undefined;
-        
-        const result = await getPendingPjumExports({ search, dateRange });
+        const search =
+            typeof params.search === "string" ? params.search : undefined;
+        const dateRange =
+            typeof params.dateRange === "string" ? params.dateRange : undefined;
+        const page = Math.max(
+            1,
+            typeof params.page === "string" ? Number(params.page) || 1 : 1,
+        );
+
+        const result = await getPendingPjumExports({
+            search,
+            dateRange,
+            page,
+            limit: 10,
+        });
         const items = result.data ?? [];
-        return <PjumApprovalList items={items} />;
+        const totalPages = Math.max(1, Math.ceil(result.total / result.limit));
+
+        return (
+            <PjumApprovalList
+                items={items}
+                total={result.total}
+                currentPage={result.page}
+                totalPages={totalPages}
+            />
+        );
     }
 
     // BMC → Create PJUM view

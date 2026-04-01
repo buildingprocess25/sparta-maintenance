@@ -42,13 +42,29 @@ import {
     EmptyTitle,
     EmptyDescription,
 } from "@/components/ui/empty";
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationNext,
+    PaginationPrevious,
+} from "@/components/ui/pagination";
 import type { PjumExportListItem } from "../approval-actions";
 
 type Props = {
     items: PjumExportListItem[];
+    total: number;
+    currentPage: number;
+    totalPages: number;
 };
 
-export function PjumApprovalList({ items }: Props) {
+export function PjumApprovalList({
+    items,
+    total,
+    currentPage,
+    totalPages,
+}: Props) {
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
@@ -64,6 +80,7 @@ export function PjumApprovalList({ items }: Props) {
     const handleSearch = (term: string) => {
         setSearchQuery(term);
         const params = new URLSearchParams(searchParams.toString());
+        params.set("page", "1");
         if (term) {
             params.set("search", term);
         } else {
@@ -77,6 +94,7 @@ export function PjumApprovalList({ items }: Props) {
     const handleDateRangeChange = (range: string) => {
         setDateRangeFilter(range);
         const params = new URLSearchParams(searchParams.toString());
+        params.set("page", "1");
         if (range && range !== "all") {
             params.set("dateRange", range);
         } else {
@@ -93,12 +111,18 @@ export function PjumApprovalList({ items }: Props) {
     const formatPeriode = (from: string, to: string) =>
         `${format(new Date(from), "d MMM", { locale: localeId })} – ${format(new Date(to), "d MMM yyyy", { locale: localeId })}`;
 
+    const createPageHref = (page: number) => {
+        const params = new URLSearchParams(searchParams.toString());
+        params.set("page", String(page));
+        return `${pathname}?${params.toString()}`;
+    };
+
     return (
         <div className="min-h-screen flex flex-col bg-background">
             <Header
                 variant="dashboard"
                 title="Approval PJUM"
-                description={`${items.length} PJUM menunggu persetujuan`}
+                description={`${total} PJUM menunggu persetujuan`}
                 showBackButton
                 backHref="/dashboard"
                 logo={false}
@@ -304,6 +328,53 @@ export function PjumApprovalList({ items }: Props) {
                                     </TableBody>
                                 </Table>
                             </div>
+
+                            {totalPages > 1 && (
+                                <Pagination>
+                                    <PaginationContent>
+                                        <PaginationItem>
+                                            <PaginationPrevious
+                                                href={createPageHref(
+                                                    Math.max(
+                                                        1,
+                                                        currentPage - 1,
+                                                    ),
+                                                )}
+                                                className={
+                                                    currentPage <= 1
+                                                        ? "pointer-events-none opacity-50"
+                                                        : undefined
+                                                }
+                                            />
+                                        </PaginationItem>
+                                        <PaginationItem>
+                                            <PaginationLink
+                                                href={createPageHref(
+                                                    currentPage,
+                                                )}
+                                                isActive
+                                            >
+                                                {currentPage}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                        <PaginationItem>
+                                            <PaginationNext
+                                                href={createPageHref(
+                                                    Math.min(
+                                                        totalPages,
+                                                        currentPage + 1,
+                                                    ),
+                                                )}
+                                                className={
+                                                    currentPage >= totalPages
+                                                        ? "pointer-events-none opacity-50"
+                                                        : undefined
+                                                }
+                                            />
+                                        </PaginationItem>
+                                    </PaginationContent>
+                                </Pagination>
+                            )}
                         </>
                     ) : (
                         <div className="bg-card border rounded-lg border-dashed">

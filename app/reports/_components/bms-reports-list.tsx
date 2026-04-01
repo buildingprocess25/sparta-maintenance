@@ -66,6 +66,7 @@ export type ReportData = {
     branchName: string;
     status: string;
     totalEstimation: number;
+    totalRealisasi: number;
     createdAt: Date;
     updatedAt: Date;
     finishedAt: Date | null;
@@ -341,6 +342,8 @@ export default function BmsReportsList({
         return `Rp ${Number(amount).toLocaleString("id-ID")}`;
     };
 
+    const isCompletedView = statusFilter === "completed";
+
     return (
         <div className="min-h-screen flex flex-col bg-background">
             <Header
@@ -517,7 +520,9 @@ export default function BmsReportsList({
                                         <TableHead>Selesai</TableHead>
                                         <TableHead>Status</TableHead>
                                         <TableHead className="text-right">
-                                            Estimasi
+                                            {isCompletedView
+                                                ? "Realisasi"
+                                                : "Estimasi"}
                                         </TableHead>
                                         <TableHead className="w-17.5 text-center">
                                             Aksi
@@ -569,7 +574,9 @@ export default function BmsReportsList({
                                             </TableCell>
                                             <TableCell className="text-right font-mono text-sm">
                                                 {formatCurrency(
-                                                    report.totalEstimation,
+                                                    isCompletedView
+                                                        ? report.totalRealisasi
+                                                        : report.totalEstimation,
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-center">
