@@ -131,6 +131,15 @@ const getStatusBadge = (status: string) => {
                     <Clock className="h-3 w-3" /> Menunggu Review Penyelesaian
                 </Badge>
             );
+        case "APPROVED_BMC":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-cyan-100 text-cyan-700 hover:bg-cyan-100/80 border-cyan-200 shadow-none"
+                >
+                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Final BNM
+                </Badge>
+            );
         case "REVIEW_REJECTED_REVISION":
             return (
                 <Badge
@@ -160,6 +169,8 @@ const getActionLabel = (status: string, role: string): string => {
             return "Review Estimasi";
         case "PENDING_REVIEW":
             return "Review Pekerjaan";
+        case "APPROVED_BMC":
+            return role === "BNM_MANAGER" ? "Review Final" : "Lihat";
         default:
             return "Lihat";
     }
@@ -307,6 +318,11 @@ export function ApprovalReportsList({
                                         </SelectItem>
                                     </>
                                 )}
+                                {role === "BNM_MANAGER" && (
+                                    <SelectItem value="approved_bmc">
+                                        Menunggu Persetujuan Final BNM
+                                    </SelectItem>
+                                )}
                                 <SelectItem value="completed">
                                     Selesai
                                 </SelectItem>
@@ -377,6 +393,7 @@ export function ApprovalReportsList({
                                         ESTIMATION_REJECTED: "bg-red-500",
                                         IN_PROGRESS: "bg-blue-500",
                                         PENDING_REVIEW: "bg-purple-500",
+                                        APPROVED_BMC: "bg-cyan-500",
                                         REVIEW_REJECTED_REVISION:
                                             "bg-orange-500",
                                         COMPLETED: "bg-emerald-500",
@@ -395,6 +412,8 @@ export function ApprovalReportsList({
                                                 "bg-blue-100 text-blue-700",
                                             PENDING_REVIEW:
                                                 "bg-purple-100 text-purple-700",
+                                            APPROVED_BMC:
+                                                "bg-cyan-100 text-cyan-700",
                                             REVIEW_REJECTED_REVISION:
                                                 "bg-orange-100 text-orange-700",
                                             COMPLETED:
@@ -411,6 +430,8 @@ export function ApprovalReportsList({
                                             ESTIMATION_REJECTED: "Est. Ditolak",
                                             IN_PROGRESS: "Sedang Dikerjakan",
                                             PENDING_REVIEW: "Menunggu Review",
+                                            APPROVED_BMC:
+                                                "Menunggu Persetujuan Final BNM",
                                             REVIEW_REJECTED_REVISION:
                                                 "Penyelesaian Ditolak (Revisi)",
 

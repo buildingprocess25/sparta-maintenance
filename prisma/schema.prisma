@@ -35,8 +35,9 @@ enum ReportStatus {
   ESTIMATION_REJECTED         // BMC permanently rejected (report closed)
   IN_PROGRESS                 // BMS is working on the report
   PENDING_REVIEW              // BMS finished, waiting BMC completion review
+  APPROVED_BMC                // BMC approved completion, waiting BnM final review
   REVIEW_REJECTED_REVISION    // BMC rejected work, BMS must revise
-  COMPLETED                   // BMC approved work — report done
+  COMPLETED                   // Final approved by BnM Manager
 }
 
 enum ItemCondition {
@@ -66,7 +67,8 @@ enum ActivityAction {
   ESTIMATION_REJECTED         // BMC permanently rejected report
   WORK_APPROVED               // BMC approved work completion (forwarded to BnM)
   WORK_REJECTED_REVISION      // BMC rejected work completion, requested revision
-  FINALIZED                   // BnM Manager gave final approval
+  FINAL_APPROVED_BNM          // BnM Manager gave final approval
+  FINAL_REJECTED_REVISION_BNM // BnM Manager rejected and returned for revision
 }
 
 // =========================================
@@ -130,6 +132,8 @@ model Report {
 
   // Completion data
   completionNotes      String?   // notes during completion
+  completionAdditionalPhotos Json @default("[]") // additional completion documentation photos
+  completionAdditionalNote   String? // one note for additional completion documentation set
   finishedAt           DateTime? // when report was marked as finished/completed
 
   // PJUM — tracks when this report was included in a PJUM export

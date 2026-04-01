@@ -24,6 +24,11 @@ export interface CompletionItemInput {
     notes?: string;
 }
 
+export interface AdditionalCompletionDocumentationInput {
+    photos: string[];
+    note?: string;
+}
+
 /**
  * BMS submits completed work with photo evidence, actual costs, and store info.
  * Merges completion data into the items JSON array on the report.
@@ -35,6 +40,7 @@ export async function submitCompletionWork(
     reportNumber: string,
     completionItems: CompletionItemInput[],
     selfieUrls: string[],
+    additionalDocumentation?: AdditionalCompletionDocumentationInput,
     notes?: string,
 ) {
     try {
@@ -116,6 +122,11 @@ export async function submitCompletionWork(
                     finishedAt: new Date(),
                     items: updatedItems as unknown as Prisma.InputJsonValue,
                     startSelfieUrl: selfieUrlValue || null,
+                    completionAdditionalPhotos:
+                        (additionalDocumentation?.photos ??
+                            []) as unknown as Prisma.InputJsonValue,
+                    completionAdditionalNote:
+                        additionalDocumentation?.note?.trim() || null,
                 },
             }),
             prisma.activityLog.create({

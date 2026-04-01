@@ -61,7 +61,7 @@ const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
         label: "Estimasi ditolak",
         color: "bg-red-100 text-red-700 border-red-200",
     },
-    FINALIZED: {
+    WORK_APPROVED: {
         label: "Penyelesaian disetujui",
         color: "bg-emerald-100 text-emerald-700 border-emerald-200",
     },
@@ -208,7 +208,7 @@ export function BmcHistoryList({
                             <SelectItem value="ESTIMATION_REJECTED">
                                 Estimasi ditolak
                             </SelectItem>
-                            <SelectItem value="FINALIZED">
+                            <SelectItem value="WORK_APPROVED">
                                 Penyelesaian disetujui
                             </SelectItem>
                             <SelectItem value="WORK_REJECTED_REVISION">

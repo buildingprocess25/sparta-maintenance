@@ -1,9 +1,5 @@
 import { CheckCircle2, FileText, FileCheck } from "lucide-react";
-import {
-    getBNMStats,
-    getPjumActivity,
-    getPendingPjumCount,
-} from "../queries";
+import { getBNMStats, getPjumActivity, getPendingPjumCount } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
 import { PjumActivitySectionWide } from "./shared/activity-feed";
 import {
@@ -36,19 +32,28 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
     ]);
 
     const heroStat: DashboardHeroStat = {
-        id: "pending-pjum",
-        label: "PJUM Menunggu Approval",
-        description: "Dokumen PJUM yang perlu Anda setujui",
-        value: pendingPjumCount,
+        id: "pending-final-approval",
+        label: "Review Final Laporan",
+        description: "Laporan menunggu persetujuan final Anda",
+        value: bnmStats.pendingFinalApproval,
         icon: FileCheck,
-        href: "/reports/pjum",
-        colorClass: "text-amber-600",
-        heroColorClass: "bg-amber-500 text-white hover:bg-amber-600",
-        heroTextColorClass: "text-amber-100",
-        heroTrendColorClass: "text-amber-200",
+        href: "/reports",
+        colorClass: "text-cyan-600",
+        heroColorClass: "bg-cyan-500 text-white hover:bg-cyan-600",
+        heroTextColorClass: "text-cyan-100",
+        heroTrendColorClass: "text-cyan-200",
     };
 
     const secondaryStats: DashboardStatItem[] = [
+        {
+            id: "pending-pjum",
+            label: "PJUM Menunggu Approval",
+            description: "Dokumen PJUM yang perlu disetujui",
+            value: pendingPjumCount,
+            icon: FileCheck,
+            href: "/reports/pjum",
+            colorClass: "text-amber-600",
+        },
         {
             id: "completed",
             label: "Selesai",
@@ -78,7 +83,7 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
                     <DashboardStats
                         hero={heroStat}
                         secondary={secondaryStats}
-                        heroWidthClass="lg:w-100"
+                        heroWidthClass="lg:w-80"
                     />
 
                     {/* Activity Feed — wide layout */}

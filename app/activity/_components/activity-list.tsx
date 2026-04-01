@@ -89,9 +89,13 @@ const ACTIVITY_CONFIG: Record<string, { label: string; color: string }> = {
         label: "Pekerjaan ditolak (revisi)",
         color: "bg-red-100 text-red-700 border-red-200",
     },
-    FINALIZED: {
-        label: "Laporan selesai",
-        color: "bg-green-100 text-green-700 border-green-200",
+    FINAL_APPROVED_BNM: {
+        label: "Disetujui final BNM",
+        color: "bg-cyan-100 text-cyan-700 border-cyan-200",
+    },
+    FINAL_REJECTED_REVISION_BNM: {
+        label: "Ditolak final BNM (revisi)",
+        color: "bg-red-100 text-red-700 border-red-200",
     },
 };
 
@@ -253,8 +257,11 @@ export function ActivityList({
                             <SelectItem value="WORK_REJECTED_REVISION">
                                 Pekerjaan ditolak (revisi)
                             </SelectItem>
-                            <SelectItem value="FINALIZED">
-                                Laporan selesai
+                            <SelectItem value="FINAL_APPROVED_BNM">
+                                Disetujui final BNM
+                            </SelectItem>
+                            <SelectItem value="FINAL_REJECTED_REVISION_BNM">
+                                Ditolak final BNM (revisi)
                             </SelectItem>
                         </SelectContent>
                     </Select>

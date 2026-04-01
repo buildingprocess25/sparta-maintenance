@@ -13,6 +13,7 @@ export { resubmitReport } from "./actions/resubmit";
 export { submitCompletion } from "./actions/submit-completion";
 export { reviewEstimation } from "./actions/approve-estimation";
 export { reviewCompletion } from "./actions/review-completion";
+export { approveFinal } from "./actions/approve-final";
 export {
     getStoresByBranch,
     getMyReports,

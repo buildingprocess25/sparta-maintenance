@@ -62,6 +62,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
               "ESTIMATION_REJECTED",
               "IN_PROGRESS",
               "PENDING_REVIEW",
+              "APPROVED_BMC",
               "REVIEW_REJECTED_REVISION",
           ];
 
@@ -169,13 +170,14 @@ export async function getApprovalReports(params: {
         "ESTIMATION_REJECTED",
         "IN_PROGRESS",
         "PENDING_REVIEW",
+        "APPROVED_BMC",
         "REVIEW_REJECTED_REVISION",
         "COMPLETED",
     ];
 
     const defaultStatuses =
         user.role === "BNM_MANAGER"
-            ? ["COMPLETED"]
+            ? ["APPROVED_BMC"]
             : user.role === "ADMIN"
               ? ALL_NON_DRAFT_STATUSES
               : ["PENDING_ESTIMATION", "PENDING_REVIEW"]; // BMC

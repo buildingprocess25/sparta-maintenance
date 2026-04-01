@@ -30,6 +30,8 @@ type Props = {
     startSelfieUrls: string[];
     startReceiptUrls: string[];
     startMaterialStores: MaterialStoreJson[];
+    completionAdditionalPhotos: string[];
+    completionAdditionalNote: string | null;
     formatCurrency: (n: number) => string;
     onPhotoClick: (src: string) => void;
     /** Pass true when viewer is BMC reviewing PENDING_REVIEW */
@@ -79,6 +81,8 @@ export function CompletionTab({
     startSelfieUrls,
     startReceiptUrls,
     startMaterialStores,
+    completionAdditionalPhotos,
+    completionAdditionalNote,
     formatCurrency,
     onPhotoClick,
     isReviewer = false,
@@ -91,6 +95,17 @@ export function CompletionTab({
             onPhotoClick(src);
         };
     }
+
+    // Calculate grand total realization across all items
+    const grandTotalRealisasi = items.reduce((total, item) => {
+        const realisasiItems = item.realisasiItems ?? [];
+        const itemTotal = realisasiItems.reduce(
+            (sum, r) => sum + (r.totalPrice || 0),
+            0,
+        );
+        return total + itemTotal;
+    }, 0);
+
     // Items that are BMS-handled and broken/not-ok — show even if only before
     // photos exist (e.g. IN_PROGRESS: work started but not yet submitted).
     // `images` is the newer multi-photo field; `photoUrl` is the legacy single-
@@ -203,6 +218,49 @@ export function CompletionTab({
                             <EmptyPhotos label="Belum ada foto nota/struk." />
                         )}
                     </div>
+
+                    <Separator />
+
+                    {/* Dokumentasi tambahan */}
+                    <div id="review-additional-docs" className="space-y-2">
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                            <ImageIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                            Dokumentasi Tambahan
+                            {isReviewer &&
+                                completionAdditionalPhotos.length > 0 &&
+                                (viewedSections.has("additional-docs") ? (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                                        Sudah ditinjau
+                                    </span>
+                                ) : (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                        <Eye className="h-3.5 w-3.5" /> Klik
+                                        foto untuk meninjau
+                                    </span>
+                                ))}
+                        </p>
+                        {completionAdditionalPhotos.length > 0 ? (
+                            <PhotoGrid
+                                urls={completionAdditionalPhotos}
+                                onPhotoClick={makeClickHandler(
+                                    "additional-docs",
+                                )}
+                            />
+                        ) : (
+                            <EmptyPhotos label="Belum ada dokumentasi tambahan." />
+                        )}
+                        {completionAdditionalNote && (
+                            <div className="rounded-lg border border-border/70 bg-muted/30 p-3">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                    Catatan Dokumentasi Tambahan
+                                </p>
+                                <p className="text-sm mt-1 whitespace-pre-line">
+                                    {completionAdditionalNote}
+                                </p>
+                            </div>
+                        )}
+                    </div>
                 </CardContent>
             </Card>
 
@@ -214,12 +272,22 @@ export function CompletionTab({
                             <ClipboardList className="h-4 w-4 text-primary" />
                             Realisasi Pekerjaan
                         </CardTitle>
-                        <Badge
-                            variant="secondary"
-                            className="font-mono text-xs"
-                        >
-                            {completedItems.length} item
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                            <Badge
+                                variant="secondary"
+                                className="font-mono text-xs"
+                            >
+                                {completedItems.length} item
+                            </Badge>
+                            {grandTotalRealisasi > 0 && (
+                                <Badge
+                                    variant="outline"
+                                    className="font-mono text-sm bg-background"
+                                >
+                                    Total: {formatCurrency(grandTotalRealisasi)}
+                                </Badge>
+                            )}
+                        </div>
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">

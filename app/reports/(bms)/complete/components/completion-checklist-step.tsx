@@ -4,10 +4,13 @@ import { useState } from "react";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import {
     AlertCircle,
+    Camera,
     CheckCircle2,
     ChevronDown,
     Loader2,
     Store,
+    Trash2,
+    ZoomIn,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
@@ -54,6 +57,13 @@ interface Props {
     onOpenCamera: (itemId: string, type: "after") => void;
     globalNotes: string;
     onGlobalNotesChange: (value: string) => void;
+    additionalDocumentationPhotos: Array<{ id: string; previewUrl: string }>;
+    onAdditionalDocumentationPhotosChange: (
+        photos: Array<{ id: string; previewUrl: string }>,
+    ) => void;
+    additionalDocumentationNote: string;
+    onAdditionalDocumentationNoteChange: (value: string) => void;
+    onOpenAdditionalCamera: () => void;
     isPending: boolean;
     onBack: () => void;
     onSubmit: () => void;
@@ -68,6 +78,11 @@ export function CompletionChecklistStep({
     onOpenCamera,
     globalNotes,
     onGlobalNotesChange,
+    additionalDocumentationPhotos,
+    onAdditionalDocumentationPhotosChange,
+    additionalDocumentationNote,
+    onAdditionalDocumentationNoteChange,
+    onOpenAdditionalCamera,
     isPending,
     onBack,
     onSubmit,
@@ -304,6 +319,73 @@ export function CompletionChecklistStep({
             </div>
 
             {/* ─── Global Notes ──────────────────────────────────────────────── */}
+            <Card className="shadow-sm border-border/60">
+                <CardHeader>
+                    <CardTitle className="text-base">
+                        Dokumentasi Tambahan (opsional)
+                    </CardTitle>
+                    <CardDescription>
+                        Tambahkan foto dokumentasi tambahan dan satu catatan
+                        untuk kumpulan foto ini.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={onOpenAdditionalCamera}
+                        >
+                            <Camera className="h-4 w-4 mr-2" />
+                            Tambah Foto Dokumentasi
+                        </Button>
+                        {additionalDocumentationPhotos.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                                {additionalDocumentationPhotos.map((photo) => (
+                                    <div
+                                        key={photo.id}
+                                        className="relative group"
+                                    >
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                            src={photo.previewUrl}
+                                            alt="Dokumentasi tambahan"
+                                            className="h-20 w-20 object-cover rounded-lg border cursor-zoom-in"
+                                            onClick={() =>
+                                                setPreviewUrl(photo.previewUrl)
+                                            }
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                onAdditionalDocumentationPhotosChange(
+                                                    additionalDocumentationPhotos.filter(
+                                                        (p) =>
+                                                            p.id !== photo.id,
+                                                    ),
+                                                )
+                                            }
+                                            className="absolute -top-2 -right-2 bg-destructive text-white rounded-full h-6 w-6 flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow z-10"
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </button>
+                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                                            <ZoomIn className="h-5 w-5 text-white drop-shadow-lg" />
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div>
+                        <LocalNotesTextarea
+                            initialValue={additionalDocumentationNote}
+                            onCommit={onAdditionalDocumentationNoteChange}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+
             <LocalNotesTextarea
                 initialValue={globalNotes}
                 onCommit={onGlobalNotesChange}

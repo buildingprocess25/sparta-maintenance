@@ -34,8 +34,10 @@ export default async function ReportDetailPage({ params }: Props) {
         // BMC can view reports from their branches
         if (!user.branchNames.includes(report.branchName)) redirect("/reports");
     } else if (user.role === "BNM_MANAGER") {
-        // BnM Manager can view COMPLETED reports
-        if (report.status !== "COMPLETED") redirect("/reports");
+        // BnM Manager can review APPROVED_BMC and view COMPLETED reports
+        if (report.status !== "APPROVED_BMC" && report.status !== "COMPLETED") {
+            redirect("/reports");
+        }
     } else if (user.role !== "ADMIN") {
         redirect("/dashboard");
     }
@@ -120,6 +122,10 @@ export default async function ReportDetailPage({ params }: Props) {
                 startMaterialStores: parseMaterialStores(
                     report.startMaterialStores,
                 ),
+                completionAdditionalPhotos: parseJsonArray(
+                    report.completionAdditionalPhotos,
+                ),
+                completionAdditionalNote: report.completionAdditionalNote,
             }}
             viewer={{ role: user.role, nik: user.NIK }}
         />

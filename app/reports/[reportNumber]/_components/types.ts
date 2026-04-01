@@ -27,6 +27,8 @@ export type ReportData = {
     startSelfieUrls: string[];
     startReceiptUrls: string[];
     startMaterialStores: MaterialStoreJson[];
+    completionAdditionalPhotos: string[];
+    completionAdditionalNote: string | null;
 };
 
 export type Viewer = { role: string; nik: string };
@@ -43,4 +45,5 @@ export type ActionState = {
         decision: "approve" | "reject_revision" | "reject",
     ) => void;
     handleReviewCompletion: (decision: "approve" | "reject_revision") => void;
+    handleFinalApproval: (decision: "approve" | "reject_revision") => void;
 };

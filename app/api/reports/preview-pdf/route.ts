@@ -34,6 +34,8 @@ export async function GET() {
                 { name: "Sumber Bangunan", city: "Depok" },
             ],
             completionNotes: undefined,
+            completionAdditionalPhotos: [],
+            completionAdditionalNote: undefined,
             approval: {
                 reportStatus: "COMPLETED",
                 stamps: [
@@ -45,7 +47,7 @@ export async function GET() {
                         approvedAt: "Selasa, 13 Februari 2024 - 09:00",
                     },
                     {
-                        action: "FINALIZED",
+                        action: "FINAL_APPROVED_BNM",
                         approverName: "Budi Santoso",
                         approverNIK: "87654321",
                         approverRole: "BNM_MANAGER",

@@ -64,6 +64,9 @@ export async function getReportForCompletion(
             status: true,
             items: true,
             estimations: true,
+            completionNotes: true,
+            completionAdditionalPhotos: true,
+            completionAdditionalNote: true,
             createdByNIK: true,
         },
     });

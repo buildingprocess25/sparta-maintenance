@@ -226,6 +226,16 @@ export default function BmsReportsList({
                         Penyelesaian
                     </Badge>
                 );
+            case "APPROVED_BMC":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-cyan-100 text-cyan-700 hover:bg-cyan-100/80 border-cyan-200 shadow-none"
+                    >
+                        <Clock className="h-3 w-3" /> Menunggu Persetujuan Final
+                        BNM
+                    </Badge>
+                );
             case "REVIEW_REJECTED_REVISION":
                 return (
                     <Badge
@@ -288,6 +298,11 @@ export default function BmsReportsList({
             icon: <Eye className="h-3.5 w-3.5" />,
             cta: false,
         },
+        APPROVED_BMC: {
+            label: "Lihat",
+            icon: <Eye className="h-3.5 w-3.5" />,
+            cta: false,
+        },
         REVIEW_REJECTED_REVISION: {
             label: "Revisi",
             icon: <Pencil className="h-3.5 w-3.5" />,
@@ -306,10 +321,11 @@ export default function BmsReportsList({
         const href =
             report.status === "DRAFT"
                 ? "/reports/create?restore=1"
-                : report.status === "ESTIMATION_REJECTED_REVISION" ||
-                    report.status === "REVIEW_REJECTED_REVISION"
+                : report.status === "ESTIMATION_REJECTED_REVISION"
                   ? `/reports/revisi/${report.reportNumber}`
-                  : `/reports/${report.reportNumber}`;
+                  : report.status === "REVIEW_REJECTED_REVISION"
+                    ? `/reports/complete?report=${report.reportNumber}`
+                    : `/reports/${report.reportNumber}`;
         return (
             <Button
                 variant={cfg.cta ? "outline" : "ghost"}
@@ -423,6 +439,9 @@ export default function BmsReportsList({
                                         </SelectItem>
                                         <SelectItem value="pending_review">
                                             Menunggu Review Penyelesaian
+                                        </SelectItem>
+                                        <SelectItem value="approved_bmc">
+                                            Menunggu Persetujuan Final BNM
                                         </SelectItem>
                                         <SelectItem value="review_rejected_revision">
                                             Penyelesaian Ditolak (Revisi)

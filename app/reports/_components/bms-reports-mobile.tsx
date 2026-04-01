@@ -48,6 +48,11 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
         badge: "bg-purple-100 text-purple-700",
         bar: "bg-purple-500",
     },
+    APPROVED_BMC: {
+        label: "Menunggu Persetujuan Final BNM",
+        badge: "bg-cyan-100 text-cyan-700",
+        bar: "bg-cyan-500",
+    },
     REVIEW_REJECTED_REVISION: {
         label: "Pekerjaan Ditolak — Revisi",
         badge: "bg-orange-100 text-orange-700",

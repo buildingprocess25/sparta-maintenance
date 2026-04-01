@@ -137,7 +137,8 @@ export async function GET(
             "ESTIMATION_REJECTED_REVISION",
             "WORK_APPROVED",
             "WORK_REJECTED_REVISION",
-            "FINALIZED",
+            "FINAL_APPROVED_BNM",
+            "FINAL_REJECTED_REVISION_BNM",
         ];
 
         // Build stamps from actual activity log entries that exist,
@@ -201,6 +202,18 @@ export async function GET(
             report.startMaterialStores,
         );
 
+        const rawAdditionalDocs = report.completionAdditionalPhotos;
+        const completionAdditionalPhotos: string[] = Array.isArray(
+            rawAdditionalDocs,
+        )
+            ? (rawAdditionalDocs as string[])
+            : typeof rawAdditionalDocs === "string" &&
+                rawAdditionalDocs.startsWith("[")
+              ? (JSON.parse(rawAdditionalDocs) as string[])
+              : [];
+        const completionAdditionalNote =
+            report.completionAdditionalNote ?? undefined;
+
         // Pull completion notes from the activity log
         const completionLog = report.activities.find(
             (l) =>
@@ -227,6 +240,8 @@ export async function GET(
             startReceiptUrls,
             startMaterialStores,
             completionNotes,
+            completionAdditionalPhotos,
+            completionAdditionalNote,
             approval: {
                 reportStatus: report.status,
                 stamps,

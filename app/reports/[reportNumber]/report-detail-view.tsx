@@ -13,6 +13,7 @@ import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
 import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
+import { approveFinal } from "@/app/reports/actions/approve-final";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -61,6 +62,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     const COMPLETION_STATUSES = [
         "IN_PROGRESS",
         "PENDING_REVIEW",
+        "APPROVED_BMC",
         "REVIEW_REJECTED_REVISION",
         "COMPLETED",
     ];
@@ -80,12 +82,16 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
 
     const isBmcReviewer =
         viewer.role === "BMC" && report.status === "PENDING_REVIEW";
+    const isBnmReviewer =
+        viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC";
 
     const requiredSections = useMemo(() => {
-        if (!isBmcReviewer) return new Set<string>();
+        if (!isBmcReviewer && !isBnmReviewer) return new Set<string>();
         const s = new Set<string>();
         if (report.startSelfieUrls.length > 0) s.add("selfie");
         if (report.startReceiptUrls.length > 0) s.add("nota");
+        if (report.completionAdditionalPhotos.length > 0)
+            s.add("additional-docs");
         report.items
             .filter(
                 (item) =>
@@ -96,7 +102,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
             )
             .forEach((item) => s.add(`after-${item.itemId}`));
         return s;
-    }, [isBmcReviewer, report]);
+    }, [isBmcReviewer, isBnmReviewer, report]);
 
     function handleSectionViewed(sectionId: string) {
         setViewedSections((prev) => new Set(prev).add(sectionId));
@@ -201,6 +207,58 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         });
     };
 
+    const handleFinalApproval = (decision: "approve" | "reject_revision") => {
+        if (decision === "approve" && isBnmReviewer) {
+            const unviewed = [...requiredSections].filter(
+                (id) => !viewedSections.has(id),
+            );
+            if (unviewed.length > 0) {
+                const firstId = unviewed[0];
+                const sectionLabel =
+                    firstId === "selfie"
+                        ? "Foto Selfie"
+                        : firstId === "nota"
+                          ? "Foto Nota / Struk Belanja"
+                          : firstId === "additional-docs"
+                            ? "Dokumentasi Tambahan"
+                            : `Foto Sesudah item ${firstId.replace("after-", "")}`;
+                toast.warning("Tinjau semua foto terlebih dahulu", {
+                    description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
+                });
+                setActiveTab("estimations");
+                setTimeout(() => {
+                    const el = document.getElementById(`review-${firstId}`);
+                    if (el)
+                        el.scrollIntoView({
+                            behavior: "smooth",
+                            block: "center",
+                        });
+                }, 150);
+                return;
+            }
+        }
+
+        startTransition(async () => {
+            const result = await approveFinal(
+                report.reportNumber,
+                decision,
+                notesInput || undefined,
+            );
+            if (result.error) {
+                toast.error("Gagal memproses persetujuan final", {
+                    description: result.error,
+                });
+            } else {
+                toast.success(
+                    decision === "approve"
+                        ? "Laporan disetujui final oleh BNM"
+                        : "Laporan dikembalikan untuk revisi",
+                );
+                setActiveDialog(null);
+                setNotesInput("");
+            }
+        });
+    };
 
     const actions: ActionState = {
         isPending,
@@ -211,6 +269,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleSubmitCompletion,
         handleReviewEstimation,
         handleReviewCompletion,
+        handleFinalApproval,
     };
 
     const hasWorkflowAction =
@@ -220,7 +279,8 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
-                report.status === "PENDING_REVIEW"));
+                report.status === "PENDING_REVIEW")) ||
+        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
 
     return (
         <div className="min-h-screen flex flex-col bg-background/50">
@@ -357,9 +417,17 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         startMaterialStores={
                                             report.startMaterialStores
                                         }
+                                        completionAdditionalPhotos={
+                                            report.completionAdditionalPhotos
+                                        }
+                                        completionAdditionalNote={
+                                            report.completionAdditionalNote
+                                        }
                                         formatCurrency={formatCurrency}
                                         onPhotoClick={setLightboxSrc}
-                                        isReviewer={isBmcReviewer}
+                                        isReviewer={
+                                            isBmcReviewer || isBnmReviewer
+                                        }
                                         onSectionViewed={handleSectionViewed}
                                         viewedSections={viewedSections}
                                     />

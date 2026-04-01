@@ -19,6 +19,11 @@ const STATUS_STEPS = [
         label: "Menunggu Review Penyelesaian",
         icon: Clock,
     },
+    {
+        key: "APPROVED_BMC",
+        label: "Menunggu Persetujuan Final BNM",
+        icon: Clock,
+    },
     { key: "COMPLETED", label: "Selesai", icon: CheckCircle2 },
 ];
 
@@ -30,7 +35,8 @@ const STATUS_ORDER: Record<string, number> = {
     IN_PROGRESS: 3,
     PENDING_REVIEW: 4,
     REVIEW_REJECTED_REVISION: 4,
-    COMPLETED: 5,
+    APPROVED_BMC: 5,
+    COMPLETED: 6,
 };
 
 function isRejectionStatus(status: string) {

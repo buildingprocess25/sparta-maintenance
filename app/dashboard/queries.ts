@@ -39,7 +39,11 @@ export async function getUserStats(userId: string) {
                 where: {
                     ...base,
                     status: {
-                        in: ["PENDING_ESTIMATION", "PENDING_REVIEW"],
+                        in: [
+                            "PENDING_ESTIMATION",
+                            "PENDING_REVIEW",
+                            "APPROVED_BMC",
+                        ],
                     },
                 },
             }),
@@ -131,19 +135,29 @@ export async function getBMCStats(branchNames: string[]) {
  */
 export async function getBNMStats(branchNames: string[]) {
     try {
-        const [completed, totalReports] = await Promise.all([
-            prisma.report.count({
-                where: { branchName: { in: branchNames }, status: "COMPLETED" },
-            }),
-            prisma.report.count({
-                where: {
-                    branchName: { in: branchNames },
-                    status: { not: "DRAFT" },
-                },
-            }),
-        ]);
+        const [pendingFinalApproval, completed, totalReports] =
+            await Promise.all([
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: "APPROVED_BMC",
+                    },
+                }),
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: "COMPLETED",
+                    },
+                }),
+                prisma.report.count({
+                    where: {
+                        branchName: { in: branchNames },
+                        status: { not: "DRAFT" },
+                    },
+                }),
+            ]);
 
-        return { completed, totalReports };
+        return { pendingFinalApproval, completed, totalReports };
     } catch (error) {
         logger.error(
             { operation: "getBNMStats", branchNames },
@@ -309,14 +323,20 @@ export async function getPjumActivity(
             });
 
             // If approved, also include approved activity
-            if (pjum.status === "APPROVED" && pjum.approvedAt && pjum.approvedByNIK) {
+            if (
+                pjum.status === "APPROVED" &&
+                pjum.approvedAt &&
+                pjum.approvedByNIK
+            ) {
                 activities.push({
                     id: `${pjum.id}-approved`,
                     label: `PJUM Minggu ke-${pjum.weekNumber}`,
                     action: "PJUM_APPROVED",
                     createdAt: pjum.approvedAt,
                     actor: {
-                        name: userMap.get(pjum.approvedByNIK) ?? pjum.approvedByNIK,
+                        name:
+                            userMap.get(pjum.approvedByNIK) ??
+                            pjum.approvedByNIK,
                         NIK: pjum.approvedByNIK,
                     },
                     branchName: pjum.branchName,
@@ -349,7 +369,7 @@ export async function getBMCApprovalHistory(
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED",
         "ESTIMATION_REJECTED_REVISION",
-        "FINALIZED",
+        "WORK_APPROVED",
         "WORK_REJECTED_REVISION",
     ];
     try {

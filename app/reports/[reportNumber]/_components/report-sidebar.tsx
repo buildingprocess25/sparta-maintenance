@@ -42,6 +42,7 @@ export function ReportSidebar({
         setActiveDialog,
         handleReviewEstimation,
         handleReviewCompletion,
+        handleFinalApproval,
     } = actions;
 
     const estimationRejectionNote =
@@ -50,11 +51,22 @@ export function ReportSidebar({
             .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes ||
         "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
 
+    const latestWorkRejectionActivity = [...report.activities]
+        .reverse()
+        .find(
+            (a) =>
+                a.action === "WORK_REJECTED_REVISION" ||
+                a.action === "FINAL_REJECTED_REVISION_BNM",
+        );
+
     const workRejectionNote =
-        [...report.activities]
-            .reverse()
-            .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes ||
+        latestWorkRejectionActivity?.notes ||
         "Perbaiki dan kirim ulang laporan penyelesaian.";
+
+    const rejectionNoteTitle =
+        latestWorkRejectionActivity?.action === "FINAL_REJECTED_REVISION_BNM"
+            ? "Catatan Penolakan BNM"
+            : "Catatan Penolakan BMC";
 
     const hasAction =
         (viewer.role === "BMS" &&
@@ -65,6 +77,7 @@ export function ReportSidebar({
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
                 report.status === "PENDING_REVIEW")) ||
+        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC") ||
         false;
 
     return (
@@ -158,7 +171,7 @@ export function ReportSidebar({
                                     {report.status ===
                                     "REVIEW_REJECTED_REVISION" ? (
                                         <>
-                                            Catatan Penolakan: <br />
+                                            {rejectionNoteTitle}: <br />
                                             <span className="italic whitespace-pre-line">
                                                 {workRejectionNote}
                                             </span>
@@ -373,6 +386,101 @@ export function ReportSidebar({
                                     >
                                         <XCircle className="h-4 w-4 mr-2" />
                                         Tolak Pekerjaan
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                {/* ── BNM: final review completion ── */}
+                {viewer.role === "BNM_MANAGER" &&
+                    report.status === "APPROVED_BMC" && (
+                        <div className="space-y-3">
+                            <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
+                                <p className="text-sm font-medium text-cyan-800">
+                                    Menunggu Persetujuan Final BNM
+                                </p>
+                                <p className="text-xs text-cyan-700 mt-0.5">
+                                    Tinjau seluruh bukti pekerjaan sebelum
+                                    menetapkan laporan sebagai selesai.
+                                </p>
+                            </div>
+                            {activeDialog === "reject_final" ? (
+                                <div className="space-y-2">
+                                    <textarea
+                                        className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                        rows={3}
+                                        placeholder="Alasan penolakan (wajib)..."
+                                        value={notesInput}
+                                        onChange={(e) =>
+                                            setNotesInput(e.target.value)
+                                        }
+                                    />
+                                    <Button
+                                        variant="destructive"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() =>
+                                            handleFinalApproval(
+                                                "reject_revision",
+                                            )
+                                        }
+                                        disabled={isPending}
+                                    >
+                                        {isPending ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Memproses...
+                                            </>
+                                        ) : (
+                                            "Tolak & Kembalikan untuk Revisi"
+                                        )}
+                                    </Button>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => {
+                                            setActiveDialog(null);
+                                            setNotesInput("");
+                                        }}
+                                    >
+                                        Batal
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <Button
+                                        className="w-full"
+                                        size="lg"
+                                        onClick={() =>
+                                            handleFinalApproval("approve")
+                                        }
+                                        disabled={isPending}
+                                    >
+                                        {isPending ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                Memproses...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                Setujui Final (Selesai)
+                                            </>
+                                        )}
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="lg"
+                                        className="w-full"
+                                        onClick={() =>
+                                            setActiveDialog("reject_final")
+                                        }
+                                        disabled={isPending}
+                                    >
+                                        <XCircle className="h-4 w-4 mr-2" />
+                                        Tolak (Kembali Revisi)
                                     </Button>
                                 </div>
                             )}

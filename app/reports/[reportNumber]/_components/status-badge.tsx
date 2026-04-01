@@ -49,6 +49,15 @@ export function StatusBadge({ status }: { status: string }) {
                     Menunggu Review Penyelesaian
                 </Badge>
             );
+        case "APPROVED_BMC":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100/80"
+                >
+                    Menunggu Persetujuan Final BNM
+                </Badge>
+            );
         case "REVIEW_REJECTED_REVISION":
             return (
                 <Badge

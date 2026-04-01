@@ -24,6 +24,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
         setActiveDialog,
         handleReviewEstimation,
         handleReviewCompletion,
+        handleFinalApproval,
     } = actions;
 
     const estimationRejectionNote =
@@ -32,11 +33,22 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             .find((a) => a.action === "ESTIMATION_REJECTED_REVISION")?.notes ||
         "Perbarui laporan estimasi ini berdasarkan catatan/alasan penolakan dari BMC.";
 
+    const latestWorkRejectionActivity = [...report.activities]
+        .reverse()
+        .find(
+            (a) =>
+                a.action === "WORK_REJECTED_REVISION" ||
+                a.action === "FINAL_REJECTED_REVISION_BNM",
+        );
+
     const workRejectionNote =
-        [...report.activities]
-            .reverse()
-            .find((a) => a.action === "WORK_REJECTED_REVISION")?.notes ||
+        latestWorkRejectionActivity?.notes ||
         "Perbaiki dan kirim ulang laporan penyelesaian.";
+
+    const rejectionNoteTitle =
+        latestWorkRejectionActivity?.action === "FINAL_REJECTED_REVISION_BNM"
+            ? "Catatan Penolakan BNM"
+            : "Catatan Penolakan BMC";
 
     const hasWorkflowAction =
         (viewer.role === "BMS" &&
@@ -46,7 +58,8 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                 report.status === "REVIEW_REJECTED_REVISION")) ||
         (viewer.role === "BMC" &&
             (report.status === "PENDING_ESTIMATION" ||
-                report.status === "PENDING_REVIEW"));
+                report.status === "PENDING_REVIEW")) ||
+        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
 
     if (!hasWorkflowAction) return null;
 
@@ -74,7 +87,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                         {report.status === "REVIEW_REJECTED_REVISION" && (
                             <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                                 <p className="text-xs font-semibold text-red-800">
-                                    Catatan Penolakan:
+                                    {rejectionNoteTitle}:
                                 </p>
                                 <p className="text-xs text-red-700 mt-0.5 italic whitespace-pre-line">
                                     {workRejectionNote}
@@ -272,6 +285,82 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                             variant="outline"
                             size="lg"
                             onClick={() => setActiveDialog("reject_completion")}
+                            disabled={isPending}
+                        >
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Tolak
+                        </Button>
+                    </div>
+                ))}
+
+            {/* BNM: final review completion */}
+            {viewer.role === "BNM_MANAGER" &&
+                report.status === "APPROVED_BMC" &&
+                (activeDialog === "reject_final" ? (
+                    <div className="space-y-2">
+                        <textarea
+                            className="w-full border rounded-md p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 bg-background"
+                            rows={2}
+                            placeholder="Alasan penolakan (wajib)..."
+                            value={notesInput}
+                            onChange={(e) => setNotesInput(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-none"
+                                onClick={() => {
+                                    setActiveDialog(null);
+                                    setNotesInput("");
+                                }}
+                            >
+                                Batal
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="flex-1"
+                                onClick={() =>
+                                    handleFinalApproval("reject_revision")
+                                }
+                                disabled={isPending}
+                            >
+                                {isPending ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Memproses...
+                                    </>
+                                ) : (
+                                    "Tolak & Revisi"
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex gap-2">
+                        <Button
+                            className="flex-1"
+                            size="lg"
+                            onClick={() => handleFinalApproval("approve")}
+                            disabled={isPending}
+                        >
+                            {isPending ? (
+                                <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Memproses...
+                                </>
+                            ) : (
+                                <>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Setujui Final
+                                </>
+                            )}
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => setActiveDialog("reject_final")}
                             disabled={isPending}
                         >
                             <XCircle className="h-4 w-4 mr-1" />

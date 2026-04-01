@@ -69,10 +69,15 @@ const ACTIVITY_CONFIG: Record<
         color: "bg-red-100 text-red-700 border-red-200",
         dot: "bg-red-500",
     },
-    FINALIZED: {
-        label: "Laporan selesai",
-        color: "bg-green-100 text-green-700 border-green-200",
-        dot: "bg-green-600",
+    FINAL_APPROVED_BNM: {
+        label: "Disetujui final BNM",
+        color: "bg-cyan-100 text-cyan-700 border-cyan-200",
+        dot: "bg-cyan-600",
+    },
+    FINAL_REJECTED_REVISION_BNM: {
+        label: "Ditolak final BNM (revisi)",
+        color: "bg-red-100 text-red-700 border-red-200",
+        dot: "bg-red-600",
     },
 };
 

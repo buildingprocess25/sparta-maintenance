@@ -59,7 +59,16 @@ const ACTIVITY_HISTORY_CONFIG: Record<
         positive: false,
         negative: true,
     },
-    FINALIZED: { label: "Laporan Selesai", positive: true, negative: false },
+    FINAL_APPROVED_BNM: {
+        label: "Persetujuan Final BNM",
+        positive: true,
+        negative: false,
+    },
+    FINAL_REJECTED_REVISION_BNM: {
+        label: "Final Review BNM Ditolak (Revisi)",
+        positive: false,
+        negative: true,
+    },
 };
 
 type Props = {

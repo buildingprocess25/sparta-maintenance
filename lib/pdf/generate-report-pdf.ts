@@ -513,6 +513,8 @@ export type ReportPdfData = {
     startReceiptUrls: string[];
     startMaterialStores: MaterialStoreJson[];
     completionNotes?: string;
+    completionAdditionalPhotos: string[];
+    completionAdditionalNote?: string;
     approval: {
         reportStatus: string;
         stamps: ReportStamp[];
@@ -556,11 +558,13 @@ function getStampLabelConfig(action: string): { label: string; color: string } {
         case "ESTIMATION_REJECTED_REVISION":
             return { label: "Estimasi Ditolak (Revisi)", color: "#d97706" };
         case "WORK_APPROVED":
-            return { label: "Penyelesaian Disetujui", color: "#16a34a" };
-        case "FINALIZED":
-            return { label: "Penyelesaian Disetujui", color: "#0369a1" };
+            return { label: "Disetujui", color: "#16a34a" };
+        case "FINAL_APPROVED_BNM":
+            return { label: "Mengetahui", color: "#0369a1" };
         case "WORK_REJECTED_REVISION":
             return { label: "Penyelesaian Ditolak (Revisi)", color: "#d97706" };
+        case "FINAL_REJECTED_REVISION_BNM":
+            return { label: "Final Review BNM Ditolak", color: "#dc2626" };
         default:
             return { label: action, color: "#6b7280" };
     }
@@ -673,6 +677,7 @@ function renderLandscapePhoto(
     dimensionMap: Map<string, { width: number; height: number }>,
     colWidth: number,
     maxHeight: number,
+    photoMarginBottom = 4,
 ) {
     const dims = dimensionMap.get(url);
     const nW = dims?.width ?? 4;
@@ -734,7 +739,7 @@ function renderLandscapePhoto(
             height: h,
             objectFit: "contain",
             borderRadius: 2,
-            marginBottom: 4,
+            marginBottom: photoMarginBottom,
         },
     });
 }
@@ -747,6 +752,12 @@ function renderPhotoGrid2Col(
     urls: string[],
     label: string,
     dimensionMap: Map<string, { width: number; height: number }>,
+    spacing?: {
+        containerMarginBottom?: number;
+        labelMarginBottom?: number;
+        rowMarginBottom?: number;
+        photoMarginBottom?: number;
+    },
 ) {
     if (!urls || urls.length === 0) return null;
     const col = BEFORE_AFTER_COL_WIDTH;
@@ -757,10 +768,24 @@ function renderPhotoGrid2Col(
         pairs.push(urls.slice(i, i + 2));
     }
 
+    const containerMarginBottom = spacing?.containerMarginBottom ?? 8;
+    const labelMarginBottom = spacing?.labelMarginBottom ?? 4;
+    const rowMarginBottom = spacing?.rowMarginBottom ?? 4;
+    const photoMarginBottom = spacing?.photoMarginBottom ?? 4;
+
     return React.createElement(
         View,
-        { wrap: false, style: { marginBottom: 8 } },
-        React.createElement(Text, { style: styles.completionSubLabel }, label),
+        { wrap: false, style: { marginBottom: containerMarginBottom } },
+        React.createElement(
+            Text,
+            {
+                style: {
+                    ...styles.completionSubLabel,
+                    marginBottom: labelMarginBottom,
+                },
+            },
+            label,
+        ),
         ...pairs.map((pair, rowIdx) =>
             React.createElement(
                 View,
@@ -769,7 +794,7 @@ function renderPhotoGrid2Col(
                     style: {
                         flexDirection: "row",
                         gap: 8,
-                        marginBottom: 4,
+                        marginBottom: rowMarginBottom,
                     },
                 },
                 ...pair.map((url, colIdx) =>
@@ -779,6 +804,7 @@ function renderPhotoGrid2Col(
                         dimensionMap,
                         col,
                         maxH,
+                        photoMarginBottom,
                     ),
                 ),
             ),
@@ -1480,6 +1506,7 @@ function buildReportDocument(
             (() => {
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
+                    "APPROVED_BMC",
                     "REVIEW_REJECTED_REVISION",
                     "COMPLETED",
                 ];
@@ -1490,7 +1517,17 @@ function buildReportDocument(
                 const hasSelfie = data.completionSelfieUrls.length > 0;
                 const hasReceipts = data.startReceiptUrls.length > 0;
                 const hasNotes = !!data.completionNotes;
-                if (!hasSelfie && !hasReceipts && !hasNotes) return null;
+                const hasAdditionalPhotos =
+                    data.completionAdditionalPhotos.length > 0;
+                const hasAdditionalNote = !!data.completionAdditionalNote;
+                if (
+                    !hasSelfie &&
+                    !hasReceipts &&
+                    !hasNotes &&
+                    !hasAdditionalPhotos &&
+                    !hasAdditionalNote
+                )
+                    return null;
 
                 return React.createElement(
                     View,
@@ -1573,6 +1610,38 @@ function buildReportDocument(
                           )
                         : null,
 
+                    // Additional completion documentation
+                    hasAdditionalPhotos
+                        ? renderPhotoGrid2Col(
+                              data.completionAdditionalPhotos,
+                              "Dokumentasi Tambahan",
+                              dimensionMap,
+                              {
+                                  containerMarginBottom: -20,
+                                  labelMarginBottom: -20,
+                              },
+                          )
+                        : null,
+
+                    hasAdditionalNote
+                        ? React.createElement(
+                              View,
+                              {
+                                  wrap: false,
+                                  style: {
+                                      ...styles.completionNoteBox,
+                                      marginTop: -2,
+                                  },
+                              },
+                              React.createElement(
+                                  Text,
+                                  { style: styles.completionNoteText },
+                                  "Catatan Dokumentasi Tambahan: ",
+                                  data.completionAdditionalNote,
+                              ),
+                          )
+                        : null,
+
                     // Completion notes
                     hasNotes
                         ? React.createElement(
@@ -1599,6 +1668,7 @@ function buildReportDocument(
             (() => {
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
+                    "APPROVED_BMC",
                     "REVIEW_REJECTED_REVISION",
                     "COMPLETED",
                 ];
@@ -1672,11 +1742,11 @@ function buildReportDocument(
 
                 return React.createElement(
                     View,
-                    { style: styles.section },
+                    { break: true, style: styles.section },
                     React.createElement(
                         Text,
                         { style: styles.sectionTitle },
-                        "Rekap Penyelesaian",
+                        "Realisasi Dana Taktis",
                     ),
                     React.createElement(
                         View,
@@ -1994,23 +2064,57 @@ function buildReportDocument(
                     "ESTIMATION_REJECTED",
                     "ESTIMATION_REJECTED_REVISION",
                 ];
-                const WORK_ACTIONS = [
+                const BMC_WORK_ACTIONS = [
                     "WORK_APPROVED",
                     "WORK_REJECTED_REVISION",
-                    "FINALIZED",
+                ];
+                const FINAL_BNM_ACTIONS = [
+                    "FINAL_APPROVED_BNM",
+                    "FINAL_REJECTED_REVISION_BNM",
                 ];
 
                 const processedStamps: ReportStamp[] = [];
                 for (const stamp of data.approval.stamps) {
                     if (ESTIMATION_ACTIONS.includes(stamp.action)) {
+                        // Once work is approved by BMC, estimation stamp is no longer shown.
+                        if (
+                            processedStamps.some(
+                                (s) => s.action === "WORK_APPROVED",
+                            )
+                        ) {
+                            continue;
+                        }
+
                         const existingIdx = processedStamps.findIndex((s) =>
                             ESTIMATION_ACTIONS.includes(s.action),
                         );
                         if (existingIdx !== -1)
                             processedStamps.splice(existingIdx, 1);
-                    } else if (WORK_ACTIONS.includes(stamp.action)) {
+                    } else if (BMC_WORK_ACTIONS.includes(stamp.action)) {
+                        if (stamp.action === "WORK_APPROVED") {
+                            for (
+                                let i = processedStamps.length - 1;
+                                i >= 0;
+                                i--
+                            ) {
+                                if (
+                                    ESTIMATION_ACTIONS.includes(
+                                        processedStamps[i].action,
+                                    )
+                                ) {
+                                    processedStamps.splice(i, 1);
+                                }
+                            }
+                        }
+
                         const existingIdx = processedStamps.findIndex((s) =>
-                            WORK_ACTIONS.includes(s.action),
+                            BMC_WORK_ACTIONS.includes(s.action),
+                        );
+                        if (existingIdx !== -1)
+                            processedStamps.splice(existingIdx, 1);
+                    } else if (FINAL_BNM_ACTIONS.includes(stamp.action)) {
+                        const existingIdx = processedStamps.findIndex((s) =>
+                            FINAL_BNM_ACTIONS.includes(s.action),
                         );
                         if (existingIdx !== -1)
                             processedStamps.splice(existingIdx, 1);

@@ -20,10 +20,18 @@ import type { CompletionDraftData, CompletionItemState } from "./types";
 import { useCompletionAutosave } from "./hooks/use-completion-autosave";
 import { realisasiGrandTotal } from "./types";
 import { useRouter } from "next/navigation";
+import type {
+    MaterialEstimationJson,
+    RealisasiItemJson,
+    ReportItemJson,
+} from "@/types/report";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CameraTarget = { target: "item"; itemId: string; type: "after" } | null;
+type CameraTarget =
+    | { target: "item"; itemId: string; type: "after" }
+    | { target: "additional" }
+    | null;
 
 interface Props {
     workableReports: WorkableReport[];
@@ -82,6 +90,48 @@ async function compressAndUpload(
     }
 }
 
+function toRemotePhoto(url: string, idx: number) {
+    return { id: `remote-${idx}-${url}`, previewUrl: url };
+}
+
+function parseStringArray(raw: unknown): string[] {
+    if (Array.isArray(raw)) {
+        return raw.filter(
+            (value): value is string =>
+                typeof value === "string" && value.trim().length > 0,
+        );
+    }
+
+    if (typeof raw === "string" && raw.trim().startsWith("[")) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed.filter(
+                    (value): value is string =>
+                        typeof value === "string" && value.trim().length > 0,
+                );
+            }
+        } catch {
+            return [];
+        }
+    }
+
+    return [];
+}
+
+function toRealisasiEntries(
+    itemId: string,
+    realisasiItems: RealisasiItemJson[],
+): CompletionItemState["realisasiEntries"] {
+    return realisasiItems.map((entry, idx) => ({
+        id: `db-${itemId}-${idx}-${Date.now()}`,
+        materialName: entry.materialName,
+        quantity: entry.quantity,
+        unit: entry.unit,
+        price: entry.price,
+    }));
+}
+
 function buildItemStates(
     report: ReportForCompletion,
 ): Map<string, CompletionItemState> {
@@ -89,23 +139,38 @@ function buildItemStates(
     if (!report) return map;
 
     // Build estimation lookup
-    const estMap = new Map<
-        string,
-        import("@/types/report").MaterialEstimationJson[]
-    >();
+    const estMap = new Map<string, MaterialEstimationJson[]>();
     for (const e of report.estimations) {
         if (!estMap.has(e.itemId)) estMap.set(e.itemId, []);
         estMap.get(e.itemId)!.push(e);
     }
 
-    for (const item of report.items) {
+    for (const item of report.items as ReportItemJson[]) {
         const isDamaged =
             item.condition === "RUSAK" || item.preventiveCondition === "NOT_OK";
         if (isDamaged && item.handler === "BMS") {
-            map.set(
-                item.itemId,
-                createInitialItemState(estMap.get(item.itemId) ?? []),
+            const baseState = createInitialItemState(
+                estMap.get(item.itemId) ?? [],
             );
+            const existingAfterImages = parseStringArray(item.afterImages);
+            const existingRealisasi = Array.isArray(item.realisasiItems)
+                ? item.realisasiItems
+                : [];
+
+            map.set(item.itemId, {
+                ...baseState,
+                afterPhotos:
+                    existingAfterImages.length > 0
+                        ? existingAfterImages.map((url, idx) =>
+                              toRemotePhoto(url, idx),
+                          )
+                        : baseState.afterPhotos,
+                realisasiEntries:
+                    existingRealisasi.length > 0
+                        ? toRealisasiEntries(item.itemId, existingRealisasi)
+                        : baseState.realisasiEntries,
+                notes: item.completionNotes?.trim() || "",
+            });
         }
     }
     return map;
@@ -133,6 +198,10 @@ export function CompleteForm({
         Map<string, CompletionItemState>
     >(new Map());
     const [globalNotes, setGlobalNotes] = useState<string>("");
+    const [additionalDocumentationPhotos, setAdditionalDocumentationPhotos] =
+        useState<Array<{ id: string; previewUrl: string }>>([]);
+    const [additionalDocumentationNote, setAdditionalDocumentationNote] =
+        useState("");
 
     // ── Camera state ─────────────────────────────────────────────────────────
     const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
@@ -202,6 +271,8 @@ export function CompleteForm({
                 );
                 setCurrentReport(report);
                 setGlobalNotes(draft.globalNotes);
+                setAdditionalDocumentationPhotos([]);
+                setAdditionalDocumentationNote("");
 
                 // Merge draft with fresh item states (in case new items were added)
                 const freshStates = buildItemStates(report);
@@ -215,7 +286,19 @@ export function CompleteForm({
             } else {
                 setCurrentReport(report);
                 setItemStates(buildItemStates(report));
-                setGlobalNotes("");
+                setGlobalNotes(report.completionNotes?.trim() || "");
+
+                const additionalPhotoUrls = parseStringArray(
+                    report.completionAdditionalPhotos,
+                );
+                setAdditionalDocumentationPhotos(
+                    additionalPhotoUrls.map((url, idx) =>
+                        toRemotePhoto(url, idx),
+                    ),
+                );
+                setAdditionalDocumentationNote(
+                    report.completionAdditionalNote?.trim() || "",
+                );
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,10 +346,25 @@ export function CompleteForm({
         setCameraTarget({ target: "item", itemId, type });
     }, []);
 
+    const handleOpenAdditionalCamera = useCallback(() => {
+        setCameraTarget({ target: "additional" });
+    }, []);
+
     const handlePhotoCaptured = useCallback(
         async (file: File) => {
             if (!cameraTarget || !currentReport) return;
             setCameraTarget(null);
+
+            if (cameraTarget.target === "additional") {
+                const rn = reportNumberRef.current!;
+                const photo = await autosave.addPhoto(
+                    rn,
+                    file,
+                    `additional-doc-${Date.now()}`,
+                );
+                setAdditionalDocumentationPhotos((prev) => [...prev, photo]);
+                return;
+            }
 
             const { itemId, type } = cameraTarget;
             const rn = reportNumberRef.current!;
@@ -381,6 +479,12 @@ export function CompleteForm({
                 const afterImages: string[] = [];
                 for (let i = 0; i < state.afterPhotos.length; i++) {
                     const photo = state.afterPhotos[i];
+
+                    if (photo.id.startsWith("remote-") && photo.previewUrl) {
+                        afterImages.push(photo.previewUrl);
+                        continue;
+                    }
+
                     const file = await autosave.getPhotoFile(photo.id);
                     if (!file) {
                         toast.error(
@@ -422,10 +526,44 @@ export function CompleteForm({
             }
 
             // ── Call server action ───────────────────────────────────────────
+            const additionalPhotoUrls: string[] = [];
+            for (let i = 0; i < additionalDocumentationPhotos.length; i++) {
+                const photo = additionalDocumentationPhotos[i];
+
+                if (photo.id.startsWith("remote-") && photo.previewUrl) {
+                    additionalPhotoUrls.push(photo.previewUrl);
+                    continue;
+                }
+
+                const file = await autosave.getPhotoFile(photo.id);
+                if (!file) {
+                    toast.error("Gagal memuat dokumentasi tambahan", {
+                        id: loadingId,
+                    });
+                    return;
+                }
+                const { width, height } = await getImageDimensions(file);
+                const uploadedUrl = await compressAndUpload(
+                    file,
+                    `${branch}/${store}/${rn}/additional-docs/additional-${ts}-${i}_${width}x${height}.jpg`,
+                );
+                if (!uploadedUrl) {
+                    toast.error("Gagal mengunggah dokumentasi tambahan", {
+                        id: loadingId,
+                    });
+                    return;
+                }
+                additionalPhotoUrls.push(uploadedUrl);
+            }
+
             const result = await submitCompletionWork(
                 rn,
                 completionItems,
                 [],
+                {
+                    photos: additionalPhotoUrls,
+                    note: additionalDocumentationNote.trim() || undefined,
+                },
                 globalNotes.trim() || undefined,
             );
 
@@ -446,6 +584,8 @@ export function CompleteForm({
         currentReport,
         itemStates,
         globalNotes,
+        additionalDocumentationPhotos,
+        additionalDocumentationNote,
         autosave,
         startTransition,
         router,
@@ -494,6 +634,19 @@ export function CompleteForm({
                         onOpenCamera={handleOpenCamera}
                         globalNotes={globalNotes}
                         onGlobalNotesChange={handleGlobalNotesChange}
+                        additionalDocumentationPhotos={
+                            additionalDocumentationPhotos
+                        }
+                        onAdditionalDocumentationPhotosChange={
+                            setAdditionalDocumentationPhotos
+                        }
+                        additionalDocumentationNote={
+                            additionalDocumentationNote
+                        }
+                        onAdditionalDocumentationNoteChange={
+                            setAdditionalDocumentationNote
+                        }
+                        onOpenAdditionalCamera={handleOpenAdditionalCamera}
                         isPending={isPending}
                         onBack={handleBack}
                         onSubmit={handleSubmit}
