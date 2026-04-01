@@ -4,8 +4,9 @@ import {
     CheckCircle2,
     Wrench,
     FileText,
-    Archive,
-    Database,
+    Plus,
+    Users,
+    Key,
 } from "lucide-react";
 import { getBMCStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -23,16 +24,16 @@ import type { AuthUser } from "@/lib/authorization";
 
 const MENUS: DashboardMenuItem[] = [
     {
-        title: "Buat PJUM",
+        title: "Buat Dokumen PJUM",
         description: "Pertanggungjawaban Uang Muka per minggu dari BMS",
-        icon: FileText,
+        icon: Plus,
         href: "/reports/pjum",
         variant: "default",
     },
     {
         title: "Lihat Riwayat Approval",
         description: "Riwayat persetujuan estimasi & penyelesaian",
-        icon: FolderOpen,
+        icon: FileText,
         href: "/reports/history",
         variant: "outline",
     },
@@ -40,7 +41,7 @@ const MENUS: DashboardMenuItem[] = [
         title: "Arsip Dokumen Laporan Selesai",
         description:
             "Buka folder arsip dokumen laporan selesai cabang di Google Drive",
-        icon: Archive,
+        icon: FolderOpen,
         href: "/api/drive/report-archive",
         variant: "outline",
         newTab: true,
@@ -48,16 +49,23 @@ const MENUS: DashboardMenuItem[] = [
     {
         title: "Arsip Dokumen PJUM",
         description: "Buka folder arsip dokumen PJUM cabang di Google Drive",
-        icon: Archive,
+        icon: FolderOpen,
         href: "/api/drive/pjum-archive",
         variant: "outline",
         newTab: true,
     },
     {
-        title: "Kelola Database",
+        title: "Manajemen BMS & Toko",
         description: "Kelola data user dan toko cabang",
-        icon: Database,
+        icon: Users,
         href: "/bmc/database",
+        variant: "outline",
+    },
+    {
+        title: "Ganti Password",
+        description: "Perbarui password akun Anda",
+        icon: Key,
+        action: "change-password",
         variant: "outline",
     },
 ];

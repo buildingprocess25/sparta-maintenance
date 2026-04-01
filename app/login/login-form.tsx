@@ -26,7 +26,43 @@ const initialState: LoginState = {
     errors: {},
 };
 
-export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
+function getResetMessage(resetStatus?: string): {
+    tone: "success" | "error";
+    text: string;
+} | null {
+    if (!resetStatus) return null;
+
+    if (resetStatus === "success") {
+        return {
+            tone: "success",
+            text: "Reset password berhasil. Silakan login menggunakan email dan nama cabang seperti login pertama.",
+        };
+    }
+
+    if (resetStatus === "expired") {
+        return {
+            tone: "error",
+            text: "Link reset password sudah kedaluwarsa. Silakan minta link baru.",
+        };
+    }
+
+    if (resetStatus === "invalid") {
+        return {
+            tone: "error",
+            text: "Link reset password tidak valid.",
+        };
+    }
+
+    return null;
+}
+
+export function LoginForm({
+    callbackUrl,
+    resetStatus,
+}: {
+    callbackUrl?: string;
+    resetStatus?: string;
+}) {
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -34,6 +70,7 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
         loginAction,
         initialState,
     );
+    const resetMessage = getResetMessage(resetStatus);
 
     // Inline form errors handle display — no duplicate toast needed
 
@@ -63,6 +100,18 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
                     </CardHeader>
                     <CardContent>
                         <form action={formAction} className="space-y-4">
+                            {resetMessage && (
+                                <div
+                                    className={
+                                        resetMessage.tone === "success"
+                                            ? "rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm font-medium text-emerald-700"
+                                            : "rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive"
+                                    }
+                                >
+                                    {resetMessage.text}
+                                </div>
+                            )}
+
                             {callbackUrl && (
                                 <input
                                     type="hidden"
@@ -159,14 +208,12 @@ export function LoginForm({ callbackUrl }: { callbackUrl?: string }) {
 
                             {/* Forgot Password — coming soon */}
                             <div className="flex justify-end">
-                                <button
-                                    type="button"
-                                    disabled
-                                    className="text-sm text-muted-foreground/50 cursor-not-allowed"
-                                    title="Fitur ini akan segera hadir"
+                                <Link
+                                    href="/forgot-password"
+                                    className="text-sm text-primary hover:underline"
                                 >
                                     Lupa Password?
-                                </button>
+                                </Link>
                             </div>
 
                             {/* Submit Button */}

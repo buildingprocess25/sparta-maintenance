@@ -11,7 +11,22 @@ import {
     type DashboardHeroStat,
     type DashboardStatItem,
 } from "./shared/dashboard-stats";
+import {
+    DashboardMenus,
+    type DashboardMenuItem,
+} from "./shared/dashboard-menus";
+import { Key } from "lucide-react";
 import type { AuthUser } from "@/lib/authorization";
+
+const MENUS: DashboardMenuItem[] = [
+    {
+        title: "Ganti Password",
+        description: "Perbarui password akun Anda",
+        icon: Key,
+        action: "change-password",
+        variant: "outline",
+    },
+];
 
 export async function BnmDashboard({ user }: { user: AuthUser }) {
     const [bnmStats, activities, pendingPjumCount] = await Promise.all([
@@ -56,7 +71,8 @@ export async function BnmDashboard({ user }: { user: AuthUser }) {
 
     return (
         <DashboardShell user={user}>
-            <div className="grid grid-cols-1 gap-4 lg:gap-6 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-4 lg:gap-6 items-start">
+                <DashboardMenus menus={MENUS} />
                 <div className="space-y-4">
                     {/* Stats Panel */}
                     <DashboardStats

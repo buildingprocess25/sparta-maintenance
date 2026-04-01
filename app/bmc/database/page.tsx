@@ -21,7 +21,7 @@ export default async function BmcDatabasePage() {
         <div className="min-h-screen flex flex-col bg-muted/20">
             <Header
                 variant="dashboard"
-                title="Kelola Database"
+                title="Manajemen BMS & Toko"
                 description="Data user dan toko cabang"
                 showBackButton
                 backHref="/dashboard"

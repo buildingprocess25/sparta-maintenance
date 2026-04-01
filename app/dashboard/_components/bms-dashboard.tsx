@@ -5,6 +5,7 @@ import {
     AlertCircle,
     Wrench,
     ClipboardCheck,
+    Key,
 } from "lucide-react";
 import { getUserStats, getBMSActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -34,6 +35,13 @@ const MENUS: DashboardMenuItem[] = [
             "Dokumentasikan penyelesaian dengan foto & realisasi biaya",
         icon: ClipboardCheck,
         href: "/reports/complete",
+        variant: "outline",
+    },
+    {
+        title: "Ganti Password",
+        description: "Perbarui password akun Anda",
+        icon: Key,
+        action: "change-password",
         variant: "outline",
     },
 ];

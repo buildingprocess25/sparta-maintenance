@@ -3,8 +3,13 @@
 
 import { NextResponse } from "next/server";
 import { generatePjumFormPdf } from "@/lib/pdf/generate-pjum-form-pdf";
+import { logger } from "@/lib/logger";
 
 export async function GET() {
+    if (process.env.NODE_ENV === "production") {
+        return new NextResponse("Not Found", { status: 404 });
+    }
+
     try {
         // Mock data for PJUM
         const mockPjumData = {
@@ -32,7 +37,7 @@ export async function GET() {
         };
 
         const pdfBuffer = await generatePjumFormPdf(mockPjumData, mockPumData);
-        
+
         // Return the buffer as a PDF response
         return new NextResponse(pdfBuffer as unknown as BodyInit, {
             headers: {
@@ -41,7 +46,11 @@ export async function GET() {
             },
         });
     } catch (error) {
-        console.error("Failed to generate preview PDF:", error);
+        logger.error(
+            { operation: "previewPjumPdf" },
+            "Failed to generate preview PDF",
+            error,
+        );
         return NextResponse.json(
             { error: "Gagal membuat preview PDF" },
             { status: 500 },

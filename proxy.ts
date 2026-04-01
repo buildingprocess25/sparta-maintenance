@@ -8,7 +8,13 @@ const SESSION_COOKIE_NAME = "app_session";
 const protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"];
 
 // Routes allowed when user must change password (whitelist)
-const changePasswordAllowList = ["/change-password", "/login", "/api"];
+const changePasswordAllowList = [
+    "/change-password",
+    "/forgot-password",
+    "/reset-password",
+    "/login",
+    "/api",
+];
 
 function getSecretKey() {
     const secret = process.env.SESSION_SECRET;

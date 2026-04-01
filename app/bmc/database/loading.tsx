@@ -7,7 +7,7 @@ export default function BmcDatabaseLoading() {
         <div className="min-h-screen flex flex-col bg-muted/20">
             <Header
                 variant="dashboard"
-                title="Kelola Database"
+                title="Manajemen BMS & Toko"
                 showBackButton
                 backHref="/dashboard"
             />

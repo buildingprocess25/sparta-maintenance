@@ -6,6 +6,13 @@ import { verifyPassword } from "@/lib/password";
 import { getDbErrorMessage } from "@/lib/db-error";
 import { logger } from "@/lib/logger";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import {
+    clearLoginFailures,
+    getLoginRateLimitKey,
+    isLoginBlocked,
+    recordLoginFailure,
+} from "@/lib/rate-limit";
 
 // State awal untuk useFormState
 export type LoginState = {
@@ -17,12 +24,51 @@ export type LoginState = {
     success?: boolean;
 };
 
+function formatWaitTime(seconds: number): string {
+    const total = Math.max(1, Math.floor(seconds));
+    const minutes = Math.floor(total / 60);
+    const remainingSeconds = total % 60;
+    return `${minutes} menit ${remainingSeconds} detik`;
+}
+
+function getSafeRedirectPath(callbackUrl: string | null): string {
+    if (!callbackUrl) return "/dashboard";
+
+    const trimmed = callbackUrl.trim();
+    if (!trimmed || trimmed.length > 512) return "/dashboard";
+    if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
+        return "/dashboard";
+    }
+    if (trimmed.includes("\\")) return "/dashboard";
+
+    try {
+        const decoded = decodeURIComponent(trimmed);
+        if (decoded.startsWith("//") || decoded.includes("\\")) {
+            return "/dashboard";
+        }
+    } catch {
+        return "/dashboard";
+    }
+
+    try {
+        const parsed = new URL(trimmed, "http://localhost");
+        if (parsed.origin !== "http://localhost") return "/dashboard";
+        if (!parsed.pathname.startsWith("/")) return "/dashboard";
+        return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+    } catch {
+        return "/dashboard";
+    }
+}
+
 export async function loginAction(
     prevState: LoginState,
     formData: FormData,
 ): Promise<LoginState> {
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const headersList = await headers();
+    const forwardedFor = headersList.get("x-forwarded-for") ?? "";
+    const ip = forwardedFor.split(",")[0]?.trim() || "unknown";
 
     // 1. Validasi Input Sederhana
     const errors: LoginState["errors"] = {};
@@ -31,6 +77,18 @@ export async function loginAction(
 
     if (Object.keys(errors).length > 0) {
         return { errors };
+    }
+
+    const rateLimitKey = getLoginRateLimitKey(email, ip);
+    const limitState = isLoginBlocked(rateLimitKey);
+    if (limitState.blocked) {
+        return {
+            errors: {
+                form: [
+                    `Terlalu banyak percobaan login. Coba lagi dalam ${formatWaitTime(limitState.retryAfterSeconds)}.`,
+                ],
+            },
+        };
     }
 
     let mustChangePassword = false;
@@ -49,6 +107,7 @@ export async function loginAction(
         });
 
         if (!user) {
+            recordLoginFailure(rateLimitKey);
             return {
                 errors: {
                     form: ["Email atau password salah."],
@@ -74,6 +133,7 @@ export async function loginAction(
         }
 
         if (!isPasswordValid) {
+            recordLoginFailure(rateLimitKey);
             return {
                 errors: {
                     form: ["Email atau password salah."],
@@ -82,6 +142,7 @@ export async function loginAction(
         }
 
         mustChangePassword = user.mustChangePassword;
+        clearLoginFailures(rateLimitKey);
 
         // 4. Buat Sesi Login (termasuk flag mustChangePassword)
         await createSession(user.NIK, user.role, mustChangePassword);
@@ -101,12 +162,6 @@ export async function loginAction(
     }
 
     const callbackUrl = formData.get("callbackUrl") as string | null;
-    // Validate: must start with / but not // (prevents open redirect)
-    const safeRedirect =
-        callbackUrl &&
-        callbackUrl.startsWith("/") &&
-        !callbackUrl.startsWith("//")
-            ? callbackUrl
-            : "/dashboard";
+    const safeRedirect = getSafeRedirectPath(callbackUrl);
     redirect(safeRedirect);
 }

@@ -593,7 +593,8 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
 
     const historyHeaderDesc = `${historyRecords.length} dokumen PJUM`;
 
-    const headerTitle = activeTab === "create" ? "Buat PJUM" : "Riwayat PJUM";
+    const headerTitle =
+        activeTab === "create" ? "Buat Dokumen PJUM" : "Riwayat Dokumen PJUM";
     const headerDesc =
         activeTab === "create" ? createHeaderDesc : historyHeaderDesc;
 
@@ -624,7 +625,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                             >
                                 <FileText className="h-4 w-4 shrink-0" />
                                 <span className="font-medium text-xs sm:text-sm truncate">
-                                    Buat PJUM
+                                    Buat Dokumen PJUM
                                 </span>
                             </TabsTrigger>
                             <TabsTrigger
@@ -853,7 +854,8 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                     ) : (
                                         <>
                                             <CheckCircle2 className="h-4 w-4 mr-2" />
-                                            Buat PJUM ({eligibleReports.length})
+                                            Buat Dokumen PJUM (
+                                            {eligibleReports.length})
                                         </>
                                     )}
                                 </Button>

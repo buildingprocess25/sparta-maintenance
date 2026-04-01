@@ -5,10 +5,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import { getAuthUser } from "@/lib/authorization";
-import type {
-    ReportItemJson,
-    MaterialEstimationJson,
-} from "@/types/report";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { parseMaterialStores } from "@/lib/report-material-stores";
 
 // Load logos once at module initialization — avoids disk I/O on every request
@@ -86,8 +83,11 @@ export async function GET(
                 );
             }
         } else if (user.role === "BNM_MANAGER") {
-            // BNM_MANAGER can only access COMPLETED reports
-            if (report.status !== "COMPLETED") {
+            // BNM_MANAGER can only access COMPLETED reports from their own branches
+            if (
+                report.status !== "COMPLETED" ||
+                !user.branchNames.includes(report.branchName)
+            ) {
                 return NextResponse.json(
                     { error: "Forbidden" },
                     { status: 403 },

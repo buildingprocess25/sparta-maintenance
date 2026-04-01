@@ -401,7 +401,8 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Buat PJUM (Pengajuan Uang Muka)
+                                        Buat Dokumen PJUM (Pertanggungjawaban
+                                        Uang Muka)
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         Rekap laporan selesai per BMS dan kirim
@@ -413,7 +414,7 @@ export default function UserManualPage() {
                                 <CheckCircle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                                 <div>
                                     <p className="font-medium">
-                                        Kelola Database
+                                        Manajemen BMS & Toko
                                     </p>
                                     <p className="text-sm text-muted-foreground">
                                         Tambah, edit, hapus data user dan toko

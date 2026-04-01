@@ -13,7 +13,13 @@ import {
 } from "@/components/ui/alert-dialog";
 
 // Halaman publik yang tidak perlu cek sesi
-const PUBLIC_PATHS = ["/", "/login", "/user-manual"];
+const PUBLIC_PATHS = [
+    "/",
+    "/login",
+    "/forgot-password",
+    "/reset-password",
+    "/user-manual",
+];
 
 export function SessionExpiryAlert() {
     const [isExpired, setIsExpired] = useState(false);

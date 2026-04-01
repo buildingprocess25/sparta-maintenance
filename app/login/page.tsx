@@ -7,11 +7,15 @@ import { LoginForm } from "./login-form";
 export default async function LoginPage({
     searchParams,
 }: {
-    searchParams: Promise<{ redirect?: string; logout?: string }>;
+    searchParams: Promise<{
+        redirect?: string;
+        logout?: string;
+        reset?: string;
+    }>;
 }) {
     // Check if user already logged in
     const session = await getSession();
-    const { redirect: callbackUrl } = await searchParams;
+    const { redirect: callbackUrl, reset } = await searchParams;
 
     if (session) {
         redirect(
@@ -31,7 +35,7 @@ export default async function LoginPage({
                 backHref="/"
             />
 
-            <LoginForm callbackUrl={callbackUrl} />
+            <LoginForm callbackUrl={callbackUrl} resetStatus={reset} />
 
             <Footer />
         </div>

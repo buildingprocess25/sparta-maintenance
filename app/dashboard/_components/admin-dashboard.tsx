@@ -2,6 +2,7 @@ import {
     ClipboardCheck,
     FolderOpen,
     SettingsIcon,
+    Key,
 } from "lucide-react";
 import { getGlobalActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -29,6 +30,13 @@ const MENUS: DashboardMenuItem[] = [
         description: "Pengaturan sistem dan user",
         icon: SettingsIcon,
         href: "/admin/settings",
+        variant: "outline",
+    },
+    {
+        title: "Ganti Password",
+        description: "Perbarui password akun Anda",
+        icon: Key,
+        action: "change-password",
         variant: "outline",
     },
 ];
