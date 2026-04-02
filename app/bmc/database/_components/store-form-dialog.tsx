@@ -29,6 +29,7 @@ type StoreRow = {
     code: string;
     name: string;
     branchName: string;
+    isActive: boolean;
 };
 
 type Props = {
@@ -48,12 +49,14 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
     const [branch, setBranch] = useState(
         editStore?.branchName ?? branchNames[0] ?? "",
     );
+    const [isActive, setIsActive] = useState(editStore?.isActive ?? true);
 
     function resetForm() {
         if (!isEdit) {
             setCode("");
             setName("");
             setBranch(branchNames[0] ?? "");
+            setIsActive(true);
         }
     }
 
@@ -70,11 +73,13 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                 ? await updateStore(code, {
                       name: name.trim(),
                       branchName: editStore?.branchName ?? branch,
+                      isActive,
                   })
                 : await createStore({
                       code: code.trim().toUpperCase(),
                       name: name.trim(),
                       branchName: branch,
+                      isActive,
                   });
 
             if (result.error) {
@@ -84,7 +89,9 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                 return;
             }
 
-            toast.success(isEdit ? "Toko berhasil diupdate" : "Toko berhasil dibuat");
+            toast.success(
+                isEdit ? "Toko berhasil diupdate" : "Toko berhasil dibuat",
+            );
             setOpen(false);
             resetForm();
         });
@@ -92,9 +99,18 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
 
     return (
         <>
-            <LoadingOverlay isOpen={isPending} message={isEdit ? "Mengupdate toko..." : "Membuat toko..."} />
+            <LoadingOverlay
+                isOpen={isPending}
+                message={isEdit ? "Mengupdate toko..." : "Membuat toko..."}
+            />
 
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v && !isEdit) resetForm(); }}>
+            <Dialog
+                open={open}
+                onOpenChange={(v) => {
+                    setOpen(v);
+                    if (v && !isEdit) resetForm();
+                }}
+            >
                 <DialogTrigger asChild>
                     {trigger ?? (
                         <Button size="sm" className="gap-1.5">
@@ -105,7 +121,9 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{isEdit ? "Edit Toko" : "Tambah Toko Baru"}</DialogTitle>
+                        <DialogTitle>
+                            {isEdit ? "Edit Toko" : "Tambah Toko Baru"}
+                        </DialogTitle>
                         <DialogDescription>
                             {isEdit
                                 ? "Ubah data toko yang dipilih."
@@ -142,7 +160,10 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                         {!hasSingleBranch && !isEdit && (
                             <div className="space-y-2">
                                 <Label htmlFor="store-branch">Cabang</Label>
-                                <Select value={branch} onValueChange={setBranch}>
+                                <Select
+                                    value={branch}
+                                    onValueChange={setBranch}
+                                >
                                     <SelectTrigger id="store-branch">
                                         <SelectValue placeholder="Pilih cabang" />
                                     </SelectTrigger>
@@ -157,8 +178,34 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                             </div>
                         )}
 
+                        <div className="space-y-2">
+                            <Label htmlFor="store-status">Status Toko</Label>
+                            <Select
+                                value={isActive ? "active" : "inactive"}
+                                onValueChange={(value) =>
+                                    setIsActive(value === "active")
+                                }
+                            >
+                                <SelectTrigger id="store-status">
+                                    <SelectValue placeholder="Pilih status toko" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="active">
+                                        Aktif
+                                    </SelectItem>
+                                    <SelectItem value="inactive">
+                                        Nonaktif
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                            >
                                 Batal
                             </Button>
                             <Button type="submit" disabled={isPending}>

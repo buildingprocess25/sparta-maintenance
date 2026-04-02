@@ -2,7 +2,7 @@
 
 import "server-only";
 import prisma from "@/lib/prisma";
-import { UserRole } from "@prisma/client";
+import { UserRole, Prisma } from "@prisma/client";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -10,6 +10,16 @@ const DEFAULT_LIMIT = 10;
 type PaginationInput = {
     page?: number;
     limit?: number;
+};
+
+export type UserFilterInput = PaginationInput & {
+    search?: string;
+    role?: string;
+};
+
+export type StoreFilterInput = PaginationInput & {
+    search?: string;
+    status?: string;
 };
 
 function resolvePagination(input?: PaginationInput) {
@@ -25,14 +35,26 @@ function resolvePagination(input?: PaginationInput) {
  */
 export async function getUsersByBranches(
     branchNames: string[],
-    input?: PaginationInput,
+    input?: UserFilterInput,
 ) {
     const { page, limit, skip } = resolvePagination(input);
 
-    const where = {
-        role: { in: [UserRole.BMS, UserRole.BRANCH_ADMIN] },
+    const where: Prisma.UserWhereInput = {
         branchNames: { hasSome: branchNames },
     };
+
+    if (input?.role && input.role !== "all") {
+        where.role = input.role as UserRole;
+    } else {
+        where.role = { in: [UserRole.BMS, UserRole.BRANCH_ADMIN] };
+    }
+
+    if (input?.search) {
+        where.OR = [
+            { name: { contains: input.search, mode: "insensitive" } },
+            { NIK: { contains: input.search, mode: "insensitive" } },
+        ];
+    }
 
     const [users, total] = await Promise.all([
         prisma.user.findMany({
@@ -65,13 +87,24 @@ export async function getUsersByBranches(
  */
 export async function getStoresByBranches(
     branchNames: string[],
-    input?: PaginationInput,
+    input?: StoreFilterInput,
 ) {
     const { page, limit, skip } = resolvePagination(input);
 
-    const where = {
+    const where: Prisma.StoreWhereInput = {
         branchName: { in: branchNames },
     };
+
+    if (input?.search) {
+        where.OR = [
+            { name: { contains: input.search, mode: "insensitive" } },
+            { code: { contains: input.search, mode: "insensitive" } },
+        ];
+    }
+
+    if (input?.status && input.status !== "all") {
+        where.isActive = input.status === "active";
+    }
 
     const [stores, total] = await Promise.all([
         prisma.store.findMany({
@@ -80,6 +113,7 @@ export async function getStoresByBranches(
                 code: true,
                 name: true,
                 branchName: true,
+                isActive: true,
             },
             orderBy: { name: "asc" },
             skip,

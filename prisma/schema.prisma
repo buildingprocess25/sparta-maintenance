@@ -101,6 +101,7 @@ model Store {
   code       String   @id @unique 
   name       String                 
   branchName String                 
+  isActive   Boolean  @default(true)
   
   reports    Report[]
   

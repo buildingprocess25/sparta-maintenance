@@ -33,7 +33,7 @@ export async function getStoresByBranch(branchName: string) {
     }
 
     const stores = await prisma.store.findMany({
-        where: { branchName },
+        where: { branchName, isActive: true },
         orderBy: { name: "asc" },
         select: {
             code: true,
