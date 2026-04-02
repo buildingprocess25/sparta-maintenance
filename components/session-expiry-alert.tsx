@@ -19,6 +19,7 @@ const PUBLIC_PATHS = [
     "/forgot-password",
     "/reset-password",
     "/user-manual",
+    "/maintenance",
 ];
 
 export function SessionExpiryAlert() {

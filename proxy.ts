@@ -30,6 +30,10 @@ export default async function proxy(request: NextRequest) {
     const { enabled: isMaintenanceEnabled, message: maintenanceMessage } =
         getMaintenanceState();
 
+    if (!isMaintenanceEnabled && isMaintenanceRoute) {
+        return NextResponse.redirect(new URL("/", request.url));
+    }
+
     if (isMaintenanceEnabled) {
         if (isApiRoute) {
             return NextResponse.json(

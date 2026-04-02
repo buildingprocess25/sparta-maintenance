@@ -1,6 +1,5 @@
-"use client";
-
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import { getMaintenanceState } from "@/lib/maintenance";
 import {
     Card,
@@ -12,7 +11,11 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function MaintenancePage() {
-    const { message } = getMaintenanceState();
+    const { enabled, message } = getMaintenanceState();
+
+    if (!enabled) {
+        redirect("/");
+    }
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-6 gap-8">
@@ -61,15 +64,14 @@ export default function MaintenancePage() {
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
                     <p className="text-xs text-muted-foreground text-center">
-                        Mohon tunggu hingga proses selesai, lalu muat ulang
-                        halaman.
+                        Mohon tunggu hingga proses selesai, lalu cek ulang
+                        status halaman ini.
                     </p>
-                    <Button
-                        onClick={() => window.location.reload()}
-                        className="w-full"
-                    >
-                        Muat Ulang Halaman
-                    </Button>
+                    <form action="/maintenance" method="get">
+                        <Button type="submit" className="w-full">
+                            Periksa Status Lagi
+                        </Button>
+                    </form>
                 </CardContent>
             </Card>
         </main>
