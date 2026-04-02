@@ -28,7 +28,7 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Output: Binary PDF (`Content-Type: application/pdf`) dengan `Content-Disposition: inline; filename="{reportNumber}.pdf"`.
 - Caching: `Cache-Control: private, max-age=3600, immutable`.
 
-### Otorisasi
+### Otorisasi Report PDF
 
 - Wajib login (`getAuthUser`).
 - Aturan akses:
@@ -37,14 +37,14 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - `BNM_MANAGER`: hanya report status `COMPLETED` dan branch sesuai `branchNames`.
 - `ADMIN`: akses penuh.
 
-### Error utama
+### Error utama Report PDF
 
 - `401 Unauthorized` jika belum login.
 - `404 Report not found` jika report tidak ada.
 - `403 Forbidden` jika role tidak berhak akses report.
 - `500 Failed to generate PDF` jika proses generate gagal.
 
-### Dependensi PDF
+### Dependensi PDF Report
 
 - Generator: `generateReportPdf` dari `lib/pdf/generate-report-pdf.ts`.
 - Data sumber: Prisma (`report`, `createdBy`, `store`, `activities`) + parsing field JSON/JSONB.
@@ -57,7 +57,7 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Output: Binary PDF (`Content-Type: application/pdf`) dengan `Content-Disposition: inline; filename="{fileName}"`.
 - Caching: `Cache-Control: no-store`.
 
-### Otorisasi
+### Otorisasi PJUM PDF
 
 - Wajib login dan role harus `BMC` atau `BNM_MANAGER`.
 - Jika tidak, return `403 Forbidden`.
@@ -75,14 +75,14 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - `ids` tidak boleh kosong.
 - `week` harus integer rentang 1 sampai 5.
 
-### Error utama
+### Error utama PJUM PDF
 
 - `400 Missing ids parameter` jika `ids` tidak ada.
 - `400 No report IDs provided` jika hasil parsing kosong.
 - `400 Minggu ke harus di antara 1 sampai 5` jika `week` invalid.
 - `500 Failed to generate PJUM PDF` jika generate gagal.
 
-### Dependensi PDF
+### Dependensi PDF PJUM
 
 - Generator: `generatePjumPackagePdf` dari `lib/pdf/generate-pjum-package-pdf.ts`.
 
@@ -92,12 +92,12 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Tujuan: Preview layout PDF report menggunakan mock data.
 - Output: Binary PDF (`Content-Type: application/pdf`) dengan filename `preview_report.pdf`.
 
-### Environment gate
+### Environment gate Preview Report
 
 - Di `production` endpoint dinonaktifkan (`404 Not Found`).
 - Hanya aktif untuk development/non-production.
 
-### Dependensi PDF
+### Dependensi Preview Report
 
 - Generator: `generateReportPdf` dari `lib/pdf/generate-report-pdf.ts`.
 
@@ -107,12 +107,12 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Tujuan: Preview layout PDF form PJUM/PUM dengan mock data.
 - Output: Binary PDF (`Content-Type: application/pdf`) dengan filename `preview-pjum-form.pdf`.
 
-### Environment gate
+### Environment gate Preview PJUM
 
 - Di `production` endpoint dinonaktifkan (`404 Not Found`).
 - Hanya aktif untuk development/non-production.
 
-### Dependensi PDF
+### Dependensi Preview PJUM
 
 - Generator: `generatePjumFormPdf` dari `lib/pdf/generate-pjum-form-pdf.ts`.
 
@@ -124,11 +124,11 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Tujuan: Redirect user `BMC` ke folder Google Drive arsip report (folder PDF report branch).
 - Response: HTTP redirect ke URL folder Drive.
 
-### Otorisasi
+### Otorisasi Report Archive
 
 - Wajib role `BMC` (`requireRole("BMC")`).
 
-### Dependensi
+### Dependensi Report Archive
 
 - `ensureBmcReportArchiveFolder` + `buildDriveFolderUrl` dari `lib/google-drive/archive.ts`.
 
@@ -138,18 +138,18 @@ Dokumen ini merangkum seluruh endpoint API pada project yang berhubungan dengan 
 - Tujuan: Redirect user `BMC` ke folder Google Drive arsip PJUM (folder PDF PJUM branch).
 - Response: HTTP redirect ke URL folder Drive.
 
-### Otorisasi
+### Otorisasi PJUM Archive
 
 - Wajib role `BMC` (`requireRole("BMC")`).
 
-### Dependensi
+### Dependensi PJUM Archive
 
 - `ensureBmcPjumArchiveFolder` + `buildDriveFolderUrl` dari `lib/google-drive/archive.ts`.
 
 ## Catatan Alur (Di Luar API Route, tapi terkait PDF)
 
-- `app/reports/actions/approve-final.ts` juga memanggil `generateReportPdf` untuk kebutuhan approval/finalisasi.
-- `app/reports/pjum/approval-actions.ts` memanggil `generatePjumPackagePdf` untuk proses approval PJUM.
+- `app/reports/actions/approve-final.ts` menyiapkan snapshot PDF status `COMPLETED` di Supabase.
+- `app/reports/pjum/approval-actions.ts` memanggil `generatePjumPackagePdf` dan mengarsipkan PDF final PJUM serta PDF final report ke Google Drive.
 - Keduanya bukan endpoint `/api/...`, namun bagian penting alur bisnis PDF.
 
 ## Kesimpulan

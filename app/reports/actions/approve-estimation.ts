@@ -7,6 +7,7 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
 
 type EstimationDecision = "approve" | "reject_revision" | "reject";
 
@@ -91,6 +92,20 @@ export async function reviewEstimation(
                 },
             }),
         ]);
+
+        if (decision === "approve") {
+            try {
+                await generateAndSaveReportSnapshot({
+                    reportNumber,
+                    checkpoint: "ESTIMATION_APPROVED",
+                });
+            } catch (snapshotError) {
+                logger.warn(
+                    { operation: "reviewEstimation.snapshot", reportNumber },
+                    `Gagal membuat snapshot PDF ESTIMATION_APPROVED: ${getErrorDetail(snapshotError)}`,
+                );
+            }
+        }
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");

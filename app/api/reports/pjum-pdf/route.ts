@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { getAuthUser } from "@/lib/authorization";
+import {
+    buildPjumSnapshotPath,
+    downloadPdfSnapshot,
+    uploadPdfSnapshot,
+} from "@/lib/pdf/snapshot-storage";
 
 export async function GET(request: NextRequest) {
     const user = await getAuthUser();
@@ -43,6 +49,58 @@ export async function GET(request: NextRequest) {
     }
 
     try {
+        const fromDate = new Date(from);
+        const toDate = new Date(to);
+        let exportRecord: { id: string; pjumPdfPath: string | null } | null =
+            null;
+
+        if (
+            !Number.isNaN(fromDate.getTime()) &&
+            !Number.isNaN(toDate.getTime())
+        ) {
+            const candidates = await prisma.pjumExport.findMany({
+                where: {
+                    bmsNIK,
+                    weekNumber,
+                    fromDate,
+                    toDate,
+                    branchName: { in: user.branchNames },
+                },
+                select: {
+                    id: true,
+                    reportNumbers: true,
+                    pjumPdfPath: true,
+                },
+                orderBy: { createdAt: "desc" },
+                take: 5,
+            });
+
+            exportRecord =
+                candidates.find((item) => {
+                    const a = [...item.reportNumbers].sort();
+                    const b = [...reportNumbers].sort();
+                    return (
+                        a.length === b.length && a.every((v, i) => v === b[i])
+                    );
+                }) ?? null;
+        }
+
+        if (exportRecord?.pjumPdfPath) {
+            const snapshot = await downloadPdfSnapshot(
+                exportRecord.pjumPdfPath,
+            );
+            if (snapshot) {
+                return new NextResponse(snapshot as unknown as BodyInit, {
+                    headers: {
+                        "Content-Type": "application/pdf",
+                        "Content-Disposition": `inline; filename="pjum-${bmsNIK}-w${weekNumber}.pdf"`,
+                        "Cache-Control": "private, max-age=3600, immutable",
+                        "X-PDF-Source": "snapshot",
+                    },
+                });
+            }
+        }
+
         const { buffer, fileName } = await generatePjumPackagePdf({
             reportNumbers,
             bmsNIK,
@@ -57,11 +115,29 @@ export async function GET(request: NextRequest) {
             },
         });
 
+        if (exportRecord) {
+            const snapshotPath = buildPjumSnapshotPath({
+                branchName: user.branchNames[0] ?? "unknown",
+                bmsNIK,
+                weekNumber,
+                from,
+                to,
+                version: String(Date.now()),
+            });
+
+            await uploadPdfSnapshot(snapshotPath, buffer);
+            await prisma.pjumExport.update({
+                where: { id: exportRecord.id },
+                data: { pjumPdfPath: snapshotPath },
+            });
+        }
+
         return new NextResponse(buffer as unknown as BodyInit, {
             headers: {
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${fileName}"`,
-                "Cache-Control": "no-store",
+                "Cache-Control": "private, max-age=3600, immutable",
+                "X-PDF-Source": "generated",
             },
         });
     } catch (error) {

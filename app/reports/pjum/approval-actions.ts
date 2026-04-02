@@ -7,10 +7,18 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
-import { uploadPjumToDrive } from "@/lib/google-drive/archive";
+import {
+    uploadCompletedReportToDrive,
+    uploadPjumToDrive,
+} from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson } from "@/types/report";
+import {
+    deletePdfSnapshots,
+    downloadPdfSnapshot,
+} from "@/lib/pdf/snapshot-storage";
+import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -394,7 +402,19 @@ export async function approvePjumExport(input: {
         // Keep PJUM form page in final package even when PUM is disabled.
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: pjumExport.reportNumbers } },
-            select: { items: true },
+            select: {
+                reportNumber: true,
+                items: true,
+                branchName: true,
+                storeCode: true,
+                storeName: true,
+                createdByNIK: true,
+                createdBy: { select: { name: true } },
+                completedPdfPath: true,
+                pendingEstimationPdfPath: true,
+                estimationApprovedPdfPath: true,
+                approvedBmcPdfPath: true,
+            },
         });
 
         let totalExpenditure = 0;
@@ -442,8 +462,8 @@ export async function approvePjumExport(input: {
             approvedAt: approvedAtDate.toISOString(),
         });
 
-        // Upload to GDrive
-        await uploadPjumToDrive({
+        // Upload final PJUM to GDrive
+        const uploadedPjum = await uploadPjumToDrive({
             branchName: result.branchName,
             bmsNIK: pjumExport.bmsNIK,
             bmsName,
@@ -453,6 +473,40 @@ export async function approvePjumExport(input: {
             pdfBuffer: result.buffer,
         });
 
+        // Upload final maintenance report PDFs to GDrive in the same finalization flow.
+        for (const report of reports) {
+            let reportPdfBuffer: Buffer | null = null;
+
+            if (report.completedPdfPath) {
+                reportPdfBuffer = await downloadPdfSnapshot(
+                    report.completedPdfPath,
+                );
+            }
+
+            if (!reportPdfBuffer) {
+                const rebuilt = await buildReportPdfBuffer(report.reportNumber);
+                reportPdfBuffer = rebuilt.buffer;
+            }
+
+            const archived = await uploadCompletedReportToDrive({
+                branchName: report.branchName,
+                bmsNIK: report.createdByNIK,
+                bmsName: report.createdBy.name,
+                storeCode: report.storeCode,
+                storeName: report.storeName,
+                reportNumber: report.reportNumber,
+                pdfBuffer: reportPdfBuffer,
+            });
+
+            await prisma.report.update({
+                where: { reportNumber: report.reportNumber },
+                data: {
+                    reportFinalDriveUrl:
+                        archived.webViewLink ?? archived.folderUrl,
+                },
+            });
+        }
+
         // Update PjumExport record
         await prisma.pjumExport.update({
             where: { id: pjumExport.id },
@@ -460,12 +514,43 @@ export async function approvePjumExport(input: {
                 status: "APPROVED",
                 approvedByNIK: user.NIK,
                 approvedAt: approvedAtDate,
+                pjumFinalDriveUrl:
+                    uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
                 pumBankAccountNo: bankAccountNo,
                 pumBankAccountName: bankAccountName,
                 pumBankName: bankName,
                 pumWeekNumber: validated.pumWeekNumber,
                 pumMonth: validated.pumMonth,
                 pumYear: validated.pumYear,
+            },
+        });
+
+        const snapshotPathsToDelete = [
+            pjumExport.pjumPdfPath,
+            ...reports.flatMap((report) => [
+                report.pendingEstimationPdfPath,
+                report.estimationApprovedPdfPath,
+                report.approvedBmcPdfPath,
+                report.completedPdfPath,
+            ]),
+        ].filter((value): value is string => Boolean(value));
+
+        await deletePdfSnapshots(snapshotPathsToDelete);
+
+        await prisma.report.updateMany({
+            where: { reportNumber: { in: pjumExport.reportNumbers } },
+            data: {
+                pendingEstimationPdfPath: null,
+                estimationApprovedPdfPath: null,
+                approvedBmcPdfPath: null,
+                completedPdfPath: null,
+            },
+        });
+
+        await prisma.pjumExport.update({
+            where: { id: pjumExport.id },
+            data: {
+                pjumPdfPath: null,
             },
         });
 

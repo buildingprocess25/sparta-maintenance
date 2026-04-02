@@ -138,6 +138,16 @@ model Report {
 
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?
+
+  // PDF snapshot paths in Supabase Storage (bucket: reports)
+  pendingEstimationPdfPath  String?
+  estimationApprovedPdfPath String?
+  approvedBmcPdfPath        String?
+  completedPdfPath          String?
+  pdfSnapshotMeta           Json      @default("{}")
+
+  // Final archival pointer in Google Drive (uploaded at PJUM final approval)
+  reportFinalDriveUrl       String?
   
   logs          ApprovalLog[]
   activities    ActivityLog[]
@@ -214,6 +224,10 @@ model PjumExport {
 
   // Rejection notes
   rejectionNotes  String?
+
+  // PDF snapshot path and final archival URL
+  pjumPdfPath      String?
+  pjumFinalDriveUrl String?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
