@@ -2122,7 +2122,13 @@ function buildReportDocument(
                     processedStamps.push(stamp);
                 }
 
-                const allStamps = [dibuatStamp, ...processedStamps];
+                // Filter to only show stamps with actual approval (has approverName + approvedAt)
+                // Always include dibuatStamp (BMS creation), then add processed stamps that have approval data
+                const approvedStamps = processedStamps.filter(
+                    (stamp) => stamp.approverName && stamp.approvedAt,
+                );
+                const allStamps = [dibuatStamp, ...approvedStamps];
+
                 return React.createElement(
                     View,
                     { style: styles.section },
