@@ -3,7 +3,7 @@ export type ChecklistItemData = {
     itemName: string;
     categoryName: string;
     condition?: "BAIK" | "RUSAK" | "TIDAK_ADA";
-    preventiveCondition?: "OK" | "NOT_OK";
+    preventiveCondition?: "OK" | "NOT_OK" | "TIDAK_ADA";
     handler?: "BMS" | "REKANAN";
     photoUrl?: string;
     notes?: string;
@@ -79,7 +79,7 @@ const checklistItemSchema = z
         itemName: z.string().min(1),
         categoryName: z.string(),
         condition: z.enum(["BAIK", "RUSAK", "TIDAK_ADA"]).optional(),
-        preventiveCondition: z.enum(["OK", "NOT_OK"]).optional(),
+        preventiveCondition: z.enum(["OK", "NOT_OK", "TIDAK_ADA"]).optional(),
         handler: z.enum(["BMS", "REKANAN"]).optional(),
         photoUrl: z.string().optional(),
         notes: z.string().optional(),

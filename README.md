@@ -103,9 +103,23 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 # Google Drive (PDF Archive)
 GOOGLE_DRIVE_ROOT_FOLDER_ID="your-google-drive-folder-id"
 
+# Maintenance Mode (optional, requires redeploy)
+MAINTENANCE_MODE="false"
+MAINTENANCE_MESSAGE="Sistem sedang maintenance. Silakan coba lagi beberapa saat."
+
 # Dev only (optional)
 DEV_EMAIL_RECIPIENT="dev@example.com"
 ```
+
+### 2.2 Maintenance Mode (Optional)
+
+Saat `MAINTENANCE_MODE=true`, sistem masuk mode maintenance:
+
+1. Semua halaman aplikasi diarahkan ke `/maintenance`.
+2. Semua endpoint `/api/*` mengembalikan HTTP `503` dengan JSON maintenance.
+3. Mode ini berlaku untuk semua role (termasuk ADMIN).
+
+Perubahan nilai maintenance menggunakan environment variable dan membutuhkan redeploy.
 
 ### 2.1 Google Drive Preparation
 

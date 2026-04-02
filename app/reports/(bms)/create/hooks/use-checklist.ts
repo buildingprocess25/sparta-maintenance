@@ -154,19 +154,6 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                     return false;
                 }
 
-                if (
-                    cat.isPreventive &&
-                    checkedItem.condition ===
-                        ("tidak-ada" as ChecklistCondition)
-                ) {
-                    toast.error(
-                        `Item "${item.name}" di kategori "${cat.title}" tidak valid (Mode Preventive)`,
-                    );
-                    if (!openCategories.has(cat.id)) toggleCategory(cat.id);
-                    scrollToItem();
-                    return false;
-                }
-
                 if (checkedItem.condition === "baik" && !checkedItem.photo) {
                     toast.error(`Item "${item.name}" wajib upload foto bukti`);
                     if (!openCategories.has(cat.id)) toggleCategory(cat.id);

@@ -188,7 +188,7 @@ export const checklistCategories: ChecklistCategory[] = [
     },
     {
         id: "I",
-        title: "I. Perawatan Equipment Toko",
+        title: "I. Preventif Equipment Toko",
         isPreventive: true,
         items: [
             {

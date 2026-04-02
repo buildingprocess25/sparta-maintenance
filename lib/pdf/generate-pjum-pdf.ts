@@ -466,7 +466,7 @@ function buildPjumDocument(data: PjumPdfData) {
                               React.createElement(
                                   Text,
                                   { style: styles.stampRole },
-                                  "BnM Manager",
+                                  "Building & Maintenance Manager",
                               ),
                           ),
                       )

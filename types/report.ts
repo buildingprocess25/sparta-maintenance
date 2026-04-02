@@ -23,7 +23,7 @@ export interface ReportItemJson {
     itemName: string; // e.g. "Bahu Jalan"
     categoryName: string; // e.g. "A. Bagian Depan Bangunan"
     condition: "BAIK" | "RUSAK" | "TIDAK_ADA" | null;
-    preventiveCondition: "OK" | "NOT_OK" | null;
+    preventiveCondition: "OK" | "NOT_OK" | "TIDAK_ADA" | null;
     handler: "BMS" | "REKANAN" | null;
     photoUrl?: string | null; // Deprecated, use images
     images?: string[]; // New standard for multiple images

@@ -71,124 +71,132 @@ export function useDraft({
     // Guard against double-invoke (React StrictMode / re-renders).
     const hasAutoRestoredRef = useRef(false);
 
-    const handleContinueDraft = useCallback(async (opts?: { loading?: string; success?: string }) => {
-        if (!existingDraft) return;
-        setIsRestoringDraft(true);
-        const loadingToastId = opts?.loading ? toast.loading(opts.loading) : undefined;
-        try {
-            if (existingDraft.storeCode) {
-                const s = stores.find(
-                    (st) => st.code === existingDraft.storeCode,
+    const handleContinueDraft = useCallback(
+        async (opts?: { loading?: string; success?: string }) => {
+            if (!existingDraft) return;
+            setIsRestoringDraft(true);
+            const loadingToastId = opts?.loading
+                ? toast.loading(opts.loading)
+                : undefined;
+            try {
+                if (existingDraft.storeCode) {
+                    const s = stores.find(
+                        (st) => st.code === existingDraft.storeCode,
+                    );
+                    if (s) {
+                        await handleStoreChange(s.code);
+                    }
+                }
+
+                const fetchPhoto = async (
+                    item: (typeof existingDraft.items)[number],
+                ): Promise<File | undefined> => {
+                    if (
+                        !item.photoUrl ||
+                        (!item.photoUrl.startsWith("data:image") &&
+                            !item.photoUrl.startsWith("http"))
+                    )
+                        return undefined;
+                    try {
+                        const res = await fetch(item.photoUrl);
+                        const blob = await res.blob();
+                        return new File([blob], `${item.itemName}.jpg`, {
+                            type: "image/jpeg",
+                        });
+                    } catch (e) {
+                        console.error("Gagal restore file dari draft", e);
+                        return undefined;
+                    }
+                };
+
+                const restoredFiles = await Promise.all(
+                    existingDraft.items.map(fetchPhoto),
                 );
-                if (s) {
-                    await handleStoreChange(s.code);
-                }
-            }
 
-            const fetchPhoto = async (
-                item: (typeof existingDraft.items)[number],
-            ): Promise<File | undefined> => {
-                if (
-                    !item.photoUrl ||
-                    (!item.photoUrl.startsWith("data:image") &&
-                        !item.photoUrl.startsWith("http"))
-                )
-                    return undefined;
-                try {
-                    const res = await fetch(item.photoUrl);
-                    const blob = await res.blob();
-                    return new File([blob], `${item.itemName}.jpg`, {
-                        type: "image/jpeg",
+                const restored = new Map<string, ChecklistItem>();
+                existingDraft.items.forEach((item, i) => {
+                    // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"/"TIDAK_ADA"
+                    // Map back to local condition values used by the form.
+                    let restoredCondition: ChecklistCondition = "";
+                    if (item.preventiveCondition === "OK") {
+                        restoredCondition = "baik";
+                    } else if (item.preventiveCondition === "NOT_OK") {
+                        restoredCondition = "rusak";
+                    } else if (item.preventiveCondition === "TIDAK_ADA") {
+                        restoredCondition = "tidak-ada";
+                    } else if (item.condition === "TIDAK_ADA") {
+                        restoredCondition = "tidak-ada";
+                    } else if (item.condition) {
+                        restoredCondition =
+                            item.condition.toLowerCase() as ChecklistCondition;
+                    }
+                    restored.set(item.itemId, {
+                        id: item.itemId,
+                        name: item.itemName,
+                        condition: restoredCondition,
+                        handler:
+                            item.handler === "BMS"
+                                ? "BMS"
+                                : item.handler === "REKANAN" ||
+                                    item.handler === "Rekanan"
+                                  ? "Rekanan"
+                                  : "",
+                        photoUrl: item.photoUrl || undefined,
+                        photo: restoredFiles[i],
+                        notes: item.notes || undefined,
                     });
-                } catch (e) {
-                    console.error("Gagal restore file dari draft", e);
-                    return undefined;
-                }
-            };
-
-            const restoredFiles = await Promise.all(
-                existingDraft.items.map(fetchPhoto),
-            );
-
-            const restored = new Map<string, ChecklistItem>();
-            existingDraft.items.forEach((item, i) => {
-                // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"
-                // Map back to local condition values: OK→"baik", NOT_OK→"rusak"
-                let restoredCondition: ChecklistCondition = "";
-                if (item.preventiveCondition === "OK") {
-                    restoredCondition = "baik";
-                } else if (item.preventiveCondition === "NOT_OK") {
-                    restoredCondition = "rusak";
-                } else if (item.condition === "TIDAK_ADA") {
-                    restoredCondition = "tidak-ada";
-                } else if (item.condition) {
-                    restoredCondition = item.condition.toLowerCase() as ChecklistCondition;
-                }
-                restored.set(item.itemId, {
-                    id: item.itemId,
-                    name: item.itemName,
-                    condition: restoredCondition,
-                    handler:
-                        item.handler === "BMS"
-                            ? "BMS"
-                            : item.handler === "REKANAN" ||
-                                item.handler === "Rekanan"
-                              ? "Rekanan"
-                              : "",
-                    photoUrl: item.photoUrl || undefined,
-                    photo: restoredFiles[i],
-                    notes: item.notes || undefined,
                 });
-            });
 
-            setChecklist(restored);
+                setChecklist(restored);
 
-            if (existingDraft.estimations?.length > 0) {
-                const restoredBms = new Map<string, BmsItemGroup>();
-                for (const est of existingDraft.estimations) {
-                    const checklistItem = restored.get(est.itemId);
-                    if (!checklistItem) continue;
+                if (existingDraft.estimations?.length > 0) {
+                    const restoredBms = new Map<string, BmsItemGroup>();
+                    for (const est of existingDraft.estimations) {
+                        const checklistItem = restored.get(est.itemId);
+                        if (!checklistItem) continue;
 
-                    let categoryTitle = "";
-                    for (const cat of checklistCategories) {
-                        if (cat.items.some((i) => i.id === est.itemId)) {
-                            categoryTitle = cat.title;
-                            break;
+                        let categoryTitle = "";
+                        for (const cat of checklistCategories) {
+                            if (cat.items.some((i) => i.id === est.itemId)) {
+                                categoryTitle = cat.title;
+                                break;
+                            }
+                        }
+
+                        const existing = restoredBms.get(est.itemId);
+                        const entry: BmsItemEntry = {
+                            id: `entry_${Date.now()}_${Math.random()}`,
+                            categoryId: "",
+                            categoryTitle,
+                            itemName: est.materialName,
+                            quantity: est.quantity,
+                            unit: est.unit,
+                            price: est.price,
+                            total: est.totalPrice,
+                        };
+
+                        if (existing) {
+                            existing.entries.push(entry);
+                        } else {
+                            restoredBms.set(est.itemId, {
+                                checklistItem,
+                                categoryTitle,
+                                entries: [entry],
+                            });
                         }
                     }
-
-                    const existing = restoredBms.get(est.itemId);
-                    const entry: BmsItemEntry = {
-                        id: `entry_${Date.now()}_${Math.random()}`,
-                        categoryId: "",
-                        categoryTitle,
-                        itemName: est.materialName,
-                        quantity: est.quantity,
-                        unit: est.unit,
-                        price: est.price,
-                        total: est.totalPrice,
-                    };
-
-                    if (existing) {
-                        existing.entries.push(entry);
-                    } else {
-                        restoredBms.set(est.itemId, {
-                            checklistItem,
-                            categoryTitle,
-                            entries: [entry],
-                        });
-                    }
+                    setBmsItems(restoredBms);
                 }
-                setBmsItems(restoredBms);
-            }
 
-            setShowDraftDialog(false);
-            if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
-            toast.success(opts?.success ?? "Draft dilanjutkan");
-        } finally {
-            setIsRestoringDraft(false);
-        }
-    }, [existingDraft, stores, setChecklist, setBmsItems, handleStoreChange]);
+                setShowDraftDialog(false);
+                if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
+                toast.success(opts?.success ?? "Draft dilanjutkan");
+            } finally {
+                setIsRestoringDraft(false);
+            }
+        },
+        [existingDraft, stores, setChecklist, setBmsItems, handleStoreChange],
+    );
 
     const handleCreateNew = useCallback(async () => {
         setIsDeletingDraft(true);
@@ -258,7 +266,9 @@ export function useDraft({
                             ? ("OK" as const)
                             : item.condition === "rusak"
                               ? ("NOT_OK" as const)
-                              : undefined
+                              : item.condition === "tidak-ada"
+                                ? ("TIDAK_ADA" as const)
+                                : undefined
                         : undefined,
                     handler:
                         item.handler === "BMS"
@@ -359,7 +369,9 @@ export function useDraft({
                             ? ("OK" as const)
                             : item.condition === "rusak"
                               ? ("NOT_OK" as const)
-                              : undefined
+                              : item.condition === "tidak-ada"
+                                ? ("TIDAK_ADA" as const)
+                                : undefined
                         : undefined,
                     handler:
                         item.handler === "BMS"

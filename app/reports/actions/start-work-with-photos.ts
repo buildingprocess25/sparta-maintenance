@@ -60,12 +60,23 @@ export async function startWorkWithPhotos(
         const validReceiptUrls = photos.receiptUrls.filter(
             (url) => url.trim().length > 0,
         );
+        if (validReceiptUrls.length === 0) {
+            return {
+                error: "Foto nota/struk wajib diunggah sebelum memulai pengerjaan",
+            };
+        }
+
         const validMaterialStores = photos.materialStores
             .map((store) => ({
                 name: store.name.trim(),
                 city: store.city.trim(),
             }))
             .filter((store) => store.name.length > 0 && store.city.length > 0);
+        if (validMaterialStores.length === 0) {
+            return {
+                error: "Data toko material wajib diisi sebelum memulai pengerjaan",
+            };
+        }
 
         // Store selfie URLs as plain URL (single) or JSON array (multiple).
         const selfieUrlValue =

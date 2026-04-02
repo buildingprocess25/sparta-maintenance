@@ -158,7 +158,12 @@ function PhotoThumbnails({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StartWorkForm({ startableReports, userName, userNIK, prefillReport }: Props) {
+export function StartWorkForm({
+    startableReports,
+    userName,
+    userNIK,
+    prefillReport,
+}: Props) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
@@ -302,10 +307,14 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
             return;
         }
 
+        if (receiptPhotos.length === 0) {
+            toast.error("Foto nota/struk wajib diunggah");
+            return;
+        }
+
         if (
-            receiptPhotos.length > 0 &&
-            (materialStores.length === 0 ||
-                materialStores.some((s) => !s.name.trim() || !s.city.trim()))
+            materialStores.length === 0 ||
+            materialStores.some((s) => !s.name.trim() || !s.city.trim())
         ) {
             toast.error("Semua toko material harus memiliki nama dan alamat");
             return;
@@ -471,7 +480,8 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
                             </CardTitle>
                             <CardDescription>
                                 Foto selfie bersama pejabat toko Alfamart di
-                                lokasi, sebagai bukti kehadiran
+                                lokasi, beserta foto barang, sebagai bukti
+                                kehadiran
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -502,7 +512,10 @@ export function StartWorkForm({ startableReports, userName, userNIK, prefillRepo
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <ReceiptText className="h-4 w-4 text-primary" />
-                                Foto Nota / Struk
+                                Foto Nota / Struk{" "}
+                                <span className="text-destructive text-sm font-normal">
+                                    *
+                                </span>
                             </CardTitle>
                             <CardDescription>
                                 Foto nota atau struk pembelian material yang

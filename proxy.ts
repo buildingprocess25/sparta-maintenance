@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { getMaintenanceState } from "@/lib/maintenance";
 
 const SESSION_COOKIE_NAME = "app_session";
 
@@ -24,6 +25,31 @@ function getSecretKey() {
 
 export default async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
+    const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
+    const isMaintenanceRoute = pathname === "/maintenance";
+    const { enabled: isMaintenanceEnabled, message: maintenanceMessage } =
+        getMaintenanceState();
+
+    if (isMaintenanceEnabled) {
+        if (isApiRoute) {
+            return NextResponse.json(
+                {
+                    error: maintenanceMessage,
+                    maintenance: true,
+                },
+                {
+                    status: 503,
+                    headers: {
+                        "Cache-Control": "no-store",
+                    },
+                },
+            );
+        }
+
+        if (!isMaintenanceRoute) {
+            return NextResponse.redirect(new URL("/maintenance", request.url));
+        }
+    }
 
     // Check if route is protected
     const isProtectedRoute = protectedPrefixes.some(
@@ -94,6 +120,6 @@ export default async function proxy(request: NextRequest) {
 
 export const config = {
     matcher: [
-        "/((?!api|_next/static|_next/image|_next/mcp|favicon.ico|assets|.*\\.(?:png|jpg|jpeg|svg|ico)$).*)",
+        "/((?!_next/static|_next/image|_next/mcp|favicon.ico|assets|.*\\.(?:png|jpg|jpeg|svg|ico)$).*)",
     ],
 };

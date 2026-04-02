@@ -179,7 +179,9 @@ export async function getPjumBmsUsers(
 /**
  * Get PJUM creation history for the current BMC user.
  */
-export async function getBmcPjumHistory(limit = 100): Promise<PjumHistoryRow[]> {
+export async function getBmcPjumHistory(
+    limit = 100,
+): Promise<PjumHistoryRow[]> {
     try {
         const user = await requireRole("BMC");
 
@@ -232,7 +234,8 @@ export async function getBmcPjumHistory(limit = 100): Promise<PjumHistoryRow[]> 
             reportNumbers: row.reportNumbers,
             reportCount: row.reportNumbers.length,
             totalRealisasi: row.reportNumbers.reduce(
-                (sum, reportNumber) => sum + (reportTotalMap.get(reportNumber) ?? 0),
+                (sum, reportNumber) =>
+                    sum + (reportTotalMap.get(reportNumber) ?? 0),
                 0,
             ),
             createdAt: row.createdAt.toISOString(),
@@ -424,6 +427,16 @@ export async function exportPjum(input: {
         const rangeToEndOfDay = new Date(rangeToDate);
         rangeToEndOfDay.setHours(23, 59, 59, 999);
 
+        if (
+            Number.isNaN(rangeFromDate.getTime()) ||
+            Number.isNaN(rangeToDate.getTime())
+        ) {
+            return {
+                error: "Format tanggal tidak valid",
+                pjumExportId: null,
+            };
+        }
+
         if (rangeFromDate > rangeToDate) {
             return {
                 error: "Rentang tanggal tidak valid",
@@ -436,7 +449,7 @@ export async function exportPjum(input: {
             where: {
                 bmsNIK,
                 branchName: { in: user.branchNames },
-                fromDate: { lte: rangeToDate },
+                fromDate: { lte: rangeToEndOfDay },
                 toDate: { gte: rangeFromDate },
             },
             orderBy: { fromDate: "asc" },

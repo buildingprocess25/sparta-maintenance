@@ -185,11 +185,12 @@ const styles = StyleSheet.create({
         padding: "3 6",
     },
     badgeRusak: {
-        color: "#0069a7",
+        color: "#dc2626",
         fontFamily: "Helvetica-Bold",
     },
     badgeBaik: {
         color: "#16a34a",
+        fontFamily: "Helvetica-Bold",
     },
     badgeTidakAda: {
         color: "#9ca3af",
@@ -473,6 +474,7 @@ const conditionLabel = (
     if (condition === "TIDAK_ADA") return "Tidak Ada";
     if (preventive === "OK") return "OK";
     if (preventive === "NOT_OK") return "Not OK";
+    if (preventive === "TIDAK_ADA") return "Tidak Ada";
     return "-";
 };
 
@@ -483,6 +485,8 @@ const conditionStyle = (
     if (condition === "RUSAK" || preventive === "NOT_OK")
         return styles.badgeRusak;
     if (condition === "BAIK" || preventive === "OK") return styles.badgeBaik;
+    if (condition === "TIDAK_ADA" || preventive === "TIDAK_ADA")
+        return styles.badgeTidakAda;
     return styles.badgeTidakAda;
 };
 
@@ -1616,10 +1620,6 @@ function buildReportDocument(
                               data.completionAdditionalPhotos,
                               "Dokumentasi Tambahan",
                               dimensionMap,
-                              {
-                                  containerMarginBottom: -20,
-                                  labelMarginBottom: -20,
-                              },
                           )
                         : null,
 
@@ -2172,6 +2172,7 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
     const allUrls: string[] = [
         ...data.completionSelfieUrls,
         ...data.startReceiptUrls,
+        ...data.completionAdditionalPhotos,
         ...data.items.flatMap((item) => [
             ...(item.images ?? (item.photoUrl ? [item.photoUrl] : [])),
             ...(item.afterImages ?? []),

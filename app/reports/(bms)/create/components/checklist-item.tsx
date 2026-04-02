@@ -65,27 +65,42 @@ export function ChecklistItemCard({
             </div>
 
             {isPreventive ? (
-                /* PREVENTIVE: OK / NOT OK */
+                /* PREVENTIVE: OK / NOT OK / TIDAK ADA */
                 <div className="flex flex-wrap gap-2">
-                    {(["baik", "rusak"] as ChecklistCondition[]).map((val) => {
-                        const label = val === "baik" ? "OK" : "Not OK";
+                    {(
+                        ["baik", "rusak", "tidak-ada"] as ChecklistCondition[]
+                    ).map((val) => {
+                        const label =
+                            val === "baik"
+                                ? "OK"
+                                : val === "rusak"
+                                  ? "Not OK"
+                                  : "Tidak Ada";
                         const isSelected = condition === val;
                         const selectedStyle =
                             val === "baik"
                                 ? isSelected
                                     ? "bg-green-50 border-green-400 text-green-700 font-medium"
                                     : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
-                                : isSelected
-                                  ? "bg-red-50 border-red-400 text-red-700 font-medium"
-                                  : "bg-muted/40 border-border text-muted-foreground hover:bg-muted";
+                                : val === "rusak"
+                                  ? isSelected
+                                      ? "bg-red-50 border-red-400 text-red-700 font-medium"
+                                      : "bg-muted/40 border-border text-muted-foreground hover:bg-muted"
+                                  : isSelected
+                                    ? "bg-muted border-border text-foreground font-medium"
+                                    : "bg-muted/40 border-border text-muted-foreground hover:bg-muted";
                         const dotStyle =
                             val === "baik"
                                 ? isSelected
                                     ? "border-green-600 bg-green-600"
                                     : "border-muted-foreground"
-                                : isSelected
-                                  ? "border-red-600 bg-red-600"
-                                  : "border-muted-foreground";
+                                : val === "rusak"
+                                  ? isSelected
+                                      ? "border-red-600 bg-red-600"
+                                      : "border-muted-foreground"
+                                  : isSelected
+                                    ? "border-foreground bg-foreground"
+                                    : "border-muted-foreground";
                         return (
                             <button
                                 key={val}

@@ -41,6 +41,15 @@ function getItemBadge(
                 NOT OK
             </Badge>
         );
+    if (preventive === "TIDAK_ADA")
+        return (
+            <Badge
+                variant="secondary"
+                className="text-muted-foreground shrink-0"
+            >
+                Tidak Ada
+            </Badge>
+        );
     if (isPreventiveCategory && condition === "BAIK")
         return (
             <Badge className="bg-green-600 hover:bg-green-700 shrink-0">
@@ -271,6 +280,16 @@ export function ChecklistTab({
                                                                     }
                                                                     colorClass="red"
                                                                     label="Not OK"
+                                                                />
+                                                                <ConditionPill
+                                                                    active={
+                                                                        preventive ===
+                                                                            "TIDAK_ADA" ||
+                                                                        condition ===
+                                                                            "TIDAK_ADA"
+                                                                    }
+                                                                    colorClass="neutral"
+                                                                    label="Tidak Ada"
                                                                 />
                                                             </>
                                                         ) : (
