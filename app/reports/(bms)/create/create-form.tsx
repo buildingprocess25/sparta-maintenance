@@ -211,25 +211,25 @@ export default function CreateReportForm({
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
-            <DraftDialog
-                open={showDraftDialog}
-                draftStoreName={existingDraft?.storeName}
-                draftUpdatedAt={existingDraft?.updatedAt || ""}
-                isLoading={isRestoringDraft}
-                isDeleting={isDeletingDraft}
-                onContinueDraft={handleContinueDraft}
-                onCreateNew={handleCreateNew}
-            />
-
-            {!isEditMode && (
+            {showDraftDialog ? (
+                <DraftDialog
+                    open={showDraftDialog}
+                    draftStoreName={existingDraft?.storeName}
+                    draftUpdatedAt={existingDraft?.updatedAt || ""}
+                    isLoading={isRestoringDraft}
+                    isDeleting={isDeletingDraft}
+                    onContinueDraft={handleContinueDraft}
+                    onCreateNew={handleCreateNew}
+                />
+            ) : !isEditMode ? (
                 <StoreSelectDialog
-                    open={!selectedStoreCode && !showDraftDialog}
+                    open={!selectedStoreCode}
                     stores={stores}
                     selectedStoreCode={selectedStoreCode}
                     onStoreChange={handleStoreChange}
                     onCancel={() => router.push("/dashboard")}
                 />
-            )}
+            ) : null}
 
             <LoadingOverlay
                 isOpen={isSubmitting}

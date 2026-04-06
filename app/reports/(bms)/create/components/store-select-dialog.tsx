@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,13 +36,15 @@ export function StoreSelectDialog({
     const [prevOpen, setPrevOpen] = useState(open);
     const inputRef = useRef<HTMLInputElement>(null);
 
-    if (open && !prevOpen) {
-        setSearchQuery("");
-        setLocalSelectedCode(selectedStoreCode);
-        setPrevOpen(true);
-    } else if (!open && prevOpen) {
-        setPrevOpen(false);
-    }
+    useEffect(() => {
+        if (open && !prevOpen) {
+            setSearchQuery("");
+            setLocalSelectedCode(selectedStoreCode);
+            setPrevOpen(true);
+        } else if (!open && prevOpen) {
+            setPrevOpen(false);
+        }
+    }, [open, prevOpen, selectedStoreCode]);
 
     const filteredStores = useMemo(() => {
         if (!searchQuery.trim()) return [];
