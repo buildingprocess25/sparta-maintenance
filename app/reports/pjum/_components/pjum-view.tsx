@@ -78,6 +78,7 @@ const STATUS_BAR: Record<string, string> = {
     ESTIMATION_REJECTED: "bg-red-500",
     IN_PROGRESS: "bg-blue-500",
     PENDING_REVIEW: "bg-purple-500",
+    APPROVED_BMC: "bg-indigo-500",
     REVIEW_REJECTED_REVISION: "bg-orange-500",
     COMPLETED: "bg-emerald-500",
 };
@@ -284,6 +285,15 @@ function getStatusBadge(status: string) {
                     <Clock className="h-3 w-3" /> Menunggu Review
                 </Badge>
             );
+        case "APPROVED_BMC":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-100/80 border-indigo-200 shadow-none whitespace-nowrap"
+                >
+                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Final BNM
+                </Badge>
+            );
         case "REVIEW_REJECTED_REVISION":
             return (
                 <Badge
@@ -349,6 +359,7 @@ const STATUS_BADGE_MOBILE: Record<string, string> = {
     ESTIMATION_REJECTED: "bg-red-100 text-red-700",
     IN_PROGRESS: "bg-blue-100 text-blue-700",
     PENDING_REVIEW: "bg-purple-100 text-purple-700",
+    APPROVED_BMC: "bg-indigo-100 text-indigo-700",
     REVIEW_REJECTED_REVISION: "bg-orange-100 text-orange-700",
     COMPLETED: "bg-emerald-100 text-emerald-700",
 };
@@ -360,6 +371,7 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
     ESTIMATION_REJECTED: "Est. Ditolak",
     IN_PROGRESS: "Sedang Dikerjakan",
     PENDING_REVIEW: "Menunggu Review",
+    APPROVED_BMC: "Menunggu Persetujuan Final BNM",
     REVIEW_REJECTED_REVISION: "Penyelesaian Ditolak (Revisi)",
     COMPLETED: "Selesai",
 };
