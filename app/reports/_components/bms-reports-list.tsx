@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -46,6 +46,7 @@ import {
     Loader2,
     CalendarDays,
     Wrench,
+    RotateCcw,
 } from "lucide-react";
 import {
     Pagination,
@@ -105,49 +106,55 @@ export default function BmsReportsList({
         searchParams.get("dateRange") || "all",
     );
 
+    // Debounce ref for search input
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
+
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current)
+                clearTimeout(searchDebounceRef.current);
+        };
+    }, []);
+
+    const pushParam = useCallback(
+        (updates: Record<string, string>) => {
+            const params = new URLSearchParams(searchParams.toString());
+            for (const [key, value] of Object.entries(updates)) {
+                if (value && value !== "all") {
+                    params.set(key, value);
+                } else {
+                    params.delete(key);
+                }
+            }
+            params.set("page", "1");
+            startTransition(() => {
+                router.replace(`${pathname}?${params.toString()}`);
+            });
+        },
+        [searchParams, pathname, router],
+    );
+
     // Debounce search update
     const handleSearch = (term: string) => {
         setSearchQuery(term);
-        const params = new URLSearchParams(searchParams.toString());
-        if (term) {
-            params.set("search", term);
-        } else {
-            params.delete("search");
-        }
-        params.set("page", "1"); // Reset to page 1 on search
-        startTransition(() => {
-            router.replace(`${pathname}?${params.toString()}`);
-        });
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            pushParam({ search: term });
+        }, 300);
     };
 
     // Handle status filter change
     const handleStatusChange = (status: string) => {
         setStatusFilter(status);
-        const params = new URLSearchParams(searchParams.toString());
-        if (status && status !== "all") {
-            params.set("status", status);
-        } else {
-            params.delete("status");
-        }
-        params.set("page", "1");
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
-        });
+        pushParam({ status });
     };
 
     // Handle date range filter change
     const handleDateRangeChange = (range: string) => {
         setDateRangeFilter(range);
-        const params = new URLSearchParams(searchParams.toString());
-        if (range && range !== "all") {
-            params.set("dateRange", range);
-        } else {
-            params.delete("dateRange");
-        }
-        params.set("page", "1");
-        startTransition(() => {
-            router.push(`${pathname}?${params.toString()}`);
-        });
+        pushParam({ dateRange: range });
     };
 
     // Handle pagination
@@ -157,6 +164,13 @@ export default function BmsReportsList({
         startTransition(() => {
             router.push(`${pathname}?${params.toString()}`);
         });
+    };
+
+    const handleResetFilters = () => {
+        setSearchQuery("");
+        setStatusFilter("all");
+        setDateRangeFilter("all");
+        startTransition(() => router.replace(pathname));
     };
 
     const getStatusBadge = (status: string) => {
@@ -385,11 +399,21 @@ export default function BmsReportsList({
                             />
                             <Input
                                 id="report-search"
-                                placeholder="Cari toko atau nomor laporan..."
+                                placeholder="Cari toko, kode toko, atau nomor laporan..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleSearch("")}
+                                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                                    aria-label="Hapus pencarian"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
                         <div className="flex gap-2">
                             <div className="flex-1 md:flex-none">

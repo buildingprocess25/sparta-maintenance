@@ -108,6 +108,15 @@ export async function BmcDashboard({ user }: { user: AuthUser }) {
             href: "/reports?status=completed",
             colorClass: "text-green-600",
         },
+        {
+            id: "total",
+            label: "Total Laporan",
+            description: "Semua laporan cabang",
+            value: bmcStats.totalReports,
+            icon: FileText,
+            href: "/reports?status=view_all",
+            colorClass: "text-indigo-600",
+        },
     ];
 
     return (

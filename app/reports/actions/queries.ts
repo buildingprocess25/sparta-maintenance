@@ -50,6 +50,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
     const { search, status, dateRange, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
+    // Include COMPLETED by default so BMS can see their full report history
     const statusList = status
         ? Array.isArray(status)
             ? status
@@ -64,6 +65,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
               "PENDING_REVIEW",
               "APPROVED_BMC",
               "REVIEW_REJECTED_REVISION",
+              "COMPLETED",
           ];
 
     const where: Record<string, unknown> = {
@@ -84,6 +86,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
         where.OR = [
             { reportNumber: { contains: search, mode: "insensitive" } },
             { storeName: { contains: search, mode: "insensitive" } },
+            { storeCode: { contains: search, mode: "insensitive" } },
             { branchName: { contains: search, mode: "insensitive" } },
         ];
     }
@@ -148,6 +151,8 @@ export async function getLastCategoryIDate(storeCode: string) {
 export async function getApprovalReports(params: {
     status?: string;
     search?: string;
+    /** Filter by BMS name (free-text, case-insensitive) */
+    bms?: string;
     dateRange?: DateRangeFilter;
     page?: number;
     limit?: number;
@@ -157,6 +162,7 @@ export async function getApprovalReports(params: {
     const {
         status: statusParam,
         search,
+        bms,
         dateRange,
         page = 1,
         limit = 10,
@@ -216,6 +222,12 @@ export async function getApprovalReports(params: {
                       },
                   },
                   {
+                      storeCode: {
+                          contains: search,
+                          mode: "insensitive" as const,
+                      },
+                  },
+                  {
                       branchName: {
                           contains: search,
                           mode: "insensitive" as const,
@@ -225,12 +237,22 @@ export async function getApprovalReports(params: {
           }
         : {};
 
+    // Filter by BMS reporter name (free-text search on createdBy.name)
+    const bmsFilter = bms
+        ? {
+              createdBy: {
+                  name: { contains: bms, mode: "insensitive" as const },
+              },
+          }
+        : {};
+
     const where = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         status: { in: activeStatuses as any },
         ...branchFilter,
         ...(dateBounds ? { updatedAt: dateBounds } : {}),
         ...searchFilter,
+        ...bmsFilter,
     };
 
     const [reports, total] = await Promise.all([

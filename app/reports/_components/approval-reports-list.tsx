@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useCallback, useRef, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -43,6 +43,8 @@ import {
     Wrench,
     Building2,
     ChevronRight,
+    User,
+    RotateCcw,
 } from "lucide-react";
 import {
     Pagination,
@@ -83,7 +85,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Estimasi
+                    <Clock className="h-3 w-3" /> Menunggu Est.
                 </Badge>
             );
         case "ESTIMATION_APPROVED":
@@ -101,7 +103,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                 >
-                    <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
+                    <X className="h-3 w-3" /> Est. Ditolak (Revisi)
                 </Badge>
             );
         case "ESTIMATION_REJECTED":
@@ -110,7 +112,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
                 >
-                    <X className="h-3 w-3" /> Estimasi Ditolak
+                    <X className="h-3 w-3" /> Est. Ditolak
                 </Badge>
             );
         case "IN_PROGRESS":
@@ -128,7 +130,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Review Penyelesaian
+                    <Clock className="h-3 w-3" /> Menunggu Review
                 </Badge>
             );
         case "APPROVED_BMC":
@@ -137,7 +139,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-cyan-100 text-cyan-700 hover:bg-cyan-100/80 border-cyan-200 shadow-none"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Final BNM
+                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Final
                 </Badge>
             );
         case "REVIEW_REJECTED_REVISION":
@@ -146,7 +148,7 @@ const getStatusBadge = (status: string) => {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                 >
-                    <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
+                    <X className="h-3 w-3" /> Review Ditolak (Revisi)
                 </Badge>
             );
         case "COMPLETED":
@@ -191,6 +193,7 @@ export function ApprovalReportsList({
     const [searchQuery, setSearchQuery] = useState(
         searchParams.get("search") || "",
     );
+    const [bmsQuery, setBmsQuery] = useState(searchParams.get("bms") || "");
     const [statusFilter, setStatusFilter] = useState(
         searchParams.get("status")?.toLowerCase() || "all",
     );
@@ -198,32 +201,63 @@ export function ApprovalReportsList({
         searchParams.get("dateRange") || "all",
     );
 
-    const pushParam = (key: string, value: string) => {
-        const params = new URLSearchParams(searchParams.toString());
-        if (value && value !== "all") {
-            params.set(key, value);
-        } else {
-            params.delete(key);
-        }
-        params.set("page", "1");
-        startTransition(() =>
-            router.replace(`${pathname}?${params.toString()}`),
-        );
-    };
+    // Debounce refs — avoid triggering navigation on every keystroke
+    const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(
+        null,
+    );
+    const bmsDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Cleanup debounce timers on unmount
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current)
+                clearTimeout(searchDebounceRef.current);
+            if (bmsDebounceRef.current) clearTimeout(bmsDebounceRef.current);
+        };
+    }, []);
+
+    const pushParam = useCallback(
+        (updates: Record<string, string>) => {
+            const params = new URLSearchParams(searchParams.toString());
+            for (const [key, value] of Object.entries(updates)) {
+                if (value && value !== "all") {
+                    params.set(key, value);
+                } else {
+                    params.delete(key);
+                }
+            }
+            params.set("page", "1");
+            startTransition(() =>
+                router.replace(`${pathname}?${params.toString()}`),
+            );
+        },
+        [searchParams, pathname, router],
+    );
 
     const handleSearch = (term: string) => {
         setSearchQuery(term);
-        pushParam("search", term);
+        if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = setTimeout(() => {
+            pushParam({ search: term });
+        }, 300);
+    };
+
+    const handleBmsSearch = (term: string) => {
+        setBmsQuery(term);
+        if (bmsDebounceRef.current) clearTimeout(bmsDebounceRef.current);
+        bmsDebounceRef.current = setTimeout(() => {
+            pushParam({ bms: term });
+        }, 300);
     };
 
     const handleStatusChange = (status: string) => {
         setStatusFilter(status);
-        pushParam("status", status);
+        pushParam({ status });
     };
 
     const handleDateRangeChange = (range: string) => {
         setDateRangeFilter(range);
-        pushParam("dateRange", range);
+        pushParam({ dateRange: range });
     };
 
     const handlePageChange = (page: number) => {
@@ -232,6 +266,14 @@ export function ApprovalReportsList({
         startTransition(() =>
             router.replace(`${pathname}?${params.toString()}`),
         );
+    };
+
+    const handleResetFilters = () => {
+        setSearchQuery("");
+        setBmsQuery("");
+        setStatusFilter("all");
+        setDateRangeFilter("all");
+        startTransition(() => router.replace(pathname));
     };
 
     const formatDate = (date: Date) =>
@@ -249,24 +291,61 @@ export function ApprovalReportsList({
             ? "Persetujuan Final"
             : role === "ADMIN"
               ? "Semua Laporan"
-              : "Persetujuan Laporan";
+              : "Laporan Cabang";
+
+    const pageDescription =
+        role === "BNM_MANAGER"
+            ? "Laporan yang menunggu persetujuan final dan riwayat laporan wilayah Anda"
+            : role === "BMC"
+              ? "Laporan dari toko-toko di cabang Anda"
+              : "Semua laporan";
+
+    // Determine which filters are active (for chips display)
+    const hasActiveFilters =
+        searchQuery ||
+        bmsQuery ||
+        statusFilter !== "all" ||
+        dateRangeFilter !== "all";
+
+    const STATUS_LABEL: Record<string, string> = {
+        pending_estimation: "Menunggu Est.",
+        estimation_approved: "Estimasi Disetujui",
+        estimation_rejected_revision: "Est. Ditolak (Revisi)",
+        estimation_rejected: "Est. Ditolak",
+        in_progress: "Sedang Dikerjakan",
+        pending_review: "Menunggu Review",
+        approved_bmc: "Menunggu Final BNM",
+        review_rejected_revision: "Review Ditolak (Revisi)",
+        completed: "Selesai",
+        view_all: "Semua Status",
+    };
+
+    const DATE_LABEL: Record<string, string> = {
+        this_month: "Bulan Ini",
+        last_month: "Bulan Lalu",
+        last_3_months: "3 Bulan Terakhir",
+        last_6_months: "6 Bulan Terakhir",
+        this_year: "Tahun Ini",
+        last_year: "Tahun Lalu",
+    };
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
             <Header
                 variant="dashboard"
                 title={pageTitle}
-                description={`${total} laporan`}
+                description={pageDescription}
                 showBackButton
                 backHref="/dashboard"
                 logo={false}
             />
 
-            <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-6">
-                {/* Action Bar: Search, Filter */}
-                <div className="flex flex-col md:flex-row gap-4 md:items-center justify-between">
-                    <div className="flex flex-1 gap-2 flex-wrap">
-                        <div className="relative flex-1 min-w-48 md:max-w-sm">
+            <main className="flex-1 container mx-auto px-4 py-6 max-w-6xl space-y-4">
+                {/* Filter Bar */}
+                <div className="flex flex-col gap-3">
+                    <div className="flex flex-col md:flex-row gap-2 md:items-center">
+                        {/* Search: no. laporan / toko / kode toko */}
+                        <div className="relative flex-1 min-w-0 md:max-w-sm">
                             <label
                                 htmlFor="approval-search"
                                 className="sr-only"
@@ -279,12 +358,54 @@ export function ApprovalReportsList({
                             />
                             <Input
                                 id="approval-search"
-                                placeholder="Cari toko atau nomor laporan..."
+                                placeholder="Cari no. laporan, toko, kode toko..."
                                 className="pl-9 bg-background"
                                 value={searchQuery}
                                 onChange={(e) => handleSearch(e.target.value)}
                             />
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleSearch("")}
+                                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                                    aria-label="Hapus pencarian"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
                         </div>
+
+                        {/* Filter by BMS name */}
+                        <div className="relative flex-1 min-w-0 md:max-w-xs">
+                            <label htmlFor="bms-search" className="sr-only">
+                                Cari BMS
+                            </label>
+                            <User
+                                className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <Input
+                                id="bms-search"
+                                placeholder="Cari nama BMS..."
+                                className="pl-9 bg-background"
+                                value={bmsQuery}
+                                onChange={(e) =>
+                                    handleBmsSearch(e.target.value)
+                                }
+                            />
+                            {bmsQuery && (
+                                <button
+                                    type="button"
+                                    onClick={() => handleBmsSearch("")}
+                                    className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                                    aria-label="Hapus filter BMS"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Status filter */}
                         <Select
                             value={statusFilter}
                             onValueChange={handleStatusChange}
@@ -303,6 +424,9 @@ export function ApprovalReportsList({
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">
+                                    Antrian Approval
+                                </SelectItem>
+                                <SelectItem value="view_all">
                                     Semua Status
                                 </SelectItem>
                                 {role !== "BNM_MANAGER" && (
@@ -326,13 +450,10 @@ export function ApprovalReportsList({
                                 <SelectItem value="completed">
                                     Selesai
                                 </SelectItem>
-                                {(role === "BMC" || role === "ADMIN") && (
-                                    <SelectItem value="view_all">
-                                        Semua Laporan
-                                    </SelectItem>
-                                )}
                             </SelectContent>
                         </Select>
+
+                        {/* Date range filter */}
                         <Select
                             value={dateRangeFilter}
                             onValueChange={handleDateRangeChange}
@@ -372,6 +493,13 @@ export function ApprovalReportsList({
                             </SelectContent>
                         </Select>
                     </div>
+
+                    {/* Result count */}
+                    <p className="text-xs text-muted-foreground">
+                        {hasActiveFilters
+                            ? `Menampilkan ${reports.length} dari ${total} laporan`
+                            : `${total} laporan`}
+                    </p>
                 </div>
 
                 {reports.length > 0 ? (
@@ -422,7 +550,7 @@ export function ApprovalReportsList({
                                     const statusLabel: Record<string, string> =
                                         {
                                             PENDING_ESTIMATION:
-                                                "Menunggu Persetujuan Estimasi",
+                                                "Menunggu Est. Estimasi",
                                             ESTIMATION_APPROVED:
                                                 "Estimasi Disetujui",
                                             ESTIMATION_REJECTED_REVISION:
@@ -430,11 +558,9 @@ export function ApprovalReportsList({
                                             ESTIMATION_REJECTED: "Est. Ditolak",
                                             IN_PROGRESS: "Sedang Dikerjakan",
                                             PENDING_REVIEW: "Menunggu Review",
-                                            APPROVED_BMC:
-                                                "Menunggu Persetujuan Final BNM",
+                                            APPROVED_BMC: "Menunggu Final BNM",
                                             REVIEW_REJECTED_REVISION:
-                                                "Penyelesaian Ditolak (Revisi)",
-
+                                                "Review Ditolak (Revisi)",
                                             COMPLETED: "Selesai",
                                         };
                                     const barColor =
@@ -488,9 +614,10 @@ export function ApprovalReportsList({
                                                         </span>
                                                     </span>
                                                 </div>
-                                                {/* Row 4: creator + date + estimation */}
+                                                {/* Row 4: BMS name + date + estimation */}
                                                 <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                                                    <span>
+                                                    <span className="flex items-center gap-1">
+                                                        <User className="h-3 w-3 shrink-0" />
                                                         {report.createdByName}
                                                     </span>
                                                     <span className="flex items-center gap-1">
@@ -529,9 +656,9 @@ export function ApprovalReportsList({
                                             Nomor Laporan
                                         </TableHead>
                                         <TableHead className="min-w-50">
-                                            Toko & Cabang
+                                            Toko &amp; Cabang
                                         </TableHead>
-                                        <TableHead>Dilaporkan Oleh</TableHead>
+                                        <TableHead>BMS</TableHead>
                                         <TableHead>Tanggal</TableHead>
                                         <TableHead>Selesai</TableHead>
                                         <TableHead>Status</TableHead>
@@ -560,6 +687,9 @@ export function ApprovalReportsList({
                                             <TableCell>
                                                 <div className="flex flex-col gap-0.5">
                                                     <span className="font-medium text-sm">
+                                                        {report.storeCode
+                                                            ? `${report.storeCode} – `
+                                                            : ""}
                                                         {report.storeName ||
                                                             "—"}
                                                     </span>
@@ -638,57 +768,53 @@ export function ApprovalReportsList({
                                             />
                                         </PaginationItem>
 
-                                        {Array.from({ length: totalPages }).map(
-                                            (_, i) => {
-                                                const page = i + 1;
-                                                if (
-                                                    totalPages <= 7 ||
-                                                    page === 1 ||
-                                                    page === totalPages ||
-                                                    (page >= currentPage - 1 &&
-                                                        page <= currentPage + 1)
-                                                ) {
-                                                    return (
-                                                        <PaginationItem
-                                                            key={page}
+                                        {Array.from({
+                                            length: totalPages,
+                                        }).map((_, i) => {
+                                            const page = i + 1;
+                                            if (
+                                                totalPages <= 7 ||
+                                                page === 1 ||
+                                                page === totalPages ||
+                                                (page >= currentPage - 1 &&
+                                                    page <= currentPage + 1)
+                                            ) {
+                                                return (
+                                                    <PaginationItem key={page}>
+                                                        <PaginationLink
+                                                            href="#"
+                                                            isActive={
+                                                                page ===
+                                                                currentPage
+                                                            }
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                handlePageChange(
+                                                                    page,
+                                                                );
+                                                            }}
                                                         >
-                                                            <PaginationLink
-                                                                href="#"
-                                                                isActive={
-                                                                    page ===
-                                                                    currentPage
-                                                                }
-                                                                onClick={(
-                                                                    e,
-                                                                ) => {
-                                                                    e.preventDefault();
-                                                                    handlePageChange(
-                                                                        page,
-                                                                    );
-                                                                }}
-                                                            >
-                                                                {page}
-                                                            </PaginationLink>
-                                                        </PaginationItem>
-                                                    );
-                                                } else if (
-                                                    (page === currentPage - 2 &&
-                                                        currentPage > 3) ||
-                                                    (page === currentPage + 2 &&
-                                                        currentPage <
-                                                            totalPages - 2)
-                                                ) {
-                                                    return (
-                                                        <PaginationItem
-                                                            key={`ellipsis-${page}`}
-                                                        >
-                                                            <PaginationEllipsis />
-                                                        </PaginationItem>
-                                                    );
-                                                }
-                                                return null;
-                                            },
-                                        )}
+                                                            {page}
+                                                        </PaginationLink>
+                                                    </PaginationItem>
+                                                );
+                                            } else if (
+                                                (page === currentPage - 2 &&
+                                                    currentPage > 3) ||
+                                                (page === currentPage + 2 &&
+                                                    currentPage <
+                                                        totalPages - 2)
+                                            ) {
+                                                return (
+                                                    <PaginationItem
+                                                        key={`ellipsis-${page}`}
+                                                    >
+                                                        <PaginationEllipsis />
+                                                    </PaginationItem>
+                                                );
+                                            }
+                                            return null;
+                                        })}
 
                                         <PaginationItem>
                                             <PaginationNext
@@ -733,10 +859,21 @@ export function ApprovalReportsList({
                                     Tidak ada laporan ditemukan
                                 </EmptyTitle>
                                 <EmptyDescription>
-                                    {searchQuery
-                                        ? "Coba ubah kata kunci pencarian atau filter Anda."
+                                    {hasActiveFilters
+                                        ? "Coba ubah atau reset filter pencarian Anda."
                                         : "Tidak ada laporan yang cocok dengan filter yang dipilih."}
                                 </EmptyDescription>
+                                {hasActiveFilters && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="mt-3 gap-1.5"
+                                        onClick={handleResetFilters}
+                                    >
+                                        <RotateCcw className="h-3.5 w-3.5" />
+                                        Reset Filter
+                                    </Button>
+                                )}
                             </EmptyHeader>
                         </Empty>
                     </div>

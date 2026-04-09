@@ -10,7 +10,7 @@ type ReportsPageProps = {
         page?: string;
         search?: string;
         // Approval params
-        q?: string;
+        bms?: string;   // filter by BMS reporter name
         // Shared
         status?: string;
         dateRange?: string;
@@ -26,12 +26,14 @@ export default async function ReportsPage(props: ReportsPageProps) {
         const approvalPage = Number(searchParams.page) || 1;
         const approvalLimit = 10;
         const approvalSearch = searchParams.search || "";
+        const approvalBms = searchParams.bms || "";
         const approvalStatus = searchParams.status || "all";
         const approvalDateRange = searchParams.dateRange || "all";
 
         const { reports, total } = await getApprovalReports({
             status: approvalStatus,
             search: approvalSearch,
+            bms: approvalBms,
             dateRange: approvalDateRange as DateRangeFilter,
             page: approvalPage,
             limit: approvalLimit,
