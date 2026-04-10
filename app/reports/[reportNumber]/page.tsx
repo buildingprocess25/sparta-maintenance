@@ -26,6 +26,15 @@ export default async function ReportDetailPage({ params }: Props) {
 
     if (!report) notFound();
 
+    // 🚀 TAHAP 3: PENCEGAT (INTERCEPTOR) GOOGLE DRIVE
+    // Jika status laporan sudah selesai dan link Drive tersedia, 
+    // langsung lempar pengguna ke folder Google Drive.
+    // Fungsi 'redirect' Next.js akan langsung menghentikan eksekusi kode di bawahnya.
+    const driveUrl = report.reportFinalDriveUrl ?? null;
+    if (report.status === "COMPLETED" && driveUrl) {
+        redirect(driveUrl);
+    }
+
     // Access control
     if (user.role === "BMS") {
         // BMS can only view their own reports
@@ -35,6 +44,7 @@ export default async function ReportDetailPage({ params }: Props) {
         if (!user.branchNames.includes(report.branchName)) redirect("/reports");
     } else if (user.role === "BNM_MANAGER") {
         // BnM Manager can review APPROVED_BMC and view COMPLETED reports
+        // (COMPLETED masih diizinkan jika Drive URL kosong sebagai fallback)
         if (report.status !== "APPROVED_BMC" && report.status !== "COMPLETED") {
             redirect("/reports");
         }

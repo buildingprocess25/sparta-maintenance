@@ -6,7 +6,7 @@ export type {
     ReportFilters,
 } from "./actions/types";
 
-export { getDraft, saveDraft, deleteDraft } from "./actions/draft";
+export { getDraft, discardLocalDraftFiles } from "./actions/draft";
 export { submitReport } from "./actions/submit";
 export { startWork } from "./actions/start-work";
 export { resubmitReport } from "./actions/resubmit";

@@ -8,6 +8,7 @@ export interface ChecklistItem {
     condition: ChecklistCondition;
     photo?: File;
     photoUrl?: string;
+    photoKey?: string;
     handler?: "BMS" | "Rekanan" | "";
     notes?: string;
 }

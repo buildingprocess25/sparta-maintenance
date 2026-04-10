@@ -11,7 +11,9 @@ import type { MaterialStoreJson } from "@/types/report";
 
 export interface StartWorkPhotoInput {
     selfieUrls: string[];
+    selfieKeys: string[];
     receiptUrls: string[];
+    receiptKeys: string[];
     materialStores: MaterialStoreJson[];
 }
 
@@ -84,6 +86,12 @@ export async function startWorkWithPhotos(
                 ? validSelfieUrls[0]
                 : JSON.stringify(validSelfieUrls);
 
+        // Collect all UploadThing file keys for future cleanup
+        const newKeys = [
+            ...photos.selfieKeys.filter((k) => k.trim().length > 0),
+            ...photos.receiptKeys.filter((k) => k.trim().length > 0),
+        ];
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
@@ -94,6 +102,9 @@ export async function startWorkWithPhotos(
                         validReceiptUrls as unknown as Prisma.InputJsonValue,
                     startMaterialStores:
                         validMaterialStores as unknown as Prisma.InputJsonValue,
+                    // Append new file keys to existing array
+                    uploadthingFileKeys:
+                        newKeys as unknown as Prisma.InputJsonValue,
                 },
             }),
             prisma.activityLog.create({

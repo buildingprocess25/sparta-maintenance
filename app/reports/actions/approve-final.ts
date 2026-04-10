@@ -8,6 +8,10 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
+import {
+    archiveReportPhotosToGoogleDrive,
+    collectReportPhotoUrls,
+} from "@/lib/google-drive/photos";
 
 type FinalDecision = "approve" | "reject_revision";
 
@@ -32,6 +36,14 @@ export async function approveFinal(
                 status: true,
                 branchName: true,
                 finishedAt: true,
+                storeCode: true,
+                storeName: true,
+                createdByNIK: true,
+                startSelfieUrl: true,
+                startReceiptUrls: true,
+                items: true,
+                completionAdditionalPhotos: true,
+                uploadthingFileKeys: true,
             },
         });
 
@@ -94,6 +106,7 @@ export async function approveFinal(
         ]);
 
         if (decision === "approve") {
+            // ── PDF snapshot (non-fatal) ─────────────────────────────────────
             try {
                 await generateAndSaveReportSnapshot({
                     reportNumber,
@@ -105,6 +118,60 @@ export async function approveFinal(
                     `Gagal membuat snapshot PDF COMPLETED: ${getErrorDetail(snapshotError)}`,
                 );
             }
+
+            // ── Archive photos to Google Drive (non-blocking, non-fatal) ────
+            // Fetches the BMS user info for the Drive folder structure.
+            setImmediate(() => {
+                void (async () => {
+                    try {
+                        const bmsUser = await prisma.user.findUnique({
+                            where: { NIK: report.createdByNIK },
+                            select: { NIK: true, name: true },
+                        });
+
+                        const photoUrls = collectReportPhotoUrls(report);
+                        const fileKeys = Array.isArray(report.uploadthingFileKeys)
+                            ? (report.uploadthingFileKeys as string[])
+                            : [];
+
+                        logger.info(
+                            {
+                                operation: "approveFinal.photoArchive",
+                                reportNumber,
+                                photoCount: photoUrls.length,
+                                keyCount: fileKeys.length,
+                            },
+                            "Starting photo archive to Drive",
+                        );
+
+                        const archiveResult = await archiveReportPhotosToGoogleDrive({
+                            reportNumber,
+                            branchName: report.branchName,
+                            bmsNIK: bmsUser?.NIK ?? report.createdByNIK,
+                            bmsName: bmsUser?.name ?? "-",
+                            storeCode: report.storeCode ?? null,
+                            storeName: report.storeName,
+                            photoUrls,
+                            fileKeys,
+                        });
+
+                        logger.info(
+                            {
+                                operation: "approveFinal.photoArchive",
+                                reportNumber,
+                                ...archiveResult,
+                            },
+                            "Photo archive completed",
+                        );
+                    } catch (archiveError) {
+                        logger.error(
+                            { operation: "approveFinal.photoArchive", reportNumber },
+                            "Photo archive to Drive failed (non-fatal)",
+                            archiveError,
+                        );
+                    }
+                })();
+            });
         }
 
         revalidatePath(`/reports/${reportNumber}`);

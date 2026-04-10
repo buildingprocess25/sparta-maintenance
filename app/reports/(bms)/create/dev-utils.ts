@@ -1,26 +1,6 @@
 "use client";
 
 import { toast } from "sonner";
-import imageCompression from "browser-image-compression";
-import { getSupabaseClient } from "@/lib/supabase";
-
-function getImageDimensions(
-    file: File | Blob,
-): Promise<{ width: number; height: number }> {
-    return new Promise((resolve) => {
-        const objectUrl = URL.createObjectURL(file);
-        const img = new window.Image();
-        img.onload = () => {
-            resolve({ width: img.naturalWidth, height: img.naturalHeight });
-            URL.revokeObjectURL(objectUrl);
-        };
-        img.onerror = () => {
-            resolve({ width: 4, height: 3 });
-            URL.revokeObjectURL(objectUrl);
-        };
-        img.src = objectUrl;
-    });
-}
 import {
     checklistCategories,
     unitOptions,
@@ -51,15 +31,7 @@ export function autoFillStep1(
         "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=640&q=80&fm=jpg";
 
     (async () => {
-        const loadingToast = toast.loading("Auto-filling + uploading foto...");
-
-        let dummyFileBlob: Blob | null = null;
-        try {
-            const res = await fetch(DUMMY_IMAGE_URL);
-            dummyFileBlob = await res.blob();
-        } catch {
-            console.warn("Gagal fetch dummy image, foto tidak akan diisi");
-        }
+        const loadingToast = toast.loading("Auto-filling...");
 
         // Pre-assign conditions for non-preventive items
         const nonPreventiveItemIds: string[] = [];
@@ -104,53 +76,12 @@ export function autoFillStep1(
                     name: item.name,
                     condition,
                     handler: "",
+                    // Use a static placeholder URL — no actual upload in dev mode
+                    photoUrl:
+                        condition === "baik" || condition === "rusak"
+                            ? `${DUMMY_IMAGE_URL}&item=${item.id}`
+                            : undefined,
                 };
-
-                if (
-                    dummyFileBlob &&
-                    (condition === "baik" || condition === "rusak")
-                ) {
-                    const file = new File(
-                        [dummyFileBlob],
-                        `foto_${item.id}.jpg`,
-                        { type: "image/jpeg" },
-                    );
-
-                    try {
-                        const compressed = await imageCompression(file, {
-                            maxSizeMB: 0.1,
-                            maxWidthOrHeight: 1280,
-                            useWebWorker: true,
-                        });
-
-                        const safeItemName = item.name
-                            .replace(/[^a-zA-Z0-9]/g, "_")
-                            .toLowerCase();
-                        const { width: imgW, height: imgH } =
-                            await getImageDimensions(compressed);
-                        const filePath = `${ctx.branchName}/${ctx.storeCode}/${ctx.draftReportId}/${item.id}_${safeItemName}_${imgW}x${imgH}.jpg`;
-                        const supabaseClient = getSupabaseClient();
-
-                        const { data, error } = await supabaseClient.storage
-                            .from("reports")
-                            .upload(filePath, compressed, { upsert: true });
-
-                        if (!error && data) {
-                            const {
-                                data: { publicUrl },
-                            } = supabaseClient.storage
-                                .from("reports")
-                                .getPublicUrl(data.path);
-
-                            checklistItem.photo = compressed;
-                            checklistItem.photoUrl = publicUrl;
-                        } else {
-                            checklistItem.photo = file;
-                        }
-                    } catch {
-                        checklistItem.photo = file;
-                    }
-                }
 
                 if (condition === "rusak") {
                     checklistItem.handler =

@@ -6,6 +6,7 @@ export type ChecklistItemData = {
     preventiveCondition?: "OK" | "NOT_OK" | "TIDAK_ADA";
     handler?: "BMS" | "REKANAN";
     photoUrl?: string;
+    photoKey?: string;
     notes?: string;
 };
 
@@ -82,6 +83,7 @@ const checklistItemSchema = z
         preventiveCondition: z.enum(["OK", "NOT_OK", "TIDAK_ADA"]).optional(),
         handler: z.enum(["BMS", "REKANAN"]).optional(),
         photoUrl: z.string().optional(),
+        photoKey: z.string().optional(),
         notes: z.string().optional(),
     })
     .passthrough();

@@ -15,14 +15,18 @@ const prismaClientSingleton = () => {
         throw new Error("DATABASE_URL environment variable is not set");
     }
 
+    // Strip ?sslmode=require so it doesn't override our manual ssl config
+    const cleanDatabaseUrl = databaseUrl.replace("?sslmode=require", "");
+
     // Serverless-optimized pool: each function instance only handles
     // one request at a time, so max: 1 is sufficient.
     const pool = new Pool({
-        connectionString: databaseUrl,
+        connectionString: cleanDatabaseUrl,
         max: 1,
         idleTimeoutMillis: 10000, // Release idle connections after 10s
         connectionTimeoutMillis: 10000,
         allowExitOnIdle: true,
+        ssl: { rejectUnauthorized: false }, // Required for Aiven PG without specific CA
     });
     const adapter = new PrismaPg(pool);
 

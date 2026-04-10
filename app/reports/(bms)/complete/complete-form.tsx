@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import imageCompression from "browser-image-compression";
-import { getSupabaseClient } from "@/lib/supabase";
+import { compressAndUploadToUT } from "@/lib/upload-photo";
 import { Loader2 } from "lucide-react";
 
 import { CameraModal } from "@/components/ui/camera-modal";
@@ -42,53 +41,6 @@ interface Props {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function getImageDimensions(
-    file: File,
-): Promise<{ width: number; height: number }> {
-    return new Promise((resolve) => {
-        const objectUrl = URL.createObjectURL(file);
-        const img = new window.Image();
-        img.onload = () => {
-            resolve({ width: img.naturalWidth, height: img.naturalHeight });
-            URL.revokeObjectURL(objectUrl);
-        };
-        img.onerror = () => {
-            resolve({ width: 4, height: 3 });
-            URL.revokeObjectURL(objectUrl);
-        };
-        img.src = objectUrl;
-    });
-}
-
-async function compressAndUpload(
-    file: File,
-    path: string,
-): Promise<string | null> {
-    try {
-        const supabase = getSupabaseClient();
-        const compressed = await imageCompression(file, {
-            maxSizeMB: 0.15,
-            maxWidthOrHeight: 1280,
-            useWebWorker: true,
-        });
-
-        const { data, error } = await supabase.storage
-            .from("reports")
-            .upload(path, compressed, { upsert: true });
-
-        if (error) throw error;
-
-        const {
-            data: { publicUrl },
-        } = supabase.storage.from("reports").getPublicUrl(data.path);
-
-        return `${publicUrl}?t=${Date.now()}`;
-    } catch (err) {
-        console.error("Upload error:", err);
-        return null;
-    }
-}
 
 function toRemotePhoto(url: string, idx: number) {
     return { id: `remote-${idx}-${url}`, previewUrl: url };
@@ -424,7 +376,7 @@ export function CompleteForm({
                 item.handler === "BMS",
         );
 
-        // Validate each item
+        // Validate each item before uploading
         for (const item of damagedBmsItems) {
             const state = itemStates.get(item.itemId);
             if (!state) continue;
@@ -458,10 +410,7 @@ export function CompleteForm({
         }
 
         startTransition(async () => {
-            const branch = currentReport.branchName;
-            const store = currentReport.storeCode ?? "unknown";
             const rn = currentReport.reportNumber;
-            const ts = Date.now();
 
             const loadingId = toast.loading(
                 "Mengunggah foto dan mengirim laporan...",
@@ -470,6 +419,7 @@ export function CompleteForm({
             // ── Upload item photos & build completion items ──────────────────
             const completionItems: import("@/app/reports/actions/submit-completion-work").CompletionItemInput[] =
                 [];
+            const allCompletionFileKeys: string[] = [];
 
             for (const item of damagedBmsItems) {
                 const state = itemStates.get(item.itemId);
@@ -477,9 +427,8 @@ export function CompleteForm({
 
                 // Upload after photos
                 const afterImages: string[] = [];
-                for (let i = 0; i < state.afterPhotos.length; i++) {
-                    const photo = state.afterPhotos[i];
-
+                for (const photo of state.afterPhotos) {
+                    // Remote photos (already uploaded) — keep URL as-is
                     if (photo.id.startsWith("remote-") && photo.previewUrl) {
                         afterImages.push(photo.previewUrl);
                         continue;
@@ -493,19 +442,18 @@ export function CompleteForm({
                         );
                         return;
                     }
-                    const { width: aW, height: aH } =
-                        await getImageDimensions(file);
-                    const url = await compressAndUpload(
+                    const result = await compressAndUploadToUT(
                         file,
-                        `${branch}/${store}/${rn}/after/${item.itemId}-${ts}-${i}_${aW}x${aH}.jpg`,
+                        "completionPhotoUploader",
                     );
-                    if (!url) {
+                    if (!result) {
                         toast.error("Gagal mengunggah foto sesudah", {
                             id: loadingId,
                         });
                         return;
                     }
-                    afterImages.push(url);
+                    afterImages.push(result.url);
+                    allCompletionFileKeys.push(result.key);
                 }
 
                 completionItems.push({
@@ -525,11 +473,9 @@ export function CompleteForm({
                 });
             }
 
-            // ── Call server action ───────────────────────────────────────────
+            // ── Upload additional documentation photos ───────────────────────
             const additionalPhotoUrls: string[] = [];
-            for (let i = 0; i < additionalDocumentationPhotos.length; i++) {
-                const photo = additionalDocumentationPhotos[i];
-
+            for (const photo of additionalDocumentationPhotos) {
                 if (photo.id.startsWith("remote-") && photo.previewUrl) {
                     additionalPhotoUrls.push(photo.previewUrl);
                     continue;
@@ -542,20 +488,21 @@ export function CompleteForm({
                     });
                     return;
                 }
-                const { width, height } = await getImageDimensions(file);
-                const uploadedUrl = await compressAndUpload(
+                const result = await compressAndUploadToUT(
                     file,
-                    `${branch}/${store}/${rn}/additional-docs/additional-${ts}-${i}_${width}x${height}.jpg`,
+                    "completionPhotoUploader",
                 );
-                if (!uploadedUrl) {
+                if (!result) {
                     toast.error("Gagal mengunggah dokumentasi tambahan", {
                         id: loadingId,
                     });
                     return;
                 }
-                additionalPhotoUrls.push(uploadedUrl);
+                additionalPhotoUrls.push(result.url);
+                allCompletionFileKeys.push(result.key);
             }
 
+            // ── Call server action ───────────────────────────────────────────
             const result = await submitCompletionWork(
                 rn,
                 completionItems,
@@ -565,6 +512,7 @@ export function CompleteForm({
                     note: additionalDocumentationNote.trim() || undefined,
                 },
                 globalNotes.trim() || undefined,
+                allCompletionFileKeys,
             );
 
             if (result.error) {

@@ -165,13 +165,7 @@ export default function CreateReportForm({
                 return;
             }
 
-            // --- Create mode: save draft then submit ---
-            const { saveDraft } = await import("@/app/reports/actions");
-            const saveResult = await saveDraft(draftData);
-            if (saveResult.error) throw new Error(saveResult.error);
-            const reportNumber = saveResult.reportId;
-            if (!reportNumber) throw new Error("Gagal memperoleh ID Laporan");
-
+            // --- Create mode: direct submit ---
             const updatedChecklistItems = [...draftData.checklistItems];
             for (const item of updatedChecklistItems) {
                 const checkedItem = checklist.get(item.itemId);
@@ -192,6 +186,9 @@ export default function CreateReportForm({
                 setIsSubmitting(false);
                 return;
             }
+
+            // Remove draft from local storage after successful submit
+            localStorage.removeItem("sparta_bms_draft");
 
             toast.success("Laporan berhasil dibuat!");
             router.push("/reports");

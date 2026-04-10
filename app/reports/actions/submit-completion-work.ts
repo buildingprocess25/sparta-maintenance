@@ -42,6 +42,7 @@ export async function submitCompletionWork(
     selfieUrls: string[],
     additionalDocumentation?: AdditionalCompletionDocumentationInput,
     notes?: string,
+    completionFileKeys: string[] = [],
 ) {
     try {
         const user = await requireRole("BMS");
@@ -55,6 +56,7 @@ export async function submitCompletionWork(
                 status: true,
                 items: true,
                 startSelfieUrl: true,
+                uploadthingFileKeys: true,
             },
         });
 
@@ -113,6 +115,15 @@ export async function submitCompletionWork(
                     : JSON.stringify(validSelfieUrls)
                 : report.startSelfieUrl;
 
+        // Merge existing file keys with new completion keys
+        const existingKeys = Array.isArray(report.uploadthingFileKeys)
+            ? (report.uploadthingFileKeys as string[])
+            : [];
+        const mergedKeys = [
+            ...existingKeys,
+            ...completionFileKeys.filter((k) => k.trim().length > 0),
+        ];
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
@@ -127,6 +138,8 @@ export async function submitCompletionWork(
                             []) as unknown as Prisma.InputJsonValue,
                     completionAdditionalNote:
                         additionalDocumentation?.note?.trim() || null,
+                    uploadthingFileKeys:
+                        mergedKeys as unknown as Prisma.InputJsonValue,
                 },
             }),
             prisma.activityLog.create({

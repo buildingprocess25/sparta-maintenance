@@ -140,12 +140,16 @@ model Report {
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?
 
-  // PDF snapshot paths in Supabase Storage (bucket: reports)
+  // PDF snapshot paths in Google Drive (stored as Drive file paths)
   pendingEstimationPdfPath  String?
   estimationApprovedPdfPath String?
   approvedBmcPdfPath        String?
   completedPdfPath          String?
   pdfSnapshotMeta           Json      @default("{}")
+
+  // UploadThing file keys — for cleanup when report status changes to COMPLETED.
+  // Stores all file keys from checklist photos, selfie, receipt, and completion photos.
+  uploadthingFileKeys       Json      @default("[]")
 
   // Final archival pointer in Google Drive (uploaded at PJUM final approval)
   reportFinalDriveUrl       String?

@@ -1,22 +1,10 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
-import { getSupabaseClient } from "@/lib/supabase";
 import { logger } from "@/lib/logger";
-import type { ReportItemJson } from "@/types/report";
 
 const DEFAULT_PENDING_EXPIRY_DAYS = 14;
-const STORAGE_DELETE_BATCH_SIZE = 100;
-
-type ParsedStoragePath = {
-    bucket: string;
-    objectPath: string;
-};
-
-type PhotoDeleteResult = {
-    deletedCount: number;
-    errorCount: number;
-};
+const UT_DELETE_BATCH_SIZE = 100;
 
 export type CleanupPendingReportsResult = {
     cutoffDate: string;
@@ -45,185 +33,55 @@ function getPendingExpiryDays(): number {
     return parsed;
 }
 
-function extractPhotoUrls(reportItems: unknown): string[] {
-    const urls: string[] = [];
-    if (!reportItems) return urls;
+type PhotoDeleteResult = {
+    deletedCount: number;
+    errorCount: number;
+};
 
-    try {
-        const items = (reportItems as ReportItemJson[] | null) ?? [];
-        for (const item of items) {
-            if (item.images && Array.isArray(item.images)) {
-                urls.push(...item.images);
-            }
-            if (item.photoUrl && typeof item.photoUrl === "string") {
-                urls.push(item.photoUrl);
-            }
-            if (item.afterImages && Array.isArray(item.afterImages)) {
-                urls.push(...item.afterImages);
-            }
-            if (item.receiptImages && Array.isArray(item.receiptImages)) {
-                urls.push(...item.receiptImages);
-            }
-        }
-    } catch {
-        logger.warn(
-            { operation: "cleanupPendingReports.extractPhotoUrls" },
-            "Failed to parse report items while collecting photos",
-        );
-    }
-
-    return urls;
-}
-
-function parseStoragePath(url: string): ParsedStoragePath | null {
-    try {
-        const parsed = new URL(url);
-        const marker = "/storage/v1/object/public/";
-        const markerIndex = parsed.pathname.indexOf(marker);
-        if (markerIndex < 0) return null;
-
-        const remainder = parsed.pathname.slice(markerIndex + marker.length);
-        const [bucket, ...pathParts] = remainder.split("/");
-        if (!bucket || pathParts.length === 0) return null;
-
-        const objectPath = decodeURIComponent(pathParts.join("/"));
-        if (!objectPath) return null;
-
-        return { bucket, objectPath };
-    } catch {
-        return null;
-    }
-}
-
-async function deletePhotosFromSupabase(
-    urls: string[],
+/**
+ * Deletes all UploadThing files associated with a report.
+ * File keys are stored in `uploadthingFileKeys` JSON column.
+ */
+async function deletePhotosFromUploadThing(
+    fileKeys: string[],
 ): Promise<PhotoDeleteResult> {
-    if (urls.length === 0) return { deletedCount: 0, errorCount: 0 };
+    if (fileKeys.length === 0) return { deletedCount: 0, errorCount: 0 };
 
-    const grouped = new Map<string, Set<string>>();
+    let deletedCount = 0;
     let errorCount = 0;
 
-    for (const rawUrl of urls) {
-        if (!rawUrl) continue;
-        const parsed = parseStoragePath(rawUrl);
-        if (!parsed) {
-            // If a Supabase URL can't be parsed, treat it as a deletion failure.
-            if (rawUrl.includes("supabase.co")) {
-                errorCount += 1;
-                logger.warn(
-                    {
-                        operation: "cleanupPendingReports.deletePhotos",
-                        url: rawUrl,
-                    },
-                    "Failed to parse Supabase storage URL",
-                );
-            }
-            continue;
-        }
+    try {
+        const { UTApi } = await import("uploadthing/server");
+        const utapi = new UTApi();
 
-        const existing = grouped.get(parsed.bucket) ?? new Set<string>();
-        existing.add(parsed.objectPath);
-        grouped.set(parsed.bucket, existing);
-    }
-
-    if (grouped.size === 0) {
-        return { deletedCount: 0, errorCount };
-    }
-
-    const supabase = getSupabaseClient();
-    let deletedCount = 0;
-
-    for (const [bucket, objectPathSet] of grouped.entries()) {
-        const objectPaths = Array.from(objectPathSet);
-
-        for (let i = 0; i < objectPaths.length; i += STORAGE_DELETE_BATCH_SIZE) {
-            const batch = objectPaths.slice(i, i + STORAGE_DELETE_BATCH_SIZE);
-            const { error } = await supabase.storage.from(bucket).remove(batch);
-
-            if (error) {
+        // Process in batches to avoid hitting API limits
+        for (let i = 0; i < fileKeys.length; i += UT_DELETE_BATCH_SIZE) {
+            const batch = fileKeys.slice(i, i + UT_DELETE_BATCH_SIZE);
+            try {
+                await utapi.deleteFiles(batch);
+                deletedCount += batch.length;
+            } catch (batchErr) {
                 errorCount += batch.length;
                 logger.warn(
                     {
                         operation: "cleanupPendingReports.deletePhotos",
-                        bucket,
                         batchSize: batch.length,
+                        batchStart: i,
                     },
-                    `Failed deleting storage objects: ${error.message}`,
+                    `Failed deleting UploadThing files batch: ${batchErr instanceof Error ? batchErr.message : String(batchErr)}`,
                 );
-            } else {
-                deletedCount += batch.length;
             }
         }
-    }
-
-    return { deletedCount, errorCount };
-}
-
-function extractStartSelfieUrls(rawSelfie: string | null): string[] {
-    if (!rawSelfie) return [];
-    const trimmed = rawSelfie.trim();
-    if (!trimmed) return [];
-
-    if (trimmed.startsWith("[")) {
-        try {
-            const parsed = JSON.parse(trimmed);
-            return Array.isArray(parsed)
-                ? parsed.filter(
-                      (url): url is string =>
-                          typeof url === "string" && url.length > 0,
-                  )
-                : [];
-        } catch {
-            return [];
-        }
-    }
-
-    if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
-        try {
-            const parsed = JSON.parse(trimmed);
-            return typeof parsed === "string" && parsed.trim().length > 0
-                ? [parsed]
-                : [];
-        } catch {
-            return [];
-        }
-    }
-
-    return [trimmed];
-}
-
-function extractStartReceiptUrls(rawReceipts: unknown): string[] {
-    if (!rawReceipts) return [];
-
-    if (Array.isArray(rawReceipts)) {
-        return rawReceipts.filter(
-            (url): url is string => typeof url === "string" && url.length > 0,
+    } catch (err) {
+        errorCount = fileKeys.length;
+        logger.error(
+            { operation: "cleanupPendingReports.deletePhotos" },
+            "Failed to initialize UTApi for cleanup",
+            err,
         );
     }
 
-    if (typeof rawReceipts === "string") {
-        const trimmed = rawReceipts.trim();
-        if (!trimmed) return [];
-
-        if (trimmed.startsWith("[")) {
-            try {
-                const parsed = JSON.parse(trimmed);
-                return Array.isArray(parsed)
-                    ? parsed.filter(
-                          (url): url is string =>
-                              typeof url === "string" && url.length > 0,
-                      )
-                    : [];
-            } catch {
-                return [];
-            }
-        }
-
-        // Legacy fallback: single string URL.
-        return [trimmed];
-    }
-
-    return [];
+    return { deletedCount, errorCount };
 }
 
 export async function cleanupPendingReports(): Promise<CleanupPendingReportsResult> {
@@ -239,9 +97,7 @@ export async function cleanupPendingReports(): Promise<CleanupPendingReportsResu
         },
         select: {
             reportNumber: true,
-            items: true,
-            startSelfieUrl: true,
-            startReceiptUrls: true,
+            uploadthingFileKeys: true,
         },
     });
 
@@ -264,14 +120,13 @@ export async function cleanupPendingReports(): Promise<CleanupPendingReportsResu
 
     for (const report of reportsToDelete) {
         try {
-            const photoUrls: string[] = [];
-            photoUrls.push(...extractPhotoUrls(report.items));
-            photoUrls.push(...extractStartSelfieUrls(report.startSelfieUrl));
-            photoUrls.push(...extractStartReceiptUrls(report.startReceiptUrls));
+            const fileKeys = Array.isArray(report.uploadthingFileKeys)
+                ? (report.uploadthingFileKeys as string[])
+                : [];
 
-            const { deletedCount, errorCount } = await deletePhotosFromSupabase(
-                photoUrls,
-            );
+            const { deletedCount, errorCount } =
+                await deletePhotosFromUploadThing(fileKeys);
+
             result.photosDeleted += deletedCount;
 
             if (errorCount > 0) {

@@ -1,7 +1,13 @@
 import "server-only";
 
-import { getSupabaseClient } from "@/lib/supabase";
+import {
+    ensureDriveFolderPath,
+    uploadPdfToDrive,
+} from "@/lib/google-drive/files";
+import { getGoogleDriveClient } from "@/lib/google-drive/client";
 
+// Konstanta ini mungkin tidak dipakai lagi, tapi dipertahankan agar
+// tidak terjadi galat jika ada berkas lain yang terlanjur mengimpornya
 export const PDF_SNAPSHOT_BUCKET = "reports";
 
 export type ReportPdfCheckpoint =
@@ -45,31 +51,68 @@ export function buildPjumSnapshotPath(params: {
 }
 
 export async function uploadPdfSnapshot(path: string, buffer: Buffer) {
-    const storage = getSupabaseClient().storage.from(PDF_SNAPSHOT_BUCKET);
-    const { error } = await storage.upload(path, buffer, {
-        contentType: "application/pdf",
-        upsert: true,
-    });
+    const segments = path.split("/");
+    const fileName = segments.pop();
 
-    if (error) {
-        throw new Error(`Gagal upload PDF snapshot: ${error.message}`);
+    if (!fileName) {
+        throw new Error(`Path snapshot tidak valid: ${path}`);
     }
 
-    return path;
+    try {
+        const folderId = await ensureDriveFolderPath(segments);
+
+        await uploadPdfToDrive({
+            fileName,
+            folderId,
+            buffer,
+            overwriteIfExists: true,
+        });
+
+        return path;
+    } catch (error: unknown) {
+        const errorMessage =
+            error instanceof Error ? error.message : String(error);
+        throw new Error(
+            `Gagal unggah PDF snapshot ke Google Drive: ${errorMessage}`,
+        );
+    }
 }
 
 export async function downloadPdfSnapshot(
     path: string,
 ): Promise<Buffer | null> {
-    const storage = getSupabaseClient().storage.from(PDF_SNAPSHOT_BUCKET);
-    const { data, error } = await storage.download(path);
+    const segments = path.split("/");
+    const fileName = segments.pop();
 
-    if (error || !data) {
+    if (!fileName) return null;
+
+    try {
+        const folderId = await ensureDriveFolderPath(segments);
+        const { drive } = getGoogleDriveClient();
+
+        // Mencari ID berkas berdasarkan nama di dalam folder tersebut
+        const response = await drive.files.list({
+            q: `'${folderId}' in parents and name='${fileName}' and trashed=false`,
+            fields: "files(id)",
+            includeItemsFromAllDrives: true,
+            supportsAllDrives: true,
+            pageSize: 1,
+        });
+
+        const fileId = response.data.files?.[0]?.id;
+        if (!fileId) return null;
+
+        // Mengunduh isi berkas sebagai Buffer
+        const file = await drive.files.get(
+            { fileId, alt: "media" },
+            { responseType: "arraybuffer" },
+        );
+
+        return Buffer.from(file.data as ArrayBuffer);
+    } catch (error) {
+        console.error("Gagal unduh PDF snapshot dari Google Drive:", error);
         return null;
     }
-
-    const bytes = await data.arrayBuffer();
-    return Buffer.from(bytes);
 }
 
 export async function deletePdfSnapshots(paths: string[]) {
@@ -78,11 +121,39 @@ export async function deletePdfSnapshots(paths: string[]) {
     const normalized = [...new Set(paths.filter(Boolean))];
     if (normalized.length === 0) return;
 
-    const storage = getSupabaseClient().storage.from(PDF_SNAPSHOT_BUCKET);
+    const { drive } = getGoogleDriveClient();
 
-    for (let i = 0; i < normalized.length; i += 100) {
-        const chunk = normalized.slice(i, i + 100);
-        await storage.remove(chunk);
+    // Menggunakan perulangan berurutan untuk menghapus berkas agar terhindar dari
+    // pemblokiran batas permintaan (rate limit) API Google Drive
+    for (const path of normalized) {
+        try {
+            const segments = path.split("/");
+            const fileName = segments.pop();
+            if (!fileName) continue;
+
+            const folderId = await ensureDriveFolderPath(segments);
+
+            const response = await drive.files.list({
+                q: `'${folderId}' in parents and name='${fileName}' and trashed=false`,
+                fields: "files(id)",
+                includeItemsFromAllDrives: true,
+                supportsAllDrives: true,
+                pageSize: 1,
+            });
+
+            const fileId = response.data.files?.[0]?.id;
+            if (fileId) {
+                await drive.files.delete({
+                    fileId,
+                    supportsAllDrives: true,
+                });
+            }
+        } catch (error) {
+            console.error(
+                `Gagal menghapus snapshot Google Drive untuk path ${path}:`,
+                error,
+            );
+        }
     }
 }
 

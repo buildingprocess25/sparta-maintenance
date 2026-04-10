@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { saveDraft, deleteDraft } from "@/app/reports/actions";
+import { discardLocalDraftFiles } from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import {
     checklistCategories,
@@ -59,13 +59,42 @@ export function useDraft({
     autoRestore = false,
     disableAutoSave = false,
 }: UseDraftParams) {
+    const LOCAL_STORAGE_KEY = "sparta_bms_draft";
     const [draftReportId, setDraftReportId] = useState<string | null>(
         existingDraft?.reportNumber || null,
     );
-    // In autoRestore mode (edit page), skip the dialog and restore inline on mount.
-    const [showDraftDialog, setShowDraftDialog] = useState(
-        !!existingDraft && !autoRestore,
+    const [localDraftData, setLocalDraftData] = useState<DraftData | null>(
+        null,
     );
+
+    useEffect(() => {
+        if (!autoRestore) {
+            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (
+                        parsed &&
+                        (parsed.checklistItems?.length > 0 || parsed.storeCode)
+                    ) {
+                        setLocalDraftData(parsed);
+                    }
+                } catch {
+                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+                }
+            }
+        }
+    }, [autoRestore]);
+
+    // In autoRestore mode (edit page), skip the dialog and restore inline on mount.
+    const [showDraftDialog, setShowDraftDialog] = useState(false);
+
+    useEffect(() => {
+        if (!autoRestore) {
+            setShowDraftDialog(!!localDraftData);
+        }
+    }, [localDraftData, autoRestore]);
+
     const [isRestoringDraft, setIsRestoringDraft] = useState(false);
     const [isDeletingDraft, setIsDeletingDraft] = useState(false);
     // Guard against double-invoke (React StrictMode / re-renders).
@@ -73,15 +102,17 @@ export function useDraft({
 
     const handleContinueDraft = useCallback(
         async (opts?: { loading?: string; success?: string }) => {
-            if (!existingDraft) return;
+            const sourceDraft = autoRestore ? existingDraft : localDraftData;
+            if (!sourceDraft) return;
+
             setIsRestoringDraft(true);
             const loadingToastId = opts?.loading
                 ? toast.loading(opts.loading)
                 : undefined;
             try {
-                if (existingDraft.storeCode) {
+                if (sourceDraft.storeCode) {
                     const s = stores.find(
-                        (st) => st.code === existingDraft.storeCode,
+                        (st) => st.code === sourceDraft.storeCode,
                     );
                     if (s) {
                         await handleStoreChange(s.code);
@@ -89,18 +120,19 @@ export function useDraft({
                 }
 
                 const fetchPhoto = async (
-                    item: (typeof existingDraft.items)[number],
+                    url?: string | null,
+                    name?: string,
                 ): Promise<File | undefined> => {
                     if (
-                        !item.photoUrl ||
-                        (!item.photoUrl.startsWith("data:image") &&
-                            !item.photoUrl.startsWith("http"))
+                        !url ||
+                        (!url.startsWith("data:image") &&
+                            !url.startsWith("http"))
                     )
                         return undefined;
                     try {
-                        const res = await fetch(item.photoUrl);
+                        const res = await fetch(url);
                         const blob = await res.blob();
-                        return new File([blob], `${item.itemName}.jpg`, {
+                        return new File([blob], `${name || "photo"}.jpg`, {
                             type: "image/jpeg",
                         });
                     } catch (e) {
@@ -109,84 +141,166 @@ export function useDraft({
                     }
                 };
 
-                const restoredFiles = await Promise.all(
-                    existingDraft.items.map(fetchPhoto),
-                );
-
                 const restored = new Map<string, ChecklistItem>();
-                existingDraft.items.forEach((item, i) => {
-                    // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"/"TIDAK_ADA"
-                    // Map back to local condition values used by the form.
-                    let restoredCondition: ChecklistCondition = "";
-                    if (item.preventiveCondition === "OK") {
-                        restoredCondition = "baik";
-                    } else if (item.preventiveCondition === "NOT_OK") {
-                        restoredCondition = "rusak";
-                    } else if (item.preventiveCondition === "TIDAK_ADA") {
-                        restoredCondition = "tidak-ada";
-                    } else if (item.condition === "TIDAK_ADA") {
-                        restoredCondition = "tidak-ada";
-                    } else if (item.condition) {
-                        restoredCondition =
-                            item.condition.toLowerCase() as ChecklistCondition;
-                    }
-                    restored.set(item.itemId, {
-                        id: item.itemId,
-                        name: item.itemName,
-                        condition: restoredCondition,
-                        handler:
-                            item.handler === "BMS"
-                                ? "BMS"
-                                : item.handler === "REKANAN" ||
-                                    item.handler === "Rekanan"
-                                  ? "Rekanan"
-                                  : "",
-                        photoUrl: item.photoUrl || undefined,
-                        photo: restoredFiles[i],
-                        notes: item.notes || undefined,
+                const restoredBms = new Map<string, BmsItemGroup>();
+
+                if (autoRestore && existingDraft) {
+                    // Restore from Database Format (SerializedDraft)
+                    const restoredFiles = await Promise.all(
+                        existingDraft.items.map((it) =>
+                            fetchPhoto(it.photoUrl, it.itemName),
+                        ),
+                    );
+
+                    existingDraft.items.forEach((item, i) => {
+                        // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"/"TIDAK_ADA"
+                        // Map back to local condition values used by the form.
+                        let restoredCondition: ChecklistCondition = "";
+                        if (item.preventiveCondition === "OK") {
+                            restoredCondition = "baik";
+                        } else if (item.preventiveCondition === "NOT_OK") {
+                            restoredCondition = "rusak";
+                        } else if (item.preventiveCondition === "TIDAK_ADA") {
+                            restoredCondition = "tidak-ada";
+                        } else if (item.condition === "TIDAK_ADA") {
+                            restoredCondition = "tidak-ada";
+                        } else if (item.condition) {
+                            restoredCondition =
+                                item.condition.toLowerCase() as ChecklistCondition;
+                        }
+                        restored.set(item.itemId, {
+                            id: item.itemId,
+                            name: item.itemName,
+                            condition: restoredCondition,
+                            handler:
+                                item.handler === "BMS"
+                                    ? "BMS"
+                                    : item.handler === "REKANAN" ||
+                                        item.handler === "Rekanan"
+                                      ? "Rekanan"
+                                      : "",
+                            photoUrl: item.photoUrl || undefined,
+                            photo: restoredFiles[i],
+                            notes: item.notes || undefined,
+                        });
                     });
-                });
 
-                setChecklist(restored);
+                    if (existingDraft.estimations?.length > 0) {
+                        for (const est of existingDraft.estimations) {
+                            const checklistItem = restored.get(est.itemId);
+                            if (!checklistItem) continue;
 
-                if (existingDraft.estimations?.length > 0) {
-                    const restoredBms = new Map<string, BmsItemGroup>();
-                    for (const est of existingDraft.estimations) {
-                        const checklistItem = restored.get(est.itemId);
-                        if (!checklistItem) continue;
+                            let categoryTitle = "";
+                            for (const cat of checklistCategories) {
+                                if (
+                                    cat.items.some((i) => i.id === est.itemId)
+                                ) {
+                                    categoryTitle = cat.title;
+                                    break;
+                                }
+                            }
 
-                        let categoryTitle = "";
-                        for (const cat of checklistCategories) {
-                            if (cat.items.some((i) => i.id === est.itemId)) {
-                                categoryTitle = cat.title;
-                                break;
+                            const existing = restoredBms.get(est.itemId);
+                            const entry: BmsItemEntry = {
+                                id: `entry_${Date.now()}_${Math.random()}`,
+                                categoryId: "",
+                                categoryTitle,
+                                itemName: est.materialName,
+                                quantity: est.quantity,
+                                unit: est.unit,
+                                price: est.price,
+                                total: est.totalPrice,
+                            };
+
+                            if (existing) {
+                                existing.entries.push(entry);
+                            } else {
+                                restoredBms.set(est.itemId, {
+                                    checklistItem,
+                                    categoryTitle,
+                                    entries: [entry],
+                                });
                             }
                         }
+                    }
+                } else if (!autoRestore && localDraftData) {
+                    // Restore from LocalStorage Format (DraftData)
+                    const restoredFiles = await Promise.all(
+                        localDraftData.checklistItems.map((it) =>
+                            fetchPhoto(it.photoUrl, it.itemName),
+                        ),
+                    );
 
-                        const existing = restoredBms.get(est.itemId);
-                        const entry: BmsItemEntry = {
-                            id: `entry_${Date.now()}_${Math.random()}`,
-                            categoryId: "",
-                            categoryTitle,
-                            itemName: est.materialName,
-                            quantity: est.quantity,
-                            unit: est.unit,
-                            price: est.price,
-                            total: est.totalPrice,
-                        };
+                    localDraftData.checklistItems.forEach((item, i) => {
+                        let restoredCondition: ChecklistCondition = "";
+                        if (item.preventiveCondition === "OK") {
+                            restoredCondition = "baik";
+                        } else if (item.preventiveCondition === "NOT_OK") {
+                            restoredCondition = "rusak";
+                        } else if (item.preventiveCondition === "TIDAK_ADA") {
+                            restoredCondition = "tidak-ada";
+                        } else if (item.condition === "TIDAK_ADA") {
+                            restoredCondition = "tidak-ada";
+                        } else if (item.condition) {
+                            restoredCondition =
+                                item.condition.toLowerCase() as ChecklistCondition;
+                        }
+                        restored.set(item.itemId, {
+                            id: item.itemId,
+                            name: item.itemName,
+                            condition: restoredCondition,
+                            handler:
+                                item.handler === "BMS"
+                                    ? "BMS"
+                                    : item.handler === "REKANAN"
+                                      ? "Rekanan"
+                                      : "",
+                            photoUrl: item.photoUrl || undefined,
+                            photoKey: item.photoKey || undefined,
+                            photo: restoredFiles[i],
+                            notes: item.notes || undefined,
+                        });
+                    });
 
-                        if (existing) {
-                            existing.entries.push(entry);
-                        } else {
-                            restoredBms.set(est.itemId, {
+                    if (localDraftData.bmsEstimations) {
+                        for (const [itemId, entries] of Object.entries(
+                            localDraftData.bmsEstimations,
+                        )) {
+                            const checklistItem = restored.get(itemId);
+                            if (!checklistItem) continue;
+
+                            let categoryTitle = "";
+                            for (const cat of checklistCategories) {
+                                if (cat.items.some((i) => i.id === itemId)) {
+                                    categoryTitle = cat.title;
+                                    break;
+                                }
+                            }
+
+                            const builtEntries: BmsItemEntry[] = entries.map(
+                                (est) => ({
+                                    id: `entry_${Date.now()}_${Math.random()}`,
+                                    categoryId: "",
+                                    categoryTitle,
+                                    itemName: est.itemName,
+                                    quantity: est.quantity,
+                                    unit: est.unit,
+                                    price: est.price,
+                                    total: est.totalPrice,
+                                }),
+                            );
+
+                            restoredBms.set(itemId, {
                                 checklistItem,
                                 categoryTitle,
-                                entries: [entry],
+                                entries: builtEntries,
                             });
                         }
                     }
-                    setBmsItems(restoredBms);
                 }
+
+                setChecklist(restored);
+                setBmsItems(restoredBms);
 
                 setShowDraftDialog(false);
                 if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
@@ -201,18 +315,27 @@ export function useDraft({
     const handleCreateNew = useCallback(async () => {
         setIsDeletingDraft(true);
         try {
-            if (existingDraft) {
-                await deleteDraft(existingDraft.reportNumber);
+            if (localDraftData) {
+                // Collect uploadthing keys from draft to delete them
+                const fileKeys = localDraftData.checklistItems
+                    .map((it) => it.photoKey)
+                    .filter(Boolean) as string[];
+
+                if (fileKeys.length > 0) {
+                    await discardLocalDraftFiles(fileKeys);
+                }
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
+                setLocalDraftData(null);
             }
             setShowDraftDialog(false);
             toast.info("Draft dihapus, mulai laporan baru");
         } catch (error) {
             console.error("Gagal menghapus draft", error);
-            toast.error("Gagal menghapus draft lama");
+            toast.error("Gagal menghapus file draft lama");
         } finally {
             setIsDeletingDraft(false);
         }
-    }, [existingDraft]);
+    }, [localDraftData]);
 
     // Auto-restore on mount when in edit mode (skip dialog, populate form immediately).
     useEffect(() => {
@@ -277,6 +400,7 @@ export function useDraft({
                               ? ("REKANAN" as const)
                               : undefined,
                     photoUrl: item.photoUrl,
+                    photoKey: item.photoKey,
                     notes: item.notes,
                 };
             },
@@ -301,27 +425,29 @@ export function useDraft({
             0,
         );
 
-        (async () => {
-            try {
-                const res = await saveDraft({
-                    storeCode: debouncedStoreCode || undefined,
-                    storeName: store,
-                    branchName: userBranchName,
-                    checklistItems,
-                    bmsEstimations,
-                    totalEstimation,
-                });
+        const draftDataPayload: DraftData = {
+            storeCode: debouncedStoreCode || undefined,
+            storeName: store,
+            branchName: userBranchName,
+            checklistItems,
+            bmsEstimations,
+            totalEstimation,
+        };
 
-                if (res.error) {
-                    toast.error(`Auto-save gagal: ${res.detail || res.error}`);
-                    console.error("[Auto-save error]", res);
-                } else if (res.reportId && res.reportId !== draftReportId) {
-                    setDraftReportId(res.reportId);
-                }
-            } catch (err) {
-                console.error("[Auto-save exception]", err);
+        try {
+            localStorage.setItem(
+                LOCAL_STORAGE_KEY,
+                JSON.stringify(draftDataPayload),
+            );
+            if (!draftReportId) {
+                setDraftReportId(`LCL-${Date.now()}`); // Pseudo local ID
             }
-        })();
+        } catch (err) {
+            console.error(
+                "[Auto-save exception] failed to write localStorage",
+                err,
+            );
+        }
     }, [
         debouncedChecklist,
         debouncedBmsItems,
@@ -380,6 +506,7 @@ export function useDraft({
                               ? ("REKANAN" as const)
                               : undefined,
                     photoUrl: item.photoUrl,
+                    photoKey: item.photoKey,
                     notes: item.notes,
                 };
             });

@@ -3,8 +3,15 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
-import { supabase } from "@/lib/supabase";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
+import {
+    checklistCategories,
+    type ChecklistItem,
+    type ChecklistCondition,
+} from "@/lib/checklist-data";
+
+// 1. IMPORT UPLOADTHING DI SINI
+import { useUploadThing } from "@/lib/uploadthing";
 
 function getImageDimensions(
     file: File,
@@ -23,12 +30,6 @@ function getImageDimensions(
         img.src = objectUrl;
     });
 }
-import { saveDraft } from "@/app/reports/actions";
-import {
-    checklistCategories,
-    type ChecklistItem,
-    type ChecklistCondition,
-} from "@/lib/checklist-data";
 
 type UsePhotoUploadParams = {
     checklist: Map<string, ChecklistItem>;
@@ -57,6 +58,9 @@ export function usePhotoUpload({
     );
     const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
 
+    // 2. PANGGIL HOOK UPLOADTHING
+    const { startUpload } = useUploadThing("checklistPhotoUploader");
+
     const handleOpenCamera = useCallback(
         async (itemId: string) => {
             if (!selectedStoreCode) {
@@ -64,38 +68,6 @@ export function usePhotoUpload({
                     "Harap pilih toko terlebih dahulu sebelum mengambil foto",
                 );
                 return;
-            }
-
-            let currentDraftId = draftReportId;
-            if (!currentDraftId) {
-                const loadingToast = toast.loading(
-                    "Mereservasi sesi laporan...",
-                );
-                try {
-                    const res = await saveDraft({
-                        storeCode: selectedStoreCode,
-                        storeName: store,
-                        branchName: userBranchName,
-                        checklistItems: [],
-                        bmsEstimations: {},
-                        totalEstimation: 0,
-                    });
-                    if (res.reportId) {
-                        setDraftReportId(res.reportId);
-                        currentDraftId = res.reportId;
-                        toast.dismiss(loadingToast);
-                    } else {
-                        toast.error("Gagal membuat sesi laporan, coba lagi", {
-                            id: loadingToast,
-                        });
-                        return;
-                    }
-                } catch {
-                    toast.error("Gagal membuat sesi laporan", {
-                        id: loadingToast,
-                    });
-                    return;
-                }
             }
 
             setActivePhotoItemId(itemId);
@@ -112,7 +84,7 @@ export function usePhotoUpload({
 
     const handlePhotoCaptured = useCallback(
         async (file: File) => {
-            if (!activePhotoItemId || !draftReportId || !selectedStoreCode) {
+            if (!activePhotoItemId || !selectedStoreCode) {
                 toast.error("Sesi tidak valid untuk unggah foto");
                 return;
             }
@@ -141,22 +113,21 @@ export function usePhotoUpload({
                     .toLowerCase();
                 const { width: imgW, height: imgH } =
                     await getImageDimensions(compressedFile);
-                const filePath = `${userBranchName}/${selectedStoreCode}/${draftReportId}/${activePhotoItemId}_${safeItemName}_${imgW}x${imgH}.${fileExt}`;
 
-                const { data: uploadData, error: uploadError } =
-                    await supabase.storage
-                        .from("reports")
-                        .upload(filePath, compressedFile, { upsert: true });
+                // 3. LOGIKA BARU UNTUK UPLOADTHING
+                const finalFileName = `${activePhotoItemId}_${safeItemName}_${imgW}x${imgH}.${fileExt}`;
+                const finalFile = new File([compressedFile], finalFileName, {
+                    type: compressedFile.type,
+                });
 
-                if (uploadError) throw uploadError;
+                const uploadResponse = await startUpload([finalFile]);
 
-                const {
-                    data: { publicUrl },
-                } = supabase.storage
-                    .from("reports")
-                    .getPublicUrl(uploadData.path);
+                if (!uploadResponse || uploadResponse.length === 0) {
+                    throw new Error("Tidak mendapat balasan URL dari peladen");
+                }
 
-                const cacheBustedUrl = `${publicUrl}?t=${Date.now()}`;
+                const fileUrl = uploadResponse[0].url;
+                const fileKey = uploadResponse[0].key; // Ambil key dari response UploadThing
 
                 setChecklist((prev) => {
                     const next = new Map(prev);
@@ -169,7 +140,8 @@ export function usePhotoUpload({
                     next.set(activePhotoItemId!, {
                         ...existing,
                         photo: compressedFile,
-                        photoUrl: cacheBustedUrl,
+                        photoUrl: fileUrl, // Menyimpan URL UploadThing
+                        photoKey: fileKey, // Menyimpan Key UploadThing untuk cleanup lokal
                     });
                     return next;
                 });
@@ -191,6 +163,7 @@ export function usePhotoUpload({
             selectedStoreCode,
             userBranchName,
             setChecklist,
+            startUpload,
         ],
     );
 
@@ -199,8 +172,8 @@ export function usePhotoUpload({
             const item = checklist.get(itemId);
             if (!item) return;
 
-            const photoUrl = item.photoUrl;
-
+            // 4. LOGIKA HAPUS SUPABASE DIBUANG
+            // Kita hanya menghapus foto dari tampilan UI klien
             setChecklist((prev) => {
                 const next = new Map(prev);
                 const existing = next.get(itemId);
@@ -209,24 +182,11 @@ export function usePhotoUpload({
                         ...existing,
                         photo: undefined,
                         photoUrl: undefined,
+                        photoKey: undefined,
                     });
                 }
                 return next;
             });
-
-            if (photoUrl && photoUrl.includes("supabase.co")) {
-                try {
-                    const urlObj = new URL(photoUrl);
-                    const pathParts = urlObj.pathname.split("/reports/")[1];
-                    if (pathParts) {
-                        await supabase.storage
-                            .from("reports")
-                            .remove([decodeURIComponent(pathParts)]);
-                    }
-                } catch (e) {
-                    console.error("Gagal menghapus foto dari storage", e);
-                }
-            }
         },
         [checklist, setChecklist],
     );
