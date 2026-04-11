@@ -27,9 +27,6 @@ export function autoFillStep1(
     const allCategoryIds = checklistCategories.map((cat) => cat.id);
     setOpenCategories(new Set(allCategoryIds));
 
-    const DUMMY_IMAGE_URL =
-        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=640&q=80&fm=jpg";
-
     (async () => {
         const loadingToast = toast.loading("Auto-filling...");
 
@@ -75,18 +72,8 @@ export function autoFillStep1(
                     id: item.id,
                     name: item.name,
                     condition,
-                    handler: "",
-                    // Use a static placeholder URL — no actual upload in dev mode
-                    photoUrl:
-                        condition === "baik" || condition === "rusak"
-                            ? `${DUMMY_IMAGE_URL}&item=${item.id}`
-                            : undefined,
+                    handler: condition === "rusak" ? "BMS" : "",
                 };
-
-                if (condition === "rusak") {
-                    checklistItem.handler =
-                        Math.random() > 0.5 ? "BMS" : "Rekanan";
-                }
 
                 newChecklist.set(item.id, checklistItem);
             }

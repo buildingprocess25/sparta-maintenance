@@ -63,16 +63,25 @@ export function useDraft({
     const [draftReportId, setDraftReportId] = useState<string | null>(
         existingDraft?.reportNumber || null,
     );
-    const [localDraftData, setLocalDraftData] = useState<DraftData | null>(
-        null,
-    );
+    // Stored alongside the DraftData to provide a human-readable saved timestamp
+    const [localDraftData, setLocalDraftData] = useState<
+        (DraftData & { savedAt?: string }) | null
+    >(null);
 
     useEffect(() => {
         if (!autoRestore) {
             const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
             if (saved) {
                 try {
-                    const parsed = JSON.parse(saved);
+                    const wrapper = JSON.parse(saved) as {
+                        data: DraftData;
+                        savedAt?: string;
+                    };
+                    // Support both old flat format and new {data, savedAt} format
+                    const parsed: DraftData & { savedAt?: string } =
+                        wrapper.data
+                            ? { ...wrapper.data, savedAt: wrapper.savedAt }
+                            : (wrapper as unknown as DraftData & { savedAt?: string });
                     if (
                         parsed &&
                         (parsed.checklistItems?.length > 0 || parsed.storeCode)
@@ -309,7 +318,7 @@ export function useDraft({
                 setIsRestoringDraft(false);
             }
         },
-        [existingDraft, stores, setChecklist, setBmsItems, handleStoreChange],
+        [autoRestore, existingDraft, localDraftData, stores, setChecklist, setBmsItems, handleStoreChange],
     );
 
     const handleCreateNew = useCallback(async () => {
@@ -437,7 +446,7 @@ export function useDraft({
         try {
             localStorage.setItem(
                 LOCAL_STORAGE_KEY,
-                JSON.stringify(draftDataPayload),
+                JSON.stringify({ data: draftDataPayload, savedAt: new Date().toISOString() }),
             );
             if (!draftReportId) {
                 setDraftReportId(`LCL-${Date.now()}`); // Pseudo local ID
@@ -547,6 +556,7 @@ export function useDraft({
         draftReportId,
         setDraftReportId,
         showDraftDialog,
+        localDraftData,
         isRestoringDraft,
         isDeletingDraft,
         handleContinueDraft,

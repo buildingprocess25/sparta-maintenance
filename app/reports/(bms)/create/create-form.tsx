@@ -72,6 +72,7 @@ export default function CreateReportForm({
         draftReportId,
         setDraftReportId,
         showDraftDialog,
+        localDraftData,
         isRestoringDraft,
         isDeletingDraft,
         handleContinueDraft,
@@ -211,8 +212,16 @@ export default function CreateReportForm({
             {showDraftDialog ? (
                 <DraftDialog
                     open={showDraftDialog}
-                    draftStoreName={existingDraft?.storeName}
-                    draftUpdatedAt={existingDraft?.updatedAt || ""}
+                    draftStoreName={
+                        localDraftData?.storeName ||
+                        existingDraft?.storeName
+                    }
+                    draftUpdatedAt={
+                        (localDraftData as { savedAt?: string } | null)
+                            ?.savedAt ||
+                        existingDraft?.updatedAt ||
+                        undefined
+                    }
                     isLoading={isRestoringDraft}
                     isDeleting={isDeletingDraft}
                     onContinueDraft={handleContinueDraft}

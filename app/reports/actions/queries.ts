@@ -271,6 +271,8 @@ export async function getApprovalReports(params: {
                 createdAt: true,
                 updatedAt: true,
                 finishedAt: true,
+                completedPdfPath: true,
+                reportFinalDriveUrl: true,
                 createdBy: {
                     select: { name: true },
                 },
@@ -284,6 +286,8 @@ export async function getApprovalReports(params: {
             ...r,
             totalEstimation: Number(r.totalEstimation),
             createdByName: r.createdBy.name,
+            completedPdfPath: r.completedPdfPath,
+            reportFinalDriveUrl: r.reportFinalDriveUrl,
         })),
         total,
     };

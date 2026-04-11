@@ -33,7 +33,7 @@ export async function startWorkWithPhotos(
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { createdByNIK: true, status: true },
+            select: { createdByNIK: true, status: true, uploadthingFileKeys: true },
         });
 
         if (!report) {
@@ -87,7 +87,11 @@ export async function startWorkWithPhotos(
                 : JSON.stringify(validSelfieUrls);
 
         // Collect all UploadThing file keys for future cleanup
+        const existingKeys = Array.isArray(report.uploadthingFileKeys)
+            ? (report.uploadthingFileKeys as string[])
+            : [];
         const newKeys = [
+            ...existingKeys,
             ...photos.selfieKeys.filter((k) => k.trim().length > 0),
             ...photos.receiptKeys.filter((k) => k.trim().length > 0),
         ];

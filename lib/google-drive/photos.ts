@@ -7,6 +7,15 @@ import { logger } from "@/lib/logger";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** Photo category determines which subfolder under the store folder to use. */
+type PhotoCategory = "checklist" | "startwork" | "completion";
+
+interface CategorizedPhoto {
+    url: string;
+    category: PhotoCategory;
+    filename: string;
+}
+
 export interface PhotoArchiveParams {
     reportNumber: string;
     branchName: string;
@@ -14,18 +23,23 @@ export interface PhotoArchiveParams {
     bmsName: string;
     storeCode: string | null;
     storeName: string;
-    /** All UploadThing file URLs to archive */
-    photoUrls: string[];
     /** All UploadThing file keys to delete after archiving */
     fileKeys: string[];
 }
 
 export interface PhotoArchiveResult {
-    /** Google Drive folder URL where photos were archived */
-    photosFolderUrl: string;
+    /** Google Drive store folder URL (where PDF + photo subfolders live) */
+    storeFolderUrl: string;
     archivedCount: number;
     failedCount: number;
 }
+
+// Subfolder names per category
+const SUBFOLDER: Record<PhotoCategory, string> = {
+    checklist: "Foto Checklist",
+    startwork: "Foto Mulai Pekerjaan",
+    completion: "Foto Tambahan",
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -34,7 +48,7 @@ function sanitizeDriveName(value: string): string {
 }
 
 /**
- * Fetches a photo from a URL and uploads it as a JPEG to Google Drive.
+ * Fetches a photo from a URL and uploads it to Google Drive.
  * Returns the Drive file ID on success, null on failure.
  */
 async function uploadPhotoToDriveFolder(
@@ -51,8 +65,14 @@ async function uploadPhotoToDriveFolder(
             );
         }
 
-        const buffer = Buffer.from(await response.arrayBuffer());
-        const contentType = response.headers.get("content-type") ?? "image/jpeg";
+        if (!response.body) {
+            throw new Error("Response body is empty");
+        }
+
+        const webStream = response.body as import("stream/web").ReadableStream;
+        const nodeStream = Readable.fromWeb(webStream);
+        const contentType =
+            response.headers.get("content-type") ?? "image/jpeg";
 
         const created = await drive.files.create({
             requestBody: {
@@ -62,7 +82,7 @@ async function uploadPhotoToDriveFolder(
             },
             media: {
                 mimeType: contentType,
-                body: Readable.from(buffer),
+                body: nodeStream,
             },
             fields: "id",
             supportsAllDrives: true,
@@ -74,64 +94,201 @@ async function uploadPhotoToDriveFolder(
     }
 }
 
+// ─── Photo collection ──────────────────────────────────────────────────────────
+
+/**
+ * Collects all photo URLs from a report's JSON fields, categorized by type.
+ * Categories map to separate subfolders in Google Drive.
+ */
+export function collectCategorizedPhotoUrls(report: {
+    startSelfieUrl: string | null;
+    startReceiptUrls: unknown;
+    items: unknown;
+    completionAdditionalPhotos: unknown;
+}): CategorizedPhoto[] {
+    const photos: CategorizedPhoto[] = [];
+
+    const parseJsonStringArray = (raw: unknown): string[] => {
+        if (Array.isArray(raw))
+            return raw.filter((u): u is string => typeof u === "string" && !!u);
+        return [];
+    };
+
+    // Start selfie
+    if (report.startSelfieUrl) {
+        const raw = report.startSelfieUrl.trim();
+        const urls = raw.startsWith("[")
+            ? (() => {
+                  try {
+                      const parsed: unknown = JSON.parse(raw);
+                      return Array.isArray(parsed)
+                          ? parsed.filter(
+                                (u): u is string =>
+                                    typeof u === "string" && !!u,
+                            )
+                          : [];
+                  } catch {
+                      return [];
+                  }
+              })()
+            : [raw];
+        urls.forEach((url, i) =>
+            photos.push({
+                url,
+                category: "startwork",
+                filename: `selfie-${String(i + 1).padStart(3, "0")}.jpg`,
+            }),
+        );
+    }
+
+    // Start receipt (nota)
+    parseJsonStringArray(report.startReceiptUrls).forEach((url, i) =>
+        photos.push({
+            url,
+            category: "startwork",
+            filename: `nota-${String(i + 1).padStart(3, "0")}.jpg`,
+        }),
+    );
+
+    // Item photos (checklist)
+    if (Array.isArray(report.items)) {
+        let checklistIdx = 1;
+        for (const item of report.items as Record<string, unknown>[]) {
+            if (typeof item.photoUrl === "string" && item.photoUrl) {
+                const itemId =
+                    typeof item.itemId === "string" ? item.itemId : "item";
+                photos.push({
+                    url: item.photoUrl,
+                    category: "checklist",
+                    filename: `${itemId}-${String(checklistIdx).padStart(3, "0")}.jpg`,
+                });
+                checklistIdx++;
+            }
+            if (Array.isArray(item.afterImages)) {
+                parseJsonStringArray(item.afterImages).forEach((url, i) => {
+                    const itemId =
+                        typeof item.itemId === "string" ? item.itemId : "item";
+                    photos.push({
+                        url,
+                        category: "checklist",
+                        filename: `${itemId}-after-${String(i + 1).padStart(3, "0")}.jpg`,
+                    });
+                });
+            }
+        }
+    }
+
+    // Completion photos
+    parseJsonStringArray(report.completionAdditionalPhotos).forEach((url, i) =>
+        photos.push({
+            url,
+            category: "completion",
+            filename: `completion-${String(i + 1).padStart(3, "0")}.jpg`,
+        }),
+    );
+
+    // Deduplicate by URL
+    const seen = new Set<string>();
+    return photos.filter(({ url }) => {
+        if (seen.has(url)) return false;
+        seen.add(url);
+        return true;
+    });
+}
+
+/**
+ * @deprecated Use collectCategorizedPhotoUrls instead.
+ * Kept for backwards compatibility with any existing callers.
+ */
+export function collectReportPhotoUrls(report: {
+    startSelfieUrl: string | null;
+    startReceiptUrls: unknown;
+    items: unknown;
+    completionAdditionalPhotos: unknown;
+}): string[] {
+    return collectCategorizedPhotoUrls(report).map((p) => p.url);
+}
+
 // ─── Main archive function ─────────────────────────────────────────────────────
 
 /**
  * Archives all UploadThing photos for a COMPLETED report to Google Drive.
  *
+ * Folder structure:
+ *   Laporan Maintenance/[branch]/[bmsNIK]-[bmsName]/[storeCode]-[storeName]/
+ *     Foto Checklist/   ← checklist item photos
+ *     Foto Start Work/  ← selfie + nota
+ *     Foto Completion/  ← completion documentation
+ *
  * Flow:
- * 1. Ensure the "Foto" subfolder exists under the report's store folder.
- * 2. Download each photo from UploadThing and upload to Drive.
- * 3. After successful archive, delete all files from UploadThing via UTApi.
+ * 1. Build path to the existing store folder (where PDF is already stored).
+ * 2. For each categorized photo, ensure the correct subfolder exists.
+ * 3. Download from UploadThing and upload to Drive.
+ * 4. After successful archive, delete all UT files.
  *
  * This is intentionally fire-and-forget from `approveFinal` — errors are
  * logged but never thrown, preserving the approval flow.
  */
 export async function archiveReportPhotosToGoogleDrive(
     params: PhotoArchiveParams,
+    categorizedPhotos: CategorizedPhoto[],
 ): Promise<PhotoArchiveResult> {
     const { drive } = getGoogleDriveClient();
 
     const branchName = sanitizeDriveName(params.branchName);
     const bmsFolder = `${sanitizeDriveName(params.bmsNIK)}-${sanitizeDriveName(params.bmsName)}`;
     const storeFolderName = `${sanitizeDriveName(params.storeCode ?? "-")}-${sanitizeDriveName(params.storeName)}`;
+    const reportFolderName = sanitizeDriveName(params.reportNumber);
 
-    // Build Drive folder path:
-    // Laporan Maintenance / {branch} / {bmsNIK}-{bmsName} / {store} / Foto / {reportNumber}
-    const photoFolderId = await ensureDriveFolderPath([
+    // The store folder path — same as where the final PDF is stored.
+    // Ensures photos live alongside the PDF in one cohesive folder.
+    const storeFolderSegments = [
         "Laporan Maintenance",
         branchName,
         bmsFolder,
         storeFolderName,
-        "Foto",
-        sanitizeDriveName(params.reportNumber),
-    ]);
+        reportFolderName,
+    ];
 
-    const photosFolderUrl = `https://drive.google.com/drive/folders/${photoFolderId}`;
+    const storeFolderId = await ensureDriveFolderPath(storeFolderSegments);
+    const storeFolderUrl = `https://drive.google.com/drive/folders/${storeFolderId}`;
 
-    // Archive each photo sequentially to avoid rate limits
+    // Cache subfolder IDs to avoid redundant Drive API calls
+    const subfolderIdCache = new Map<PhotoCategory, string>();
+
+    const getSubfolderId = async (cat: PhotoCategory): Promise<string> => {
+        const cached = subfolderIdCache.get(cat);
+        if (cached) return cached;
+        const id = await ensureDriveFolderPath([
+            ...storeFolderSegments,
+            SUBFOLDER[cat],
+        ]);
+        subfolderIdCache.set(cat, id);
+        return id;
+    };
+
     let archivedCount = 0;
     let failedCount = 0;
 
-    for (let i = 0; i < params.photoUrls.length; i++) {
-        const url = params.photoUrls[i];
-        const fileName = `photo-${String(i + 1).padStart(3, "0")}.jpg`;
-
+    // Archive each photo sequentially to avoid Drive API rate limits
+    for (const photo of categorizedPhotos) {
         logger.info(
             {
                 operation: "archiveReportPhotos",
                 reportNumber: params.reportNumber,
-                photoIndex: i + 1,
-                total: params.photoUrls.length,
+                category: photo.category,
+                filename: photo.filename,
+                total: categorizedPhotos.length,
             },
             "Archiving photo to Drive",
         );
 
+        const folderId = await getSubfolderId(photo.category);
         const fileId = await uploadPhotoToDriveFolder(
             drive,
-            url,
-            photoFolderId,
-            fileName,
+            photo.url,
+            folderId,
+            photo.filename,
         );
 
         if (fileId) {
@@ -142,8 +299,9 @@ export async function archiveReportPhotosToGoogleDrive(
                 {
                     operation: "archiveReportPhotos",
                     reportNumber: params.reportNumber,
-                    photoIndex: i + 1,
-                    url,
+                    category: photo.category,
+                    filename: photo.filename,
+                    url: photo.url,
                 },
                 "Failed to archive single photo to Drive",
             );
@@ -151,7 +309,6 @@ export async function archiveReportPhotosToGoogleDrive(
     }
 
     // Delete from UploadThing only if all photos were archived successfully
-    // (or we have no photos to archive — e.g., old reports with no keys)
     if (params.fileKeys.length > 0 && failedCount === 0) {
         try {
             const { UTApi } = await import("uploadthing/server");
@@ -167,7 +324,6 @@ export async function archiveReportPhotosToGoogleDrive(
             );
         } catch (utErr) {
             // Non-fatal: Drive archive succeeded, UT cleanup failed.
-            // Files will remain in UT but that's acceptable.
             logger.warn(
                 {
                     operation: "archiveReportPhotos",
@@ -190,66 +346,5 @@ export async function archiveReportPhotosToGoogleDrive(
         );
     }
 
-    return { photosFolderUrl, archivedCount, failedCount };
-}
-
-/**
- * Collects all photo URLs from a report's JSON fields.
- * Pulls from: startSelfieUrl, startReceiptUrls, items (photoUrl, afterImages), completionAdditionalPhotos.
- */
-export function collectReportPhotoUrls(report: {
-    startSelfieUrl: string | null;
-    startReceiptUrls: unknown;
-    items: unknown;
-    completionAdditionalPhotos: unknown;
-}): string[] {
-    const urls: string[] = [];
-
-    // Start selfie
-    if (report.startSelfieUrl) {
-        const raw = report.startSelfieUrl.trim();
-        if (raw.startsWith("[")) {
-            try {
-                const parsed: unknown = JSON.parse(raw);
-                if (Array.isArray(parsed)) {
-                    urls.push(
-                        ...parsed.filter(
-                            (u): u is string => typeof u === "string" && !!u,
-                        ),
-                    );
-                }
-            } catch {
-                // ignore
-            }
-        } else {
-            urls.push(raw);
-        }
-    }
-
-    // Start receipt URLs
-    const parseJsonStringArray = (raw: unknown): string[] => {
-        if (Array.isArray(raw))
-            return raw.filter(
-                (u): u is string => typeof u === "string" && !!u,
-            );
-        return [];
-    };
-
-    urls.push(...parseJsonStringArray(report.startReceiptUrls));
-
-    // Item photos: photoUrl, afterImages
-    if (Array.isArray(report.items)) {
-        for (const item of report.items as Record<string, unknown>[]) {
-            if (typeof item.photoUrl === "string" && item.photoUrl)
-                urls.push(item.photoUrl);
-            if (Array.isArray(item.afterImages))
-                urls.push(...parseJsonStringArray(item.afterImages));
-        }
-    }
-
-    // Additional completion photos
-    urls.push(...parseJsonStringArray(report.completionAdditionalPhotos));
-
-    // Deduplicate
-    return [...new Set(urls)];
+    return { storeFolderUrl, archivedCount, failedCount };
 }

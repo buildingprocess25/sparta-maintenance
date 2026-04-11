@@ -11,7 +11,20 @@ import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
+import { checklistCategories } from "@/lib/checklist-data";
+import { getLastCategoryIDate } from "./queries";
 
+/** Kuartal: 0=Q1, 1=Q2, 2=Q3, 3=Q4 */
+function getQuarter(d: Date): number {
+    return Math.floor(d.getMonth() / 3);
+}
+
+function isSameQuarterDate(d1: Date, d2: Date): boolean {
+    return (
+        d1.getFullYear() === d2.getFullYear() &&
+        getQuarter(d1) === getQuarter(d2)
+    );
+}
 
 export async function submitReport(data: DraftData) {
     const parsed = draftDataSchema.safeParse(data);
@@ -28,7 +41,63 @@ export async function submitReport(data: DraftData) {
         const headersList = await headers();
         await validateCSRF(headersList);
 
-        const itemsJson = buildItemsJson(data);
+        // ── Server-side cooldown validation (defense-in-depth) ────────────────
+        // Determine if Category I is currently in cooldown for this store.
+        let isCoolingDown = false;
+        if (data.storeCode) {
+            const lastDateStr = await getLastCategoryIDate(data.storeCode);
+            if (lastDateStr) {
+                isCoolingDown = isSameQuarterDate(
+                    new Date(lastDateStr),
+                    new Date(),
+                );
+            }
+        }
+
+        // All Category I item IDs (preventive)
+        const preventiveItemIds = new Set(
+            checklistCategories
+                .filter((cat) => cat.isPreventive)
+                .flatMap((cat) => cat.items.map((i) => i.id)),
+        );
+
+        // Strip Category I items from payload if cooldown is active.
+        // This prevents a client from bypassing the UI restriction.
+        let checklistItems = data.checklistItems;
+        if (isCoolingDown) {
+            checklistItems = checklistItems.filter(
+                (item) => !preventiveItemIds.has(item.itemId),
+            );
+        } else {
+            // Quarterly visit: verify all non-preventive items are present.
+            const submittedIds = new Set(
+                checklistItems
+                    .filter((item) => !preventiveItemIds.has(item.itemId))
+                    .map((item) => item.itemId),
+            );
+            const requiredNonPreventiveIds = checklistCategories
+                .filter((cat) => !cat.isPreventive)
+                .flatMap((cat) => cat.items.map((i) => i.id));
+
+            const missingItem = requiredNonPreventiveIds.find(
+                (id) => !submittedIds.has(id),
+            );
+            if (missingItem) {
+                return {
+                    error: "Data laporan tidak lengkap",
+                    detail: `Item checklist ${missingItem} tidak ditemukan dalam laporan`,
+                };
+            }
+        }
+
+        if (checklistItems.length === 0) {
+            return {
+                error: "Laporan tidak valid",
+                detail: "Minimal satu item checklist harus diisi sebelum laporan dapat dikirim",
+            };
+        }
+
+        const itemsJson = buildItemsJson({ ...data, checklistItems });
         const estimationsJson = buildEstimationsJson(data);
 
         // Always get the store to generate the correct sequence prefix
@@ -40,7 +109,7 @@ export async function submitReport(data: DraftData) {
             : null;
 
         // Extract uploadthing file keys from checklist items
-        const uploadthingFileKeys = data.checklistItems
+        const uploadthingFileKeys = checklistItems
             .map((item) => item.photoKey)
             .filter(Boolean) as string[];
 
@@ -61,7 +130,7 @@ export async function submitReport(data: DraftData) {
                     createdByNIK: user.NIK,
                     items: itemsJson,
                     estimations: estimationsJson,
-                    uploadthingFileKeys, // Save the mapped file keys
+                    uploadthingFileKeys,
                 },
             });
 

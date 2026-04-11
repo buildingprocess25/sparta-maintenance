@@ -75,6 +75,8 @@ export type ReportData = {
     _count: {
         items: number;
     };
+    completedPdfPath?: string | null;
+    reportFinalDriveUrl?: string | null;
 };
 
 type BmsReportsListProps = {
@@ -340,6 +342,18 @@ export default function BmsReportsList({
                   : report.status === "REVIEW_REJECTED_REVISION"
                     ? `/reports/complete?report=${report.reportNumber}`
                     : `/reports/${report.reportNumber}`;
+        const isCompleted = report.status === "COMPLETED";
+        const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
+        
+        const handleClick = (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (isCompleted && driveUrl) {
+                window.open(driveUrl, "_blank", "noopener,noreferrer");
+            } else {
+                router.push(href);
+            }
+        };
+
         return (
             <Button
                 variant={cfg.cta ? "outline" : "ghost"}
@@ -349,10 +363,7 @@ export default function BmsReportsList({
                         ? "border-primary/40 text-primary hover:bg-primary/5 hover:text-primary"
                         : "text-muted-foreground"
                 }`}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    router.push(href);
-                }}
+                onClick={handleClick}
             >
                 {cfg.icon}
                 {cfg.label}
@@ -577,13 +588,17 @@ export default function BmsReportsList({
                                         <TableRow
                                             key={report.reportNumber}
                                             className="group cursor-pointer"
-                                            onClick={() =>
-                                                router.push(
-                                                    report.status === "DRAFT"
-                                                        ? "/reports/create?restore=1"
-                                                        : `/reports/${report.reportNumber}`,
-                                                )
-                                            }
+                                            onClick={() => {
+                                                if (report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath)) {
+                                                    window.open(report.reportFinalDriveUrl || report.completedPdfPath || "", "_blank", "noopener,noreferrer");
+                                                } else {
+                                                    router.push(
+                                                        report.status === "DRAFT"
+                                                            ? "/reports/create?restore=1"
+                                                            : `/reports/${report.reportNumber}`
+                                                    );
+                                                }
+                                            }}
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
                                                 {report.status === "DRAFT"

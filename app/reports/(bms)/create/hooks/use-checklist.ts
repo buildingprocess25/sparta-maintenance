@@ -130,59 +130,126 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
             return false;
         }
 
-        for (const cat of activeCategories) {
-            for (const item of cat.items) {
-                const checkedItem = checklist.get(item.id);
+        const scrollToItem = (itemId: string) => {
+            setTimeout(() => {
+                document
+                    .getElementById(`item-${itemId}`)
+                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }, 150);
+        };
 
-                const scrollToItem = () => {
-                    setTimeout(() => {
-                        document
-                            .getElementById(`item-${item.id}`)
-                            ?.scrollIntoView({
-                                behavior: "smooth",
-                                block: "center",
-                            });
-                    }, 150);
-                };
+        if (isCategoryICoolingDown) {
+            // Cooldown aktif: item A–H tidak wajib diisi semua.
+            // Namun minimal satu item harus terisi.
+            const filledItems = [...checklist.values()].filter(
+                (item) => !!item.condition,
+            );
+            if (filledItems.length === 0) {
+                toast.error(
+                    "Minimal satu item checklist harus diisi sebelum melanjutkan",
+                );
+                return false;
+            }
 
-                if (!checkedItem || !checkedItem.condition) {
+            // Hanya validasi konsistensi untuk item yang sudah diisi.
+            for (const [, item] of checklist) {
+                const cat = activeCategories.find((c) =>
+                    c.items.some((i) => i.id === item.id),
+                );
+
+                if (item.condition === "baik" && !item.photo) {
                     toast.error(
-                        `Item "${item.name}" di kategori "${cat.title}" wajib diisi`,
+                        `Item "${item.name}" kondisi Baik wajib upload foto bukti`,
                     );
-                    if (!openCategories.has(cat.id)) toggleCategory(cat.id);
-                    scrollToItem();
+                    if (cat && !openCategories.has(cat.id))
+                        toggleCategory(cat.id);
+                    scrollToItem(item.id);
                     return false;
                 }
 
-                if (checkedItem.condition === "baik" && !checkedItem.photo) {
-                    toast.error(`Item "${item.name}" wajib upload foto bukti`);
-                    if (!openCategories.has(cat.id)) toggleCategory(cat.id);
-                    scrollToItem();
-                    return false;
-                }
-
-                if (checkedItem.condition === "rusak") {
-                    if (!checkedItem.photo) {
+                if (item.condition === "rusak") {
+                    if (!item.photo) {
                         toast.error(
                             `Item "${item.name}" rusak wajib upload foto`,
                         );
-                        if (!openCategories.has(cat.id)) toggleCategory(cat.id);
-                        scrollToItem();
+                        if (cat && !openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
                         return false;
                     }
-                    if (!checkedItem.handler) {
+                    if (!item.handler) {
                         toast.error(
                             `Item "${item.name}" rusak wajib pilih handler`,
                         );
-                        if (!openCategories.has(cat.id)) toggleCategory(cat.id);
-                        scrollToItem();
+                        if (cat && !openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
                         return false;
                     }
                 }
             }
+        } else {
+            // Laporan preventif triwulan: semua item wajib diisi.
+            for (const cat of activeCategories) {
+                for (const item of cat.items) {
+                    const checkedItem = checklist.get(item.id);
+
+                    if (!checkedItem || !checkedItem.condition) {
+                        toast.error(
+                            `Item "${item.name}" di kategori "${cat.title}" wajib diisi`,
+                        );
+                        if (!openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
+
+                    if (
+                        checkedItem.condition === "baik" &&
+                        !checkedItem.photo
+                    ) {
+                        toast.error(
+                            `Item "${item.name}" wajib upload foto bukti`,
+                        );
+                        if (!openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
+
+                    if (checkedItem.condition === "rusak") {
+                        if (!checkedItem.photo) {
+                            toast.error(
+                                `Item "${item.name}" rusak wajib upload foto`,
+                            );
+                            if (!openCategories.has(cat.id))
+                                toggleCategory(cat.id);
+                            scrollToItem(item.id);
+                            return false;
+                        }
+                        if (!checkedItem.handler) {
+                            toast.error(
+                                `Item "${item.name}" rusak wajib pilih handler`,
+                            );
+                            if (!openCategories.has(cat.id))
+                                toggleCategory(cat.id);
+                            scrollToItem(item.id);
+                            return false;
+                        }
+                    }
+                }
+            }
         }
+
         return true;
-    }, [store, activeCategories, checklist, openCategories, toggleCategory]);
+    }, [
+        store,
+        isCategoryICoolingDown,
+        activeCategories,
+        checklist,
+        openCategories,
+        toggleCategory,
+    ]);
 
     return {
         checklist,

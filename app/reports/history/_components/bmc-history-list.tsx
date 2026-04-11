@@ -232,11 +232,15 @@ export function BmcHistoryList({
                                     <div
                                         key={item.id}
                                         className="bg-card border rounded-lg shadow-sm p-4 space-y-3 cursor-pointer"
-                                        onClick={() =>
-                                            router.push(
-                                                `/reports/${item.reportNumber}`,
-                                            )
-                                        }
+                                        onClick={() => {
+                                            const isCompleted = item.report.status === "COMPLETED";
+                                            const driveUrl = item.report.reportFinalDriveUrl || item.report.completedPdfPath;
+                                            if (isCompleted && driveUrl) {
+                                                window.open(driveUrl, "_blank", "noopener,noreferrer");
+                                            } else {
+                                                router.push(`/reports/${item.reportNumber}`);
+                                            }
+                                        }}
                                     >
                                         <div className="flex items-start justify-between gap-2">
                                             <div className="min-w-0">
@@ -263,20 +267,32 @@ export function BmcHistoryList({
                                             <span className="text-xs text-muted-foreground">
                                                 {formatDate(item.createdAt)}
                                             </span>
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="gap-1.5 h-8"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    router.push(
-                                                        `/reports/${item.reportNumber}`,
-                                                    );
-                                                }}
-                                            >
-                                                Lihat
-                                                <ArrowRight className="h-3.5 w-3.5" />
-                                            </Button>
+                                            {item.report.status === "COMPLETED" && (item.report.reportFinalDriveUrl || item.report.completedPdfPath) ? (
+                                                <a href={item.report.reportFinalDriveUrl || item.report.completedPdfPath || ""} target="_blank" rel="noopener noreferrer">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="gap-1.5 h-8"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                    >
+                                                        Lihat
+                                                        <ArrowRight className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </a>
+                                            ) : (
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="gap-1.5 h-8"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        router.push(`/reports/${item.reportNumber}`);
+                                                    }}
+                                                >
+                                                    Lihat
+                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -316,11 +332,15 @@ export function BmcHistoryList({
                                         <TableRow
                                             key={item.id}
                                             className="group cursor-pointer"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/reports/${item.reportNumber}`,
-                                                )
-                                            }
+                                            onClick={() => {
+                                                const isCompleted = item.report.status === "COMPLETED";
+                                                const driveUrl = item.report.reportFinalDriveUrl || item.report.completedPdfPath;
+                                                if (isCompleted && driveUrl) {
+                                                    window.open(driveUrl, "_blank", "noopener,noreferrer");
+                                                } else {
+                                                    router.push(`/reports/${item.reportNumber}`);
+                                                }
+                                            }}
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
                                                 {item.reportNumber}
@@ -351,20 +371,32 @@ export function BmcHistoryList({
                                                 {formatDate(item.createdAt)}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(
-                                                            `/reports/${item.reportNumber}`,
-                                                        );
-                                                    }}
-                                                >
-                                                    <ArrowRight className="h-3.5 w-3.5" />
-                                                    Lihat
-                                                </Button>
+                                                {item.report.status === "COMPLETED" && (item.report.reportFinalDriveUrl || item.report.completedPdfPath) ? (
+                                                    <a href={item.report.reportFinalDriveUrl || item.report.completedPdfPath || ""} target="_blank" rel="noopener noreferrer">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                            Lihat
+                                                        </Button>
+                                                    </a>
+                                                ) : (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/reports/${item.reportNumber}`);
+                                                        }}
+                                                    >
+                                                        <ArrowRight className="h-3.5 w-3.5" />
+                                                        Lihat
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

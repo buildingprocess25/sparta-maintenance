@@ -393,7 +393,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     const [isLoadingBlockedRanges, setIsLoadingBlockedRanges] = useState(false);
     const [isSearching, startSearch] = useTransition();
     const [isExporting, startExport] = useTransition();
-    const [exportDone, setExportDone] = useState(false);
+    const [exportDoneDriveUrl, setExportDoneDriveUrl] = useState<string | null>(null);
     const [exportedNumbers, setExportedNumbers] = useState<string[]>([]);
     const blockedRangeRequestRef = useRef(0);
 
@@ -461,7 +461,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             return;
         }
         setReports(null);
-        setExportDone(false);
+        setExportDoneDriveUrl(null);
         startSearch(async () => {
             const result = await searchPjumReports(selectedNIK, from, to);
             if (result.error) {
@@ -546,7 +546,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                     "";
 
                 setExportedNumbers(nums);
-                setExportDone(true);
+                setExportDoneDriveUrl(result.pjumFinalDriveUrl ?? null);
                 setReports(
                     (prev) =>
                         prev?.map((r) =>
@@ -577,6 +577,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                             approvedAt: null,
                             approvedByName: null,
                             rejectionNotes: null,
+                            pjumFinalDriveUrl: result.pjumFinalDriveUrl ?? null,
                         },
                         ...prev.filter((item) => item.id !== createdExportId),
                     ]);
@@ -588,15 +589,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
         });
     }
 
-    const pdfUrl = exportDone
-        ? buildPjumPdfUrl({
-              reportNumbers: exportedNumbers,
-              bmsNIK: selectedNIK,
-              fromDate: from,
-              toDate: to,
-              weekNumber: Number(weekNumber),
-          })
-        : null;
+    const pdfUrl = exportDoneDriveUrl;
 
     const createHeaderDesc =
         reports !== null
@@ -674,7 +667,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             setFromDate(undefined);
                                             setToDate(undefined);
                                             setReports(null);
-                                            setExportDone(false);
+                                            setExportDoneDriveUrl(null);
                                             if (!value) {
                                                 setIsLoadingBlockedRanges(
                                                     false,
@@ -729,7 +722,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             }
                                             setFromDate(date);
                                             setReports(null);
-                                            setExportDone(false);
+                                            setExportDoneDriveUrl(null);
                                         }}
                                         label="Tanggal mulai"
                                         maxDate={toDate}
@@ -756,7 +749,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             }
                                             setToDate(date);
                                             setReports(null);
-                                            setExportDone(false);
+                                            setExportDoneDriveUrl(null);
                                         }}
                                         label="Tanggal akhir"
                                         minDate={fromDate}
@@ -771,7 +764,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onValueChange={(value) => {
                                             setWeekNumber(value);
                                             setReports(null);
-                                            setExportDone(false);
+                                            setExportDoneDriveUrl(null);
                                         }}
                                     >
                                         <SelectTrigger aria-label="Minggu ke">
@@ -875,7 +868,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                         </div>
 
                         {/* ── Export success banner ──────────────────────────────── */}
-                        {exportDone && pdfUrl && (
+                        {exportDoneDriveUrl && pdfUrl && (
                             <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-3 flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-2 text-green-800 text-sm">
                                     <CheckCircle2 className="h-4 w-4 shrink-0" />
@@ -1316,7 +1309,9 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                     </div>
 
                                                     <a
-                                                        href={itemPdfUrl}
+                                                        href={
+                                                            item.pjumFinalDriveUrl || itemPdfUrl
+                                                        }
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                     >
@@ -1367,17 +1362,14 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             </TableHeader>
                                             <TableBody>
                                                 {filteredHistory.map((item) => {
-                                                    const itemPdfUrl =
-                                                        buildPjumPdfUrl({
-                                                            reportNumbers:
-                                                                item.reportNumbers,
-                                                            bmsNIK: item.bmsNIK,
-                                                            fromDate:
-                                                                item.fromDate,
-                                                            toDate: item.toDate,
-                                                            weekNumber:
-                                                                item.weekNumber,
-                                                        });
+                                                    const itemPdfUrl = buildPjumPdfUrl({
+                                                        reportNumbers:
+                                                            item.reportNumbers,
+                                                        bmsNIK: item.bmsNIK,
+                                                        fromDate: item.fromDate,
+                                                        toDate: item.toDate,
+                                                        weekNumber: item.weekNumber,
+                                                    });
 
                                                     return (
                                                         <TableRow key={item.id}>
@@ -1440,7 +1432,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                             <TableCell className="text-right">
                                                                 <a
                                                                     href={
-                                                                        itemPdfUrl
+                                                                        item.pjumFinalDriveUrl || itemPdfUrl
                                                                     }
                                                                     target="_blank"
                                                                     rel="noopener noreferrer"

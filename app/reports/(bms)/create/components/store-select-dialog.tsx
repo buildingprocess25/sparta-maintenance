@@ -23,28 +23,21 @@ interface StoreSelectDialogProps {
     onCancel: () => void;
 }
 
-export function StoreSelectDialog({
-    open,
+/**
+ * Inner stateful dialog body, re-mounted from scratch each time the dialog
+ * opens via the `key` prop in StoreSelectDialog. This avoids the need for any
+ * synchronisation effects — state is always fresh on mount.
+ */
+function StoreSelectDialogBody({
     stores,
     selectedStoreCode,
     onStoreChange,
     onCancel,
-}: StoreSelectDialogProps) {
+}: Omit<StoreSelectDialogProps, "open">) {
     const [searchQuery, setSearchQuery] = useState("");
     const [localSelectedCode, setLocalSelectedCode] =
         useState(selectedStoreCode);
-    const [prevOpen, setPrevOpen] = useState(open);
     const inputRef = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        if (open && !prevOpen) {
-            setSearchQuery("");
-            setLocalSelectedCode(selectedStoreCode);
-            setPrevOpen(true);
-        } else if (!open && prevOpen) {
-            setPrevOpen(false);
-        }
-    }, [open, prevOpen, selectedStoreCode]);
 
     const filteredStores = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -55,12 +48,6 @@ export function StoreSelectDialog({
                 s.code.toLowerCase().includes(query),
         );
     }, [stores, searchQuery]);
-
-    const selectedLabel = useMemo(() => {
-        if (!localSelectedCode) return "";
-        const store = stores.find((s) => s.code === localSelectedCode);
-        return store ? `${store.code} - ${store.name}` : "";
-    }, [localSelectedCode, stores]);
 
     const handleSelect = (code: string) => {
         setLocalSelectedCode(code);
@@ -80,80 +67,109 @@ export function StoreSelectDialog({
         }
     };
 
+    // Auto-focus input on mount (dialog just opened)
+    useEffect(() => {
+        const timer = setTimeout(() => inputRef.current?.focus(), 50);
+        return () => clearTimeout(timer);
+    }, []);
+
+    return (
+        <>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Pilih Toko</AlertDialogTitle>
+                <AlertDialogDescription>
+                    Cari dan pilih toko yang akan diinspeksi. Klik OK untuk
+                    menyimpan pilihan.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div>
+                <div className="space-y-2">
+                    <Label>
+                        Toko <span className="text-red-500">*</span>
+                    </Label>
+                    <div className="relative">
+                        <Input
+                            ref={inputRef}
+                            placeholder="Ketik kode atau nama toko..."
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                if (!e.target.value.trim()) {
+                                    setLocalSelectedCode("");
+                                }
+                            }}
+                            className="pr-9"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={handleClear}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        )}
+
+                        {searchQuery.trim() && !localSelectedCode && (
+                            <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
+                                {filteredStores.length > 0 ? (
+                                    filteredStores.map((store) => (
+                                        <button
+                                            key={store.code}
+                                            type="button"
+                                            onClick={() =>
+                                                handleSelect(store.code)
+                                            }
+                                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                                        >
+                                            {store.code} - {store.name}
+                                        </button>
+                                    ))
+                                ) : (
+                                    <p className="py-6 text-center text-sm text-muted-foreground">
+                                        Toko tidak ditemukan
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+            <AlertDialogFooter>
+                <Button variant="outline" onClick={onCancel}>
+                    Batal
+                </Button>
+                <Button onClick={handleConfirm} disabled={!localSelectedCode}>
+                    OK
+                </Button>
+            </AlertDialogFooter>
+        </>
+    );
+}
+
+export function StoreSelectDialog({
+    open,
+    stores,
+    selectedStoreCode,
+    onStoreChange,
+    onCancel,
+}: StoreSelectDialogProps) {
     return (
         <AlertDialog open={open}>
             <AlertDialogContent className="sm:max-w-md">
-                <AlertDialogHeader>
-                    <AlertDialogTitle>Pilih Toko</AlertDialogTitle>
-                    <AlertDialogDescription>
-                        Cari dan pilih toko yang akan diinspeksi. Klik OK untuk
-                        menyimpan pilihan.
-                    </AlertDialogDescription>
-                </AlertDialogHeader>
-                <div>
-                    <div className="space-y-2">
-                        <Label>
-                            Toko <span className="text-red-500">*</span>
-                        </Label>
-                        <div className="relative">
-                            <Input
-                                ref={inputRef}
-                                placeholder="Ketik kode atau nama toko..."
-                                value={searchQuery}
-                                onChange={(e) => {
-                                    setSearchQuery(e.target.value);
-                                    if (!e.target.value.trim()) {
-                                        setLocalSelectedCode("");
-                                    }
-                                }}
-                                className="pr-9"
-                            />
-                            {searchQuery && (
-                                <button
-                                    type="button"
-                                    onClick={handleClear}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    <X className="h-4 w-4" />
-                                </button>
-                            )}
-
-                            {searchQuery.trim() && !localSelectedCode && (
-                                <div className="absolute z-50 top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md max-h-48 overflow-y-auto">
-                                    {filteredStores.length > 0 ? (
-                                        filteredStores.map((store) => (
-                                            <button
-                                                key={store.code}
-                                                type="button"
-                                                onClick={() =>
-                                                    handleSelect(store.code)
-                                                }
-                                                className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
-                                            >
-                                                {store.code} - {store.name}
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <p className="py-6 text-center text-sm text-muted-foreground">
-                                            Toko tidak ditemukan
-                                        </p>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-                <AlertDialogFooter>
-                    <Button variant="outline" onClick={onCancel}>
-                        Batal
-                    </Button>
-                    <Button
-                        onClick={handleConfirm}
-                        disabled={!localSelectedCode}
-                    >
-                        OK
-                    </Button>
-                </AlertDialogFooter>
+                {open && (
+                    // key={open} memaksa React me-mount ulang StoreSelectDialogBody
+                    // setiap kali dialog dibuka, sehingga seluruh state lokal
+                    // (searchQuery, localSelectedCode) otomatis kembali ke nilai awal.
+                    // Ini menghilangkan kebutuhan synchronisation effect sepenuhnya.
+                    <StoreSelectDialogBody
+                        key={String(open)}
+                        stores={stores}
+                        selectedStoreCode={selectedStoreCode}
+                        onStoreChange={onStoreChange}
+                        onCancel={onCancel}
+                    />
+                )}
             </AlertDialogContent>
         </AlertDialog>
     );

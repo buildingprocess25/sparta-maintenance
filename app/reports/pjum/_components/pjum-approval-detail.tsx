@@ -106,7 +106,7 @@ export function PjumApprovalDetail({ detail }: Props) {
                                 </div>
                                 <Button variant="outline" size="sm" asChild>
                                     <a
-                                        href={`/api/reports/pjum-pdf?ids=${detail.reportNumbers.join(",")}&bmsNIK=${detail.bmsNIK}&from=${detail.fromDate}&to=${detail.toDate}&week=${detail.weekNumber}`}
+                                        href={detail.pjumFinalDriveUrl || `/api/reports/pjum-pdf?ids=${detail.reportNumbers.join(",")}&bmsNIK=${detail.bmsNIK}&from=${detail.fromDate}&to=${detail.toDate}&week=${detail.weekNumber}`}
                                         target="_blank"
                                         rel="noreferrer"
                                     >

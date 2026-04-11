@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
+import { discardLocalDraftFiles } from "@/app/reports/actions";
 import {
     checklistCategories,
     type ChecklistItem,
@@ -120,6 +121,14 @@ export function usePhotoUpload({
                     type: compressedFile.type,
                 });
 
+                // Hapus foto yang sudah ada sebelumnya (jika ada) di server agar tidak jadi sampah
+                const existingItemForCleanup = checklist.get(activePhotoItemId!);
+                if (existingItemForCleanup?.photoKey) {
+                    discardLocalDraftFiles([existingItemForCleanup.photoKey]).catch(e => {
+                        console.error("Gagal menghapus foto lama dari server:", e);
+                    });
+                }
+
                 const uploadResponse = await startUpload([finalFile]);
 
                 if (!uploadResponse || uploadResponse.length === 0) {
@@ -172,8 +181,14 @@ export function usePhotoUpload({
             const item = checklist.get(itemId);
             if (!item) return;
 
-            // 4. LOGIKA HAPUS SUPABASE DIBUANG
-            // Kita hanya menghapus foto dari tampilan UI klien
+            // Logika hapus foto dari server UploadThing (agar tidak orphan)
+            if (item.photoKey) {
+                discardLocalDraftFiles([item.photoKey]).catch((e) => {
+                     console.error("Gagal menghapus foto dari server:", e);
+                });
+            }
+
+            // Kita menghapus foto dari tampilan UI klien
             setChecklist((prev) => {
                 const next = new Map(prev);
                 const existing = next.get(itemId);

@@ -19,6 +19,10 @@ import {
     downloadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
+import {
+    archiveReportPhotosToGoogleDrive,
+    collectCategorizedPhotoUrls,
+} from "@/lib/google-drive/photos";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -58,6 +62,7 @@ export type PjumExportDetail = {
         totalRealisasi: number;
     }[];
     totalExpenditure: number;
+    pjumFinalDriveUrl: string | null;
 };
 
 export type BankAccountOption = {
@@ -292,6 +297,7 @@ export async function getPjumExportDetail(
                 totalRealisasi: r.totalRealisasi,
             })),
             totalExpenditure,
+            pjumFinalDriveUrl: pjumExport.pjumFinalDriveUrl,
         };
 
         return { data, error: null };
@@ -414,6 +420,11 @@ export async function approvePjumExport(input: {
                 pendingEstimationPdfPath: true,
                 estimationApprovedPdfPath: true,
                 approvedBmcPdfPath: true,
+                // Required for photo archiving to Drive
+                startSelfieUrl: true,
+                startReceiptUrls: true,
+                completionAdditionalPhotos: true,
+                uploadthingFileKeys: true,
             },
         });
 
@@ -505,6 +516,60 @@ export async function approvePjumExport(input: {
                         archived.webViewLink ?? archived.folderUrl,
                 },
             });
+
+            // Archive photos from UploadThing to Google Drive.
+            // Photos are moved here (at PJUM approval) instead of at BNM individual
+            // approval, so the archive operation happens once per batch.
+            try {
+                const categorizedPhotos = collectCategorizedPhotoUrls(report);
+                const fileKeys = Array.isArray(report.uploadthingFileKeys)
+                    ? (report.uploadthingFileKeys as string[])
+                    : [];
+
+                if (categorizedPhotos.length > 0 || fileKeys.length > 0) {
+                    logger.info(
+                        {
+                            operation: "approvePjumExport.photoArchive",
+                            reportNumber: report.reportNumber,
+                            photoCount: categorizedPhotos.length,
+                            keyCount: fileKeys.length,
+                        },
+                        "Archiving report photos to Drive",
+                    );
+
+                    const photoArchive = await archiveReportPhotosToGoogleDrive(
+                        {
+                            reportNumber: report.reportNumber,
+                            branchName: report.branchName,
+                            bmsNIK: report.createdByNIK,
+                            bmsName: report.createdBy.name,
+                            storeCode: report.storeCode ?? null,
+                            storeName: report.storeName,
+                            fileKeys,
+                        },
+                        categorizedPhotos,
+                    );
+
+                    logger.info(
+                        {
+                            operation: "approvePjumExport.photoArchive",
+                            reportNumber: report.reportNumber,
+                            ...photoArchive,
+                        },
+                        "Photo archive completed",
+                    );
+                }
+            } catch (photoArchiveError) {
+                // Non-fatal: log and continue. The report PDF is already in Drive.
+                logger.error(
+                    {
+                        operation: "approvePjumExport.photoArchive",
+                        reportNumber: report.reportNumber,
+                    },
+                    "Photo archive to Drive failed (non-fatal)",
+                    photoArchiveError,
+                );
+            }
         }
 
         // Update PjumExport record

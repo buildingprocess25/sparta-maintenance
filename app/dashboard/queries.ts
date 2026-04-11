@@ -198,7 +198,13 @@ export type ActivityItem = {
     notes: string | null;
     createdAt: Date;
     actor: { name: string; NIK: string };
-    report: { storeName: string; branchName: string };
+    report: { 
+        storeName: string; 
+        branchName: string;
+        status: string;
+        completedPdfPath: string | null;
+        reportFinalDriveUrl: string | null;
+    };
 };
 
 // ── internal helper ───────────────────────────────────────────────────────────
@@ -220,7 +226,13 @@ async function fetchActivityLogs(
             notes: true,
             createdAt: true,
             actor: { select: { name: true, NIK: true } },
-            report: { select: { storeName: true, branchName: true } },
+            report: { select: { 
+                storeName: true, 
+                branchName: true, 
+                status: true,
+                completedPdfPath: true,
+                reportFinalDriveUrl: true
+            } },
         },
     });
     return rows.map((r) => ({ ...r, action: r.action as string }));

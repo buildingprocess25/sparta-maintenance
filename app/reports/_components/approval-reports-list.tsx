@@ -67,6 +67,8 @@ export type ApprovalReportData = {
     updatedAt: Date;
     finishedAt: Date | null;
     createdByName: string;
+    completedPdfPath?: string | null;
+    reportFinalDriveUrl?: string | null;
 };
 
 type Props = {
@@ -579,11 +581,13 @@ export function ApprovalReportsList({
                                         <div
                                             key={report.reportNumber}
                                             className="flex items-stretch hover:bg-muted/40 active:bg-muted/60 transition-colors cursor-pointer"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/reports/${report.reportNumber}`,
-                                                )
-                                            }
+                                            onClick={() => {
+                                                if (report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath)) {
+                                                    window.open(report.reportFinalDriveUrl || report.completedPdfPath || "", "_blank", "noopener,noreferrer");
+                                                } else {
+                                                    router.push(`/reports/${report.reportNumber}`);
+                                                }
+                                            }}
                                         >
                                             <span
                                                 className={`w-1 shrink-0 ${barColor}`}
@@ -675,11 +679,13 @@ export function ApprovalReportsList({
                                         <TableRow
                                             key={report.reportNumber}
                                             className="group cursor-pointer"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/reports/${report.reportNumber}`,
-                                                )
-                                            }
+                                            onClick={() => {
+                                                if (report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath)) {
+                                                    window.open(report.reportFinalDriveUrl || report.completedPdfPath || "", "_blank", "noopener,noreferrer");
+                                                } else {
+                                                    router.push(`/reports/${report.reportNumber}`);
+                                                }
+                                            }}
                                         >
                                             <TableCell className="font-mono text-xs font-medium text-muted-foreground">
                                                 {report.reportNumber}
@@ -721,23 +727,32 @@ export function ApprovalReportsList({
                                                 )}
                                             </TableCell>
                                             <TableCell className="text-center">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        router.push(
-                                                            `/reports/${report.reportNumber}`,
-                                                        );
-                                                    }}
-                                                >
-                                                    <ArrowRight className="h-3.5 w-3.5" />
-                                                    {getActionLabel(
-                                                        report.status,
-                                                        role,
-                                                    )}
-                                                </Button>
+                                                {report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath) ? (
+                                                    <a href={report.reportFinalDriveUrl || report.completedPdfPath || ""} target="_blank" rel="noopener noreferrer">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                            {getActionLabel(report.status, role)}
+                                                        </Button>
+                                                    </a>
+                                                ) : (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            router.push(`/reports/${report.reportNumber}`);
+                                                        }}
+                                                    >
+                                                        <ArrowRight className="h-3.5 w-3.5" />
+                                                        {getActionLabel(report.status, role)}
+                                                    </Button>
+                                                )}
                                             </TableCell>
                                         </TableRow>
                                     ))}

@@ -190,6 +190,8 @@ export async function BmcApprovalList({
             createdAt: true,
             updatedAt: true,
             finishedAt: true,
+            completedPdfPath: true,
+            reportFinalDriveUrl: true,
             createdBy: {
                 select: { name: true },
             },
@@ -432,19 +434,21 @@ export async function BmcApprovalList({
                                                             : "—"}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Link
-                                                            href={`/reports/${report.reportNumber}`}
-                                                        >
-                                                            <Button
-                                                                size="sm"
-                                                                className="gap-1.5 h-8"
-                                                            >
-                                                                {getActionLabel(
-                                                                    report.status,
-                                                                )}
-                                                                <ArrowRight className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        </Link>
+                                                        {report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath) ? (
+                                                            <a href={report.reportFinalDriveUrl || report.completedPdfPath || ""} target="_blank" rel="noopener noreferrer">
+                                                                <Button size="sm" className="gap-1.5 h-8">
+                                                                    {getActionLabel(report.status)}
+                                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </a>
+                                                        ) : (
+                                                            <Link href={`/reports/${report.reportNumber}`}>
+                                                                <Button size="sm" className="gap-1.5 h-8">
+                                                                    {getActionLabel(report.status)}
+                                                                    <ArrowRight className="h-3.5 w-3.5" />
+                                                                </Button>
+                                                            </Link>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -489,23 +493,23 @@ export async function BmcApprovalList({
                                             </div>
                                             <div className="flex items-center justify-between pt-1">
                                                 <span className="text-sm font-mono font-semibold">
-                                                    {formatCurrency(
-                                                        report.totalEstimation,
-                                                    )}
+                                                    {formatCurrency(report.totalEstimation)}
                                                 </span>
-                                                <Link
-                                                    href={`/reports/${report.reportNumber}`}
-                                                >
-                                                    <Button
-                                                        size="sm"
-                                                        className="gap-1.5 h-8"
-                                                    >
-                                                        {getActionLabel(
-                                                            report.status,
-                                                        )}
-                                                        <ArrowRight className="h-3.5 w-3.5" />
-                                                    </Button>
-                                                </Link>
+                                                {report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath) ? (
+                                                    <a href={report.reportFinalDriveUrl || report.completedPdfPath || ""} target="_blank" rel="noopener noreferrer">
+                                                        <Button size="sm" className="gap-1.5 h-8">
+                                                            {getActionLabel(report.status)}
+                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </a>
+                                                ) : (
+                                                    <Link href={`/reports/${report.reportNumber}`}>
+                                                        <Button size="sm" className="gap-1.5 h-8">
+                                                            {getActionLabel(report.status)}
+                                                            <ArrowRight className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    </Link>
+                                                )}
                                             </div>
                                         </div>
                                     ))}

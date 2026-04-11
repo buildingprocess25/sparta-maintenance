@@ -82,8 +82,17 @@ export function ChecklistStep({
                                 {storeCode} - {storeName}
                             </CardTitle>
                             <CardDescription className="text-xs">
-                                <span className="text-red-500">*</span>
-                                Semua item wajib diisi
+                                {isCategoryICoolingDown ? (
+                                    "Isi item yang perlu dilaporkan (tidak semua wajib)"
+                                ) : (
+                                    <>
+                                        <span className="text-red-500">*</span>
+                                        {" "}Semua item wajib diisi{" "}
+                                        <span className="text-muted-foreground font-normal">
+                                            (laporan preventif triwulan)
+                                        </span>
+                                    </>
+                                )}
                             </CardDescription>
                         </div>
                     </CardHeader>

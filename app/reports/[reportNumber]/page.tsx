@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { requireAuth } from "@/lib/authorization";
 import prisma from "@/lib/prisma";
 import { ReportDetailView } from "./report-detail-view";
@@ -26,13 +27,46 @@ export default async function ReportDetailPage({ params }: Props) {
 
     if (!report) notFound();
 
-    // 🚀 TAHAP 3: PENCEGAT (INTERCEPTOR) GOOGLE DRIVE
-    // Jika status laporan sudah selesai dan link Drive tersedia, 
-    // langsung lempar pengguna ke folder Google Drive.
-    // Fungsi 'redirect' Next.js akan langsung menghentikan eksekusi kode di bawahnya.
-    const driveUrl = report.reportFinalDriveUrl ?? null;
+    // TAHAP 3: PENCEGAT (INTERCEPTOR) GOOGLE DRIVE
+    // Jika status laporan sudah selesai dan link Drive tersedia, tampikan UI sederhana
+    const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
     if (report.status === "COMPLETED" && driveUrl) {
-        redirect(driveUrl);
+        return (
+            <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+                <div className="bg-background max-w-md w-full border shadow-sm rounded-xl p-8 text-center space-y-6">
+                    <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">
+                        <svg className="w-8 h-8 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold tracking-tight">Laporan Telah Selesai</h2>
+                        <p className="text-sm text-muted-foreground mt-2">
+                            Laporan <strong>{reportNumber}</strong> telah diselesaikan dan diarsipkan di Google Drive.
+                        </p>
+                    </div>
+                    
+                    <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg p-3 text-left">
+                        <strong>Perhatian:</strong> Dokumen hanya dapat diakses menggunakan email internal perusahaan (SAT). Pastikan Anda telah login menggunakan email kantor di browser Anda.
+                    </div>
+
+                    <a
+                        href={driveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
+                    >
+                        Buka Laporan di Google Drive
+                    </a>
+                    
+                    <div className="pt-2">
+                        <Link href="/reports" className="text-sm text-primary hover:underline">
+                            Kembali ke Daftar Laporan
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
     }
 
     // Access control
@@ -136,6 +170,10 @@ export default async function ReportDetailPage({ params }: Props) {
                     report.completionAdditionalPhotos,
                 ),
                 completionAdditionalNote: report.completionAdditionalNote,
+                pendingEstimationPdfPath: report.pendingEstimationPdfPath,
+                estimationApprovedPdfPath: report.estimationApprovedPdfPath,
+                approvedBmcPdfPath: report.approvedBmcPdfPath,
+                completedPdfPath: report.completedPdfPath,
             }}
             viewer={{ role: user.role, nik: user.NIK }}
         />

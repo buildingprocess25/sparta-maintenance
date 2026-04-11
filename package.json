@@ -70,5 +70,8 @@
         "tailwindcss": "^4",
         "tsx": "^4.21.0",
         "typescript": "^5"
+    },
+    "overrides": {
+        "effect": "3.20.0"
     }
 }

@@ -7,6 +7,11 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import type { ReportItemJson } from "@/types/report";
+import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
+import {
+    buildPjumSnapshotPath,
+    uploadPdfSnapshot,
+} from "@/lib/pdf/snapshot-storage";
 
 export type PjumBmsUser = {
     NIK: string;
@@ -47,6 +52,7 @@ export type PjumHistoryRow = {
     approvedAt: string | null;
     approvedByName: string | null;
     rejectionNotes: string | null;
+    pjumFinalDriveUrl: string | null;
 };
 
 const exportSchema = z.object({
@@ -246,6 +252,7 @@ export async function getBmcPjumHistory(
                 ? (userMap.get(row.approvedByNIK) ?? row.approvedByNIK)
                 : null,
             rejectionNotes: row.rejectionNotes,
+            pjumFinalDriveUrl: row.pjumFinalDriveUrl,
         }));
     } catch (error) {
         logger.error({ operation: "getBmcPjumHistory" }, "Failed", error);
@@ -409,7 +416,7 @@ export async function exportPjum(input: {
     from: string;
     to: string;
     weekNumber: number;
-}): Promise<{ error: string | null; pjumExportId: string | null }> {
+}): Promise<{ error: string | null; pjumExportId: string | null; pjumFinalDriveUrl?: string | null }> {
     try {
         const user = await requireRole("BMC");
         await validateCSRF(await headers());
@@ -530,6 +537,51 @@ export async function exportPjum(input: {
             data: { pjumExportedAt: new Date() },
         });
 
+        // Generate and upload PDF snapshot to Drive
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { name: true },
+        });
+        const bmsName = bmsUser?.name ?? bmsNIK;
+
+        const result = await generatePjumPackagePdf({
+            reportNumbers: safeNumbers,
+            bmsNIK,
+            from: rangeFromDate.toISOString(),
+            to: rangeToDate.toISOString(),
+            weekNumber,
+            requireExported: true,
+            requester: {
+                NIK: user.NIK,
+                name: user.name,
+                branchNames: user.branchNames,
+            },
+        });
+
+        // Generate PDF snapshot and save to pdf-snapshots/pjum/ (not the final PJUM folder,
+        // since this is still pending approval by BnM Manager).
+        const snapshotPath = buildPjumSnapshotPath({
+            branchName,
+            bmsNIK,
+            weekNumber,
+            from: rangeFromDate.toISOString(),
+            to: rangeToDate.toISOString(),
+            version: pjumExport.id,
+        });
+
+        const snapshotDriveUrl = await uploadPdfSnapshot(
+            snapshotPath,
+            result.buffer,
+        );
+
+        await prisma.pjumExport.update({
+            where: { id: pjumExport.id },
+            data: {
+                pjumPdfPath: snapshotPath,
+                pjumFinalDriveUrl: snapshotDriveUrl,
+            },
+        });
+
         logger.info(
             {
                 operation: "exportPjum",
@@ -542,7 +594,7 @@ export async function exportPjum(input: {
         );
 
         revalidatePath("/reports/pjum");
-        return { error: null, pjumExportId: pjumExport.id };
+        return { error: null, pjumExportId: pjumExport.id, pjumFinalDriveUrl: snapshotDriveUrl };
     } catch (error) {
         logger.error(
             { operation: "exportPjum" },
@@ -552,6 +604,7 @@ export async function exportPjum(input: {
         return {
             error: "Terjadi kesalahan saat membuat PJUM",
             pjumExportId: null,
+            pjumFinalDriveUrl: null,
         };
     }
 }

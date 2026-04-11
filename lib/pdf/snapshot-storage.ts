@@ -29,8 +29,30 @@ export function buildReportSnapshotPath(params: {
     const checkpoint = sanitizePathPart(params.checkpoint);
     const version = sanitizePathPart(params.version);
 
-    return `pdf-snapshots/reports/${branch}/${storeCode}/${reportNumber}/${checkpoint}/${version}.pdf`;
+    return `pdf-snapshots/reports/${branch}/${storeCode}/${reportNumber}/${checkpoint}_${version}.pdf`;
 }
+
+function sanitizeDriveName(value: string): string {
+    return value.replaceAll("/", "-").trim() || "-";
+}
+
+export function buildFinalReportDrivePath(params: {
+    branchName: string;
+    bmsNIK: string;
+    bmsName: string;
+    storeCode: string | null;
+    storeName: string;
+    reportNumber: string;
+}) {
+    const branchName = sanitizeDriveName(params.branchName);
+    const bmsFolder = `${sanitizeDriveName(params.bmsNIK)}-${sanitizeDriveName(params.bmsName)}`;
+    const storeFolderName = `${sanitizeDriveName(params.storeCode ?? "-")}-${sanitizeDriveName(params.storeName)}`;
+    const reportFolderName = sanitizeDriveName(params.reportNumber);
+    const fileName = sanitizeDriveName(params.reportNumber) + ".pdf";
+
+    return `Laporan Maintenance/${branchName}/${bmsFolder}/${storeFolderName}/${reportFolderName}/${fileName}`;
+}
+
 
 export function buildPjumSnapshotPath(params: {
     branchName: string;
@@ -50,7 +72,14 @@ export function buildPjumSnapshotPath(params: {
     return `pdf-snapshots/pjum/${branch}/${bmsNIK}/${week}/${from}_${to}/${version}.pdf`;
 }
 
-export async function uploadPdfSnapshot(path: string, buffer: Buffer) {
+/**
+ * Uploads a PDF buffer to the given Drive path and returns
+ * the public Drive webViewLink (e.g. https://drive.google.com/file/d/xxx/view).
+ */
+export async function uploadPdfSnapshot(
+    path: string,
+    buffer: Buffer,
+): Promise<string> {
     const segments = path.split("/");
     const fileName = segments.pop();
 
@@ -61,14 +90,20 @@ export async function uploadPdfSnapshot(path: string, buffer: Buffer) {
     try {
         const folderId = await ensureDriveFolderPath(segments);
 
-        await uploadPdfToDrive({
+        const result = await uploadPdfToDrive({
             fileName,
             folderId,
             buffer,
             overwriteIfExists: true,
         });
 
-        return path;
+        // Return the direct Drive URL so callers can store it in the DB
+        // and link to it without proxying through the server.
+        const driveUrl =
+            result.webViewLink ??
+            `https://drive.google.com/file/d/${result.fileId}/view`;
+
+        return driveUrl;
     } catch (error: unknown) {
         const errorMessage =
             error instanceof Error ? error.message : String(error);

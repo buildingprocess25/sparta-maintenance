@@ -92,10 +92,17 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                     bar: "bg-muted",
                 };
 
+                const isCompleted = report.status === "COMPLETED";
+                const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
+
                 const href =
-                    report.status === "DRAFT"
-                        ? "/reports/create?restore=1"
-                        : `/reports/${report.reportNumber}`;
+                    isCompleted && driveUrl
+                        ? driveUrl
+                        : report.status === "DRAFT"
+                            ? "/reports/create?restore=1"
+                            : `/reports/${report.reportNumber}`;
+                
+                const targetAttrs = isCompleted && driveUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
                 const amountFormatted = formatCurrency(
                     report.status === "COMPLETED"
@@ -110,6 +117,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                     <Link
                         key={report.reportNumber}
                         href={href}
+                        {...targetAttrs}
                         className="flex items-stretch hover:bg-muted/40 active:bg-muted/60 transition-colors"
                     >
                         {/* Left accent bar */}

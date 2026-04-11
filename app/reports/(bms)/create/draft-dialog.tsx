@@ -16,7 +16,8 @@ import { Badge } from "@/components/ui/badge";
 interface DraftDialogProps {
     open: boolean;
     draftStoreName?: string;
-    draftUpdatedAt: string;
+    /** ISO timestamp or formatted string. Optional — omits if not available. */
+    draftUpdatedAt?: string;
     isLoading?: boolean;
     isDeleting?: boolean;
     onContinueDraft: () => void;
@@ -73,12 +74,26 @@ export function DraftDialog({
                                     </div>
                                 )}
 
-                                <div className="flex items-center gap-2 text-muted-foreground text-xs pt-1 border-t mt-1 text-left">
-                                    <Clock className="h-3 w-3" />
-                                    <span>
-                                        Disimpan otomatis: {draftUpdatedAt}
-                                    </span>
-                                </div>
+                                {draftUpdatedAt && (
+                                    <div className="flex items-center gap-2 text-muted-foreground text-xs pt-1 border-t mt-1 text-left">
+                                        <Clock className="h-3 w-3" />
+                                        <span>
+                                            Disimpan otomatis:{" "}
+                                            {(() => {
+                                                try {
+                                                    return new Date(
+                                                        draftUpdatedAt,
+                                                    ).toLocaleString("id-ID", {
+                                                        dateStyle: "medium",
+                                                        timeStyle: "short",
+                                                    });
+                                                } catch {
+                                                    return draftUpdatedAt;
+                                                }
+                                            })()}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
