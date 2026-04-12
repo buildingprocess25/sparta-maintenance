@@ -481,7 +481,7 @@ export default function UserManualPage() {
                                 orientation="horizontal"
                             >
                                 <Button asChild size="lg" className="flex-1">
-                                    <Link href="/login">Login Sekarang</Link>
+                                    <Link prefetch={false} href="/login">Login Sekarang</Link>
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -489,7 +489,7 @@ export default function UserManualPage() {
                                     className="flex-1"
                                     asChild
                                 >
-                                    <Link href="/">Kembali ke Home</Link>
+                                    <Link prefetch={false} href="/">Kembali ke Home</Link>
                                 </Button>
                             </ButtonGroup>
                         </CardContent>

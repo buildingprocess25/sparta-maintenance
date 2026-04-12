@@ -60,7 +60,7 @@ export default async function ReportDetailPage({ params }: Props) {
                     </a>
                     
                     <div className="pt-2">
-                        <Link href="/reports" className="text-sm text-primary hover:underline">
+                        <Link prefetch={false} href="/reports" className="text-sm text-primary hover:underline">
                             Kembali ke Daftar Laporan
                         </Link>
                     </div>

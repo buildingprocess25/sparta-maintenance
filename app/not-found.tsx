@@ -58,7 +58,7 @@ export default function NotFound() {
                 </CardHeader>
                 <CardContent>
                     <Button asChild className="w-full" size="lg">
-                        <Link href="/">
+                        <Link prefetch={false} href="/">
                             <ArrowLeft className="mr-2 h-4 w-4" />
                             Kembali
                         </Link>

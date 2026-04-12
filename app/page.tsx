@@ -99,7 +99,7 @@ export default async function Page() {
                         orientation="horizontal"
                     >
                         <Button asChild size="lg" className="text-base flex-1">
-                            <Link href="/login">
+                            <Link prefetch={false} href="/login">
                                 <LogIn className="mr-2 h-5 w-5" />
                                 Login
                             </Link>
@@ -110,7 +110,7 @@ export default async function Page() {
                             size="lg"
                             className="text-base flex-1"
                         >
-                            <Link href="/user-manual">
+                            <Link prefetch={false} href="/user-manual">
                                 <BookOpen className="mr-2 h-5 w-5" />
                                 User Manual
                             </Link>

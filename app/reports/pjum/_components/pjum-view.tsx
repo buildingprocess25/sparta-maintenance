@@ -1017,7 +1017,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
 
                                                         {/* Link to report */}
                                                         <div className="flex items-center pr-3">
-                                                            <Link
+                                                            <Link prefetch={false}
                                                                 href={`/reports/${r.reportNumber}`}
                                                                 target="_blank"
                                                                 className="text-muted-foreground/40 hover:text-muted-foreground transition-colors"
@@ -1076,7 +1076,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                 }
                                                             >
                                                                 <TableCell className="font-mono text-xs font-medium text-muted-foreground">
-                                                                    <Link
+                                                                    <Link prefetch={false}
                                                                         href={`/reports/${r.reportNumber}`}
                                                                         className="hover:text-primary hover:underline transition-colors"
                                                                         onClick={(

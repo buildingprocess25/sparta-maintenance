@@ -114,7 +114,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                     : report.storeName || "—";
 
                 return (
-                    <Link
+                    <Link prefetch={false}
                         key={report.reportNumber}
                         href={href}
                         {...targetAttrs}

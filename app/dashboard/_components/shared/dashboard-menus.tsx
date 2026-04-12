@@ -45,7 +45,7 @@ export function DashboardMenus({ menus }: DashboardMenusProps) {
                         className="w-full justify-start gap-2 h-auto text-left py-2.5"
                     >
                             {menu.href && (
-                                <Link
+                                <Link prefetch={false}
                                     href={menu.href}
                                     target={menu.newTab ? "_blank" : undefined}
                                     rel={

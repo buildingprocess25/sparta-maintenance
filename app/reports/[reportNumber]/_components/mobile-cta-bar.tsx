@@ -68,7 +68,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             {/* BMS: start work */}
             {viewer.role === "BMS" &&
                 report.status === "ESTIMATION_APPROVED" && (
-                    <Link
+                    <Link prefetch={false}
                         href={`/reports/start-work?report=${report.reportNumber}`}
                         className="block w-full"
                     >
@@ -94,7 +94,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 </p>
                             </div>
                         )}
-                        <Link
+                        <Link prefetch={false}
                             href={`/reports/complete?report=${report.reportNumber}`}
                             className="block w-full"
                         >
@@ -120,7 +120,7 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 {estimationRejectionNote}
                             </p>
                         </div>
-                        <Link
+                        <Link prefetch={false}
                             href={`/reports/edit/${report.reportNumber}`}
                             className="block w-full"
                         >

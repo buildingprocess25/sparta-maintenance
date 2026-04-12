@@ -198,7 +198,7 @@ export function PjumApprovalList({
                             <div className="relative md:hidden">
                                 <div className="rounded-xl border overflow-hidden divide-y bg-card shadow-sm">
                                     {items.map((item) => (
-                                        <Link
+                                        <Link prefetch={false}
                                             key={item.id}
                                             href={`/reports/pjum/${item.id}`}
                                             className="flex items-stretch hover:bg-muted/40 active:bg-muted/60 transition-colors"
@@ -315,7 +315,7 @@ export function PjumApprovalList({
                                                         size="sm"
                                                         asChild
                                                     >
-                                                        <Link
+                                                        <Link prefetch={false}
                                                             href={`/reports/pjum/${item.id}`}
                                                         >
                                                             Detail

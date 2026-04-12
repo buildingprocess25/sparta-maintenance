@@ -109,7 +109,7 @@ export function ForgotPasswordForm() {
                                 className="w-full"
                                 asChild
                             >
-                                <Link href="/login">Kembali ke Login</Link>
+                                <Link prefetch={false} href="/login">Kembali ke Login</Link>
                             </Button>
                         </form>
                     </CardContent>

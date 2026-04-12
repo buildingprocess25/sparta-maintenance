@@ -120,7 +120,7 @@ export function ReportSidebar({
                 {viewer.role === "BMS" &&
                     report.status === "ESTIMATION_APPROVED" && (
                         <div className="space-y-3">
-                            <Link
+                            <Link prefetch={false}
                                 href={`/reports/start-work?report=${report.reportNumber}`}
                                 className="block w-full"
                             >
@@ -136,7 +136,7 @@ export function ReportSidebar({
                 {viewer.role === "BMS" &&
                     report.status === "ESTIMATION_REJECTED_REVISION" && (
                         <div className="space-y-3">
-                            <Link
+                            <Link prefetch={false}
                                 href={`/reports/edit/${report.reportNumber}`}
                                 className="block w-full"
                             >
@@ -164,7 +164,7 @@ export function ReportSidebar({
                     (report.status === "IN_PROGRESS" ||
                         report.status === "REVIEW_REJECTED_REVISION") && (
                         <div className="space-y-3">
-                            <Link
+                            <Link prefetch={false}
                                 href={`/reports/complete?report=${report.reportNumber}`}
                                 className="block w-full"
                             >

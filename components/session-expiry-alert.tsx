@@ -48,15 +48,14 @@ export function SessionExpiryAlert() {
     useEffect(() => {
         if (isPublicPage) return;
 
-        // Cek pertama kali setelah 5 detik (beri waktu page load)
-        const initialTimeout = setTimeout(checkSession, 5000);
-
-        // Cek setiap 60 detik
-        const interval = setInterval(checkSession, 60 * 1000);
+        // Lakukan pengecekan aktif hanya setelah 8 jam sejak komponen dimuat
+        // (Server-side Next.js sudah memastikan user valid saat request awal, 
+        // sehingga klien cukup menjalankan timer timeout saja)
+        const eightHoursMs = 8 * 60 * 60 * 1000;
+        const initialTimeout = setTimeout(checkSession, eightHoursMs);
 
         return () => {
             clearTimeout(initialTimeout);
-            clearInterval(interval);
         };
     }, [checkSession, isPublicPage]);
 

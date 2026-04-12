@@ -36,7 +36,7 @@ export function DashboardStats({ hero, secondary, heroWidthClass }: DashboardSta
     return (
         <div className="rounded-xl overflow-hidden border shadow-sm flex flex-col lg:flex-row">
             {/* Hero stat */}
-            <Link
+            <Link prefetch={false}
                 href={hero.href}
                 className={`group shrink-0 ${heroWidthClass || 'lg:w-52'} flex flex-row items-center justify-between gap-4 lg:flex-col lg:items-stretch lg:justify-between p-4 lg:p-5 transition-colors ${hero.heroColorClass}`}
             >
@@ -64,7 +64,7 @@ export function DashboardStats({ hero, secondary, heroWidthClass }: DashboardSta
                 {secondary.map((stat) => {
                     const StatIcon = stat.icon;
                     return (
-                        <Link
+                        <Link prefetch={false}
                             key={stat.id}
                             href={stat.href}
                             className="group p-3 lg:p-4 flex flex-col justify-between hover:bg-muted/40 transition-colors"

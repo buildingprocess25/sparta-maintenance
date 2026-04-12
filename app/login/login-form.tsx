@@ -208,7 +208,7 @@ export function LoginForm({
 
                             {/* Forgot Password — coming soon */}
                             <div className="flex justify-end">
-                                <Link
+                                <Link prefetch={false}
                                     href="/forgot-password"
                                     className="text-sm text-primary hover:underline"
                                 >
@@ -246,7 +246,7 @@ export function LoginForm({
                                 className="w-full"
                                 asChild
                             >
-                                <Link href="/user-manual">
+                                <Link prefetch={false} href="/user-manual">
                                     Lihat User Manual
                                 </Link>
                             </Button>
