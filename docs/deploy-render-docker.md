@@ -71,6 +71,16 @@ Opsional:
 - Coba alur minimum: baca dashboard, buka report, dan akses upload/storage yang relevan.
 - Cek log Render untuk error koneksi DB, Supabase, Gmail, atau Google Drive.
 
+### Logging di Render
+
+- Request log dicetak dari `proxy.ts` dalam format JSON (method, path, status, duration).
+- Error yang di-handle di action/API tetap tercatat lewat `logger.error` pada blok `catch`.
+- Unhandled error (uncaught exception / unhandled rejection) dicatat global melalui `instrumentation.ts`.
+- Untuk traffic tinggi, request log memakai mode adaptif:
+  status error (>= 400), redirect (3xx), dan request lambat selalu dicatat; request normal dicatat dengan sampling.
+- Env tuning:
+  `REQUEST_LOG_ENABLED` (default `true`), `REQUEST_LOG_SAMPLE_RATE` rentang `0..1` (default `0.15`), `REQUEST_LOG_SLOW_MS` ambang request lambat dalam ms (default `1200`).
+
 ## 7) Build image lokal (opsional)
 
 ```bash
