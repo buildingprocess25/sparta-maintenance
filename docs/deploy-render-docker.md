@@ -56,6 +56,13 @@ Opsional:
     3. `npx prisma migrate deploy` di environment target
     4. `npm run db:generate`
 
+## 5.1) Catatan build Docker
+
+- `Dockerfile` sudah menyiapkan placeholder env non-secret di stage build.
+- Tujuannya agar proses `next build` tidak gagal ketika ada modul yang memvalidasi env saat build.
+- Placeholder ini hanya dipakai saat build image, bukan untuk runtime produksi.
+- Saat service jalan di Render, nilai env runtime dari dashboard Render tetap yang dipakai aplikasi.
+
 ## 6) Verifikasi setelah deploy
 
 - Buka halaman login service.
