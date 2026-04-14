@@ -79,13 +79,13 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
                 : await createUser({ NIK: nik.trim(), ...payload });
 
             if (result.error) {
-                toast.error(result.error, {
-                    description: "detail" in result ? result.detail : undefined,
-                });
+                toast.error(result.error);
                 return;
             }
 
-            toast.success(isEdit ? "User berhasil diupdate" : "User berhasil dibuat");
+            toast.success(
+                isEdit ? "User berhasil diupdate" : "User berhasil dibuat",
+            );
             setOpen(false);
             resetForm();
         });
@@ -93,9 +93,18 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
 
     return (
         <>
-            <LoadingOverlay isOpen={isPending} message={isEdit ? "Mengupdate user..." : "Membuat user..."} />
+            <LoadingOverlay
+                isOpen={isPending}
+                message={isEdit ? "Mengupdate user..." : "Membuat user..."}
+            />
 
-            <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (v && !isEdit) resetForm(); }}>
+            <Dialog
+                open={open}
+                onOpenChange={(v) => {
+                    setOpen(v);
+                    if (v && !isEdit) resetForm();
+                }}
+            >
                 <DialogTrigger asChild>
                     {trigger ?? (
                         <Button size="sm" className="gap-1.5">
@@ -106,7 +115,9 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-lg">
                     <DialogHeader>
-                        <DialogTitle>{isEdit ? "Edit User" : "Tambah User Baru"}</DialogTitle>
+                        <DialogTitle>
+                            {isEdit ? "Edit User" : "Tambah User Baru"}
+                        </DialogTitle>
                         <DialogDescription>
                             {isEdit
                                 ? "Ubah data user yang dipilih."
@@ -158,13 +169,19 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="BMS">BMS</SelectItem>
-                                    <SelectItem value="BRANCH_ADMIN">Branch Admin</SelectItem>
+                                    <SelectItem value="BRANCH_ADMIN">
+                                        Branch Admin
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                         </div>
 
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={() => setOpen(false)}
+                            >
                                 Batal
                             </Button>
                             <Button type="submit" disabled={isPending}>

@@ -83,9 +83,7 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                   });
 
             if (result.error) {
-                toast.error(result.error, {
-                    description: "detail" in result ? result.detail : undefined,
-                });
+                toast.error(result.error);
                 return;
             }
 

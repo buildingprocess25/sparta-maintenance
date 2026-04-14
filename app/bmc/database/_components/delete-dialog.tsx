@@ -21,7 +21,11 @@ type Props = {
     /** The descriptive label shown in confirmation, e.g. "user JOHN" */
     itemLabel: string;
     /** Async action that performs the actual delete */
-    onDelete: () => Promise<{ success?: boolean; error?: string; detail?: string }>;
+    onDelete: () => Promise<{
+        success?: boolean;
+        error?: string;
+        detail?: string;
+    }>;
     trigger?: React.ReactNode;
 };
 
@@ -35,9 +39,7 @@ export function DeleteDialog({ itemLabel, onDelete, trigger }: Props) {
             const result = await onDelete();
 
             if (result.error) {
-                toast.error(result.error, {
-                    description: result.detail,
-                });
+                toast.error(result.error);
                 return;
             }
 
@@ -69,8 +71,10 @@ export function DeleteDialog({ itemLabel, onDelete, trigger }: Props) {
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                             Apakah Anda yakin ingin menghapus{" "}
-                            <span className="font-medium text-foreground">{itemLabel}</span>?
-                            Tindakan ini tidak bisa dibatalkan.
+                            <span className="font-medium text-foreground">
+                                {itemLabel}
+                            </span>
+                            ? Tindakan ini tidak bisa dibatalkan.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

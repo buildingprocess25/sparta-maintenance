@@ -1,5 +1,3 @@
-import { randomUUID } from "crypto";
-
 type LogLevel = "info" | "warn" | "error";
 
 type LogContext = {
@@ -10,13 +8,25 @@ type LogContext = {
     [key: string]: unknown;
 };
 
+function createCorrelationId(): string {
+    const cryptoRef = globalThis.crypto as
+        | { randomUUID?: () => string }
+        | undefined;
+
+    if (cryptoRef?.randomUUID) {
+        return cryptoRef.randomUUID();
+    }
+
+    return `cid-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function formatLog(level: LogLevel, ctx: LogContext, message: string) {
     const entry = {
         timestamp: new Date().toISOString(),
         level,
         message,
         operation: ctx.operation,
-        correlationId: ctx.correlationId ?? randomUUID(),
+        correlationId: ctx.correlationId ?? createCorrelationId(),
         ...(ctx.userId && { userId: ctx.userId }),
         ...(ctx.durationMs !== undefined && { durationMs: ctx.durationMs }),
         ...Object.fromEntries(
@@ -69,7 +79,7 @@ export async function withLogging<T>(
     ctx: LogContext,
     fn: () => Promise<T>,
 ): Promise<T> {
-    const correlationId = ctx.correlationId ?? randomUUID();
+    const correlationId = ctx.correlationId ?? createCorrelationId();
     const start = performance.now();
 
     logger.info({ ...ctx, correlationId }, `${ctx.operation} started`);

@@ -22,12 +22,15 @@ export default function GlobalError({
         console.error("Application Error:", error);
     }, [error]);
 
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const rawMessage = error.message ?? "";
+
     // Deteksi apakah error terkait koneksi/jaringan
     const isNetworkError =
-        error.message?.includes("terhubung ke server") ||
-        error.message?.includes("koneksi") ||
-        error.message?.includes("network") ||
-        error.message?.includes("connect");
+        rawMessage.includes("terhubung ke server") ||
+        rawMessage.includes("koneksi") ||
+        rawMessage.includes("network") ||
+        rawMessage.includes("connect");
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -52,20 +55,20 @@ export default function GlobalError({
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                    {error.message && !isNetworkError && (
+                    {isDevelopment && rawMessage && !isNetworkError && (
                         <div className="rounded-md bg-muted p-3 text-left">
                             <p className="text-xs font-medium text-muted-foreground mb-1">
                                 Detail error (laporkan ke developer):
                             </p>
                             <p className="text-sm text-foreground wrap-break-word font-mono">
-                                {error.message}
+                                {rawMessage}
                             </p>
-                            {error.digest && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    ID: {error.digest}
-                                </p>
-                            )}
                         </div>
+                    )}
+                    {error.digest && (
+                        <p className="text-xs text-muted-foreground">
+                            ID Referensi Error: {error.digest}
+                        </p>
                     )}
                     <Button onClick={reset} className="w-full" size="lg">
                         <RefreshCw className="mr-2 h-4 w-4" />

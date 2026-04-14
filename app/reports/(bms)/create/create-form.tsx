@@ -154,9 +154,7 @@ export default function CreateReportForm({
                 });
 
                 if (result.error) {
-                    toast.error(result.error, {
-                        description: result.detail,
-                    });
+                    toast.error(result.error);
                     setIsSubmitting(false);
                     return;
                 }
@@ -181,9 +179,7 @@ export default function CreateReportForm({
             });
 
             if (result.error) {
-                toast.error(result.error, {
-                    description: result.detail,
-                });
+                toast.error(result.error);
                 setIsSubmitting(false);
                 return;
             }
@@ -194,14 +190,14 @@ export default function CreateReportForm({
             toast.success("Laporan berhasil dibuat!");
             router.push("/reports");
         } catch (err) {
-            const error = err as Error;
             setIsSubmitting(false);
             toast.error(
                 isEditMode
                     ? "Gagal mengajukan ulang laporan"
                     : "Gagal membuat laporan",
                 {
-                    description: error.message,
+                    description:
+                        "Terjadi kesalahan internal. Silakan coba lagi.",
                 },
             );
         }
@@ -213,8 +209,7 @@ export default function CreateReportForm({
                 <DraftDialog
                     open={showDraftDialog}
                     draftStoreName={
-                        localDraftData?.storeName ||
-                        existingDraft?.storeName
+                        localDraftData?.storeName || existingDraft?.storeName
                     }
                     draftUpdatedAt={
                         (localDraftData as { savedAt?: string } | null)

@@ -31,7 +31,7 @@ export async function submitReport(data: DraftData) {
     if (!parsed.success) {
         return {
             error: "Data laporan tidak valid",
-            detail: parsed.error.message,
+            detail: "Periksa kembali data laporan yang diisi.",
         };
     }
 
@@ -114,10 +114,7 @@ export async function submitReport(data: DraftData) {
             .filter(Boolean) as string[];
 
         const reportId = await prisma.$transaction(async (tx) => {
-            const reportNumber = await generateReportNumber(
-                store?.code,
-                tx,
-            );
+            const reportNumber = await generateReportNumber(store?.code, tx);
 
             const newReport = await tx.report.create({
                 data: {
