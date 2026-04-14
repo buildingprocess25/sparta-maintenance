@@ -90,7 +90,38 @@ docker run --rm -p 3000:3000 --env-file .env sparta-maintenance:render
 
 Jika Docker Desktop belum aktif, perintah build akan gagal.
 
-## 8) GitHub Actions Cron Jobs
+### Optimize Build Speed (Lokal)
+
+Untuk build lebih cepat saat development/testing lokal:
+
+```bash
+# Enable Docker BuildKit untuk parallel build & better caching
+DOCKER_BUILDKIT=1 docker build -t sparta-maintenance:render .
+```
+
+BuildKit cache layer antar rebuild, jauh lebih cepat rebuild kedua+ dibanding rebuild pertama.
+
+## 8) Render Build Performance
+
+**Render otomatis cache Docker layers** antar rebuild, jadi:
+
+- **Build pertama:** ~3-5 menit (full build, npm ci, Prisma generate, Next.js compile)
+- **Build subsequent:** ~1-2 menit (layer cache hit, hanya changes di-rebuild)
+
+**Tips mempercepat:**
+
+1. Push hanya file yang perlu (minimize diff)
+2. Hindari frequent re-push tanpa perubahan kode
+3. Jika hanya env var berubah, tidak perlu rebuild — update env di Render dashboard saja
+4. Jika code berubah drastis, rebuild akan lebih lama (layer cache miss)
+
+**Monitoring build:**
+
+- Render Dashboard → Your Service → Deploys
+- Klik deploy terbaru → lihat build step logs
+- "Building image..." section menunjukkan cache hit/miss untuk setiap layer
+
+## 9) GitHub Actions Cron Jobs
 
 Project ini menggunakan **GitHub Actions** untuk automated jobs (tidak tergantung Render):
 

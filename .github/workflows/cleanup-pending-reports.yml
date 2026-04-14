@@ -29,5 +29,9 @@ jobs:
               env:
                   DATABASE_URL: ${{ secrets.DATABASE_URL }}
                   DIRECT_URL: ${{ secrets.DIRECT_URL }}
-          UPLOADTHING_TOKEN: ${{ secrets.UPLOADTHING_TOKEN }}
+                  UPLOADTHING_TOKEN: ${{ secrets.UPLOADTHING_TOKEN }}
+              run: npx tsx scripts/cleanup-pending-reports.ts
+
+            - name: Notify on failure
+              if: failure()
               run: echo "❌ Cleanup failed! Check logs above."

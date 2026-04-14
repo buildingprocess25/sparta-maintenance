@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
         backgroundColor: "#f9fafb",
         paddingVertical: 4,
         paddingHorizontal: 6,
-        marginBottom: 8,
+        marginBottom: 6,
         borderLeft: "3px solid #0069a7",
     },
     completionItemTitle: {
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
         borderRadius: 3,
     },
     completionItemBlock: {
-        marginBottom: 10,
+        marginBottom: 6,
     },
 });
 
@@ -681,7 +681,7 @@ function renderLandscapePhoto(
     dimensionMap: Map<string, { width: number; height: number }>,
     colWidth: number,
     maxHeight: number,
-    photoMarginBottom = 4,
+    photoMarginBottom = 0,
 ) {
     const dims = dimensionMap.get(url);
     const nW = dims?.width ?? 4;
@@ -709,7 +709,7 @@ function renderLandscapePhoto(
                     height: visualH,
                     overflow: "hidden",
                     borderRadius: 2,
-                    marginBottom: 4,
+                    marginBottom: photoMarginBottom,
                 },
             },
             React.createElement(Image, {
@@ -772,14 +772,14 @@ function renderPhotoGrid2Col(
         pairs.push(urls.slice(i, i + 2));
     }
 
-    const containerMarginBottom = spacing?.containerMarginBottom ?? 8;
-    const labelMarginBottom = spacing?.labelMarginBottom ?? 4;
-    const rowMarginBottom = spacing?.rowMarginBottom ?? 4;
-    const photoMarginBottom = spacing?.photoMarginBottom ?? 4;
+    const containerMarginBottom = spacing?.containerMarginBottom ?? 0;
+    const labelMarginBottom = spacing?.labelMarginBottom ?? 0;
+    const rowMarginBottom = spacing?.rowMarginBottom ?? 0;
+    const photoMarginBottom = spacing?.photoMarginBottom ?? 0;
 
     return React.createElement(
         View,
-        { wrap: false, style: { marginBottom: containerMarginBottom } },
+        { style: { marginBottom: containerMarginBottom } },
         React.createElement(
             Text,
             {
@@ -837,7 +837,7 @@ function renderBeforeAfterRow(
 
     return React.createElement(
         View,
-        { style: { flexDirection: "row", gap: 8, marginBottom: 8 } },
+        { style: { flexDirection: "row", gap: 8, marginBottom: 0 } },
         // Left: Foto Sebelum
         hasBefore
             ? React.createElement(
@@ -845,7 +845,12 @@ function renderBeforeAfterRow(
                   { style: { width: col } },
                   React.createElement(
                       Text,
-                      { style: styles.completionSubLabel },
+                      {
+                          style: {
+                              ...styles.completionSubLabel,
+                              marginBottom: 0,
+                          },
+                      },
                       "Foto Sebelum",
                   ),
                   ...beforeUrls.map(renderPhoto),
@@ -858,7 +863,12 @@ function renderBeforeAfterRow(
                   { style: { width: col } },
                   React.createElement(
                       Text,
-                      { style: styles.completionSubLabel },
+                      {
+                          style: {
+                              ...styles.completionSubLabel,
+                              marginBottom: 0,
+                          },
+                      },
                       "Foto Sesudah",
                   ),
                   ...afterUrls.map(renderPhoto),
@@ -1627,7 +1637,6 @@ function buildReportDocument(
                         ? React.createElement(
                               View,
                               {
-                                  wrap: false,
                                   style: {
                                       ...styles.completionNoteBox,
                                       marginTop: -2,
@@ -1647,7 +1656,6 @@ function buildReportDocument(
                         ? React.createElement(
                               View,
                               {
-                                  wrap: false,
                                   style: {
                                       ...styles.completionNoteBox,
                                       marginTop: 2,

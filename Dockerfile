@@ -1,3 +1,7 @@
+# syntax=docker/dockerfile:1
+# Use Docker BuildKit for better layer caching during rebuild
+# Enable with: DOCKER_BUILDKIT=1 docker build .
+
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
