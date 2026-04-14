@@ -89,3 +89,21 @@ docker run --rm -p 3000:3000 --env-file .env sparta-maintenance:render
 ```
 
 Jika Docker Desktop belum aktif, perintah build akan gagal.
+
+## 8) GitHub Actions Cron Jobs
+
+Project ini menggunakan **GitHub Actions** untuk automated jobs (tidak tergantung Render):
+
+1. **Daily Database Backup** (12 AM UTC)
+    - Backup PostgreSQL ke Google Drive
+    - Simpan 7 hari di GitHub Artifacts
+
+2. **Cleanup Pending Reports** (1 AM UTC)
+    - Hapus draft reports lebih tua dari 14 hari
+    - Bersihkan UploadThing files terkait
+
+**Setup:**
+
+- Lihat [github-actions-cron-jobs.md](./github-actions-cron-jobs.md) untuk dokumentasi lengkap
+- Tambahkan secrets di GitHub repo: `DATABASE_URL`, `DIRECT_URL`, `UPLOADTHING_TOKEN`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `BACKUP_DRIVE_FOLDER_ID`
+- Workflows otomatis berjalan sesuai schedule atau bisa di-trigger manual dari Actions tab

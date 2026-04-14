@@ -32,11 +32,15 @@ services:
             sync: false
           - key: MAINTENANCE_MODE
             value: "false"
-          - key: MAINTENANCE_MESSAGE
-            value: "Sistem sedang maintenance. Silakan coba lagi beberapa saat."
           - key: REQUEST_LOG_ENABLED
             value: "true"
           - key: REQUEST_LOG_SAMPLE_RATE
             value: "0.15"
           - key: REQUEST_LOG_SLOW_MS
             value: "1200"
+          - key: CRON_SECRET
+            sync: false
+          - key: CLEANUP_PENDING_EXPIRY_DAYS
+            value: "14"
+          - key: UPLOADTHING_TOKEN
+            sync: false
