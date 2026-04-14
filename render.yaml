@@ -1,36 +1,36 @@
 services:
-  - type: web
-    name: sparta-maintenance
-    runtime: docker
-    plan: starter
-    autoDeploy: true
-    healthCheckPath: /login
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DATABASE_URL
-        sync: false
-      - key: DIRECT_URL
-        sync: false
-      - key: SESSION_SECRET
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_URL
-        sync: false
-      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        sync: false
-      - key: NEXT_PUBLIC_APP_URL
-        sync: false
-      - key: GMAIL_USER
-        sync: false
-      - key: GOOGLE_CLIENT_ID
-        sync: false
-      - key: GOOGLE_CLIENT_SECRET
-        sync: false
-      - key: GOOGLE_REFRESH_TOKEN
-        sync: false
-      - key: GOOGLE_DRIVE_ROOT_FOLDER_ID
-        sync: false
-      - key: MAINTENANCE_MODE
-        value: "false"
-      - key: MAINTENANCE_MESSAGE
-        value: "Sistem sedang maintenance. Silakan coba lagi beberapa saat."
+    - type: web
+      name: sparta-maintenance
+      runtime: docker
+      plan: starter
+      autoDeploy: true
+      healthCheckPath: /login
+      envVars:
+          - key: NODE_ENV
+            value: production
+          - key: DATABASE_URL
+            sync: false
+          - key: DIRECT_URL
+            sync: false
+          - key: SESSION_SECRET
+            sync: false
+          - key: NEXT_PUBLIC_SUPABASE_URL
+            sync: false
+          - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+            sync: false
+          - key: NEXT_PUBLIC_APP_URL
+            sync: false
+          - key: GMAIL_USER
+            sync: false
+          - key: GOOGLE_CLIENT_ID
+            sync: false
+          - key: GOOGLE_CLIENT_SECRET
+            sync: false
+          - key: GOOGLE_REFRESH_TOKEN
+            sync: false
+          - key: GOOGLE_DRIVE_ROOT_FOLDER_ID
+            sync: false
+          - key: MAINTENANCE_MODE
+            value: "false"
+          - key: MAINTENANCE_MESSAGE
+            value: "Sistem sedang maintenance. Silakan coba lagi beberapa saat."

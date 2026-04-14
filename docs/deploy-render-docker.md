@@ -51,10 +51,10 @@ Opsional:
 
 - Jangan jalankan `db:push` pada environment produksi.
 - Gunakan migration workflow:
-  1. `npx prisma migrate dev --name <migration_name>` di local/dev
-  2. review SQL
-  3. `npx prisma migrate deploy` di environment target
-  4. `npm run db:generate`
+    1. `npx prisma migrate dev --name <migration_name>` di local/dev
+    2. review SQL
+    3. `npx prisma migrate deploy` di environment target
+    4. `npm run db:generate`
 
 ## 6) Verifikasi setelah deploy
 
