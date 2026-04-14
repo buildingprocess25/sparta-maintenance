@@ -62,6 +62,7 @@ Opsional:
 - Tujuannya agar proses `next build` tidak gagal ketika ada modul yang memvalidasi env saat build.
 - Placeholder ini hanya dipakai saat build image, bukan untuk runtime produksi.
 - Saat service jalan di Render, nilai env runtime dari dashboard Render tetap yang dipakai aplikasi.
+- Urutan build Prisma penting: folder `prisma/` harus di-`COPY` sebelum `npm ci`, karena `postinstall` menjalankan `prisma generate`.
 
 ## 6) Verifikasi setelah deploy
 
