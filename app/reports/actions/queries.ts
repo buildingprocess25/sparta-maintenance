@@ -1,27 +1,11 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import type { ReportItemJson } from "@/types/report";
 import { requireAuth, requireRole } from "@/lib/authorization";
 import type { ReportFilters, DateRangeFilter } from "./types";
 import { resolveDateRange } from "./types";
-
-function calculateTotalRealisasi(items: unknown): number {
-    const reportItems = (items ?? []) as ReportItemJson[];
-    let total = 0;
-
-    for (const item of reportItems) {
-        if (!item.realisasiItems || item.realisasiItems.length === 0) {
-            continue;
-        }
-
-        for (const realisasi of item.realisasiItems) {
-            total += (realisasi.quantity || 0) * (realisasi.price || 0);
-        }
-    }
-
-    return total;
-}
 
 export async function getStoresByBranch(branchName: string) {
     const user = await requireAuth();
@@ -110,7 +94,10 @@ export async function getMyReports(filters: ReportFilters = {}) {
             ...report,
             _count: { items: itemsArr.length },
             rusakCount: itemsArr.filter((i) => i.condition === "RUSAK").length,
-            totalRealisasi: calculateTotalRealisasi(report.items),
+            totalRealisasi: resolveReportTotalRealisasi(
+                report.totalReal,
+                report.items,
+            ),
         };
     });
 

@@ -10,6 +10,7 @@ import {
     type PjumFormData,
     type PumFormData,
 } from "@/lib/pdf/generate-pjum-form-pdf";
+import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { PDFDocument } from "pdf-lib";
 import { parseMaterialStores } from "@/lib/report-material-stores";
@@ -71,6 +72,7 @@ export async function generatePjumPackagePdf(params: {
             branchName: true,
             status: true,
             totalEstimation: true,
+            totalReal: true,
             items: true,
             createdByNIK: true,
             createdBy: { select: { name: true } },
@@ -153,16 +155,6 @@ export async function generatePjumPackagePdf(params: {
     }
 
     const recapRows = reports.map((r) => {
-        const items = (r.items ?? []) as unknown as ReportItemJson[];
-        let totalRealisasi = 0;
-        for (const item of items) {
-            if (item.realisasiItems && item.realisasiItems.length > 0) {
-                for (const real of item.realisasiItems) {
-                    totalRealisasi += (real.quantity || 0) * (real.price || 0);
-                }
-            }
-        }
-
         return {
             reportNumber: r.reportNumber,
             createdAt: (r.finishedAt ?? r.createdAt).toISOString(),
@@ -170,7 +162,7 @@ export async function generatePjumPackagePdf(params: {
             storeCode: r.storeCode,
             branchName: r.branchName,
             status: r.status as string,
-            totalRealisasi,
+            totalRealisasi: resolveReportTotalRealisasi(r.totalReal, r.items),
         };
     });
 

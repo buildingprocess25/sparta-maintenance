@@ -88,7 +88,11 @@ async function migrateReports(src: pg.Client) {
     let total = 0;
 
     while (true) {
-        const rows = await readBatch<Record<string, unknown>>(src, "Report", offset);
+        const rows = await readBatch<Record<string, unknown>>(
+            src,
+            "Report",
+            offset,
+        );
         if (rows.length === 0) break;
 
         if (!DRY_RUN) {
@@ -107,20 +111,37 @@ async function migrateReports(src: pg.Client) {
                         estimations: (row.estimations as never) ?? [],
                         startSelfieUrl: (row.startSelfieUrl as string) ?? null,
                         startReceiptUrls: (row.startReceiptUrls as never) ?? [],
-                        startMaterialStores: (row.startMaterialStores as never) ?? [],
-                        completionNotes: (row.completionNotes as string) ?? null,
-                        completionAdditionalPhotos: (row.completionAdditionalPhotos as never) ?? [],
-                        completionAdditionalNote: (row.completionAdditionalNote as string) ?? null,
-                        finishedAt: row.finishedAt ? new Date(row.finishedAt as string) : null,
-                        pjumExportedAt: row.pjumExportedAt ? new Date(row.pjumExportedAt as string) : null,
-                        pendingEstimationPdfPath: (row.pendingEstimationPdfPath as string) ?? null,
-                        estimationApprovedPdfPath: (row.estimationApprovedPdfPath as string) ?? null,
-                        approvedBmcPdfPath: (row.approvedBmcPdfPath as string) ?? null,
-                        completedPdfPath: (row.completedPdfPath as string) ?? null,
-                        pdfSnapshotMeta: (row.pdfSnapshotMeta as never) ?? {},
+                        startMaterialStores:
+                            (row.startMaterialStores as never) ?? [],
+                        completionNotes:
+                            (row.completionNotes as string) ?? null,
+                        completionAdditionalPhotos:
+                            (row.completionAdditionalPhotos as never) ?? [],
+                        completionAdditionalNote:
+                            (row.completionAdditionalNote as string) ?? null,
+                        finishedAt: row.finishedAt
+                            ? new Date(row.finishedAt as string)
+                            : null,
+                        pjumExportedAt: row.pjumExportedAt
+                            ? new Date(row.pjumExportedAt as string)
+                            : null,
+                        pendingEstimationPdfPath:
+                            (row.pendingEstimationPdfPath as string) ?? null,
+                        estimationApprovedPdfPath:
+                            (row.estimationApprovedPdfPath as string) ?? null,
+                        approvedBmcPdfPath:
+                            (row.approvedBmcPdfPath as string) ?? null,
+                        completedPdfPath:
+                            (row.completedPdfPath as string) ?? null,
+                        totalReal:
+                            row.totalReal !== null &&
+                            row.totalReal !== undefined
+                                ? (row.totalReal as never)
+                                : null,
                         // Inject default for new column not in Supabase
                         uploadthingFileKeys: [],
-                        reportFinalDriveUrl: (row.reportFinalDriveUrl as string) ?? null,
+                        reportFinalDriveUrl:
+                            (row.reportFinalDriveUrl as string) ?? null,
                         createdAt: new Date(row.createdAt as string),
                         updatedAt: new Date(row.updatedAt as string),
                     },
@@ -147,7 +168,11 @@ async function migrateApprovalLogs(src: pg.Client) {
     let total = 0;
 
     while (true) {
-        const rows = await readBatch<Record<string, unknown>>(src, "ApprovalLog", offset);
+        const rows = await readBatch<Record<string, unknown>>(
+            src,
+            "ApprovalLog",
+            offset,
+        );
         if (rows.length === 0) break;
 
         if (!DRY_RUN) {
@@ -184,7 +209,11 @@ async function migrateActivityLogs(src: pg.Client) {
     let total = 0;
 
     while (true) {
-        const rows = await readBatch<Record<string, unknown>>(src, "ActivityLog", offset);
+        const rows = await readBatch<Record<string, unknown>>(
+            src,
+            "ActivityLog",
+            offset,
+        );
         if (rows.length === 0) break;
 
         if (!DRY_RUN) {
@@ -219,7 +248,9 @@ async function migratePjumExports(src: pg.Client) {
     log("\n📋 Migrating PjumExport...");
 
     // PjumExport has no createdAt in some versions — use id order
-    const res = await src.query(`SELECT * FROM "PjumExport" ORDER BY "createdAt"`);
+    const res = await src.query(
+        `SELECT * FROM "PjumExport" ORDER BY "createdAt"`,
+    );
     const rows = res.rows;
 
     if (!DRY_RUN) {
@@ -237,16 +268,20 @@ async function migratePjumExports(src: pg.Client) {
                     reportNumbers: (row.reportNumbers as string[]) ?? [],
                     createdByNIK: row.createdByNIK as string,
                     approvedByNIK: (row.approvedByNIK as string) ?? null,
-                    approvedAt: row.approvedAt ? new Date(row.approvedAt as string) : null,
+                    approvedAt: row.approvedAt
+                        ? new Date(row.approvedAt as string)
+                        : null,
                     pumBankAccountNo: (row.pumBankAccountNo as string) ?? null,
-                    pumBankAccountName: (row.pumBankAccountName as string) ?? null,
+                    pumBankAccountName:
+                        (row.pumBankAccountName as string) ?? null,
                     pumBankName: (row.pumBankName as string) ?? null,
                     pumWeekNumber: (row.pumWeekNumber as number) ?? null,
                     pumMonth: (row.pumMonth as string) ?? null,
                     pumYear: (row.pumYear as number) ?? null,
                     rejectionNotes: (row.rejectionNotes as string) ?? null,
                     pjumPdfPath: (row.pjumPdfPath as string) ?? null,
-                    pjumFinalDriveUrl: (row.pjumFinalDriveUrl as string) ?? null,
+                    pjumFinalDriveUrl:
+                        (row.pjumFinalDriveUrl as string) ?? null,
                     createdAt: new Date(row.createdAt as string),
                     updatedAt: new Date(row.updatedAt as string),
                 },
@@ -319,7 +354,9 @@ async function main() {
         for (const [table, count] of Object.entries(counts)) {
             console.log(`  ${table.padEnd(20)}: ${count} rows`);
         }
-        console.log(`  Mode: ${DRY_RUN ? "DRY RUN — no data written" : "LIVE — data written to Aiven"}`);
+        console.log(
+            `  Mode: ${DRY_RUN ? "DRY RUN — no data written" : "LIVE — data written to Aiven"}`,
+        );
         console.log("=".repeat(60));
     } finally {
         await src.end();

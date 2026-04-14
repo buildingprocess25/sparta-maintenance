@@ -6,7 +6,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import type { ReportItemJson } from "@/types/report";
+import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import {
     buildPjumSnapshotPath,
@@ -92,6 +92,7 @@ type PjumReportCandidate = {
     storeCode: string | null;
     branchName: string;
     status: string;
+    totalReal: unknown;
     items: unknown;
     pjumExportedAt: Date | null;
 };
@@ -101,21 +102,6 @@ function getPjumFilterDate(report: PjumReportCandidate): Date {
         return report.finishedAt ?? report.createdAt;
     }
     return report.createdAt;
-}
-
-function calculateTotalRealisasi(items: unknown): number {
-    const reportItems = (items ?? []) as unknown as ReportItemJson[];
-    let totalRealisasi = 0;
-
-    for (const item of reportItems) {
-        if (item.realisasiItems && item.realisasiItems.length > 0) {
-            for (const real of item.realisasiItems) {
-                totalRealisasi += (real.quantity || 0) * (real.price || 0);
-            }
-        }
-    }
-
-    return totalRealisasi;
 }
 
 async function getReportsInRangeByPjumDate(params: {
@@ -155,6 +141,7 @@ async function getReportsInRangeByPjumDate(params: {
             storeCode: true,
             branchName: true,
             status: true,
+            totalReal: true,
             items: true,
             pjumExportedAt: true,
         },
@@ -221,12 +208,12 @@ export async function getBmcPjumHistory(
         );
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: allReportNumbers } },
-            select: { reportNumber: true, items: true },
+            select: { reportNumber: true, totalReal: true, items: true },
         });
         const reportTotalMap = new Map(
             reports.map((report) => [
                 report.reportNumber,
-                calculateTotalRealisasi(report.items),
+                resolveReportTotalRealisasi(report.totalReal, report.items),
             ]),
         );
 
@@ -371,17 +358,6 @@ export async function searchPjumReports(
         });
 
         const data: PjumReportRow[] = reports.map((r) => {
-            const items = (r.items ?? []) as unknown as ReportItemJson[];
-            let totalRealisasi = 0;
-            for (const item of items) {
-                if (item.realisasiItems && item.realisasiItems.length > 0) {
-                    for (const real of item.realisasiItems) {
-                        totalRealisasi +=
-                            (real.quantity || 0) * (real.price || 0);
-                    }
-                }
-            }
-
             const dateForFilter = getPjumFilterDate(r);
 
             return {
@@ -391,7 +367,10 @@ export async function searchPjumReports(
                 storeCode: r.storeCode,
                 branchName: r.branchName,
                 status: r.status as string,
-                totalRealisasi,
+                totalRealisasi: resolveReportTotalRealisasi(
+                    r.totalReal,
+                    r.items,
+                ),
                 pjumExportedAt: r.pjumExportedAt
                     ? r.pjumExportedAt.toISOString()
                     : null,
@@ -416,7 +395,11 @@ export async function exportPjum(input: {
     from: string;
     to: string;
     weekNumber: number;
-}): Promise<{ error: string | null; pjumExportId: string | null; pjumFinalDriveUrl?: string | null }> {
+}): Promise<{
+    error: string | null;
+    pjumExportId: string | null;
+    pjumFinalDriveUrl?: string | null;
+}> {
     try {
         const user = await requireRole("BMC");
         await validateCSRF(await headers());
@@ -538,12 +521,6 @@ export async function exportPjum(input: {
         });
 
         // Generate and upload PDF snapshot to Drive
-        const bmsUser = await prisma.user.findUnique({
-            where: { NIK: bmsNIK },
-            select: { name: true },
-        });
-        const bmsName = bmsUser?.name ?? bmsNIK;
-
         const result = await generatePjumPackagePdf({
             reportNumbers: safeNumbers,
             bmsNIK,
@@ -594,7 +571,11 @@ export async function exportPjum(input: {
         );
 
         revalidatePath("/reports/pjum");
-        return { error: null, pjumExportId: pjumExport.id, pjumFinalDriveUrl: snapshotDriveUrl };
+        return {
+            error: null,
+            pjumExportId: pjumExport.id,
+            pjumFinalDriveUrl: snapshotDriveUrl,
+        };
     } catch (error) {
         logger.error(
             { operation: "exportPjum" },

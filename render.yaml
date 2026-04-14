@@ -2,9 +2,9 @@ services:
     - type: web
       name: sparta-maintenance
       runtime: docker
-      plan: starter
+      plan: free
       autoDeploy: true
-      healthCheckPath: /login
+      healthCheckPath: /api/health
       envVars:
           - key: NODE_ENV
             value: production

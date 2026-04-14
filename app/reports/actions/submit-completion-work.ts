@@ -5,6 +5,7 @@ import { ReportStatus, Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
+import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type {
@@ -123,6 +124,7 @@ export async function submitCompletionWork(
             ...existingKeys,
             ...completionFileKeys.filter((k) => k.trim().length > 0),
         ];
+        const totalReal = calculateTotalRealisasiFromItems(updatedItems);
 
         await prisma.$transaction([
             prisma.report.update({
@@ -131,6 +133,7 @@ export async function submitCompletionWork(
                     status: ReportStatus.PENDING_REVIEW,
                     // Tanggal selesai diisi saat BMS submit penyelesaian.
                     finishedAt: new Date(),
+                    totalReal: new Prisma.Decimal(totalReal),
                     items: updatedItems as unknown as Prisma.InputJsonValue,
                     startSelfieUrl: selfieUrlValue || null,
                     completionAdditionalPhotos:

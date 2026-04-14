@@ -91,6 +91,7 @@ export default async function proxy(request: NextRequest) {
     const start = performance.now();
     const { pathname } = request.nextUrl;
     const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
+    const isHealthRoute = pathname === "/api/health";
     const isMaintenanceRoute = pathname === "/maintenance";
     const { enabled: isMaintenanceEnabled, message: maintenanceMessage } =
         getMaintenanceState();
@@ -107,7 +108,7 @@ export default async function proxy(request: NextRequest) {
     }
 
     if (isMaintenanceEnabled) {
-        if (isApiRoute) {
+        if (isApiRoute && !isHealthRoute) {
             const response = NextResponse.json(
                 {
                     error: maintenanceMessage,

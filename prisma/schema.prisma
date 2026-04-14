@@ -118,6 +118,7 @@ model Report {
   
   status        ReportStatus  @default(DRAFT)
   totalEstimation Decimal     @default(0) @db.Decimal(15, 2)
+  totalReal     Decimal?      @db.Decimal(15, 2)
   
   createdByNIK  String
   createdBy     User          @relation("CreatedReports", fields: [createdByNIK], references: [NIK])
@@ -145,7 +146,6 @@ model Report {
   estimationApprovedPdfPath String?
   approvedBmcPdfPath        String?
   completedPdfPath          String?
-  pdfSnapshotMeta           Json      @default("{}")
 
   // UploadThing file keys — for cleanup when report status changes to COMPLETED.
   // Stores all file keys from checklist photos, selfie, receipt, and completion photos.
