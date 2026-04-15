@@ -1,13 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-    Camera,
-    ChevronDown,
-    Plus,
-    Trash2,
-    ZoomIn,
-} from "lucide-react";
+import { useState } from "react";
+import { Camera, ChevronDown, Plus, Trash2, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,10 +22,7 @@ import {
 import { unitOptions } from "@/lib/checklist-data";
 import { LocalNotesTextarea } from "../../create/components/local-notes-textarea";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
-import type {
-    CompletionItemState,
-    RealisasiEntry,
-} from "../types";
+import type { CompletionItemState, RealisasiEntry } from "../types";
 import { realisasiGrandTotal, realisasiTotal } from "../types";
 
 // ─── Re-export types so existing imports keep working ─────────────────────────
@@ -59,11 +50,9 @@ function PriceInput({
     onCommit: (v: number) => void;
     className?: string;
 }) {
-    const fmt = (n: number) => (n ? formatIDR(n) : "");
+    const fmt = (n: number) =>
+        Number.isFinite(n) ? formatIDR(Math.max(0, n)) : "";
     const [local, setLocal] = useState(fmt(value));
-
-    useEffect(() => {
-    }, [value]);
 
     return (
         <Input
@@ -236,7 +225,6 @@ function RealisasiTable({
                                 <Input
                                     type="number"
                                     min="0"
-                                    placeholder="0"
                                     value={entry.quantity || ""}
                                     onChange={(e) =>
                                         update(

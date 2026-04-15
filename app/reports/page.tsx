@@ -10,7 +10,7 @@ type ReportsPageProps = {
         page?: string;
         search?: string;
         // Approval params
-        bms?: string;   // filter by BMS reporter name
+        bms?: string; // filter by BMS reporter name
         // Shared
         status?: string;
         dateRange?: string;
@@ -92,6 +92,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
         ...r,
         status: r.status as string,
         totalEstimation: Number(r.totalEstimation),
+        totalReal: r.totalReal !== null ? Number(r.totalReal) : null,
         totalRealisasi: Number(r.totalRealisasi ?? 0),
     }));
 

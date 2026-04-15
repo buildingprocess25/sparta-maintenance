@@ -43,7 +43,7 @@ function isItemComplete(state: CompletionItemState): boolean {
         state.afterPhotos.length > 0 &&
         state.realisasiEntries.length > 0 &&
         state.realisasiEntries.every(
-            (e) => e.materialName.trim().length > 0 && e.price > 0,
+            (e) => e.materialName.trim().length > 0 && e.price >= 0,
         )
     );
 }

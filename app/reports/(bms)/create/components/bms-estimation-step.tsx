@@ -48,7 +48,7 @@ import type { BmsItemGroup } from "./types";
 
 /** Format angka dengan titik sebagai separator ribuan: 50000 → "50.000" */
 function formatNumber(value: number): string {
-    if (!value) return "";
+    if (!Number.isFinite(value)) return "";
     return value.toLocaleString("id-ID");
 }
 
@@ -79,7 +79,6 @@ function PriceInput({
         <Input
             type="text"
             inputMode="numeric"
-            placeholder="0"
             value={localValue}
             onChange={(e) => {
                 const raw = e.target.value.replace(/[^0-9]/g, "");
@@ -241,7 +240,6 @@ export function BmsEstimationStep({
                                                                     <Input
                                                                         type="number"
                                                                         min="0"
-                                                                        placeholder="0"
                                                                         value={
                                                                             entry.quantity ||
                                                                             ""

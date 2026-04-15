@@ -398,11 +398,11 @@ export function CompleteForm({
             }
             if (
                 state.realisasiEntries.some(
-                    (e) => !e.materialName.trim() || e.price <= 0,
+                    (e) => !e.materialName.trim() || e.price < 0,
                 )
             ) {
                 toast.error(
-                    "Semua baris realisasi harus memiliki nama barang dan harga",
+                    "Semua baris realisasi harus memiliki nama barang dan harga tidak boleh minus",
                     { description: `Item: ${item.itemName}` },
                 );
                 return;

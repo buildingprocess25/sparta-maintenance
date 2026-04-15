@@ -156,8 +156,10 @@ export function useBmsEstimation() {
                     scrollToBmsEntry(entry.id);
                     return false;
                 }
-                if (entry.price <= 0) {
-                    toast.error(`Harga untuk "${entry.itemName}" wajib diisi`);
+                if (entry.price < 0) {
+                    toast.error(
+                        `Harga untuk "${entry.itemName}" tidak boleh minus`,
+                    );
                     scrollToBmsEntry(entry.id);
                     return false;
                 }
