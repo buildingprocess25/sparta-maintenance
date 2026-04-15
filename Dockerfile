@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Use Docker BuildKit for better layer caching during rebuild
 # Enable with: DOCKER_BUILDKIT=1 docker build .
 
