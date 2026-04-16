@@ -9,7 +9,7 @@ export interface UploadedPhoto {
 }
 
 const COMPRESSION_OPTIONS = {
-    maxSizeMB: 0.15,
+    maxSizeMB: 0.07, // Target max size in megabytes (70KB)
     maxWidthOrHeight: 1280,
     useWebWorker: true,
 } as const;
@@ -53,7 +53,6 @@ export async function compressAndUploadToUT(
         return null;
     }
 }
-
 
 /**
  * Returns the natural dimensions of an image file.

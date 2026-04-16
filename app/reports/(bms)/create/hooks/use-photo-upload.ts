@@ -103,7 +103,7 @@ export function usePhotoUpload({
 
             try {
                 const compressedFile = await imageCompression(file, {
-                    maxSizeMB: 0.15,
+                    maxSizeMB: 0.07, // Target max size in megabytes (70KB)
                     maxWidthOrHeight: 1280,
                     useWebWorker: true,
                 });
@@ -122,10 +122,17 @@ export function usePhotoUpload({
                 });
 
                 // Hapus foto yang sudah ada sebelumnya (jika ada) di server agar tidak jadi sampah
-                const existingItemForCleanup = checklist.get(activePhotoItemId!);
+                const existingItemForCleanup = checklist.get(
+                    activePhotoItemId!,
+                );
                 if (existingItemForCleanup?.photoKey) {
-                    discardLocalDraftFiles([existingItemForCleanup.photoKey]).catch(e => {
-                        console.error("Gagal menghapus foto lama dari server:", e);
+                    discardLocalDraftFiles([
+                        existingItemForCleanup.photoKey,
+                    ]).catch((e) => {
+                        console.error(
+                            "Gagal menghapus foto lama dari server:",
+                            e,
+                        );
                     });
                 }
 
@@ -184,7 +191,7 @@ export function usePhotoUpload({
             // Logika hapus foto dari server UploadThing (agar tidak orphan)
             if (item.photoKey) {
                 discardLocalDraftFiles([item.photoKey]).catch((e) => {
-                     console.error("Gagal menghapus foto dari server:", e);
+                    console.error("Gagal menghapus foto dari server:", e);
                 });
             }
 
