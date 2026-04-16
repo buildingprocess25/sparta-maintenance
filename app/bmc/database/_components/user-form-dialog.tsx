@@ -25,6 +25,11 @@ import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { createUser, updateUser } from "../actions";
 
+function getRoleLabel(role: string): string {
+    if (role === "BRANCH_ADMIN") return "Branch Admin";
+    return "BMS";
+}
+
 type UserRow = {
     NIK: string;
     name: string;
@@ -61,8 +66,15 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
-        if (!nik.trim() || !name.trim() || !email.trim()) {
-            toast.error("Semua field wajib diisi");
+        const missingFields: string[] = [];
+        if (!nik.trim()) missingFields.push("NIK");
+        if (!name.trim()) missingFields.push("Nama");
+        if (!email.trim()) missingFields.push("Email");
+
+        if (missingFields.length > 0) {
+            toast.error("Data user belum lengkap", {
+                description: `Lengkapi field berikut: ${missingFields.join(", ")}.`,
+            });
             return;
         }
 
@@ -79,12 +91,21 @@ export function UserFormDialog({ branchNames, editUser, trigger }: Props) {
                 : await createUser({ NIK: nik.trim(), ...payload });
 
             if (result.error) {
-                toast.error(result.error);
+                const failureReason = result.detail ?? result.error;
+                toast.error(
+                    isEdit ? "Gagal mengupdate user" : "Gagal membuat user",
+                    {
+                        description: `${failureReason}. Data: NIK ${nik.trim()}, Email ${email.trim()}.`,
+                    },
+                );
                 return;
             }
 
             toast.success(
                 isEdit ? "User berhasil diupdate" : "User berhasil dibuat",
+                {
+                    description: `NIK ${nik.trim()} • ${name.trim()} • Role ${getRoleLabel(role)} • Cabang ${branchNames.join(", ")}`,
+                },
             );
             setOpen(false);
             resetForm();

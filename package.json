@@ -12,6 +12,7 @@
         "backup:db": "tsx scripts/backup-db.ts",
         "cleanup:pending": "tsx scripts/cleanup-pending-reports.ts",
         "import:stores": "tsx scripts/import-stores.ts",
+        "fix:store-branch": "tsx scripts/fix-store-branch-from-xlsx.ts",
         "db:generate": "prisma generate",
         "db:studio": "prisma studio",
         "db:seed": "tsx prisma/seed.ts",

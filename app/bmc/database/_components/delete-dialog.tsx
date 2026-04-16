@@ -39,11 +39,18 @@ export function DeleteDialog({ itemLabel, onDelete, trigger }: Props) {
             const result = await onDelete();
 
             if (result.error) {
-                toast.error(result.error);
+                toast.error(`Gagal menghapus ${itemLabel}`, {
+                    description: result.detail
+                        ? `${result.error} (${result.detail})`
+                        : result.error,
+                });
                 return;
             }
 
-            toast.success(`${itemLabel} berhasil dihapus`);
+            toast.success(`${itemLabel} berhasil dihapus`, {
+                description:
+                    "Perubahan sudah disimpan. Daftar akan terbarui otomatis.",
+            });
         });
     }
 

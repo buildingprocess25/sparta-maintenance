@@ -61,7 +61,9 @@ export function ImportUserDialog() {
         if (!file) return;
 
         if (!file.name.endsWith(".xlsx")) {
-            toast.error("Format file tidak valid. Hanya menerima file .xlsx");
+            toast.error("Format file tidak valid", {
+                description: `File ${file.name} tidak didukung. Upload file .xlsx sesuai template import user.`,
+            });
             return;
         }
 
@@ -75,7 +77,9 @@ export function ImportUserDialog() {
         if (!file) return;
 
         if (!file.name.endsWith(".xlsx")) {
-            toast.error("Format file tidak valid. Hanya menerima file .xlsx");
+            toast.error("Format file tidak valid", {
+                description: `File ${file.name} tidak didukung. Upload file .xlsx sesuai template import user.`,
+            });
             return;
         }
 
@@ -90,32 +94,50 @@ export function ImportUserDialog() {
         setProgress(0);
         const progressInterval = setInterval(() => {
             setProgress((prev) => {
-                if (prev >= 90) {
-                    clearInterval(progressInterval);
-                    return 90;
-                }
-                return prev + Math.random() * 15;
+                if (prev >= 98) return 98;
+                const remaining = 98 - prev;
+                const step =
+                    prev < 80
+                        ? Math.max(2, remaining * 0.2)
+                        : Math.max(0.4, remaining * 0.08);
+                return Math.min(98, prev + step);
             });
-        }, 300);
+        }, 250);
 
         startTransition(async () => {
-            const formData = new FormData();
-            formData.append("file", selectedFile);
+            try {
+                const formData = new FormData();
+                formData.append("file", selectedFile);
 
-            const importResult = await importUsers(formData);
+                const importResult = await importUsers(formData);
+                setResult(importResult);
 
-            clearInterval(progressInterval);
-            setProgress(100);
-            setResult(importResult);
-
-            if (importResult.success && importResult.failed === 0) {
-                toast.success(
-                    `Import berhasil: ${importResult.created} dibuat, ${importResult.updated} diperbarui`,
-                );
-            } else if (importResult.success) {
-                toast.warning("Import selesai dengan beberapa error");
-            } else {
-                toast.error("Import gagal");
+                if (importResult.success && importResult.failed === 0) {
+                    toast.success("Import user berhasil", {
+                        description: `Diproses ${importResult.total} baris: ${importResult.created} dibuat, ${importResult.updated} diperbarui, ${importResult.skipped} dilewati, ${importResult.failed} gagal.`,
+                    });
+                } else if (importResult.success) {
+                    const firstError = importResult.errors[0];
+                    toast.warning("Import user selesai dengan catatan", {
+                        description: firstError
+                            ? `${importResult.failed} baris gagal, ${importResult.skipped} baris dilewati. Contoh alasan: ${firstError}`
+                            : `${importResult.failed} baris gagal dan ${importResult.skipped} baris dilewati. Lihat detail error di panel hasil import.`,
+                    });
+                } else {
+                    toast.error("Import user gagal", {
+                        description:
+                            importResult.errors[0] ??
+                            "Terjadi kendala saat memproses file import user.",
+                    });
+                }
+            } catch {
+                toast.error("Import user gagal", {
+                    description:
+                        "Terjadi kendala saat memproses file import user. Silakan coba lagi.",
+                });
+            } finally {
+                clearInterval(progressInterval);
+                setProgress(100);
             }
         });
     }

@@ -63,8 +63,15 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
     function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
 
-        if (!code.trim() || !name.trim() || !branch) {
-            toast.error("Semua field wajib diisi");
+        const missingFields: string[] = [];
+        if (!code.trim()) missingFields.push("Kode Toko");
+        if (!name.trim()) missingFields.push("Nama Toko");
+        if (!branch) missingFields.push("Cabang");
+
+        if (missingFields.length > 0) {
+            toast.error("Data toko belum lengkap", {
+                description: `Lengkapi field berikut: ${missingFields.join(", ")}.`,
+            });
             return;
         }
 
@@ -83,12 +90,21 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                   });
 
             if (result.error) {
-                toast.error(result.error);
+                const failureReason = result.detail ?? result.error;
+                toast.error(
+                    isEdit ? "Gagal mengupdate toko" : "Gagal membuat toko",
+                    {
+                        description: `${failureReason}. Data: Kode ${code.trim().toUpperCase()}, Cabang ${branch}.`,
+                    },
+                );
                 return;
             }
 
             toast.success(
                 isEdit ? "Toko berhasil diupdate" : "Toko berhasil dibuat",
+                {
+                    description: `Kode ${code.trim().toUpperCase()} • ${name.trim()} • ${isActive ? "Status aktif" : "Status nonaktif"} • Cabang ${branch}`,
+                },
             );
             setOpen(false);
             resetForm();

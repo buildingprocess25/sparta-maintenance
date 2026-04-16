@@ -6,7 +6,46 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+
+function getBmcDatabaseErrorDetail(error: unknown): string {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+            const rawTarget = (error.meta as { target?: unknown } | undefined)
+                ?.target;
+            const targetFields = Array.isArray(rawTarget)
+                ? rawTarget.filter(
+                      (field): field is string => typeof field === "string",
+                  )
+                : typeof rawTarget === "string"
+                  ? [rawTarget]
+                  : [];
+
+            if (targetFields.includes("NIK")) {
+                return "NIK sudah terdaftar";
+            }
+            if (targetFields.includes("email")) {
+                return "Email sudah digunakan oleh user lain";
+            }
+            if (targetFields.includes("code")) {
+                return "Kode toko sudah terdaftar";
+            }
+
+            return "Data sudah ada (duplikasi)";
+        }
+
+        if (error.code === "P2003" || error.code === "P2014") {
+            return "Data masih dipakai oleh data lain sehingga tidak bisa dihapus";
+        }
+
+        if (error.code === "P2025") {
+            return "Data tidak ditemukan atau sudah diubah pengguna lain";
+        }
+    }
+
+    return getErrorDetail(error);
+}
 
 // ─── User CRUD ───────────────────────────────────────────────
 
@@ -61,7 +100,7 @@ export async function createUser(payload: UserPayload) {
         );
         return {
             error: "Gagal membuat user",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -122,7 +161,7 @@ export async function updateUser(
         );
         return {
             error: "Gagal mengupdate user",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -169,7 +208,7 @@ export async function deleteUser(NIK: string) {
         );
         return {
             error: "Gagal menghapus user",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -220,7 +259,7 @@ export async function createStore(payload: StorePayload) {
         );
         return {
             error: "Gagal membuat toko",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -275,7 +314,7 @@ export async function updateStore(
         );
         return {
             error: "Gagal mengupdate toko",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -297,7 +336,7 @@ export async function deleteStore(code: string) {
         );
         return {
             error: "Gagal menghapus toko",
-            detail: getErrorDetail(error),
+            detail: getBmcDatabaseErrorDetail(error),
         };
     }
 }
@@ -407,6 +446,25 @@ export async function importStores(formData: FormData) {
         }
 
         result.total = rows.length;
+        const codesInFile = Array.from(
+            new Set(
+                rows
+                    .map((row) => row["Kode Toko"]?.trim().toUpperCase())
+                    .filter(
+                        (code): code is string =>
+                            typeof code === "string" && code.length > 0,
+                    ),
+            ),
+        );
+
+        const existingStoreCodes = new Set(
+            (
+                await prisma.store.findMany({
+                    where: { code: { in: codesInFile } },
+                    select: { code: true },
+                })
+            ).map((store) => store.code),
+        );
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
@@ -425,33 +483,30 @@ export async function importStores(formData: FormData) {
             }
 
             try {
-                const existing = await prisma.store.findUnique({
+                const isExisting = existingStoreCodes.has(code);
+
+                await prisma.store.upsert({
                     where: { code },
-                    select: { code: true },
+                    update: { name, isActive: true },
+                    create: {
+                        code,
+                        name,
+                        branchName,
+                        isActive: true,
+                    },
                 });
 
-                if (existing) {
-                    await prisma.store.update({
-                        where: { code },
-                        data: { name, isActive: true },
-                    });
+                if (isExisting) {
                     result.updated++;
                 } else {
-                    await prisma.store.create({
-                        data: {
-                            code,
-                            name,
-                            branchName,
-                            isActive: true,
-                        },
-                    });
                     result.created++;
+                    existingStoreCodes.add(code);
                 }
             } catch (error) {
                 result.failed++;
                 if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
                     result.errors.push(
-                        `Baris ${rowNum} (${code}): ${getErrorDetail(error)}`,
+                        `Baris ${rowNum} (${code}): ${getBmcDatabaseErrorDetail(error)}`,
                     );
                 }
             }
@@ -486,7 +541,7 @@ export async function importStores(formData: FormData) {
             ...result,
             errors: [
                 ...result.errors,
-                "Gagal melakukan import: " + getErrorDetail(error),
+                "Gagal melakukan import: " + getBmcDatabaseErrorDetail(error),
             ],
         };
     }
@@ -536,6 +591,25 @@ export async function importUsers(formData: FormData) {
 
         result.total = rows.length;
         const validRoles = ["BMS", "BRANCH_ADMIN"];
+        const niksInFile = Array.from(
+            new Set(
+                rows
+                    .map((row) => row["NIK"]?.trim())
+                    .filter(
+                        (nik): nik is string =>
+                            typeof nik === "string" && nik.length > 0,
+                    ),
+            ),
+        );
+
+        const existingUserNIKs = new Set(
+            (
+                await prisma.user.findMany({
+                    where: { NIK: { in: niksInFile } },
+                    select: { NIK: true },
+                })
+            ).map((existingUser) => existingUser.NIK),
+        );
 
         for (let i = 0; i < rows.length; i++) {
             const row = rows[i];
@@ -566,39 +640,36 @@ export async function importUsers(formData: FormData) {
             }
 
             try {
-                const existing = await prisma.user.findUnique({
+                const isExisting = existingUserNIKs.has(nik);
+
+                await prisma.user.upsert({
                     where: { NIK: nik },
-                    select: { NIK: true },
+                    update: {
+                        email,
+                        name,
+                        role: role as "BMS" | "BRANCH_ADMIN",
+                        branchNames: user.branchNames,
+                    },
+                    create: {
+                        NIK: nik,
+                        email,
+                        name,
+                        role: role as "BMS" | "BRANCH_ADMIN",
+                        branchNames: user.branchNames,
+                    },
                 });
 
-                if (existing) {
-                    await prisma.user.update({
-                        where: { NIK: nik },
-                        data: {
-                            email,
-                            name,
-                            role: role as "BMS" | "BRANCH_ADMIN",
-                            branchNames: user.branchNames,
-                        },
-                    });
+                if (isExisting) {
                     result.updated++;
                 } else {
-                    await prisma.user.create({
-                        data: {
-                            NIK: nik,
-                            email,
-                            name,
-                            role: role as "BMS" | "BRANCH_ADMIN",
-                            branchNames: user.branchNames,
-                        },
-                    });
                     result.created++;
+                    existingUserNIKs.add(nik);
                 }
             } catch (error) {
                 result.failed++;
                 if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
                     result.errors.push(
-                        `Baris ${rowNum} (${nik}): ${getErrorDetail(error)}`,
+                        `Baris ${rowNum} (${nik}): ${getBmcDatabaseErrorDetail(error)}`,
                     );
                 }
             }
@@ -632,7 +703,7 @@ export async function importUsers(formData: FormData) {
             ...result,
             errors: [
                 ...result.errors,
-                "Gagal melakukan import: " + getErrorDetail(error),
+                "Gagal melakukan import: " + getBmcDatabaseErrorDetail(error),
             ],
         };
     }
