@@ -372,7 +372,7 @@ export function StartWorkForm({
                               name: userName,
                               nik: userNIK,
                               role: "BMS",
-                              storeInfo: `Toko: ${currentReport.storeName} | ${currentReport.reportNumber}`,
+                              storeInfo: `Toko: ${currentReport.storeName}`,
                           }
                         : undefined
                 }
