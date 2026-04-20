@@ -442,6 +442,9 @@ export function ApprovalReportsList({
                                         <SelectItem value="pending_review">
                                             Menunggu Review Penyelesaian
                                         </SelectItem>
+                                        <SelectItem value="approved_bmc">
+                                            Menunggu Persetujuan Final BNM
+                                        </SelectItem>
                                     </>
                                 )}
                                 {role === "BNM_MANAGER" && (
