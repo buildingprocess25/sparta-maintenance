@@ -410,3 +410,164 @@ export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
         return [];
     }
 }
+
+// ─── Admin Global Monitoring ──────────────────────────────────────────────────
+
+export type GlobalStats = {
+    totalReports: number;
+    completed: number;
+    inProgress: number;
+    totalEstimation: number;
+    totalReal: number;
+};
+
+/**
+ * Aggregate global stats across all branches (non-draft reports only).
+ */
+export async function getGlobalStats(): Promise<GlobalStats> {
+    try {
+        const base = { status: { not: "DRAFT" as const } };
+
+        const [totalReports, completed, inProgress, sums] = await Promise.all([
+            prisma.report.count({ where: base }),
+            prisma.report.count({ where: { status: "COMPLETED" } }),
+            prisma.report.count({ where: { status: "IN_PROGRESS" } }),
+            prisma.report.aggregate({
+                where: base,
+                _sum: { totalEstimation: true, totalReal: true },
+            }),
+        ]);
+
+        return {
+            totalReports,
+            completed,
+            inProgress,
+            totalEstimation: Number(sums._sum.totalEstimation ?? 0),
+            totalReal: Number(sums._sum.totalReal ?? 0),
+        };
+    } catch (error) {
+        logger.error({ operation: "getGlobalStats" }, "Failed", error);
+        return { totalReports: 0, completed: 0, inProgress: 0, totalEstimation: 0, totalReal: 0 };
+    }
+}
+
+export type BranchStat = {
+    branchName: string;
+    total: number;
+    completed: number;
+    inProgress: number;
+    totalEstimation: number;
+    totalReal: number;
+};
+
+/**
+ * Per-branch aggregate stats (non-draft reports).
+ */
+export async function getPerBranchStats(): Promise<BranchStat[]> {
+    try {
+        // Use Store as master branch list — all branches always appear
+        // even if they have zero reports yet.
+        const [allBranches, reportRows, completedRows, inProgressRows] =
+            await Promise.all([
+                prisma.store.groupBy({
+                    by: ["branchName"],
+                    orderBy: { branchName: "asc" },
+                }),
+                prisma.report.groupBy({
+                    by: ["branchName"],
+                    where: { status: { not: "DRAFT" } },
+                    _count: { _all: true },
+                    _sum: { totalEstimation: true, totalReal: true },
+                }),
+                prisma.report.groupBy({
+                    by: ["branchName"],
+                    where: { status: "COMPLETED" },
+                    _count: { _all: true },
+                }),
+                prisma.report.groupBy({
+                    by: ["branchName"],
+                    where: { status: "IN_PROGRESS" },
+                    _count: { _all: true },
+                }),
+            ]);
+
+        const totalMap = new Map(
+            reportRows.map((r) => [
+                r.branchName,
+                {
+                    total: r._count._all,
+                    totalEstimation: Number(r._sum.totalEstimation ?? 0),
+                    totalReal: Number(r._sum.totalReal ?? 0),
+                },
+            ]),
+        );
+        const completedMap = new Map(
+            completedRows.map((r) => [r.branchName, r._count._all]),
+        );
+        const inProgressMap = new Map(
+            inProgressRows.map((r) => [r.branchName, r._count._all]),
+        );
+
+        return allBranches.map((b) => {
+            const totals = totalMap.get(b.branchName);
+            return {
+                branchName: b.branchName,
+                total: totals?.total ?? 0,
+                completed: completedMap.get(b.branchName) ?? 0,
+                inProgress: inProgressMap.get(b.branchName) ?? 0,
+                totalEstimation: totals?.totalEstimation ?? 0,
+                totalReal: totals?.totalReal ?? 0,
+            };
+        });
+    } catch (error) {
+        logger.error({ operation: "getPerBranchStats" }, "Failed", error);
+        return [];
+    }
+}
+
+export type MonthlyTrendPoint = {
+    month: string;
+    total: number;
+    completed: number;
+};
+
+/**
+ * Monthly report trend for the last 6 months (non-draft).
+ * Returns data points ordered oldest to newest.
+ */
+export async function getMonthlyTrend(): Promise<MonthlyTrendPoint[]> {
+    try {
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+        sixMonthsAgo.setDate(1);
+        sixMonthsAgo.setHours(0, 0, 0, 0);
+
+        const reports = await prisma.report.findMany({
+            where: { status: { not: "DRAFT" }, createdAt: { gte: sixMonthsAgo } },
+            select: { createdAt: true, status: true },
+        });
+
+        const MONTH_LABELS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+        const buckets = new Map<string, MonthlyTrendPoint>();
+
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            buckets.set(key, { month: MONTH_LABELS[d.getMonth()], total: 0, completed: 0 });
+        }
+
+        for (const r of reports) {
+            const key = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, "0")}`;
+            const bucket = buckets.get(key);
+            if (!bucket) continue;
+            bucket.total++;
+            if (r.status === "COMPLETED") bucket.completed++;
+        }
+
+        return Array.from(buckets.values());
+    } catch (error) {
+        logger.error({ operation: "getMonthlyTrend" }, "Failed", error);
+        return [];
+    }
+}

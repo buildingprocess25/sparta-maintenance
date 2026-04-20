@@ -88,15 +88,40 @@ function logRequest(
 }
 
 export default async function proxy(request: NextRequest) {
+    // Cek JWT session (Optimistic)
+    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    let isAuthenticated = false;
+    let mustChangePassword = false;
+    let userRole = "";
+
+    if (sessionCookie) {
+        try {
+            const key = getSecretKey();
+            if (key) {
+                const { payload } = await jwtVerify(sessionCookie, key);
+                if (payload.userId) {
+                    isAuthenticated = true;
+                    mustChangePassword = (payload.mustChangePassword as boolean) ?? false;
+                    userRole = (payload.role as string) ?? "";
+                }
+            }
+        } catch {
+            // Invalid or expired token — treat as unauthenticated
+        }
+    }
+
     const start = performance.now();
     const { pathname } = request.nextUrl;
     const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
     const isHealthRoute = pathname === "/api/health";
     const isMaintenanceRoute = pathname === "/maintenance";
-    const { enabled: isMaintenanceEnabled, message: maintenanceMessage } =
-        getMaintenanceState();
+    
+    const { enabled: isMaintenanceEnabled, message: maintenanceMessage } = getMaintenanceState();
+    const isAdmin = userRole === "ADMIN";
 
-    if (!isMaintenanceEnabled && isMaintenanceRoute) {
+    // Pengecualian Maintenance:
+    // Jika tidak maintenance ATAU jika user adalah ADMIN, redirect keluar dari /maintenance
+    if (isMaintenanceRoute && (!isMaintenanceEnabled || isAdmin)) {
         const response = NextResponse.redirect(new URL("/", request.url));
         logRequest(
             request,
@@ -107,7 +132,8 @@ export default async function proxy(request: NextRequest) {
         return response;
     }
 
-    if (isMaintenanceEnabled) {
+    // Jika maintenance aktif dan bukan ADMIN -> Block
+    if (isMaintenanceEnabled && !isAdmin) {
         if (isApiRoute && !isHealthRoute) {
             const response = NextResponse.json(
                 {
@@ -144,7 +170,7 @@ export default async function proxy(request: NextRequest) {
         }
     }
 
-    // Check if route is protected
+    // Cek apakah route diproteksi
     const isProtectedRoute = protectedPrefixes.some(
         (prefix) => pathname === prefix || pathname.startsWith(prefix + "/"),
     );
@@ -161,27 +187,6 @@ export default async function proxy(request: NextRequest) {
             Math.round(performance.now() - start),
         );
         return response;
-    }
-
-    // Read and verify JWT session cookie (optimistic check — no DB call)
-    const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-    let isAuthenticated = false;
-    let mustChangePassword = false;
-
-    if (sessionCookie) {
-        try {
-            const key = getSecretKey();
-            if (key) {
-                const { payload } = await jwtVerify(sessionCookie, key);
-                if (payload.userId) {
-                    isAuthenticated = true;
-                    mustChangePassword =
-                        (payload.mustChangePassword as boolean) ?? false;
-                }
-            }
-        } catch {
-            // Invalid or expired token — treat as unauthenticated
-        }
     }
 
     // Redirect unauthenticated users away from protected routes

@@ -258,3 +258,10 @@ model PjumBankAccount {
   @@index([bmsNIK])
   @@index([addedByNIK])
 }
+
+model AppSetting {
+  key       String   @id       // e.g. "maintenance_enabled"
+  value     String             // stored as string; parse at read time
+  updatedAt DateTime @updatedAt
+  updatedBy String?            // NIK admin who last changed this
+}

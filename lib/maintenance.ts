@@ -1,3 +1,5 @@
+import { getSettingOverride, SETTING_KEYS } from "@/lib/app-settings";
+
 type MaintenanceState = {
     enabled: boolean;
     message: string;
@@ -17,14 +19,23 @@ function parseBooleanFlag(value: string | undefined): boolean {
 }
 
 export function getMaintenanceState(): MaintenanceState {
-    const enabled = parseBooleanFlag(process.env.MAINTENANCE_MODE);
-    const message = process.env.MAINTENANCE_MESSAGE?.trim();
+    // 1. Env var = hard override (emergency / DevOps) - selalu prioritas utama
+    if (parseBooleanFlag(process.env.MAINTENANCE_MODE)) {
+        return { enabled: true, message: DEFAULT_MAINTENANCE_MESSAGE };
+    }
 
+    // 2. DB-backed toggle via globalThis bridge (untuk admin UI)
+    const override = getSettingOverride(SETTING_KEYS.MAINTENANCE_ENABLED);
+    if (override !== undefined) {
+        return {
+            enabled: parseBooleanFlag(override),
+            message: DEFAULT_MAINTENANCE_MESSAGE,
+        };
+    }
+
+    // 3. Fallback jika tidak ada env var dan DB belum diset
     return {
-        enabled,
-        message:
-            message && message.length > 0
-                ? message
-                : DEFAULT_MAINTENANCE_MESSAGE,
+        enabled: false,
+        message: DEFAULT_MAINTENANCE_MESSAGE,
     };
 }

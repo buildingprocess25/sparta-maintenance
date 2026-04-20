@@ -10,7 +10,7 @@ const ROLE_LABELS: Record<string, string> = {
     BMS: "Branch Maintenance Support",
     BMC: "Branch Maintenance Coordinator",
     BNM_MANAGER: "Building & Maintenance Manager",
-    ADMIN: "Admin",
+    ADMIN: "Admin Head Office",
 };
 
 type Props = {
@@ -87,13 +87,18 @@ export function DashboardShell({ user, children }: Props) {
                                     {capitalizeEachWord(user.name)}
                                 </h1>
                                 <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                                    <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
-                                        <Store className="h-3.5 w-3.5 shrink-0" />
-                                        {user.branchNames.join(", ") || "—"}
-                                    </span>
-                                    <span className="text-muted-foreground/40 select-none">
-                                        ·
-                                    </span>
+                                    {user.role !== "ADMIN" && (
+                                        <>
+                                            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground">
+                                                <Store className="h-3.5 w-3.5 shrink-0" />
+                                                {user.branchNames.join(", ") ||
+                                                    "—"}
+                                            </span>
+                                            <span className="text-muted-foreground/40 select-none">
+                                                ·
+                                            </span>
+                                        </>
+                                    )}
                                     <span className="text-sm font-medium text-primary bg-primary/10 px-2.5 py-0.5 rounded-full">
                                         {roleLabel}
                                     </span>
