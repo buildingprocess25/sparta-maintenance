@@ -21,15 +21,68 @@ function isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function normalizeBaseUrl(
+    rawUrl: string | null | undefined,
+    options?: { allowLocalhost?: boolean },
+): string | null {
+    if (!rawUrl) return null;
+
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return null;
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const isLocalHost =
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname === "0.0.0.0" ||
+            hostname === "::1" ||
+            hostname === "[::1]";
+
+        if (isLocalHost && !options?.allowLocalhost) {
+            return null;
+        }
+
+        return parsed.origin;
+    } catch {
+        return null;
+    }
+}
+
 function buildAppBaseUrl(reqHeaders: Headers): string {
-    const origin = reqHeaders.get("origin");
-    if (origin) return origin;
+    const allowLocalhost = process.env.NODE_ENV !== "production";
 
-    const host = reqHeaders.get("x-forwarded-host") ?? reqHeaders.get("host");
-    const proto = reqHeaders.get("x-forwarded-proto") ?? "https";
+    const configuredBaseUrl =
+        normalizeBaseUrl(process.env.APP_BASE_URL, {
+            allowLocalhost,
+        }) ??
+        normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL, {
+            allowLocalhost,
+        });
 
-    if (host) {
-        return `${proto}://${host}`;
+    if (configuredBaseUrl) return configuredBaseUrl;
+
+    if (process.env.NODE_ENV !== "production") {
+        const origin = normalizeBaseUrl(reqHeaders.get("origin"), {
+            allowLocalhost: true,
+        });
+        if (origin) return origin;
+
+        const host =
+            reqHeaders.get("x-forwarded-host") ?? reqHeaders.get("host");
+        const proto = reqHeaders.get("x-forwarded-proto") ?? "http";
+
+        if (host) {
+            const fromHost = normalizeBaseUrl(`${proto}://${host}`, {
+                allowLocalhost: true,
+            });
+            if (fromHost) return fromHost;
+        }
     }
 
     return "http://localhost:3000";
