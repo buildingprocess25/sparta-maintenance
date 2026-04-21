@@ -36,6 +36,90 @@ const REQUEST_LOG_SLOW_MS = parseSlowThresholdMs(
     process.env.REQUEST_LOG_SLOW_MS,
 );
 
+function getRuntimeEnv(name: string): string | undefined {
+    return process.env[name];
+}
+
+function normalizeBaseUrl(
+    rawUrl: string | null | undefined,
+    options?: { allowLocalhost?: boolean },
+): string | null {
+    if (!rawUrl) return null;
+
+    const trimmed = rawUrl.trim();
+    if (!trimmed) return null;
+
+    try {
+        const parsed = new URL(trimmed);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return null;
+        }
+
+        const hostname = parsed.hostname.toLowerCase();
+        const isLocalHost =
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname === "0.0.0.0" ||
+            hostname === "::1" ||
+            hostname === "[::1]";
+
+        if (isLocalHost && !options?.allowLocalhost) {
+            return null;
+        }
+
+        return parsed.origin;
+    } catch {
+        return null;
+    }
+}
+
+function buildAppBaseUrl(request: NextRequest): string {
+    const nodeEnv = getRuntimeEnv("NODE_ENV");
+    const allowLocalhost = nodeEnv !== "production";
+
+    const configuredBaseUrl =
+        normalizeBaseUrl(getRuntimeEnv("APP_BASE_URL"), {
+            allowLocalhost,
+        }) ??
+        normalizeBaseUrl(getRuntimeEnv("RENDER_EXTERNAL_URL"), {
+            allowLocalhost,
+        }) ??
+        normalizeBaseUrl(getRuntimeEnv("NEXT_PUBLIC_APP_URL"), {
+            allowLocalhost,
+        });
+
+    if (configuredBaseUrl) return configuredBaseUrl;
+
+    const host =
+        request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+    const proto =
+        request.headers.get("x-forwarded-proto") ??
+        (nodeEnv === "production" ? "https" : "http");
+
+    if (host) {
+        const fromHost = normalizeBaseUrl(`${proto}://${host}`, {
+            allowLocalhost,
+        });
+        if (fromHost) return fromHost;
+    }
+
+    const fromOriginHeader = normalizeBaseUrl(request.headers.get("origin"), {
+        allowLocalhost,
+    });
+    if (fromOriginHeader) return fromOriginHeader;
+
+    const fromRequestOrigin = normalizeBaseUrl(request.nextUrl.origin, {
+        allowLocalhost,
+    });
+    if (fromRequestOrigin) return fromRequestOrigin;
+
+    return "http://localhost:3000";
+}
+
+function buildRedirectUrl(request: NextRequest, pathname: string): URL {
+    return new URL(pathname, buildAppBaseUrl(request));
+}
+
 // Route prefixes that require authentication
 const protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"];
 
@@ -122,7 +206,7 @@ export default async function proxy(request: NextRequest) {
     // Pengecualian Maintenance:
     // Jika tidak maintenance ATAU jika user adalah ADMIN, redirect keluar dari /maintenance
     if (isMaintenanceRoute && (!isMaintenanceEnabled || isAdmin)) {
-        const response = NextResponse.redirect(new URL("/", request.url));
+        const response = NextResponse.redirect(buildRedirectUrl(request, "/"));
         logRequest(
             request,
             "redirect",
@@ -158,7 +242,7 @@ export default async function proxy(request: NextRequest) {
 
         if (!isMaintenanceRoute) {
             const response = NextResponse.redirect(
-                new URL("/maintenance", request.url),
+                buildRedirectUrl(request, "/maintenance"),
             );
             logRequest(
                 request,
@@ -178,7 +262,7 @@ export default async function proxy(request: NextRequest) {
 
     // Clear session cookie FIRST — before any auth check — when user not found in DB
     if (isLoginRoute && request.nextUrl.searchParams.get("logout") === "1") {
-        const response = NextResponse.redirect(new URL("/login", request.url));
+        const response = NextResponse.redirect(buildRedirectUrl(request, "/login"));
         response.cookies.delete(SESSION_COOKIE_NAME);
         logRequest(
             request,
@@ -191,7 +275,7 @@ export default async function proxy(request: NextRequest) {
 
     // Redirect unauthenticated users away from protected routes
     if (isProtectedRoute && !isAuthenticated) {
-        const loginUrl = new URL("/login", request.url);
+        const loginUrl = buildRedirectUrl(request, "/login");
         const response = NextResponse.redirect(loginUrl);
         logRequest(
             request,
@@ -210,7 +294,7 @@ export default async function proxy(request: NextRequest) {
         );
         if (!isAllowed) {
             const response = NextResponse.redirect(
-                new URL("/change-password", request.url),
+                buildRedirectUrl(request, "/change-password"),
             );
             logRequest(
                 request,
@@ -226,7 +310,7 @@ export default async function proxy(request: NextRequest) {
     if (isLoginRoute && isAuthenticated) {
         if (mustChangePassword) {
             const response = NextResponse.redirect(
-                new URL("/change-password", request.url),
+                buildRedirectUrl(request, "/change-password"),
             );
             logRequest(
                 request,
@@ -236,7 +320,7 @@ export default async function proxy(request: NextRequest) {
             );
             return response;
         }
-        const dashboardUrl = new URL("/dashboard", request.url);
+        const dashboardUrl = buildRedirectUrl(request, "/dashboard");
         const response = NextResponse.redirect(dashboardUrl);
         logRequest(
             request,
