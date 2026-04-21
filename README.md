@@ -98,6 +98,7 @@ GOOGLE_CLIENT_SECRET="xxx"
 GOOGLE_REFRESH_TOKEN="xxx"
 
 # App URL
+APP_BASE_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
 # Google Drive (PDF Archive)

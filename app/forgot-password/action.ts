@@ -21,6 +21,10 @@ function isValidEmail(email: string): boolean {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
+function getRuntimeEnv(name: string): string | undefined {
+    return process.env[name];
+}
+
 function normalizeBaseUrl(
     rawUrl: string | null | undefined,
     options?: { allowLocalhost?: boolean },
@@ -55,19 +59,23 @@ function normalizeBaseUrl(
 }
 
 function buildAppBaseUrl(reqHeaders: Headers): string {
-    const allowLocalhost = process.env.NODE_ENV !== "production";
+    const nodeEnv = getRuntimeEnv("NODE_ENV");
+    const allowLocalhost = nodeEnv !== "production";
 
     const configuredBaseUrl =
-        normalizeBaseUrl(process.env.APP_BASE_URL, {
+        normalizeBaseUrl(getRuntimeEnv("APP_BASE_URL"), {
             allowLocalhost,
         }) ??
-        normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL, {
+        normalizeBaseUrl(getRuntimeEnv("RENDER_EXTERNAL_URL"), {
+            allowLocalhost,
+        }) ??
+        normalizeBaseUrl(getRuntimeEnv("NEXT_PUBLIC_APP_URL"), {
             allowLocalhost,
         });
 
     if (configuredBaseUrl) return configuredBaseUrl;
 
-    if (process.env.NODE_ENV !== "production") {
+    if (nodeEnv !== "production") {
         const origin = normalizeBaseUrl(reqHeaders.get("origin"), {
             allowLocalhost: true,
         });
@@ -84,6 +92,17 @@ function buildAppBaseUrl(reqHeaders: Headers): string {
             if (fromHost) return fromHost;
         }
     }
+
+    logger.warn(
+        {
+            operation: "forgotPassword",
+            nodeEnv,
+            appBaseUrl: getRuntimeEnv("APP_BASE_URL") ?? null,
+            renderExternalUrl: getRuntimeEnv("RENDER_EXTERNAL_URL") ?? null,
+            nextPublicAppUrl: getRuntimeEnv("NEXT_PUBLIC_APP_URL") ?? null,
+        },
+        "Reset password base URL fallback to localhost:3000",
+    );
 
     return "http://localhost:3000";
 }
