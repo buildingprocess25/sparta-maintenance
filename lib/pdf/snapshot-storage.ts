@@ -116,6 +116,8 @@ export async function uploadPdfSnapshot(
 export async function downloadPdfSnapshot(
     path: string,
 ): Promise<Buffer | null> {
+    if (isHttpUrl(path)) return null;
+
     const segments = path.split("/");
     const fileName = segments.pop();
 
@@ -153,7 +155,9 @@ export async function downloadPdfSnapshot(
 export async function deletePdfSnapshots(paths: string[]) {
     if (paths.length === 0) return;
 
-    const normalized = [...new Set(paths.filter(Boolean))];
+    const normalized = [
+        ...new Set(paths.filter((path) => Boolean(path) && !isHttpUrl(path))),
+    ];
     if (normalized.length === 0) return;
 
     const { drive } = getGoogleDriveClient();
@@ -200,4 +204,8 @@ function sanitizePathPart(input: string) {
         .replaceAll("..", "-")
         .replaceAll(" ", "-")
         .toLowerCase();
+}
+
+function isHttpUrl(input: string): boolean {
+    return /^https?:\/\//i.test(input);
 }

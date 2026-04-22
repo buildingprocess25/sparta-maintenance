@@ -7,22 +7,24 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
-import {
-    uploadCompletedReportToDrive,
-    uploadPjumToDrive,
-} from "@/lib/google-drive/archive";
+import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
 import type { ReportItemJson } from "@/types/report";
 import {
+    buildFinalReportDrivePath,
     deletePdfSnapshots,
     downloadPdfSnapshot,
+    uploadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
-import {
-    archiveReportPhotosToGoogleDrive,
-    collectCategorizedPhotoUrls,
-} from "@/lib/google-drive/photos";
+
+function isGoogleDriveUrl(value: string | null | undefined): value is string {
+    return (
+        typeof value === "string" &&
+        value.startsWith("https://drive.google.com/")
+    );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -420,11 +422,6 @@ export async function approvePjumExport(input: {
                 pendingEstimationPdfPath: true,
                 estimationApprovedPdfPath: true,
                 approvedBmcPdfPath: true,
-                // Required for photo archiving to Drive
-                startSelfieUrl: true,
-                startReceiptUrls: true,
-                completionAdditionalPhotos: true,
-                uploadthingFileKeys: true,
             },
         });
 
@@ -484,92 +481,51 @@ export async function approvePjumExport(input: {
             pdfBuffer: result.buffer,
         });
 
-        // Upload final maintenance report PDFs to GDrive in the same finalization flow.
+        // Keep one final PDF per report in canonical Drive location.
+        // If COMPLETED snapshot already points to Drive, reuse it directly.
+        // Fallback upload is only for legacy rows that still store old snapshot paths.
         for (const report of reports) {
-            let reportPdfBuffer: Buffer | null = null;
+            let finalDriveUrl = isGoogleDriveUrl(report.completedPdfPath)
+                ? report.completedPdfPath
+                : null;
 
-            if (report.completedPdfPath) {
-                reportPdfBuffer = await downloadPdfSnapshot(
-                    report.completedPdfPath,
-                );
+            if (!finalDriveUrl) {
+                let reportPdfBuffer: Buffer | null = null;
+
+                if (
+                    report.completedPdfPath &&
+                    !isGoogleDriveUrl(report.completedPdfPath)
+                ) {
+                    reportPdfBuffer = await downloadPdfSnapshot(
+                        report.completedPdfPath,
+                    );
+                }
+
+                if (!reportPdfBuffer) {
+                    const rebuilt = await buildReportPdfBuffer(
+                        report.reportNumber,
+                    );
+                    reportPdfBuffer = rebuilt.buffer;
+                }
+
+                const finalPath = buildFinalReportDrivePath({
+                    branchName: report.branchName,
+                    bmsNIK: report.createdByNIK,
+                    bmsName: report.createdBy.name,
+                    storeCode: report.storeCode,
+                    storeName: report.storeName,
+                    reportNumber: report.reportNumber,
+                });
+
+                finalDriveUrl = await uploadPdfSnapshot(finalPath, reportPdfBuffer);
             }
-
-            if (!reportPdfBuffer) {
-                const rebuilt = await buildReportPdfBuffer(report.reportNumber);
-                reportPdfBuffer = rebuilt.buffer;
-            }
-
-            const archived = await uploadCompletedReportToDrive({
-                branchName: report.branchName,
-                bmsNIK: report.createdByNIK,
-                bmsName: report.createdBy.name,
-                storeCode: report.storeCode,
-                storeName: report.storeName,
-                reportNumber: report.reportNumber,
-                pdfBuffer: reportPdfBuffer,
-            });
 
             await prisma.report.update({
                 where: { reportNumber: report.reportNumber },
                 data: {
-                    reportFinalDriveUrl:
-                        archived.webViewLink ?? archived.folderUrl,
+                    reportFinalDriveUrl: finalDriveUrl,
                 },
             });
-
-            // Archive photos from UploadThing to Google Drive.
-            // Photos are moved here (at PJUM approval) instead of at BNM individual
-            // approval, so the archive operation happens once per batch.
-            try {
-                const categorizedPhotos = collectCategorizedPhotoUrls(report);
-                const fileKeys = Array.isArray(report.uploadthingFileKeys)
-                    ? (report.uploadthingFileKeys as string[])
-                    : [];
-
-                if (categorizedPhotos.length > 0 || fileKeys.length > 0) {
-                    logger.info(
-                        {
-                            operation: "approvePjumExport.photoArchive",
-                            reportNumber: report.reportNumber,
-                            photoCount: categorizedPhotos.length,
-                            keyCount: fileKeys.length,
-                        },
-                        "Archiving report photos to Drive",
-                    );
-
-                    const photoArchive = await archiveReportPhotosToGoogleDrive(
-                        {
-                            reportNumber: report.reportNumber,
-                            branchName: report.branchName,
-                            bmsNIK: report.createdByNIK,
-                            bmsName: report.createdBy.name,
-                            storeCode: report.storeCode ?? null,
-                            storeName: report.storeName,
-                            fileKeys,
-                        },
-                        categorizedPhotos,
-                    );
-
-                    logger.info(
-                        {
-                            operation: "approvePjumExport.photoArchive",
-                            reportNumber: report.reportNumber,
-                            ...photoArchive,
-                        },
-                        "Photo archive completed",
-                    );
-                }
-            } catch (photoArchiveError) {
-                // Non-fatal: log and continue. The report PDF is already in Drive.
-                logger.error(
-                    {
-                        operation: "approvePjumExport.photoArchive",
-                        reportNumber: report.reportNumber,
-                    },
-                    "Photo archive to Drive failed (non-fatal)",
-                    photoArchiveError,
-                );
-            }
         }
 
         // Update PjumExport record
@@ -596,7 +552,9 @@ export async function approvePjumExport(input: {
                 report.pendingEstimationPdfPath,
                 report.estimationApprovedPdfPath,
                 report.approvedBmcPdfPath,
-                report.completedPdfPath,
+                isGoogleDriveUrl(report.completedPdfPath)
+                    ? null
+                    : report.completedPdfPath,
             ]),
         ].filter((value): value is string => Boolean(value));
 

@@ -23,7 +23,7 @@ export interface PhotoArchiveParams {
     bmsName: string;
     storeCode: string | null;
     storeName: string;
-    /** All UploadThing file keys to delete after archiving */
+    /** UploadThing file keys related to this report (cleanup disabled). */
     fileKeys: string[];
 }
 
@@ -224,7 +224,6 @@ export function collectReportPhotoUrls(report: {
  * 1. Build path to the existing store folder (where PDF is already stored).
  * 2. For each categorized photo, ensure the correct subfolder exists.
  * 3. Download from UploadThing and upload to Drive.
- * 4. After successful archive, delete all UT files.
  *
  * This is intentionally fire-and-forget from `approveFinal` — errors are
  * logged but never thrown, preserving the approval flow.
@@ -308,33 +307,7 @@ export async function archiveReportPhotosToGoogleDrive(
         }
     }
 
-    // Delete from UploadThing only if all photos were archived successfully
-    if (params.fileKeys.length > 0 && failedCount === 0) {
-        try {
-            const { UTApi } = await import("uploadthing/server");
-            const utapi = new UTApi();
-            await utapi.deleteFiles(params.fileKeys);
-            logger.info(
-                {
-                    operation: "archiveReportPhotos",
-                    reportNumber: params.reportNumber,
-                    deletedKeys: params.fileKeys.length,
-                },
-                "Deleted photos from UploadThing after successful archive",
-            );
-        } catch (utErr) {
-            // Non-fatal: Drive archive succeeded, UT cleanup failed.
-            logger.warn(
-                {
-                    operation: "archiveReportPhotos",
-                    reportNumber: params.reportNumber,
-                    keyCount: params.fileKeys.length,
-                    err: String(utErr),
-                },
-                "Failed to delete photos from UploadThing (non-fatal)",
-            );
-        }
-    } else if (failedCount > 0) {
+    if (failedCount > 0) {
         logger.warn(
             {
                 operation: "archiveReportPhotos",
@@ -342,7 +315,16 @@ export async function archiveReportPhotosToGoogleDrive(
                 failedCount,
                 archivedCount,
             },
-            "Skipping UploadThing deletion because some photos failed to archive",
+            "Some photos failed to archive; UploadThing files are kept",
+        );
+    } else if (params.fileKeys.length > 0) {
+        logger.info(
+            {
+                operation: "archiveReportPhotos",
+                reportNumber: params.reportNumber,
+                keyCount: params.fileKeys.length,
+            },
+            "UploadThing cleanup skipped by policy: files are kept after archive",
         );
     }
 

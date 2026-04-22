@@ -11,6 +11,8 @@
         "test:gdrive": "tsx scripts/test-google-drive.ts",
         "backup:db": "tsx scripts/backup-db.ts",
         "cleanup:pending": "tsx scripts/cleanup-pending-reports.ts",
+        "cleanup-photos": "tsx scripts/archive-approved-pjum-photos.ts",
+        "cleanup-photos:execute": "tsx scripts/archive-approved-pjum-photos.ts --execute",
         "import:stores": "tsx scripts/import-stores.ts",
         "prune:stores": "tsx scripts/prune-stores-by-branch.ts",
         "create-user": "tsx scripts/create-user.ts",
