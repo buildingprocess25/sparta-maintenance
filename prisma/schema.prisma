@@ -151,6 +151,10 @@ model Report {
   // Stores all file keys from checklist photos, selfie, receipt, and completion photos.
   uploadthingFileKeys       Json      @default("[]")
 
+  // Google Drive CDN file IDs — for new photos uploaded after Google Drive CDN feature.
+  // Stores all Drive file IDs for photos uploaded via the new CDN flow.
+  drivePhotoFileIds         Json      @default("[]")
+
   // Final archival pointer in Google Drive (uploaded at PJUM final approval)
   reportFinalDriveUrl       String?
   

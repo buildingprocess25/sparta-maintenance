@@ -4,15 +4,11 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
-import { discardLocalDraftFiles } from "@/app/reports/actions";
 import {
     checklistCategories,
     type ChecklistItem,
     type ChecklistCondition,
 } from "@/lib/checklist-data";
-
-// 1. IMPORT UPLOADTHING DI SINI
-import { useUploadThing } from "@/lib/uploadthing";
 
 function getImageDimensions(
     file: File,
@@ -58,9 +54,6 @@ export function usePhotoUpload({
         null,
     );
     const [previewPhoto, setPreviewPhoto] = useState<string | null>(null);
-
-    // 2. PANGGIL HOOK UPLOADTHING
-    const { startUpload } = useUploadThing("checklistPhotoUploader");
 
     const handleOpenCamera = useCallback(
         async (itemId: string) => {
@@ -115,35 +108,32 @@ export function usePhotoUpload({
                 const { width: imgW, height: imgH } =
                     await getImageDimensions(compressedFile);
 
-                // 3. LOGIKA BARU UNTUK UPLOADTHING
+                // Upload to Google Drive CDN via custom API
                 const finalFileName = `${activePhotoItemId}_${safeItemName}_${imgW}x${imgH}.${fileExt}`;
                 const finalFile = new File([compressedFile], finalFileName, {
                     type: compressedFile.type,
                 });
 
-                // Hapus foto yang sudah ada sebelumnya (jika ada) di server agar tidak jadi sampah
-                const existingItemForCleanup = checklist.get(
-                    activePhotoItemId!,
-                );
-                if (existingItemForCleanup?.photoKey) {
-                    discardLocalDraftFiles([
-                        existingItemForCleanup.photoKey,
-                    ]).catch((e) => {
-                        console.error(
-                            "Gagal menghapus foto lama dari server:",
-                            e,
-                        );
-                    });
+                const formData = new FormData();
+                formData.append("file", finalFile);
+
+                const response = await fetch("/api/photos/upload", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(
+                        errorData.error || `HTTP ${response.status}`,
+                    );
                 }
 
-                const uploadResponse = await startUpload([finalFile]);
+                const data = await response.json();
 
-                if (!uploadResponse || uploadResponse.length === 0) {
-                    throw new Error("Tidak mendapat balasan URL dari peladen");
+                if (!data.url || !data.fileId) {
+                    throw new Error("Invalid response format from server");
                 }
-
-                const fileUrl = uploadResponse[0].url;
-                const fileKey = uploadResponse[0].key; // Ambil key dari response UploadThing
 
                 setChecklist((prev) => {
                     const next = new Map(prev);
@@ -156,8 +146,8 @@ export function usePhotoUpload({
                     next.set(activePhotoItemId!, {
                         ...existing,
                         photo: compressedFile,
-                        photoUrl: fileUrl, // Menyimpan URL UploadThing
-                        photoKey: fileKey, // Menyimpan Key UploadThing untuk cleanup lokal
+                        photoUrl: data.url, // Google Drive CDN URL
+                        photoKey: data.fileId, // Google Drive file ID
                     });
                     return next;
                 });
@@ -173,14 +163,7 @@ export function usePhotoUpload({
 
             setActivePhotoItemId(null);
         },
-        [
-            activePhotoItemId,
-            draftReportId,
-            selectedStoreCode,
-            userBranchName,
-            setChecklist,
-            startUpload,
-        ],
+        [activePhotoItemId, selectedStoreCode, setChecklist],
     );
 
     const removePhoto = useCallback(
@@ -188,14 +171,7 @@ export function usePhotoUpload({
             const item = checklist.get(itemId);
             if (!item) return;
 
-            // Logika hapus foto dari server UploadThing (agar tidak orphan)
-            if (item.photoKey) {
-                discardLocalDraftFiles([item.photoKey]).catch((e) => {
-                    console.error("Gagal menghapus foto dari server:", e);
-                });
-            }
-
-            // Kita menghapus foto dari tampilan UI klien
+            // Remove photo from UI (Google Drive file will be cleaned up by cron job if report is approved)
             setChecklist((prev) => {
                 const next = new Map(prev);
                 const existing = next.get(itemId);

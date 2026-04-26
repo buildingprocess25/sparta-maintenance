@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { checklistCategories } from "@/lib/checklist-data";
+import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 type Props = {
@@ -368,23 +369,18 @@ export function ChecklistTab({
                                                         {hasPhoto ? (
                                                             <div
                                                                 className="relative group overflow-hidden rounded-lg border-2 border-green-200 bg-green-50 w-full cursor-pointer"
-                                                                onClick={() =>
-                                                                    onPhotoClick(
-                                                                        reportItem
-                                                                            ?.images?.[0] ||
-                                                                            reportItem?.photoUrl ||
-                                                                            "",
-                                                                    )
-                                                                }
+                                                                onClick={() => {
+                                                                    const photoUrl = reportItem?.images?.[0] || reportItem?.photoUrl || "";
+                                                                    onPhotoClick(resolvePhotoUrl(photoUrl));
+                                                                }}
                                                             >
                                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                                 <img
-                                                                    src={
-                                                                        reportItem
-                                                                            ?.images?.[0] ||
+                                                                    src={resolvePhotoUrl(
+                                                                        reportItem?.images?.[0] ||
                                                                         reportItem?.photoUrl ||
                                                                         ""
-                                                                    }
+                                                                    )}
                                                                     alt={`Foto ${checklistItem.name}`}
                                                                     className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
                                                                 />

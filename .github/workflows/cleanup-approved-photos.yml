@@ -1,9 +1,9 @@
-name: Cleanup Pending Reports
+name: Cleanup Approved PJUM Photos
 
 on:
     schedule:
-        # Every day at 1:00 AM UTC (1 hour after backup)
-        - cron: "0 1 * * *"
+        # Every day at 2:00 AM UTC (after pending reports cleanup)
+        - cron: "0 2 * * *"
     # Allow manual trigger from GitHub Actions UI
     workflow_dispatch:
 
@@ -25,12 +25,16 @@ jobs:
             - name: Install dependencies
               run: npm ci
 
-            - name: Run cleanup pending reports
+            - name: Run cleanup approved photos script
               env:
                   DATABASE_URL: ${{ secrets.DATABASE_URL }}
                   DIRECT_URL: ${{ secrets.DIRECT_URL }}
                   UPLOADTHING_TOKEN: ${{ secrets.UPLOADTHING_TOKEN }}
-              run: npx tsx scripts/cleanup-pending-reports.ts
+                  DRIVE_CDN_CLIENT_ID: ${{ secrets.DRIVE_CDN_CLIENT_ID }}
+                  DRIVE_CDN_CLIENT_SECRET: ${{ secrets.DRIVE_CDN_CLIENT_SECRET }}
+                  DRIVE_CDN_REFRESH_TOKEN: ${{ secrets.DRIVE_CDN_REFRESH_TOKEN }}
+                  DRIVE_CDN_ROOT_FOLDER_ID: ${{ secrets.DRIVE_CDN_ROOT_FOLDER_ID }}
+              run: npx tsx scripts/cleanup-approved-pjum-photos.ts --execute
 
             - name: Notify on failure
               if: failure()

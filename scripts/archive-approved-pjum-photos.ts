@@ -43,6 +43,17 @@ type ScriptOptions = {
     dryRun: boolean;
 };
 
+type ArchiveProgress = {
+    totalReports: number;
+    totalKeys: number;
+    processedReports: number;
+    processedKeys: number;
+};
+
+type ProgressCallbacks = {
+    onKeyProcessed: () => void;
+};
+
 type RunSummary = {
     reportsProcessed: number;
     reportWithKeys: number;
@@ -60,6 +71,7 @@ const OPERATION = "scripts.archiveApprovedPjumPhotos";
 const OUTPUT_FILE = join(process.cwd(), "output.txt");
 const MAX_UPLOAD_RETRIES = 3;
 const UT_LOOKUP_BATCH_SIZE = 100;
+const PROGRESS_BAR_WIDTH = 20;
 
 function parseOptions(): ScriptOptions {
     const args = new Set(process.argv.slice(2));
@@ -69,6 +81,48 @@ function parseOptions(): ScriptOptions {
 
 function annotateDryRun(message: string, dryRun: boolean): string {
     return dryRun ? `${message} (dry-run)` : message;
+}
+
+function buildProgressBar(
+    current: number,
+    total: number,
+): {
+    bar: string;
+    percent: number;
+} {
+    const safeTotal = total > 0 ? total : 1;
+    const boundedCurrent = Math.max(0, Math.min(current, safeTotal));
+    const percent = Math.min(100, (boundedCurrent / safeTotal) * 100);
+    const filled = Math.round((percent / 100) * PROGRESS_BAR_WIDTH);
+    const bar = `${"=".repeat(filled)}${"-".repeat(PROGRESS_BAR_WIDTH - filled)}`;
+    return { bar, percent };
+}
+
+function renderArchiveProgress(
+    progress: ArchiveProgress,
+    options: ScriptOptions,
+): void {
+    if (!process.stdout.isTTY) return;
+
+    const report = buildProgressBar(
+        progress.processedReports,
+        progress.totalReports,
+    );
+    const key = buildProgressBar(progress.processedKeys, progress.totalKeys);
+    const mode = options.dryRun ? "DRY RUN" : "EXECUTE";
+
+    process.stdout.write(
+        `\r[${mode}] Report [${report.bar}] ${report.percent.toFixed(1)}% (${progress.processedReports}/${progress.totalReports}) | Key [${key.bar}] ${key.percent.toFixed(1)}% (${progress.processedKeys}/${progress.totalKeys})`,
+    );
+}
+
+function finishArchiveProgress(
+    progress: ArchiveProgress,
+    options: ScriptOptions,
+): void {
+    if (!process.stdout.isTTY) return;
+    renderArchiveProgress(progress, options);
+    process.stdout.write("\n");
 }
 
 const SUBFOLDER: Record<PhotoCategory, string> = {
@@ -534,6 +588,7 @@ async function processReport(
     utapi: UTApi,
     summary: RunSummary,
     options: ScriptOptions,
+    progressCallbacks: ProgressCallbacks,
 ): Promise<string[]> {
     const reportLines: string[] = [];
     const bmsName = report.createdBy.name || report.createdByNIK;
@@ -563,8 +618,12 @@ async function processReport(
 
     for (const [index, key] of uniqueDbKeys.entries()) {
         summary.keysProcessed += 1;
+        progressCallbacks.onKeyProcessed();
 
-        if ((index + 1) % 50 === 0 || index + 1 === uniqueDbKeys.length) {
+        if (
+            !process.stdout.isTTY &&
+            ((index + 1) % 50 === 0 || index + 1 === uniqueDbKeys.length)
+        ) {
             logger.info(
                 {
                     operation: OPERATION,
@@ -826,6 +885,20 @@ async function main() {
             (row) => toDbKeys(row.uploadthingFileKeys).length > 0,
         );
 
+        const totalKeysPlanned = targetReports.reduce((sum, row) => {
+            const uniqueKeys = Array.from(
+                new Set(toDbKeys(row.uploadthingFileKeys)),
+            );
+            return sum + uniqueKeys.length;
+        }, 0);
+
+        const progress: ArchiveProgress = {
+            totalReports: targetReports.length,
+            totalKeys: totalKeysPlanned,
+            processedReports: 0,
+            processedKeys: 0,
+        };
+
         const utapi = new UTApi();
         const outputLines: string[] = [];
         outputLines.push(
@@ -835,11 +908,25 @@ async function main() {
         );
         outputLines.push("");
 
+        if (targetReports.length > 0) {
+            renderArchiveProgress(progress, options);
+        }
+
         for (const report of targetReports) {
             summary.reportsProcessed += 1;
-            const lines = await processReport(report, utapi, summary, options);
+            const lines = await processReport(report, utapi, summary, options, {
+                onKeyProcessed: () => {
+                    progress.processedKeys += 1;
+                    renderArchiveProgress(progress, options);
+                },
+            });
             outputLines.push(...lines);
+
+            progress.processedReports += 1;
+            renderArchiveProgress(progress, options);
         }
+
+        finishArchiveProgress(progress, options);
 
         if (outputLines.length === 0) {
             outputLines.push(

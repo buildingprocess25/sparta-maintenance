@@ -11,9 +11,9 @@ import type { MaterialStoreJson } from "@/types/report";
 
 export interface StartWorkPhotoInput {
     selfieUrls: string[];
-    selfieKeys: string[];
+    selfieFileIds: string[];
     receiptUrls: string[];
-    receiptKeys: string[];
+    receiptFileIds: string[];
     materialStores: MaterialStoreJson[];
 }
 
@@ -33,7 +33,12 @@ export async function startWorkWithPhotos(
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { createdByNIK: true, status: true, uploadthingFileKeys: true },
+            select: { 
+                createdByNIK: true, 
+                status: true, 
+                uploadthingFileKeys: true,
+                drivePhotoFileIds: true,
+            },
         });
 
         if (!report) {
@@ -86,14 +91,20 @@ export async function startWorkWithPhotos(
                 ? validSelfieUrls[0]
                 : JSON.stringify(validSelfieUrls);
 
-        // Collect all UploadThing file keys for future cleanup
+        // Collect all UploadThing file keys for future cleanup (legacy)
         const existingKeys = Array.isArray(report.uploadthingFileKeys)
             ? (report.uploadthingFileKeys as string[])
             : [];
-        const newKeys = [
-            ...existingKeys,
-            ...photos.selfieKeys.filter((k) => k.trim().length > 0),
-            ...photos.receiptKeys.filter((k) => k.trim().length > 0),
+        const newKeys = [...existingKeys];
+
+        // Collect all Google Drive CDN file IDs for future cleanup
+        const existingFileIds = Array.isArray(report.drivePhotoFileIds)
+            ? (report.drivePhotoFileIds as string[])
+            : [];
+        const newFileIds = [
+            ...existingFileIds,
+            ...photos.selfieFileIds.filter((id) => id.trim().length > 0),
+            ...photos.receiptFileIds.filter((id) => id.trim().length > 0),
         ];
 
         await prisma.$transaction([
@@ -106,9 +117,12 @@ export async function startWorkWithPhotos(
                         validReceiptUrls as unknown as Prisma.InputJsonValue,
                     startMaterialStores:
                         validMaterialStores as unknown as Prisma.InputJsonValue,
-                    // Append new file keys to existing array
+                    // Keep existing UploadThing keys (legacy)
                     uploadthingFileKeys:
                         newKeys as unknown as Prisma.InputJsonValue,
+                    // Append new Drive file IDs
+                    drivePhotoFileIds:
+                        newFileIds as unknown as Prisma.InputJsonValue,
                 },
             }),
             prisma.activityLog.create({

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { compressAndUploadToUT } from "@/lib/upload-photo";
+import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import { Loader2 } from "lucide-react";
 
 import { CameraModal } from "@/components/ui/camera-modal";
@@ -138,6 +138,7 @@ export function CompleteForm({
 }: Props) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    const { uploadPhoto } = usePhotoUpload();
 
     // ── Dialog ────────────────────────────────────────────────────────────────
     const [dialogOpen, setDialogOpen] = useState(!prefillReport);
@@ -419,7 +420,7 @@ export function CompleteForm({
             // ── Upload item photos & build completion items ──────────────────
             const completionItems: import("@/app/reports/actions/submit-completion-work").CompletionItemInput[] =
                 [];
-            const allCompletionFileKeys: string[] = [];
+            const allCompletionFileIds: string[] = [];
 
             for (const item of damagedBmsItems) {
                 const state = itemStates.get(item.itemId);
@@ -442,10 +443,7 @@ export function CompleteForm({
                         );
                         return;
                     }
-                    const result = await compressAndUploadToUT(
-                        file,
-                        "completionPhotoUploader",
-                    );
+                    const result = await uploadPhoto(file);
                     if (!result) {
                         toast.error("Gagal mengunggah foto sesudah", {
                             id: loadingId,
@@ -453,7 +451,7 @@ export function CompleteForm({
                         return;
                     }
                     afterImages.push(result.url);
-                    allCompletionFileKeys.push(result.key);
+                    allCompletionFileIds.push(result.fileId);
                 }
 
                 completionItems.push({
@@ -488,10 +486,7 @@ export function CompleteForm({
                     });
                     return;
                 }
-                const result = await compressAndUploadToUT(
-                    file,
-                    "completionPhotoUploader",
-                );
+                const result = await uploadPhoto(file);
                 if (!result) {
                     toast.error("Gagal mengunggah dokumentasi tambahan", {
                         id: loadingId,
@@ -499,7 +494,7 @@ export function CompleteForm({
                     return;
                 }
                 additionalPhotoUrls.push(result.url);
-                allCompletionFileKeys.push(result.key);
+                allCompletionFileIds.push(result.fileId);
             }
 
             // ── Call server action ───────────────────────────────────────────
@@ -512,7 +507,7 @@ export function CompleteForm({
                     note: additionalDocumentationNote.trim() || undefined,
                 },
                 globalNotes.trim() || undefined,
-                allCompletionFileKeys,
+                allCompletionFileIds,
             );
 
             if (result.error) {

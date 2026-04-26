@@ -18,6 +18,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import type {
     ReportItemJson,
     MaterialEstimationJson,
@@ -56,10 +57,10 @@ function PhotoGrid({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                     key={i}
-                    src={url}
+                    src={resolvePhotoUrl(url)}
                     alt={`Foto ${i + 1}`}
                     className="h-24 w-24 object-cover rounded-md border cursor-zoom-in hover:opacity-80 transition-opacity"
-                    onClick={() => onPhotoClick(url)}
+                    onClick={() => onPhotoClick(resolvePhotoUrl(url))}
                 />
             ))}
         </div>

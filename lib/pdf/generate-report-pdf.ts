@@ -16,6 +16,8 @@ import type {
 } from "@/types/report";
 import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 import { extractMaterialStoresFromItems } from "@/lib/report-material-stores";
+import { resolvePhotoUrl, isGoogleDriveCdnUrl } from "@/lib/storage/photo-url";
+import { logger } from "@/lib/logger";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -2194,12 +2196,29 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
         ]),
     ].filter(Boolean);
 
-    // Parse pixel dimensions from filenames (embedded at upload time as _WxH before extension)
+    // Resolve all URLs (CDN or legacy) and log the source type
     const uniqueUrls = [...new Set(allUrls)];
+    uniqueUrls.forEach((url) => {
+        const isCdn = isGoogleDriveCdnUrl(url);
+        logger.info(
+            {
+                operation: "generateReportPdf.resolvePhotoUrl",
+                reportNumber: data.reportNumber,
+                urlType: isCdn ? "cdn" : "legacy",
+                url,
+            },
+            `Resolving photo URL for PDF: ${isCdn ? "CDN" : "Legacy"}`,
+        );
+    });
+
+    // Parse pixel dimensions from filenames (embedded at upload time as _WxH before extension)
     const dimensionMap = new Map<string, { width: number; height: number }>(
         uniqueUrls.map((url) => [url, parseDimensionsFromUrl(url)]),
     );
 
+    // Note: @react-pdf/renderer's Image component handles URL fetching internally.
+    // If a photo fails to load (non-2xx response), the library will skip it automatically.
+    // We log the URL types above for debugging purposes.
     const doc = buildReportDocument(data, dimensionMap);
     const buffer = await renderToBuffer(doc);
     return Buffer.from(buffer);

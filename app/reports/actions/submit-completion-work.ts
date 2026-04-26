@@ -36,6 +36,7 @@ export interface AdditionalCompletionDocumentationInput {
  * Transitions: IN_PROGRESS | REVIEW_REJECTED_REVISION → PENDING_REVIEW
  *
  * @param selfieUrls - Array of uploaded selfie URLs; serialized as JSON in completionSelfieUrl
+ * @param completionFileIds - Array of Google Drive CDN file IDs for cleanup
  */
 export async function submitCompletionWork(
     reportNumber: string,
@@ -43,7 +44,7 @@ export async function submitCompletionWork(
     selfieUrls: string[],
     additionalDocumentation?: AdditionalCompletionDocumentationInput,
     notes?: string,
-    completionFileKeys: string[] = [],
+    completionFileIds: string[] = [],
 ) {
     try {
         const user = await requireRole("BMS");
@@ -58,6 +59,7 @@ export async function submitCompletionWork(
                 items: true,
                 startSelfieUrl: true,
                 uploadthingFileKeys: true,
+                drivePhotoFileIds: true,
             },
         });
 
@@ -116,14 +118,21 @@ export async function submitCompletionWork(
                     : JSON.stringify(validSelfieUrls)
                 : report.startSelfieUrl;
 
-        // Merge existing file keys with new completion keys
+        // Merge existing file keys with new completion keys (legacy UploadThing)
         const existingKeys = Array.isArray(report.uploadthingFileKeys)
             ? (report.uploadthingFileKeys as string[])
             : [];
-        const mergedKeys = [
-            ...existingKeys,
-            ...completionFileKeys.filter((k) => k.trim().length > 0),
+        const mergedKeys = [...existingKeys];
+
+        // Merge existing Drive file IDs with new completion file IDs
+        const existingFileIds = Array.isArray(report.drivePhotoFileIds)
+            ? (report.drivePhotoFileIds as string[])
+            : [];
+        const mergedFileIds = [
+            ...existingFileIds,
+            ...completionFileIds.filter((id) => id.trim().length > 0),
         ];
+
         const totalReal = calculateTotalRealisasiFromItems(updatedItems);
 
         await prisma.$transaction([
@@ -141,8 +150,12 @@ export async function submitCompletionWork(
                             []) as unknown as Prisma.InputJsonValue,
                     completionAdditionalNote:
                         additionalDocumentation?.note?.trim() || null,
+                    // Keep existing UploadThing keys (legacy)
                     uploadthingFileKeys:
                         mergedKeys as unknown as Prisma.InputJsonValue,
+                    // Append new Drive file IDs
+                    drivePhotoFileIds:
+                        mergedFileIds as unknown as Prisma.InputJsonValue,
                 },
             }),
             prisma.activityLog.create({

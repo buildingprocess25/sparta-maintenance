@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { compressAndUploadToUT, genPhotoId } from "@/lib/upload-photo";
+import { genPhotoId } from "@/lib/upload-photo";
+import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import {
     Camera,
     Loader2,
@@ -46,8 +47,8 @@ interface LocalPhoto {
     id: string;
     previewUrl: string;
     file: File;
-    /** UploadThing file key — populated after successful upload */
-    utKey?: string;
+    /** Google Drive CDN file ID — populated after successful upload */
+    fileId?: string;
 }
 
 interface MaterialStoreEntry {
@@ -120,6 +121,7 @@ export function StartWorkForm({
 }: Props) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
+    const { uploadPhoto } = usePhotoUpload();
 
     // ── Dialog ────────────────────────────────────────────────────────────────
     const [dialogOpen, setDialogOpen] = useState(!prefillReport);
@@ -283,44 +285,38 @@ export function StartWorkForm({
 
             // ── Upload selfie photos ─────────────────────────────────────────
             const uploadedSelfieUrls: string[] = [];
-            const uploadedSelfieKeys: string[] = [];
+            const uploadedSelfieFileIds: string[] = [];
             for (const photo of selfiePhotos) {
-                const result = await compressAndUploadToUT(
-                    photo.file,
-                    "startWorkPhotoUploader",
-                );
+                const result = await uploadPhoto(photo.file);
                 if (!result) {
                     toast.dismiss(loadingId);
                     toast.error("Gagal mengunggah foto selfie");
                     return;
                 }
                 uploadedSelfieUrls.push(result.url);
-                uploadedSelfieKeys.push(result.key);
+                uploadedSelfieFileIds.push(result.fileId);
             }
 
             // ── Upload receipt photos ────────────────────────────────────────
             const uploadedReceiptUrls: string[] = [];
-            const uploadedReceiptKeys: string[] = [];
+            const uploadedReceiptFileIds: string[] = [];
             for (const photo of receiptPhotos) {
-                const result = await compressAndUploadToUT(
-                    photo.file,
-                    "startWorkPhotoUploader",
-                );
+                const result = await uploadPhoto(photo.file);
                 if (!result) {
                     toast.dismiss(loadingId);
                     toast.error("Gagal mengunggah foto nota");
                     return;
                 }
                 uploadedReceiptUrls.push(result.url);
-                uploadedReceiptKeys.push(result.key);
+                uploadedReceiptFileIds.push(result.fileId);
             }
 
             // ── Call server action ────────────────────────────────────────────
             const result = await startWorkWithPhotos(rn, {
                 selfieUrls: uploadedSelfieUrls,
-                selfieKeys: uploadedSelfieKeys,
+                selfieFileIds: uploadedSelfieFileIds,
                 receiptUrls: uploadedReceiptUrls,
-                receiptKeys: uploadedReceiptKeys,
+                receiptFileIds: uploadedReceiptFileIds,
                 materialStores: materialStores.map((store) => ({
                     name: store.name.trim(),
                     city: store.city.trim(),
