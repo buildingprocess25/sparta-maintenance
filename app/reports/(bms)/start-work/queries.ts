@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
-import type { ReportItemJson } from "@/types/report";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 /**
  * Get reports that BMS can start work on (ESTIMATION_APPROVED only).
@@ -57,6 +57,7 @@ export async function getReportForStartWork(
             storeCode: true,
             status: true,
             items: true,
+            estimations: true,
             createdByNIK: true,
         },
     });
@@ -70,6 +71,7 @@ export async function getReportForStartWork(
     return {
         ...report,
         items: report.items as unknown as ReportItemJson[],
+        estimations: report.estimations as unknown as MaterialEstimationJson[],
     };
 }
 

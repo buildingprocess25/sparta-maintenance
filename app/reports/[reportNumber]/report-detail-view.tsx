@@ -444,6 +444,9 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         }
                                         onSectionViewed={handleSectionViewed}
                                         viewedSections={viewedSections}
+                                        isZeroCost={
+                                            Number(report.totalEstimation) === 0
+                                        }
                                     />
                                 ) : (
                                     <EstimationsTab

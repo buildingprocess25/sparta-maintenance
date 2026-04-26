@@ -15,6 +15,11 @@ export interface StartWorkPhotoInput {
     receiptUrls: string[];
     receiptFileIds: string[];
     materialStores: MaterialStoreJson[];
+    /**
+     * When true, selfie and receipt photos are optional.
+     * Only valid when the total estimated cost is Rp 0 (tanpa biaya).
+     */
+    skipPhotos?: boolean;
 }
 
 /**
@@ -58,7 +63,8 @@ export async function startWorkWithPhotos(
         const validSelfieUrls = photos.selfieUrls.filter(
             (url) => url.trim().length > 0,
         );
-        if (validSelfieUrls.length === 0) {
+        // Selfie only required when there is an estimated cost (photos.skipPhotos = false)
+        if (!photos.skipPhotos && validSelfieUrls.length === 0) {
             return {
                 error: "Foto selfie wajib diunggah sebelum memulai pengerjaan",
             };
@@ -67,7 +73,8 @@ export async function startWorkWithPhotos(
         const validReceiptUrls = photos.receiptUrls.filter(
             (url) => url.trim().length > 0,
         );
-        if (validReceiptUrls.length === 0) {
+        // Receipt only required when there is an estimated cost
+        if (!photos.skipPhotos && validReceiptUrls.length === 0) {
             return {
                 error: "Foto nota/struk wajib diunggah sebelum memulai pengerjaan",
             };
@@ -79,7 +86,8 @@ export async function startWorkWithPhotos(
                 city: store.city.trim(),
             }))
             .filter((store) => store.name.length > 0 && store.city.length > 0);
-        if (validMaterialStores.length === 0) {
+        // Material store only required when there is an estimated cost
+        if (!photos.skipPhotos && validMaterialStores.length === 0) {
             return {
                 error: "Data toko material wajib diisi sebelum memulai pengerjaan",
             };

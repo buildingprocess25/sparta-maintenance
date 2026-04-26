@@ -517,8 +517,9 @@ export function CompleteForm({
                 });
             } else {
                 await autosave.clearDraft(rn);
-                toast.success("Laporan penyelesaian berhasil dikirim!", {
+                toast.success("Penyelesaian berhasil dikirim!", {
                     id: loadingId,
+                    description: "Menunggu review BMC.",
                 });
                 router.push(`/reports/${rn}`);
             }

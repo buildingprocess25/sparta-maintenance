@@ -173,8 +173,7 @@ export function CompletionChecklistStep({
                     <CardContent className="space-y-3 px-1 md:px-6 pb-0 md:pb-6">
                         {totalDamaged === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-6">
-                                Tidak ada item rusak yang dikerjakan BMS pada
-                                laporan ini.
+                                Tidak ada item rusak yang dikerjakan BMS pada laporan ini.
                             </p>
                         ) : (
                             checklistCategories.map((category) => {

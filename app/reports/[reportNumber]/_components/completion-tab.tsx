@@ -5,6 +5,7 @@ import {
     Eye,
     ImageIcon,
     Receipt,
+    SkipForward,
     User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,8 @@ type Props = {
     onSectionViewed?: (sectionId: string) => void;
     /** Set of section IDs already viewed (from parent state) */
     viewedSections?: Set<string>;
+    /** True when total estimation is Rp 0 — selfie & nota were intentionally skipped */
+    isZeroCost?: boolean;
 };
 
 function PhotoGrid({
@@ -67,11 +70,21 @@ function PhotoGrid({
     );
 }
 
-function EmptyPhotos({ label }: { label: string }) {
+function EmptyPhotos({
+    label,
+    skipped = false,
+}: {
+    label: string;
+    skipped?: boolean;
+}) {
     return (
         <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-            <ImageIcon className="h-4 w-4 shrink-0" />
-            <span>{label}</span>
+            {skipped ? (
+                <ImageIcon className="h-4 w-4 shrink-0" />
+            ) : (
+                <ImageIcon className="h-4 w-4 shrink-0" />
+            )}
+            <span className={skipped ? "text-amber-700" : ""}>{label}</span>
         </div>
     );
 }
@@ -89,6 +102,7 @@ export function CompletionTab({
     isReviewer = false,
     onSectionViewed,
     viewedSections = new Set(),
+    isZeroCost = false,
 }: Props) {
     function makeClickHandler(sectionId: string) {
         return (src: string) => {
@@ -157,7 +171,14 @@ export function CompletionTab({
                                 onPhotoClick={makeClickHandler("selfie")}
                             />
                         ) : (
-                            <EmptyPhotos label="Belum ada foto selfie." />
+                            <EmptyPhotos
+                                label={
+                                    isZeroCost
+                                        ? "Dilewati — estimasi tanpa biaya"
+                                        : "Belum ada foto selfie."
+                                }
+                                skipped={isZeroCost}
+                            />
                         )}
                     </div>
 
@@ -216,7 +237,14 @@ export function CompletionTab({
                                 ) : null}
                             </>
                         ) : (
-                            <EmptyPhotos label="Belum ada foto nota/struk." />
+                            <EmptyPhotos
+                                label={
+                                    isZeroCost
+                                        ? "Dilewati — estimasi tanpa biaya"
+                                        : "Belum ada foto nota/struk."
+                                }
+                                skipped={isZeroCost}
+                            />
                         )}
                     </div>
 

@@ -10,6 +10,7 @@ import {
     MapPin,
     Plus,
     ReceiptText,
+    SkipForward,
     Store,
     Trash2,
     User,
@@ -23,6 +24,7 @@ import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -38,6 +40,18 @@ import { fetchReportForStartWork } from "./actions";
 import { startWorkWithPhotos } from "@/app/reports/actions/start-work-with-photos";
 import type { StartableReport, ReportForStartWork } from "./queries";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
+import type { MaterialEstimationJson } from "@/types/report";
+
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+
+/** Returns true when total estimated cost across all items is exactly Rp 0. */
+function isTotalEstimationZero(
+    report: NonNullable<ReportForStartWork>,
+): boolean {
+    const estimations = report.estimations as MaterialEstimationJson[];
+    if (!Array.isArray(estimations) || estimations.length === 0) return true;
+    return estimations.reduce((sum, e) => sum + (e.totalPrice ?? 0), 0) === 0;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -135,6 +149,8 @@ export function StartWorkForm({
     const [materialStores, setMaterialStores] = useState<MaterialStoreEntry[]>(
         [],
     );
+    /** Whether BMS has opted to skip selfie/receipt because there is no cost. */
+    const [skipPhotos, setSkipPhotos] = useState(false);
 
     // ── Camera state ─────────────────────────────────────────────────────────
     const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
@@ -157,6 +173,7 @@ export function StartWorkForm({
         setSelfiePhotos([]);
         setReceiptPhotos([]);
         setMaterialStores([]);
+        setSkipPhotos(false);
     }, []);
 
     // ── Auto-load prefilled report on mount ───────────────────────────────────
@@ -258,21 +275,36 @@ export function StartWorkForm({
     const handleSubmit = useCallback(() => {
         if (!currentReport) return;
 
-        if (selfiePhotos.length === 0) {
-            toast.error("Foto selfie bersama pejabat toko wajib diunggah");
-            return;
+        const isZeroCost = isTotalEstimationZero(currentReport);
+
+        // When photos are not skipped, enforce all photo + store requirements
+        if (!skipPhotos) {
+            if (selfiePhotos.length === 0) {
+                toast.error("Foto selfie bersama pejabat toko wajib diunggah");
+                return;
+            }
+
+            if (receiptPhotos.length === 0) {
+                toast.error("Foto nota/struk wajib diunggah");
+                return;
+            }
+
+            if (
+                materialStores.length === 0 ||
+                materialStores.some((s) => !s.name.trim() || !s.city.trim())
+            ) {
+                toast.error(
+                    "Semua toko material harus memiliki nama dan alamat",
+                );
+                return;
+            }
         }
 
-        if (receiptPhotos.length === 0) {
-            toast.error("Foto nota/struk wajib diunggah");
-            return;
-        }
-
-        if (
-            materialStores.length === 0 ||
-            materialStores.some((s) => !s.name.trim() || !s.city.trim())
-        ) {
-            toast.error("Semua toko material harus memiliki nama dan alamat");
+        // Guard: skip is only valid when estimation truly is zero
+        if (skipPhotos && !isZeroCost) {
+            toast.error(
+                "Lewati foto hanya diperbolehkan jika total estimasi adalah Rp 0",
+            );
             return;
         }
 
@@ -321,6 +353,7 @@ export function StartWorkForm({
                     name: store.name.trim(),
                     city: store.city.trim(),
                 })),
+                skipPhotos,
             });
 
             toast.dismiss(loadingId);
@@ -338,7 +371,14 @@ export function StartWorkForm({
             });
             router.push(`/reports/${rn}`);
         });
-    }, [currentReport, selfiePhotos, receiptPhotos, materialStores, router]);
+    }, [
+        currentReport,
+        skipPhotos,
+        selfiePhotos,
+        receiptPhotos,
+        materialStores,
+        router,
+    ]);
 
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -417,20 +457,58 @@ export function StartWorkForm({
                         </CardHeader>
                     </Card>
 
+                    {/* ── Zero-cost skip option ─────────────────────────── */}
+                    {isTotalEstimationZero(currentReport) && (
+                        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800 dark:bg-amber-950/40">
+                            <div className="flex items-center gap-3 w-full">
+                                <Checkbox
+                                    id="skip-photos"
+                                    checked={skipPhotos}
+                                    onCheckedChange={(checked) =>
+                                        setSkipPhotos(checked === true)
+                                    }
+                                    className="bg-white dark:bg-input/30 border-amber-400"
+                                />
+                                <label
+                                    htmlFor="skip-photos"
+                                    className="flex-1 cursor-pointer"
+                                >
+                                    <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
+                                        Estimasi Rp 0 — Lewati foto selfie &amp;
+                                        nota
+                                    </p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 opacity-80">
+                                        Centang ini jika tidak ada pembelian
+                                        material (tanpa biaya). Foto selfie dan
+                                        nota tidak diperlukan.
+                                    </p>
+                                </label>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ── Selfie Section ───────────────────────────────────── */}
-                    <Card>
+                    <Card
+                        className={
+                            skipPhotos
+                                ? "opacity-40 pointer-events-none select-none"
+                                : ""
+                        }
+                    >
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <User className="h-4 w-4 text-primary" />
                                 Foto Selfie{" "}
-                                <span className="text-destructive text-sm font-normal">
-                                    *
-                                </span>
+                                {!skipPhotos && (
+                                    <span className="text-destructive text-sm font-normal">
+                                        *
+                                    </span>
+                                )}
                             </CardTitle>
                             <CardDescription>
-                                Foto selfie bersama pejabat toko Alfamart di
-                                lokasi, beserta foto barang, sebagai bukti
-                                kehadiran
+                                {skipPhotos
+                                    ? "Dilewati — estimasi tanpa biaya"
+                                    : "Foto selfie bersama pejabat toko Alfamart di lokasi, beserta foto barang, sebagai bukti kehadiran"}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -457,18 +535,27 @@ export function StartWorkForm({
                     </Card>
 
                     {/* ── Nota / Receipt Section ───────────────────────────── */}
-                    <Card>
+                    <Card
+                        className={
+                            skipPhotos
+                                ? "opacity-40 pointer-events-none select-none"
+                                : ""
+                        }
+                    >
                         <CardHeader>
                             <CardTitle className="text-base flex items-center gap-2">
                                 <ReceiptText className="h-4 w-4 text-primary" />
                                 Foto Nota / Struk{" "}
-                                <span className="text-destructive text-sm font-normal">
-                                    *
-                                </span>
+                                {!skipPhotos && (
+                                    <span className="text-destructive text-sm font-normal">
+                                        *
+                                    </span>
+                                )}
                             </CardTitle>
                             <CardDescription>
-                                Foto nota atau struk pembelian material yang
-                                dibawa ke lokasi
+                                {skipPhotos
+                                    ? "Dilewati — estimasi tanpa biaya"
+                                    : "Foto nota atau struk pembelian material yang dibawa ke lokasi"}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">

@@ -41,7 +41,7 @@ export async function approveFinal(
 
         if (!report) return { error: "Laporan tidak ditemukan" };
 
-        if (report.status !== ("APPROVED_BMC" as unknown as ReportStatus)) {
+        if (report.status !== ReportStatus.APPROVED_BMC) {
             return {
                 error: "Laporan harus berstatus 'Menunggu Persetujuan Final BNM' untuk diproses",
             };

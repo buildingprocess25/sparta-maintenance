@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 declare global {
     // Digunakan sebagai in-memory bridge antara Node.js backend dan middleware (Edge Runtime).
     // Berisi sinkronisasi terakhir dari DB. Harus `var` agar bisa menggunakan globalThis di TypeScript.
-    // eslint-disable-next-line no-var
+     
     var __spartaSettingsOverrides: Record<string, string> | undefined;
 }
 

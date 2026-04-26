@@ -6,16 +6,14 @@ import { logger } from "@/lib/logger";
  * GET /api/photos/[fileId]
  * 
  * Proxies Google Drive file access through our server.
- * This solves the 403 Forbidden issue when accessing Drive files directly.
- * 
- * Server fetches file using OAuth credentials, then streams to client.
+ * This solves 403 Forbidden and 429 rate limit issues.
  */
 export async function GET(
     request: NextRequest,
-    { params }: { params: { fileId: string } },
+    context: { params: Promise<{ fileId: string }> },
 ) {
     try {
-        const { fileId } = params;
+        const { fileId } = await context.params;
 
         if (!fileId) {
             return NextResponse.json(
@@ -64,14 +62,20 @@ export async function GET(
         return new NextResponse(webStream, {
             headers: {
                 "Content-Type": mimeType,
+                // Aggressive caching: 1 year
                 "Cache-Control": "public, max-age=31536000, immutable",
+                // Allow Vercel/Cloudflare edge caching
+                "CDN-Cache-Control": "public, max-age=31536000",
+                // CORS headers
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "GET",
             },
         });
     } catch (error) {
         logger.error(
             {
                 operation: "GET /api/photos/[fileId]",
-                fileId: params.fileId,
+                fileId: (await context.params).fileId,
                 errorMessage:
                     error instanceof Error ? error.message : String(error),
             },

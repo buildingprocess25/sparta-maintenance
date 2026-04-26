@@ -10,10 +10,10 @@ export function isGoogleDriveCdnUrl(url: string): boolean {
 
 /**
  * Builds a CDN URL from a Drive file ID.
- * Uses lh3.googleusercontent.com CDN for direct image access.
+ * Uses our proxy API to avoid Google's 429 rate limits.
  */
 export function buildCdnUrl(fileId: string): string {
-    return `${GOOGLE_DRIVE_CDN_PREFIX}${fileId}`;
+    return `/api/photos/${fileId}`;
 }
 
 /**
@@ -26,10 +26,17 @@ export function buildDownloadUrl(fileId: string): string {
 
 /**
  * Resolves a photo URL for display.
- * - Drive CDN URLs are returned as-is
+ * - Converts Drive URLs to our proxy API
  * - Legacy UploadThing URLs are returned as-is
  */
 export function resolvePhotoUrl(url: string): string {
+    // Convert Drive URLs to proxy
+    const fileId = extractDriveFileId(url);
+    if (fileId) {
+        return `/api/photos/${fileId}`;
+    }
+    
+    // Legacy UploadThing URLs
     return url;
 }
 

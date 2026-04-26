@@ -3,6 +3,7 @@ import {
     Calendar,
     CheckCircle2,
     FileText,
+    Handshake,
     Loader2,
     WrenchIcon,
     Printer,
@@ -14,6 +15,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { isRekananZeroCost } from "@/lib/report-utils";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { StatusBadge } from "./status-badge";
 import type { ReportData, Viewer, ActionState } from "./types";
 
@@ -68,6 +71,11 @@ export function ReportSidebar({
             ? "Catatan Penolakan BNM"
             : "Catatan Penolakan BMC";
 
+    const isRekananBypass = isRekananZeroCost(
+        report.items as unknown as ReportItemJson[],
+        report.estimations as unknown as MaterialEstimationJson[],
+    );
+
     const hasAction =
         (viewer.role === "BMS" &&
             (report.status === "ESTIMATION_APPROVED" ||
@@ -94,10 +102,9 @@ export function ReportSidebar({
                         report.estimationApprovedPdfPath ||
                         report.pendingEstimationPdfPath ||
                         null;
-                    const pdfHref =
-                        stored?.startsWith("https://")
-                            ? stored
-                            : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
+                    const pdfHref = stored?.startsWith("https://")
+                        ? stored
+                        : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
                     return (
                         <a
                             href={pdfHref}
@@ -120,7 +127,8 @@ export function ReportSidebar({
                 {viewer.role === "BMS" &&
                     report.status === "ESTIMATION_APPROVED" && (
                         <div className="space-y-3">
-                            <Link prefetch={false}
+                            <Link
+                                prefetch={false}
                                 href={`/reports/start-work?report=${report.reportNumber}`}
                                 className="block w-full"
                             >
@@ -136,7 +144,8 @@ export function ReportSidebar({
                 {viewer.role === "BMS" &&
                     report.status === "ESTIMATION_REJECTED_REVISION" && (
                         <div className="space-y-3">
-                            <Link prefetch={false}
+                            <Link
+                                prefetch={false}
                                 href={`/reports/edit/${report.reportNumber}`}
                                 className="block w-full"
                             >
@@ -164,7 +173,8 @@ export function ReportSidebar({
                     (report.status === "IN_PROGRESS" ||
                         report.status === "REVIEW_REJECTED_REVISION") && (
                         <div className="space-y-3">
-                            <Link prefetch={false}
+                            <Link
+                                prefetch={false}
                                 href={`/reports/complete?report=${report.reportNumber}`}
                                 className="block w-full"
                             >
@@ -204,13 +214,37 @@ export function ReportSidebar({
                 {viewer.role === "BMC" &&
                     report.status === "PENDING_ESTIMATION" && (
                         <div className="space-y-3">
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                                <p className="text-sm font-medium text-yellow-800">
-                                    Menunggu Review Estimasi
+                            <div
+                                className={cn(
+                                    "rounded-lg border p-3",
+                                    isRekananBypass
+                                        ? "bg-indigo-50 border-indigo-200"
+                                        : "bg-yellow-50 border-yellow-200",
+                                )}
+                            >
+                                <p
+                                    className={cn(
+                                        "text-sm font-medium",
+                                        isRekananBypass
+                                            ? "text-indigo-800"
+                                            : "text-yellow-800",
+                                    )}
+                                >
+                                    {isRekananBypass
+                                        ? "Laporan Rekanan — Tanpa Estimasi"
+                                        : "Menunggu Review Estimasi"}
                                 </p>
-                                <p className="text-xs text-yellow-700 mt-0.5">
-                                    Tinjau laporan dan putuskan persetujuan
-                                    estimasi.
+                                <p
+                                    className={cn(
+                                        "text-xs mt-0.5",
+                                        isRekananBypass
+                                            ? "text-indigo-700"
+                                            : "text-yellow-700",
+                                    )}
+                                >
+                                    {isRekananBypass
+                                        ? "Semua item dikerjakan rekanan. Setujui untuk langsung meneruskan ke BNM."
+                                        : "Tinjau laporan dan putuskan persetujuan estimasi."}
                                 </p>
                             </div>
                             {activeDialog === "reject_estimation" ? (
@@ -417,8 +451,9 @@ export function ReportSidebar({
                                     Menunggu Persetujuan Final BNM
                                 </p>
                                 <p className="text-xs text-cyan-700 mt-0.5">
-                                    Tinjau seluruh bukti pekerjaan sebelum
-                                    menetapkan laporan sebagai selesai.
+                                    {isRekananBypass
+                                        ? "Laporan ini dikerjakan oleh rekanan tanpa biaya. Setujui untuk menyelesaikan laporan."
+                                        : "Tinjau seluruh bukti pekerjaan sebelum menetapkan laporan sebagai selesai."}
                                 </p>
                             </div>
                             {activeDialog === "reject_final" ? (
@@ -524,6 +559,21 @@ export function ReportSidebar({
                         </div>
                     </div>
 
+                    {/* REKANAN zero-cost badge — desktop */}
+                    {isRekananBypass && (
+                        <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+                            <Handshake className="h-4 w-4 text-indigo-600 shrink-0" />
+                            <div>
+                                <p className="text-xs font-semibold text-indigo-800">
+                                    Rekanan — Tanpa Estimasi
+                                </p>
+                                <p className="text-[11px] text-indigo-600 leading-tight">
+                                    Dikerjakan rekanan, tidak perlu
+                                    mulai/selesai pekerjaan.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                     <Separator />
 
                     <div className="grid grid-cols-3 gap-2 text-xs">
@@ -620,6 +670,7 @@ export function ReportSidebar({
                         </p>
                         <StatusBadge status={report.status} />
                     </div>
+
                     <Separator />
                     <div>
                         <p className="text-xs font-medium text-muted-foreground mb-1">

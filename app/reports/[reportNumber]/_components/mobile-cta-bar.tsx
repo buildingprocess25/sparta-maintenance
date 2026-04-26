@@ -1,5 +1,6 @@
 import {
     CheckCircle2,
+    Handshake,
     Loader2,
     WrenchIcon,
     XCircle,
@@ -7,6 +8,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { isRekananZeroCost } from "@/lib/report-utils";
+import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import type { ReportData, Viewer, ActionState } from "./types";
 
 type Props = {
@@ -50,6 +53,11 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             ? "Catatan Penolakan BNM"
             : "Catatan Penolakan BMC";
 
+    const isRekananBypass = isRekananZeroCost(
+        report.items as unknown as ReportItemJson[],
+        report.estimations as unknown as MaterialEstimationJson[],
+    );
+
     const hasWorkflowAction =
         (viewer.role === "BMS" &&
             (report.status === "ESTIMATION_APPROVED" ||
@@ -68,7 +76,8 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
             {/* BMS: start work */}
             {viewer.role === "BMS" &&
                 report.status === "ESTIMATION_APPROVED" && (
-                    <Link prefetch={false}
+                    <Link
+                        prefetch={false}
                         href={`/reports/start-work?report=${report.reportNumber}`}
                         className="block w-full"
                     >
@@ -94,7 +103,8 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 </p>
                             </div>
                         )}
-                        <Link prefetch={false}
+                        <Link
+                            prefetch={false}
                             href={`/reports/complete?report=${report.reportNumber}`}
                             className="block w-full"
                         >
@@ -120,7 +130,8 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                                 {estimationRejectionNote}
                             </p>
                         </div>
-                        <Link prefetch={false}
+                        <Link
+                            prefetch={false}
                             href={`/reports/edit/${report.reportNumber}`}
                             className="block w-full"
                         >
@@ -186,34 +197,49 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                         </div>
                     </div>
                 ) : (
-                    <div className="flex gap-2">
-                        <Button
-                            className="flex-1"
-                            size="lg"
-                            onClick={() => handleReviewEstimation("approve")}
-                            disabled={isPending}
-                        >
-                            {isPending ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                    Memproses...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                                    Setujui
-                                </>
-                            )}
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="lg"
-                            onClick={() => setActiveDialog("reject_estimation")}
-                            disabled={isPending}
-                        >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Tolak
-                        </Button>
+                    <div className="flex flex-col gap-2">
+                        {isRekananBypass && (
+                            <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+                                <Handshake className="h-4 w-4 text-indigo-600 shrink-0" />
+                                <p className="text-xs font-medium text-indigo-800">
+                                    Rekanan — Semua item dikerjakan rekanan.
+                                    Setujui untuk meneruskan ke BNM.
+                                </p>
+                            </div>
+                        )}
+                        <div className="flex gap-2">
+                            <Button
+                                className="flex-1"
+                                size="lg"
+                                onClick={() =>
+                                    handleReviewEstimation("approve")
+                                }
+                                disabled={isPending}
+                            >
+                                {isPending ? (
+                                    <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Memproses...
+                                    </>
+                                ) : (
+                                    <>
+                                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                                        Setujui Estimasi
+                                    </>
+                                )}
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onClick={() =>
+                                    setActiveDialog("reject_estimation")
+                                }
+                                disabled={isPending}
+                            >
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Tolak
+                            </Button>
+                        </div>
                     </div>
                 ))}
 
@@ -339,6 +365,12 @@ export function MobileCtaBar({ report, viewer, actions }: Props) {
                     </div>
                 ) : (
                     <div className="flex gap-2">
+                        {isRekananBypass && (
+                            <div className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1.5 text-xs text-indigo-800 font-medium">
+                                <Handshake className="h-3.5 w-3.5 shrink-0" />
+                                Laporan Rekanan — Setujui untuk selesaikan
+                            </div>
+                        )}
                         <Button
                             className="flex-1"
                             size="lg"
