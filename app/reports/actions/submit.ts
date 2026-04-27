@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { generateReportNumber } from "@/lib/report-helpers";
