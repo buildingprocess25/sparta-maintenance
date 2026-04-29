@@ -47,6 +47,7 @@ export function ChecklistItemCard({
     const condition = itemData?.condition || "";
     const handler = itemData?.handler || "";
     const photo = itemData?.photo;
+    const isNotesRequired = condition === "rusak";
 
     return (
         <div
@@ -190,6 +191,7 @@ export function ChecklistItemCard({
                 <div className="space-y-2 pt-2 border-t animate-in slide-in-from-top-2">
                     <LocalNotesTextarea
                         initialValue={itemData?.notes || ""}
+                        required={isNotesRequired}
                         onCommit={(val) =>
                             onNotesChange(item.id, item.name, val)
                         }

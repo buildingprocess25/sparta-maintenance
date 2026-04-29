@@ -879,6 +879,168 @@ function renderBeforeAfterRow(
     );
 }
 
+function renderItemMaterialTable(item: ReportItemJson) {
+    const realisasiItems = item.realisasiItems ?? [];
+    const itemNote = item.notes;
+    const hasMaterialRows = realisasiItems.length > 0;
+
+    if (!hasMaterialRows && !itemNote) return null;
+
+    const headerCellStyle = {
+        ...styles.completionTableHeaderCell,
+        fontSize: 6.5,
+        padding: "3 4",
+    };
+    const cellStyle = {
+        ...styles.completionTableCell,
+        fontSize: 6.5,
+        padding: "3 4",
+    };
+
+    return React.createElement(
+        View,
+        { style: { marginBottom: 6 } },
+        hasMaterialRows
+            ? React.createElement(
+                  View,
+                  { style: { ...styles.completionTable, marginBottom: 5 } },
+                  React.createElement(
+                      Text,
+                      {
+                          style: {
+                              ...styles.completionSubLabel,
+                              marginBottom: 3,
+                          },
+                      },
+                      "Material yang Dibeli",
+                  ),
+                  React.createElement(
+                      View,
+                      { style: styles.completionTableHeader },
+                      React.createElement(
+                          Text,
+                          { style: { ...headerCellStyle, width: "34%" } },
+                          "Nama",
+                      ),
+                      React.createElement(
+                          Text,
+                          {
+                              style: {
+                                  ...headerCellStyle,
+                                  width: "10%",
+                                  textAlign: "center",
+                              },
+                          },
+                          "Jumlah",
+                      ),
+                      React.createElement(
+                          Text,
+                          { style: { ...headerCellStyle, width: "10%" } },
+                          "Satuan",
+                      ),
+                      React.createElement(
+                          Text,
+                          {
+                              style: {
+                                  ...headerCellStyle,
+                                  width: "23%",
+                                  textAlign: "right",
+                              },
+                          },
+                          "Harga",
+                      ),
+                      React.createElement(
+                          Text,
+                          {
+                              style: {
+                                  ...headerCellStyle,
+                                  width: "23%",
+                                  textAlign: "right",
+                              },
+                          },
+                          "Total",
+                      ),
+                  ),
+                  ...realisasiItems.map((row, idx) => {
+                      const rowTotal = row.totalPrice || row.quantity * row.price;
+
+                      return React.createElement(
+                          View,
+                          {
+                              key: `${item.itemId}-material-${idx}`,
+                              style:
+                                  idx % 2 === 0
+                                      ? styles.completionTableRow
+                                      : styles.completionTableRowAlt,
+                          },
+                          React.createElement(
+                              Text,
+                              { style: { ...cellStyle, width: "34%" } },
+                              row.materialName,
+                          ),
+                          React.createElement(
+                              Text,
+                              {
+                                  style: {
+                                      ...cellStyle,
+                                      width: "10%",
+                                      textAlign: "center",
+                                  },
+                              },
+                              String(row.quantity),
+                          ),
+                          React.createElement(
+                              Text,
+                              { style: { ...cellStyle, width: "10%" } },
+                              row.unit,
+                          ),
+                          React.createElement(
+                              Text,
+                              {
+                                  style: {
+                                      ...cellStyle,
+                                      width: "23%",
+                                      textAlign: "right",
+                                  },
+                              },
+                              formatCurrency(row.price),
+                          ),
+                          React.createElement(
+                              Text,
+                              {
+                                  style: {
+                                      ...cellStyle,
+                                      width: "23%",
+                                      textAlign: "right",
+                                      fontFamily: "Helvetica-Bold",
+                                  },
+                              },
+                              formatCurrency(rowTotal),
+                          ),
+                      );
+                  }),
+              )
+            : null,
+        itemNote
+            ? React.createElement(
+                  View,
+                  {
+                      style: {
+                          ...styles.completionNoteBox,
+                          marginBottom: 6,
+                      },
+                  },
+                  React.createElement(
+                      Text,
+                      { style: styles.completionNoteText },
+                      "Catatan Item: ",
+                      itemNote,
+                  ),
+              )
+            : null,
+    );
+}
+
 function buildReportDocument(
     data: ReportPdfData,
     dimensionMap: Map<string, { width: number; height: number }>,
@@ -1448,7 +1610,7 @@ function buildReportDocument(
                 );
             })(),
 
-            // Completion Detail Section — simplified: item header + before/after photos only
+            // Completion Detail Section - item header, material table, notes, and before/after photos
             (() => {
                 const COMPLETION_STATUSES = [
                     "PENDING_REVIEW",
@@ -1480,7 +1642,7 @@ function buildReportDocument(
                         "Detail Penyelesaian Pekerjaan",
                     ),
 
-                    // Per-item blocks: header + before/after photos only
+                    // Per-item blocks: header + materials + notes + before/after photos
                     ...completionItems.map((item) =>
                         React.createElement(
                             View,
@@ -1503,6 +1665,8 @@ function buildReportDocument(
                                     item.itemId,
                                 ),
                             ),
+
+                            renderItemMaterialTable(item),
 
                             // Foto Sebelum & Sesudah side by side (landscape)
                             renderBeforeAfterRow(

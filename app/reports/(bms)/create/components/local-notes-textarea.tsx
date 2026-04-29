@@ -13,9 +13,11 @@ import { Textarea } from "@/components/ui/textarea";
 export function LocalNotesTextarea({
     initialValue,
     onCommit,
+    required = false,
 }: {
     initialValue: string;
     onCommit: (value: string) => void;
+    required?: boolean;
 }) {
     const [localValue, setLocalValue] = useState(initialValue);
     const [prevInitial, setPrevInitial] = useState(initialValue);
@@ -38,7 +40,7 @@ export function LocalNotesTextarea({
                 onClick={() => setIsEditing(true)}
             >
                 <Plus className="h-4 w-4 mr-2" />
-                Tambah Catatan (opsional)
+                {required ? "Tambah Catatan (wajib)" : "Tambah Catatan (opsional)"}
             </Button>
         );
     }
@@ -46,12 +48,15 @@ export function LocalNotesTextarea({
     return (
         <Textarea
             autoFocus
-            placeholder="Tambahkan catatan..."
+            aria-required={required}
+            placeholder={
+                required ? "Tambahkan catatan wajib..." : "Tambahkan catatan..."
+            }
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => {
                 onCommit(localValue);
-                if (!localValue.trim()) {
+                if (!required && !localValue.trim()) {
                     setIsEditing(false);
                 }
             }}

@@ -86,7 +86,19 @@ const checklistItemSchema = z
         photoKey: z.string().optional(),
         notes: z.string().optional(),
     })
-    .passthrough();
+    .passthrough()
+    .superRefine((item, ctx) => {
+        const isDamaged =
+            item.condition === "RUSAK" || item.preventiveCondition === "NOT_OK";
+
+        if (isDamaged && !item.notes?.trim()) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["notes"],
+                message: "Catatan wajib diisi untuk item rusak",
+            });
+        }
+    });
 
 const bmsEstimationSchema = z
     .object({

@@ -168,6 +168,15 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                 }
 
                 if (item.condition === "rusak") {
+                    if (!item.notes?.trim()) {
+                        toast.error(
+                            `Item "${item.name}" rusak wajib isi catatan`,
+                        );
+                        if (cat && !openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
                     if (!item.photo) {
                         toast.error(
                             `Item "${item.name}" rusak wajib upload foto`,
@@ -218,6 +227,15 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                     }
 
                     if (checkedItem.condition === "rusak") {
+                        if (!checkedItem.notes?.trim()) {
+                            toast.error(
+                                `Item "${item.name}" rusak wajib isi catatan`,
+                            );
+                            if (!openCategories.has(cat.id))
+                                toggleCategory(cat.id);
+                            scrollToItem(item.id);
+                            return false;
+                        }
                         if (!checkedItem.photo) {
                             toast.error(
                                 `Item "${item.name}" rusak wajib upload foto`,
