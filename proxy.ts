@@ -184,11 +184,11 @@ export default async function proxy(request: NextRequest) {
             const key = getSecretKey();
             if (key) {
                 const { payload } = await jwtVerify(sessionCookie, key);
+                userRole = (payload.role as string) ?? "";
+                mustChangePassword =
+                    (payload.mustChangePassword as boolean) ?? false;
                 if (payload.userId) {
                     isAuthenticated = true;
-                    mustChangePassword =
-                        (payload.mustChangePassword as boolean) ?? false;
-                    userRole = (payload.role as string) ?? "";
                 }
             }
         } catch {

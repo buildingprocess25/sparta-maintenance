@@ -16,6 +16,7 @@ export interface RealisasiItemJson {
 export interface MaterialStoreJson {
     name: string;
     city: string;
+    photoUrls?: string[];
 }
 
 export interface ReportItemJson {

@@ -34,6 +34,42 @@ function parseDimensionsFromUrl(url: string): {
     return { width: 4, height: 3 };
 }
 
+function getPdfBaseUrl(): string | null {
+    const candidates = [
+        process.env.APP_BASE_URL,
+        process.env.NEXT_PUBLIC_APP_URL,
+        process.env.RENDER_EXTERNAL_URL,
+    ];
+    for (const candidate of candidates) {
+        const trimmed = candidate?.trim();
+        if (!trimmed) continue;
+        return trimmed.endsWith("/") ? trimmed.slice(0, -1) : trimmed;
+    }
+    return null;
+}
+
+const PDF_BASE_URL = getPdfBaseUrl();
+
+// React-PDF treats relative URLs as local file paths, so make them absolute.
+function toAbsoluteUrl(url: string): string {
+    if (!url) return url;
+    if (/^https?:\/\//i.test(url) || url.startsWith("data:")) return url;
+    if (url.startsWith("/") && PDF_BASE_URL) return `${PDF_BASE_URL}${url}`;
+    return url;
+}
+
+function normalizePhotoUrl(url: string | null | undefined): string | null {
+    if (!url) return null;
+    return toAbsoluteUrl(resolvePhotoUrl(url));
+}
+
+function normalizePhotoUrls(urls: string[] | undefined): string[] {
+    if (!urls || urls.length === 0) return [];
+    return urls
+        .map((url) => toAbsoluteUrl(resolvePhotoUrl(url)))
+        .filter((url) => url.length > 0);
+}
+
 const styles = StyleSheet.create({
     page: {
         fontFamily: "Helvetica",
@@ -553,6 +589,15 @@ function getReceiptStores(data: ReportPdfData): MaterialStoreJson[] {
     return extractMaterialStoresFromItems(data.items);
 }
 
+function getStorePhotoUrls(data: ReportPdfData): string[] {
+    if (!data.startMaterialStores.length) return [];
+    const uniqueUrls = new Set<string>();
+    data.startMaterialStores.forEach((store) => {
+        (store.photoUrls ?? []).forEach((url) => uniqueUrls.add(url));
+    });
+    return Array.from(uniqueUrls);
+}
+
 function getStampLabelConfig(action: string): { label: string; color: string } {
     switch (action) {
         case "CREATED":
@@ -962,7 +1007,8 @@ function renderItemMaterialTable(item: ReportItemJson) {
                       ),
                   ),
                   ...realisasiItems.map((row, idx) => {
-                      const rowTotal = row.totalPrice || row.quantity * row.price;
+                      const rowTotal =
+                          row.totalPrice || row.quantity * row.price;
 
                       return React.createElement(
                           View,
@@ -1695,6 +1741,8 @@ function buildReportDocument(
                 );
                 if (!isCompletionSubmitted) return null;
                 const hasSelfie = data.completionSelfieUrls.length > 0;
+                const storePhotoUrls = getStorePhotoUrls(data);
+                const hasStorePhotos = storePhotoUrls.length > 0;
                 const hasReceipts = data.startReceiptUrls.length > 0;
                 const hasNotes = !!data.completionNotes;
                 const hasAdditionalPhotos =
@@ -1702,6 +1750,7 @@ function buildReportDocument(
                 const hasAdditionalNote = !!data.completionAdditionalNote;
                 if (
                     !hasSelfie &&
+                    !hasStorePhotos &&
                     !hasReceipts &&
                     !hasNotes &&
                     !hasAdditionalPhotos &&
@@ -1723,6 +1772,15 @@ function buildReportDocument(
                         ? renderPhotoGrid2Col(
                               data.completionSelfieUrls,
                               "Foto Selfie BMS",
+                              dimensionMap,
+                          )
+                        : null,
+
+                    // Store photos in 2-column grid
+                    hasStorePhotos
+                        ? renderPhotoGrid2Col(
+                              storePhotoUrls,
+                              "Foto Toko Material",
                               dimensionMap,
                           )
                         : null,
@@ -2348,12 +2406,43 @@ function buildReportDocument(
 }
 
 export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
+    const normalizedData: ReportPdfData = {
+        ...data,
+        completionSelfieUrls: normalizePhotoUrls(data.completionSelfieUrls),
+        startReceiptUrls: normalizePhotoUrls(data.startReceiptUrls),
+        startMaterialStores: data.startMaterialStores.map((store) => {
+            const normalizedStorePhotos = store.photoUrls
+                ? normalizePhotoUrls(store.photoUrls)
+                : [];
+            return normalizedStorePhotos.length > 0
+                ? { ...store, photoUrls: normalizedStorePhotos }
+                : { ...store };
+        }),
+        completionAdditionalPhotos: normalizePhotoUrls(
+            data.completionAdditionalPhotos,
+        ),
+        items: data.items.map((item) => ({
+            ...item,
+            photoUrl: normalizePhotoUrl(item.photoUrl),
+            images: item.images ? normalizePhotoUrls(item.images) : undefined,
+            afterImages: item.afterImages
+                ? normalizePhotoUrls(item.afterImages)
+                : undefined,
+            receiptImages: item.receiptImages
+                ? normalizePhotoUrls(item.receiptImages)
+                : undefined,
+        })),
+    };
     // Collect all photo URLs that appear in the PDF
+    const storePhotoUrls = normalizedData.startMaterialStores.flatMap(
+        (store) => store.photoUrls ?? [],
+    );
     const allUrls: string[] = [
-        ...data.completionSelfieUrls,
-        ...data.startReceiptUrls,
-        ...data.completionAdditionalPhotos,
-        ...data.items.flatMap((item) => [
+        ...normalizedData.completionSelfieUrls,
+        ...normalizedData.startReceiptUrls,
+        ...storePhotoUrls,
+        ...normalizedData.completionAdditionalPhotos,
+        ...normalizedData.items.flatMap((item) => [
             ...(item.images ?? (item.photoUrl ? [item.photoUrl] : [])),
             ...(item.afterImages ?? []),
             ...(item.receiptImages ?? []),
@@ -2383,7 +2472,7 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
     // Note: @react-pdf/renderer's Image component handles URL fetching internally.
     // If a photo fails to load (non-2xx response), the library will skip it automatically.
     // We log the URL types above for debugging purposes.
-    const doc = buildReportDocument(data, dimensionMap);
+    const doc = buildReportDocument(normalizedData, dimensionMap);
     const buffer = await renderToBuffer(doc);
     return Buffer.from(buffer);
 }

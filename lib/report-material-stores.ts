@@ -5,9 +5,24 @@ function normalizeMaterialStore(
 ): MaterialStoreJson | null {
     const name = value?.name?.trim();
     const city = value?.city?.trim();
+    const photoUrls = Array.isArray(value?.photoUrls)
+        ? value?.photoUrls
+              .map((url) => url?.trim())
+              .filter((url): url is string => Boolean(url))
+        : [];
 
     if (!name || !city) return null;
-    return { name, city };
+    return photoUrls.length > 0 ? { name, city, photoUrls } : { name, city };
+}
+
+function mergePhotoUrls(
+    current: string[] | undefined,
+    incoming: string[] | undefined,
+): string[] | undefined {
+    const merged = new Set<string>();
+    (current ?? []).forEach((url) => merged.add(url));
+    (incoming ?? []).forEach((url) => merged.add(url));
+    return merged.size > 0 ? Array.from(merged) : undefined;
 }
 
 export function dedupeMaterialStores(
@@ -22,7 +37,20 @@ export function dedupeMaterialStores(
         const key = `${normalized.name.toLowerCase()}::${normalized.city.toLowerCase()}`;
         if (!uniqueStores.has(key)) {
             uniqueStores.set(key, normalized);
+            continue;
         }
+
+        const existing = uniqueStores.get(key);
+        if (!existing) continue;
+
+        const mergedPhotoUrls = mergePhotoUrls(
+            existing.photoUrls,
+            normalized.photoUrls,
+        );
+        uniqueStores.set(key, {
+            ...existing,
+            ...(mergedPhotoUrls ? { photoUrls: mergedPhotoUrls } : {}),
+        });
     }
 
     return Array.from(uniqueStores.values());

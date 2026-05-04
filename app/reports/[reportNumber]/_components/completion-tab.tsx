@@ -6,6 +6,7 @@ import {
     ImageIcon,
     Receipt,
     SkipForward,
+    Store,
     User,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -111,6 +112,10 @@ export function CompletionTab({
         };
     }
 
+    const startMaterialStorePhotos = Array.from(
+        new Set(startMaterialStores.flatMap((store) => store.photoUrls ?? [])),
+    );
+
     // Calculate grand total realization across all items
     const grandTotalRealisasi = items.reduce((total, item) => {
         const realisasiItems = item.realisasiItems ?? [];
@@ -176,6 +181,44 @@ export function CompletionTab({
                                     isZeroCost
                                         ? "Dilewati — estimasi tanpa biaya"
                                         : "Belum ada foto selfie."
+                                }
+                                skipped={isZeroCost}
+                            />
+                        )}
+                    </div>
+
+                    <Separator />
+
+                    {/* Foto toko material */}
+                    <div id="review-store" className="space-y-2">
+                        <p className="text-sm font-medium flex items-center gap-1.5">
+                            <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                            Foto Toko Material
+                            {isReviewer &&
+                                startMaterialStorePhotos.length > 0 &&
+                                (viewedSections.has("store") ? (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-emerald-600 font-medium">
+                                        <CheckCircle2 className="h-3.5 w-3.5" />{" "}
+                                        Sudah ditinjau
+                                    </span>
+                                ) : (
+                                    <span className="ml-auto flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                        <Eye className="h-3.5 w-3.5" /> Klik
+                                        foto untuk meninjau
+                                    </span>
+                                ))}
+                        </p>
+                        {startMaterialStorePhotos.length > 0 ? (
+                            <PhotoGrid
+                                urls={startMaterialStorePhotos}
+                                onPhotoClick={makeClickHandler("store")}
+                            />
+                        ) : (
+                            <EmptyPhotos
+                                label={
+                                    isZeroCost
+                                        ? "Dilewati — estimasi tanpa biaya"
+                                        : "Belum ada foto toko material."
                                 }
                                 skipped={isZeroCost}
                             />

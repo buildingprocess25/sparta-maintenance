@@ -15,6 +15,7 @@ export interface StartWorkPhotoInput {
     receiptUrls: string[];
     receiptFileIds: string[];
     materialStores: MaterialStoreJson[];
+    materialStorePhotoFileIds: string[];
     /**
      * When true, selfie and receipt photos are optional.
      * Only valid when the total estimated cost is Rp 0 (tanpa biaya).
@@ -38,9 +39,9 @@ export async function startWorkWithPhotos(
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { 
-                createdByNIK: true, 
-                status: true, 
+            select: {
+                createdByNIK: true,
+                status: true,
                 uploadthingFileKeys: true,
                 drivePhotoFileIds: true,
             },
@@ -84,12 +85,26 @@ export async function startWorkWithPhotos(
             .map((store) => ({
                 name: store.name.trim(),
                 city: store.city.trim(),
+                photoUrls: Array.isArray(store.photoUrls)
+                    ? store.photoUrls
+                          .map((url) => url.trim())
+                          .filter((url) => url.length > 0)
+                    : undefined,
             }))
             .filter((store) => store.name.length > 0 && store.city.length > 0);
         // Material store only required when there is an estimated cost
         if (!photos.skipPhotos && validMaterialStores.length === 0) {
             return {
                 error: "Data toko material wajib diisi sebelum memulai pengerjaan",
+            };
+        }
+
+        const validStorePhotoUrls = validMaterialStores.flatMap(
+            (store) => store.photoUrls ?? [],
+        );
+        if (!photos.skipPhotos && validStorePhotoUrls.length === 0) {
+            return {
+                error: "Foto toko material wajib diunggah sebelum memulai pengerjaan",
             };
         }
 
@@ -113,6 +128,9 @@ export async function startWorkWithPhotos(
             ...existingFileIds,
             ...photos.selfieFileIds.filter((id) => id.trim().length > 0),
             ...photos.receiptFileIds.filter((id) => id.trim().length > 0),
+            ...photos.materialStorePhotoFileIds.filter(
+                (id) => id.trim().length > 0,
+            ),
         ];
 
         await prisma.$transaction([

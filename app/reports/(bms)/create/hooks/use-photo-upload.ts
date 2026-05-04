@@ -9,6 +9,7 @@ import {
     type ChecklistItem,
     type ChecklistCondition,
 } from "@/lib/checklist-data";
+import { saveDraftPhoto, deleteDraftPhoto } from "./draft-photo-storage";
 
 function getImageDimensions(
     file: File,
@@ -135,6 +136,12 @@ export function usePhotoUpload({
                     throw new Error("Invalid response format from server");
                 }
 
+                try {
+                    await saveDraftPhoto(activePhotoItemId, finalFile);
+                } catch (storageError) {
+                    console.warn("Gagal menyimpan foto draft", storageError);
+                }
+
                 setChecklist((prev) => {
                     const next = new Map(prev);
                     const existing = next.get(activePhotoItemId!) || {
@@ -184,6 +191,9 @@ export function usePhotoUpload({
                     });
                 }
                 return next;
+            });
+            deleteDraftPhoto(itemId).catch((error) => {
+                console.warn("Gagal menghapus foto draft", error);
             });
         },
         [checklist, setChecklist],

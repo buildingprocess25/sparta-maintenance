@@ -90,6 +90,13 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         const s = new Set<string>();
         if (report.startSelfieUrls.length > 0) s.add("selfie");
         if (report.startReceiptUrls.length > 0) s.add("nota");
+        if (
+            report.startMaterialStores.some(
+                (store) => (store.photoUrls?.length ?? 0) > 0,
+            )
+        ) {
+            s.add("store");
+        }
         if (report.completionAdditionalPhotos.length > 0)
             s.add("additional-docs");
         report.items
@@ -169,7 +176,9 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                         ? "Foto Selfie"
                         : firstId === "nota"
                           ? "Foto Nota / Struk Belanja"
-                          : `Foto Sesudah item ${firstId.replace("after-", "")}`;
+                          : firstId === "store"
+                            ? "Foto Toko Material"
+                            : `Foto Sesudah item ${firstId.replace("after-", "")}`;
                 toast.warning("Tinjau semua foto terlebih dahulu", {
                     description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
                 });
@@ -219,9 +228,11 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                         ? "Foto Selfie"
                         : firstId === "nota"
                           ? "Foto Nota / Struk Belanja"
-                          : firstId === "additional-docs"
-                            ? "Dokumentasi Tambahan"
-                            : `Foto Sesudah item ${firstId.replace("after-", "")}`;
+                          : firstId === "store"
+                            ? "Foto Toko Material"
+                            : firstId === "additional-docs"
+                              ? "Dokumentasi Tambahan"
+                              : `Foto Sesudah item ${firstId.replace("after-", "")}`;
                 toast.warning("Tinjau semua foto terlebih dahulu", {
                     description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
                 });

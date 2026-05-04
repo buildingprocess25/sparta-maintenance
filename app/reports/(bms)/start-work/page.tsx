@@ -18,7 +18,7 @@ export default async function StartWorkPage({ searchParams }: Props) {
             <Header
                 variant="dashboard"
                 title="Mulai Pengerjaan"
-                description="Upload foto selfie dan nota sebelum memulai pengerjaan laporan"
+                description="Upload foto selfie, toko material, dan nota sebelum memulai pengerjaan laporan"
                 showBackButton
                 backHref="/dashboard"
                 logo={false}

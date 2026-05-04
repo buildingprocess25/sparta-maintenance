@@ -10,6 +10,7 @@ import {
     type ChecklistCondition,
     type ChecklistCategory,
 } from "@/lib/checklist-data";
+import { loadDraftPhoto, clearDraftPhotos } from "./draft-photo-storage";
 import type {
     SerializedDraft,
     StoreOption,
@@ -81,7 +82,9 @@ export function useDraft({
                     const parsed: DraftData & { savedAt?: string } =
                         wrapper.data
                             ? { ...wrapper.data, savedAt: wrapper.savedAt }
-                            : (wrapper as unknown as DraftData & { savedAt?: string });
+                            : (wrapper as unknown as DraftData & {
+                                  savedAt?: string;
+                              });
                     if (
                         parsed &&
                         (parsed.checklistItems?.length > 0 || parsed.storeCode)
@@ -128,7 +131,7 @@ export function useDraft({
                     }
                 }
 
-                const fetchPhoto = async (
+                const fetchPhotoFromUrl = async (
                     url?: string | null,
                     name?: string,
                 ): Promise<File | undefined> => {
@@ -150,6 +153,20 @@ export function useDraft({
                     }
                 };
 
+                const fetchPhotoFromDraft = async (
+                    itemId: string,
+                    url?: string | null,
+                    name?: string,
+                ): Promise<File | undefined> => {
+                    try {
+                        const cached = await loadDraftPhoto(itemId);
+                        if (cached) return cached;
+                    } catch (e) {
+                        console.warn("Gagal ambil foto dari draft", e);
+                    }
+                    return fetchPhotoFromUrl(url, name);
+                };
+
                 const restored = new Map<string, ChecklistItem>();
                 const restoredBms = new Map<string, BmsItemGroup>();
 
@@ -157,7 +174,7 @@ export function useDraft({
                     // Restore from Database Format (SerializedDraft)
                     const restoredFiles = await Promise.all(
                         existingDraft.items.map((it) =>
-                            fetchPhoto(it.photoUrl, it.itemName),
+                            fetchPhotoFromUrl(it.photoUrl, it.itemName),
                         ),
                     );
 
@@ -236,7 +253,11 @@ export function useDraft({
                     // Restore from LocalStorage Format (DraftData)
                     const restoredFiles = await Promise.all(
                         localDraftData.checklistItems.map((it) =>
-                            fetchPhoto(it.photoUrl, it.itemName),
+                            fetchPhotoFromDraft(
+                                it.itemId,
+                                it.photoUrl,
+                                it.itemName,
+                            ),
                         ),
                     );
 
@@ -318,7 +339,15 @@ export function useDraft({
                 setIsRestoringDraft(false);
             }
         },
-        [autoRestore, existingDraft, localDraftData, stores, setChecklist, setBmsItems, handleStoreChange],
+        [
+            autoRestore,
+            existingDraft,
+            localDraftData,
+            stores,
+            setChecklist,
+            setBmsItems,
+            handleStoreChange,
+        ],
     );
 
     const handleCreateNew = useCallback(async () => {
@@ -334,6 +363,9 @@ export function useDraft({
                     await discardLocalDraftFiles(fileKeys);
                 }
                 localStorage.removeItem(LOCAL_STORAGE_KEY);
+                await clearDraftPhotos().catch((error) => {
+                    console.warn("Gagal membersihkan foto draft", error);
+                });
                 setLocalDraftData(null);
             }
             setShowDraftDialog(false);
@@ -446,7 +478,10 @@ export function useDraft({
         try {
             localStorage.setItem(
                 LOCAL_STORAGE_KEY,
-                JSON.stringify({ data: draftDataPayload, savedAt: new Date().toISOString() }),
+                JSON.stringify({
+                    data: draftDataPayload,
+                    savedAt: new Date().toISOString(),
+                }),
             );
             if (!draftReportId) {
                 setDraftReportId(`LCL-${Date.now()}`); // Pseudo local ID

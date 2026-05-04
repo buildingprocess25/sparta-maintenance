@@ -29,6 +29,8 @@ function buildMockData(mode: "completed" | "pending"): ReportPdfData {
     const selfie2 = placeholderPhotoUrl("selfie-2", 900, 1200);
     const receipt1 = placeholderPhotoUrl("receipt-1", 1100, 700);
     const receipt2 = placeholderPhotoUrl("receipt-2", 700, 1100);
+    const store1 = placeholderPhotoUrl("store-1", 1200, 800);
+    const store2 = placeholderPhotoUrl("store-2", 900, 1200);
     const additional1 = placeholderPhotoUrl("additional-1", 1000, 700);
     const additional2 = placeholderPhotoUrl("additional-2", 700, 1000);
 
@@ -46,7 +48,11 @@ function buildMockData(mode: "completed" | "pending"): ReportPdfData {
         completionSelfieUrls: mode === "completed" ? [selfie1, selfie2] : [],
         startReceiptUrls: mode === "completed" ? [receipt1, receipt2] : [],
         startMaterialStores: [
-            { name: "TB Makmur Jaya", city: "Jakarta" },
+            {
+                name: "TB Makmur Jaya",
+                city: "Jakarta",
+                photoUrls: mode === "completed" ? [store1, store2] : [],
+            },
             { name: "Sumber Bangunan", city: "Depok" },
         ],
         completionNotes:

@@ -8,6 +8,10 @@ import {
 // Pixel merah 1x1 untuk placeholder logo
 const PLACEHOLDER_LOGO =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+const PLACEHOLDER_STORE_PHOTO_1 =
+    "https://placehold.co/1200x800.png?text=Store+1";
+const PLACEHOLDER_STORE_PHOTO_2 =
+    "https://placehold.co/900x1200.png?text=Store+2";
 
 export async function GET() {
     // Disable this preview endpoint on public deployments.
@@ -30,7 +34,14 @@ export async function GET() {
             completionSelfieUrls: [],
             startReceiptUrls: [],
             startMaterialStores: [
-                { name: "TB Makmur Jaya", city: "Jakarta" },
+                {
+                    name: "TB Makmur Jaya",
+                    city: "Jakarta",
+                    photoUrls: [
+                        PLACEHOLDER_STORE_PHOTO_1,
+                        PLACEHOLDER_STORE_PHOTO_2,
+                    ],
+                },
                 { name: "Sumber Bangunan", city: "Depok" },
             ],
             completionNotes: undefined,

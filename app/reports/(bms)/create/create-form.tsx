@@ -23,6 +23,7 @@ import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
 import { useBmsEstimation } from "./hooks/use-bms-estimation";
 import { useDraft } from "./hooks/use-draft";
+import { clearDraftPhotos } from "./hooks/draft-photo-storage";
 import { autoFillStep1, autoFillStep2 } from "./dev-utils";
 
 export default function CreateReportForm({
@@ -186,6 +187,9 @@ export default function CreateReportForm({
 
             // Remove draft from local storage after successful submit
             localStorage.removeItem("sparta_bms_draft");
+            await clearDraftPhotos().catch((error) => {
+                console.warn("Gagal membersihkan foto draft", error);
+            });
 
             toast.success("Laporan berhasil dibuat!");
             router.push("/reports");

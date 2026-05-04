@@ -1,11 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    useTransition,
+    type ChangeEvent,
+} from "react";
 import { toast } from "sonner";
 import { genPhotoId } from "@/lib/upload-photo";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import {
     Camera,
+    ImagePlus,
     Loader2,
     MapPin,
     Plus,
@@ -55,7 +63,7 @@ function isTotalEstimationZero(
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type CameraTarget = "selfie" | "receipt" | null;
+type CameraTarget = "selfie" | "receipt" | "store" | null;
 
 interface LocalPhoto {
     id: string;
@@ -145,12 +153,17 @@ export function StartWorkForm({
     const [currentReport, setCurrentReport] =
         useState<ReportForStartWork>(null);
     const [selfiePhotos, setSelfiePhotos] = useState<LocalPhoto[]>([]);
+    const [materialStorePhotos, setMaterialStorePhotos] = useState<
+        LocalPhoto[]
+    >([]);
     const [receiptPhotos, setReceiptPhotos] = useState<LocalPhoto[]>([]);
     const [materialStores, setMaterialStores] = useState<MaterialStoreEntry[]>(
         [],
     );
     /** Whether BMS has opted to skip selfie/receipt because there is no cost. */
     const [skipPhotos, setSkipPhotos] = useState(false);
+
+    const storeGalleryInputRef = useRef<HTMLInputElement>(null);
 
     // ── Camera state ─────────────────────────────────────────────────────────
     const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
@@ -171,6 +184,7 @@ export function StartWorkForm({
         }
         setCurrentReport(report);
         setSelfiePhotos([]);
+        setMaterialStorePhotos([]);
         setReceiptPhotos([]);
         setMaterialStores([]);
         setSkipPhotos(false);
@@ -211,10 +225,22 @@ export function StartWorkForm({
     }, [currentReport, router]);
 
     // ── Camera handlers ───────────────────────────────────────────────────────
+    const handleAddMaterialStorePhoto = useCallback((file: File) => {
+        const id = genId();
+        const previewUrl = URL.createObjectURL(file);
+        const photo: LocalPhoto = { id, previewUrl, file };
+        setMaterialStorePhotos((prev) => [...prev, photo]);
+    }, []);
+
     const handlePhotoCaptured = useCallback(
         (file: File) => {
             if (!cameraTarget) return;
             setCameraTarget(null);
+
+            if (cameraTarget === "store") {
+                handleAddMaterialStorePhoto(file);
+                return;
+            }
 
             const id = genId();
             const previewUrl = URL.createObjectURL(file);
@@ -235,7 +261,7 @@ export function StartWorkForm({
                 });
             }
         },
-        [cameraTarget],
+        [cameraTarget, handleAddMaterialStorePhoto],
     );
 
     const handleRemoveSelfiePhoto = useCallback((id: string) => {
@@ -249,6 +275,23 @@ export function StartWorkForm({
             return next;
         });
     }, []);
+
+    const handleRemoveStorePhoto = useCallback((id: string) => {
+        setMaterialStorePhotos((prev) => prev.filter((p) => p.id !== id));
+    }, []);
+
+    const handleOpenStoreGallery = useCallback(() => {
+        storeGalleryInputRef.current?.click();
+    }, []);
+
+    const handleStoreGalleryChange = useCallback(
+        (event: ChangeEvent<HTMLInputElement>) => {
+            const files = Array.from(event.target.files ?? []);
+            files.forEach((file) => handleAddMaterialStorePhoto(file));
+            event.target.value = "";
+        },
+        [handleAddMaterialStorePhoto],
+    );
 
     // ── Material store handlers ───────────────────────────────────────────────
     const handleAddStore = useCallback(() => {
@@ -281,6 +324,11 @@ export function StartWorkForm({
         if (!skipPhotos) {
             if (selfiePhotos.length === 0) {
                 toast.error("Foto selfie bersama pejabat toko wajib diunggah");
+                return;
+            }
+
+            if (materialStorePhotos.length === 0) {
+                toast.error("Foto toko material wajib diunggah");
                 return;
             }
 
@@ -343,16 +391,34 @@ export function StartWorkForm({
                 uploadedReceiptFileIds.push(result.fileId);
             }
 
+            // ── Upload material store photos ───────────────────────────────
+            const uploadedStoreUrls: string[] = [];
+            const uploadedStoreFileIds: string[] = [];
+            for (const photo of materialStorePhotos) {
+                const result = await uploadPhoto(photo.file);
+                if (!result) {
+                    toast.dismiss(loadingId);
+                    toast.error("Gagal mengunggah foto toko material");
+                    return;
+                }
+                uploadedStoreUrls.push(result.url);
+                uploadedStoreFileIds.push(result.fileId);
+            }
+
             // ── Call server action ────────────────────────────────────────────
             const result = await startWorkWithPhotos(rn, {
                 selfieUrls: uploadedSelfieUrls,
                 selfieFileIds: uploadedSelfieFileIds,
                 receiptUrls: uploadedReceiptUrls,
                 receiptFileIds: uploadedReceiptFileIds,
-                materialStores: materialStores.map((store) => ({
+                materialStores: materialStores.map((store, index) => ({
                     name: store.name.trim(),
                     city: store.city.trim(),
+                    ...(index === 0 && uploadedStoreUrls.length > 0
+                        ? { photoUrls: uploadedStoreUrls }
+                        : {}),
                 })),
+                materialStorePhotoFileIds: uploadedStoreFileIds,
                 skipPhotos,
             });
 
@@ -376,6 +442,7 @@ export function StartWorkForm({
         skipPhotos,
         selfiePhotos,
         receiptPhotos,
+        materialStorePhotos,
         materialStores,
         router,
     ]);
@@ -479,8 +546,9 @@ export function StartWorkForm({
                                     </p>
                                     <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5 opacity-80">
                                         Centang ini jika tidak ada pembelian
-                                        material (tanpa biaya). Foto selfie dan
-                                        nota tidak diperlukan.
+                                        material (tanpa biaya). Foto selfie,
+                                        toko material, dan nota tidak
+                                        diperlukan.
                                     </p>
                                 </label>
                             </div>
@@ -531,6 +599,79 @@ export function StartWorkForm({
                                     ? "Tambah Selfie"
                                     : "Buka Kamera"}
                             </Button>
+                        </CardContent>
+                    </Card>
+
+                    {/* ── Foto Toko Material Section ───────────────────── */}
+                    <Card
+                        className={
+                            skipPhotos
+                                ? "opacity-40 pointer-events-none select-none"
+                                : ""
+                        }
+                    >
+                        <CardHeader>
+                            <CardTitle className="text-base flex items-center gap-2">
+                                <Store className="h-4 w-4 text-primary" />
+                                Foto Toko Material{" "}
+                                {!skipPhotos && (
+                                    <span className="text-destructive text-sm font-normal">
+                                        *
+                                    </span>
+                                )}
+                            </CardTitle>
+                            <CardDescription>
+                                {skipPhotos
+                                    ? "Dilewati — estimasi tanpa biaya"
+                                    : "Foto tampak depan toko material sebagai bukti pembelian"}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            <PhotoThumbnails
+                                photos={materialStorePhotos}
+                                onRemove={handleRemoveStorePhoto}
+                                onPreview={setPreviewUrl}
+                            />
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size={
+                                        materialStorePhotos.length > 0
+                                            ? "sm"
+                                            : "default"
+                                    }
+                                    className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 hover:text-indigo-700"
+                                    onClick={() => setCameraTarget("store")}
+                                >
+                                    <Camera className="mr-2 h-4 w-4" />
+                                    {materialStorePhotos.length > 0
+                                        ? "Tambah Foto"
+                                        : "Buka Kamera"}
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size={
+                                        materialStorePhotos.length > 0
+                                            ? "sm"
+                                            : "default"
+                                    }
+                                    className="bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 hover:text-indigo-700"
+                                    onClick={handleOpenStoreGallery}
+                                >
+                                    <ImagePlus className="mr-2 h-4 w-4" />
+                                    Pilih dari Galeri
+                                </Button>
+                            </div>
+                            <input
+                                ref={storeGalleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={handleStoreGalleryChange}
+                            />
                         </CardContent>
                     </Card>
 
