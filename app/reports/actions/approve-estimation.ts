@@ -7,7 +7,6 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
 import { isRekananZeroCost } from "@/lib/report-utils";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
@@ -31,7 +30,13 @@ export async function reviewEstimation(
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { status: true, branchName: true, createdByNIK: true, items: true, estimations: true },
+            select: {
+                status: true,
+                branchName: true,
+                createdByNIK: true,
+                items: true,
+                estimations: true,
+            },
         });
 
         if (!report) return { error: "Laporan tidak ditemukan" };
@@ -51,17 +56,18 @@ export async function reviewEstimation(
         // with no estimation rows, bypass the normal BMS work stages and
         // transition directly to APPROVED_BMC so BNM can do the final sign-off.
         const items = (report.items ?? []) as unknown as ReportItemJson[];
-        const estimations = (report.estimations ?? []) as unknown as MaterialEstimationJson[];
-        const isRekananBypass = decision === "approve" && isRekananZeroCost(items, estimations);
+        const estimations = (report.estimations ??
+            []) as unknown as MaterialEstimationJson[];
+        const isRekananBypass =
+            decision === "approve" && isRekananZeroCost(items, estimations);
 
-        const newStatus =
-            isRekananBypass
-                ? ReportStatus.APPROVED_BMC
-                : decision === "approve"
-                  ? ReportStatus.ESTIMATION_APPROVED
-                  : decision === "reject_revision"
-                    ? ReportStatus.ESTIMATION_REJECTED_REVISION
-                    : ReportStatus.ESTIMATION_REJECTED;
+        const newStatus = isRekananBypass
+            ? ReportStatus.APPROVED_BMC
+            : decision === "approve"
+              ? ReportStatus.ESTIMATION_APPROVED
+              : decision === "reject_revision"
+                ? ReportStatus.ESTIMATION_REJECTED_REVISION
+                : ReportStatus.ESTIMATION_REJECTED;
 
         // For approvals, only store user-typed notes (null if empty) so the PDF
         // stamp notes strip doesn't show an auto-generated placeholder.
@@ -74,11 +80,12 @@ export async function reviewEstimation(
                       ? "Estimasi ditolak, BMS diminta merevisi"
                       : "Estimasi ditolak permanen oleh BMC");
 
-        const estimationAction = decision === "approve"
-            ? "ESTIMATION_APPROVED"
-            : decision === "reject_revision"
-              ? "ESTIMATION_REJECTED_REVISION"
-              : "ESTIMATION_REJECTED";
+        const estimationAction =
+            decision === "approve"
+                ? "ESTIMATION_APPROVED"
+                : decision === "reject_revision"
+                  ? "ESTIMATION_REJECTED_REVISION"
+                  : "ESTIMATION_REJECTED";
 
         await prisma.$transaction([
             prisma.report.update({
@@ -102,22 +109,6 @@ export async function reviewEstimation(
                 },
             }),
         ]);
-
-        if (decision === "approve") {
-            try {
-                await generateAndSaveReportSnapshot({
-                    reportNumber,
-                    checkpoint: isRekananBypass
-                        ? "APPROVED_BMC"
-                        : "ESTIMATION_APPROVED",
-                });
-            } catch (snapshotError) {
-                logger.warn(
-                    { operation: "reviewEstimation.snapshot", reportNumber },
-                    `Gagal membuat snapshot PDF: ${getErrorDetail(snapshotError)}`,
-                );
-            }
-        }
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");

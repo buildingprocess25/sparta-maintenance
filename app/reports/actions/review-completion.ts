@@ -7,7 +7,6 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
 
 type ReviewDecision = "approve" | "reject_revision";
 
@@ -86,20 +85,6 @@ export async function reviewCompletion(
                 },
             }),
         ]);
-
-        if (decision === "approve") {
-            try {
-                await generateAndSaveReportSnapshot({
-                    reportNumber,
-                    checkpoint: "APPROVED_BMC",
-                });
-            } catch (snapshotError) {
-                logger.warn(
-                    { operation: "reviewCompletion.snapshot", reportNumber },
-                    `Gagal membuat snapshot PDF APPROVED_BMC: ${getErrorDetail(snapshotError)}`,
-                );
-            }
-        }
 
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");

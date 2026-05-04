@@ -313,39 +313,37 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                     <div className="lg:col-span-8 xl:col-span-9">
                         {/* Mobile PDF button — above tabs, separate from bottom action bar */}
                         <div className="lg:hidden mb-4">
-                            {(() => {
-                                const stored =
-                                    report.completedPdfPath ||
-                                    report.approvedBmcPdfPath ||
-                                    report.estimationApprovedPdfPath ||
-                                    report.pendingEstimationPdfPath ||
-                                    null;
-                                const pdfHref =
-                                    stored?.startsWith("https://")
+                            {report.status === "COMPLETED" &&
+                                (() => {
+                                    const stored =
+                                        report.completedPdfPath || null;
+                                    const pdfHref = stored?.startsWith(
+                                        "https://",
+                                    )
                                         ? stored
                                         : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
-                                return (
-                                    <a
-                                        href={pdfHref}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="block w-full"
-                                    >
-                                        <Button
-                                            variant={
-                                                hasWorkflowAction
-                                                    ? "outline"
-                                                    : "default"
-                                            }
-                                            className="w-full"
-                                            size="lg"
+                                    return (
+                                        <a
+                                            href={pdfHref}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="block w-full"
                                         >
-                                            <Printer className="h-4 w-4 mr-2" />
-                                            Lihat Laporan Lengkap (PDF)
-                                        </Button>
-                                    </a>
-                                );
-                            })()}
+                                            <Button
+                                                variant={
+                                                    hasWorkflowAction
+                                                        ? "outline"
+                                                        : "default"
+                                                }
+                                                className="w-full"
+                                                size="lg"
+                                            >
+                                                <Printer className="h-4 w-4 mr-2" />
+                                                Lihat Laporan Lengkap (PDF)
+                                            </Button>
+                                        </a>
+                                    );
+                                })()}
                         </div>
                         <Tabs
                             value={activeTab}

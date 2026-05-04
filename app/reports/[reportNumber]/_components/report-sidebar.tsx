@@ -93,35 +93,30 @@ export function ReportSidebar({
             {/* ── DESKTOP CTA: always visible at top of sticky sidebar ── */}
             <div className="hidden lg:block space-y-3">
                 {/* PDF print button */}
-                {(() => {
-                    // pdfHref is either a Drive URL (new records) or API route (old records).
-                    // Drive URL is stored directly in the *PdfPath fields.
-                    const stored =
-                        report.completedPdfPath ||
-                        report.approvedBmcPdfPath ||
-                        report.estimationApprovedPdfPath ||
-                        report.pendingEstimationPdfPath ||
-                        null;
-                    const pdfHref = stored?.startsWith("https://")
-                        ? stored
-                        : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
-                    return (
-                        <a
-                            href={pdfHref}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full block"
-                        >
-                            <Button
-                                variant={hasAction ? "outline" : "default"}
-                                className="w-full"
+                {report.status === "COMPLETED" &&
+                    (() => {
+                        // pdfHref is either a Drive URL (new records) or API route (legacy).
+                        const stored = report.completedPdfPath || null;
+                        const pdfHref = stored?.startsWith("https://")
+                            ? stored
+                            : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
+                        return (
+                            <a
+                                href={pdfHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full block"
                             >
-                                <Printer className="h-4 w-4 mr-2" />
-                                Lihat Laporan Lengkap (PDF)
-                            </Button>
-                        </a>
-                    );
-                })()}
+                                <Button
+                                    variant={hasAction ? "outline" : "default"}
+                                    className="w-full"
+                                >
+                                    <Printer className="h-4 w-4 mr-2" />
+                                    Lihat Laporan Lengkap (PDF)
+                                </Button>
+                            </a>
+                        );
+                    })()}
 
                 {/* ── BMS: start work ── */}
                 {viewer.role === "BMS" &&

@@ -11,7 +11,6 @@ import { revalidatePath } from "next/cache";
 import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
-import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
 import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
 
@@ -153,18 +152,6 @@ export async function submitReport(data: DraftData) {
 
             return finalReportId;
         });
-
-        try {
-            await generateAndSaveReportSnapshot({
-                reportNumber: reportId,
-                checkpoint: "PENDING_ESTIMATION",
-            });
-        } catch (snapshotError) {
-            logger.warn(
-                { operation: "submitReport.snapshot", reportId },
-                `Gagal membuat snapshot PDF PENDING_ESTIMATION: ${getErrorDetail(snapshotError)}`,
-            );
-        }
 
         revalidatePath("/reports");
 
