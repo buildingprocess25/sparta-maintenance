@@ -145,6 +145,7 @@ function logRequest(
     durationMs: number,
 ) {
     if (!REQUEST_LOG_ENABLED) return;
+    if (request.nextUrl.pathname === "/api/health") return;
 
     const isErrorStatus = status >= 400;
     const isRedirect = status >= 300 && status < 400;
@@ -185,7 +186,8 @@ export default async function proxy(request: NextRequest) {
                 const { payload } = await jwtVerify(sessionCookie, key);
                 if (payload.userId) {
                     isAuthenticated = true;
-                    mustChangePassword = (payload.mustChangePassword as boolean) ?? false;
+                    mustChangePassword =
+                        (payload.mustChangePassword as boolean) ?? false;
                     userRole = (payload.role as string) ?? "";
                 }
             }
@@ -199,8 +201,9 @@ export default async function proxy(request: NextRequest) {
     const isApiRoute = pathname === "/api" || pathname.startsWith("/api/");
     const isHealthRoute = pathname === "/api/health";
     const isMaintenanceRoute = pathname === "/maintenance";
-    
-    const { enabled: isMaintenanceEnabled, message: maintenanceMessage } = getMaintenanceState();
+
+    const { enabled: isMaintenanceEnabled, message: maintenanceMessage } =
+        getMaintenanceState();
     const isAdmin = userRole === "ADMIN";
 
     // Pengecualian Maintenance:
@@ -262,7 +265,9 @@ export default async function proxy(request: NextRequest) {
 
     // Clear session cookie FIRST — before any auth check — when user not found in DB
     if (isLoginRoute && request.nextUrl.searchParams.get("logout") === "1") {
-        const response = NextResponse.redirect(buildRedirectUrl(request, "/login"));
+        const response = NextResponse.redirect(
+            buildRedirectUrl(request, "/login"),
+        );
         response.cookies.delete(SESSION_COOKIE_NAME);
         logRequest(
             request,
