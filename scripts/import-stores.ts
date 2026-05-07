@@ -98,20 +98,26 @@ async function main() {
         try {
             const existing = await prisma.store.findUnique({
                 where: { code },
-                select: { code: true },
+                select: { name: true },
             });
 
             if (existing) {
-                // Requirement: jika kode sama, update nama toko saja + aktifkan kembali.
+                if (existing.name === name) {
+                    // Requirement: jika kode dan nama sama, skip
+                    skipped++;
+                    renderProgress(processed, totalRows);
+                    continue;
+                }
+                // Requirement: jika kode sama, update nama toko saja
                 await prisma.store.update({
                     where: { code },
                     data: {
                         name,
-                        isActive: true,
                     },
                 });
                 updated++;
             } else {
+                // Requirement: jika kode tidak ada, buat baru dan aktifkan
                 await prisma.store.create({
                     data: {
                         code,

@@ -43,3 +43,20 @@ export async function registerNodeErrorHooks() {
 
     globalThis.__spartaGlobalErrorHooksInstalled = true;
 }
+
+export async function preloadAppSettings() {
+    try {
+        const { PrismaClient } = await import("@prisma/client");
+        const prisma = new PrismaClient();
+        const { setSettingOverride } = await import("@/lib/app-settings");
+        
+        const settings = await prisma.appSetting.findMany();
+        for (const setting of settings) {
+            setSettingOverride(setting.key, setting.value);
+        }
+        await prisma.$disconnect();
+        logger.info({ operation: "preloadAppSettings", count: settings.length }, "App settings preloaded from DB");
+    } catch (error) {
+        logger.error({ operation: "preloadAppSettings" }, "Failed to preload app settings from DB", error instanceof Error ? error : new Error(String(error)));
+    }
+}

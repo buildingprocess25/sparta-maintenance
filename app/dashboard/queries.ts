@@ -198,8 +198,8 @@ export type ActivityItem = {
     notes: string | null;
     createdAt: Date;
     actor: { name: string; NIK: string };
-    report: { 
-        storeName: string; 
+    report: {
+        storeName: string;
         branchName: string;
         status: string;
         completedPdfPath: string | null;
@@ -226,13 +226,15 @@ async function fetchActivityLogs(
             notes: true,
             createdAt: true,
             actor: { select: { name: true, NIK: true } },
-            report: { select: { 
-                storeName: true, 
-                branchName: true, 
-                status: true,
-                completedPdfPath: true,
-                reportFinalDriveUrl: true
-            } },
+            report: {
+                select: {
+                    storeName: true,
+                    branchName: true,
+                    status: true,
+                    completedPdfPath: true,
+                    reportFinalDriveUrl: true,
+                },
+            },
         },
     });
     return rows.map((r) => ({ ...r, action: r.action as string }));
@@ -400,7 +402,7 @@ export async function getBMCApprovalHistory(
 }
 
 /**
- * Fetch global activity log (admin).
+ * Fetch global activity log (for /activity page, ADMIN role).
  */
 export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
     try {
@@ -411,163 +413,269 @@ export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
     }
 }
 
-// ─── Admin Global Monitoring ──────────────────────────────────────────────────
+// ─── YTD helper ───────────────────────────────────────────────────────────────
 
-export type GlobalStats = {
+function getYtdStart(): Date {
+    const d = new Date();
+    d.setMonth(0);
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+export type AdminOverviewStats = {
     totalReports: number;
     completed: number;
-    inProgress: number;
-    totalEstimation: number;
-    totalReal: number;
+    activeUsers: number;
+    avgRealisasi: number;
+};
+
+export type BranchChartData = {
+    cabang: string;
+    total: number;
+    totalRealisasi: number;
 };
 
 /**
- * Aggregate global stats across all branches (non-draft reports only).
+ * Aggregate stats for the Admin dashboard overview cards — Year-to-Date window.
+ * - totalReports: all non-draft reports since 1 Jan this year
+ * - completed: COMPLETED reports since 1 Jan this year
+ * - activeUsers: count passed in from in-memory presence store
+ * - avgRealisasi: average totalReal across COMPLETED reports (YTD)
  */
-export async function getGlobalStats(): Promise<GlobalStats> {
+export async function getAdminOverviewStats(
+    activeUsers: number,
+): Promise<AdminOverviewStats> {
+    const ytdStart = getYtdStart();
     try {
-        const base = { status: { not: "DRAFT" as const } };
-
-        const [totalReports, completed, inProgress, sums] = await Promise.all([
-            prisma.report.count({ where: base }),
-            prisma.report.count({ where: { status: "COMPLETED" } }),
-            prisma.report.count({ where: { status: "IN_PROGRESS" } }),
+        const [totalReports, completed, avgResult] = await Promise.all([
+            prisma.report.count({
+                where: {
+                    status: { not: "DRAFT" },
+                    createdAt: { gte: ytdStart },
+                },
+            }),
+            prisma.report.count({
+                where: { status: "COMPLETED", createdAt: { gte: ytdStart } },
+            }),
             prisma.report.aggregate({
-                where: base,
-                _sum: { totalEstimation: true, totalReal: true },
+                where: {
+                    status: "COMPLETED",
+                    totalReal: { not: null },
+                    createdAt: { gte: ytdStart },
+                },
+                _avg: { totalReal: true },
             }),
         ]);
 
         return {
             totalReports,
             completed,
-            inProgress,
-            totalEstimation: Number(sums._sum.totalEstimation ?? 0),
-            totalReal: Number(sums._sum.totalReal ?? 0),
+            activeUsers,
+            avgRealisasi: Number(avgResult._avg.totalReal ?? 0),
         };
     } catch (error) {
-        logger.error({ operation: "getGlobalStats" }, "Failed", error);
-        return { totalReports: 0, completed: 0, inProgress: 0, totalEstimation: 0, totalReal: 0 };
+        logger.error({ operation: "getAdminOverviewStats" }, "Failed", error);
+        return { totalReports: 0, completed: 0, activeUsers, avgRealisasi: 0 };
     }
 }
 
-export type BranchStat = {
-    branchName: string;
-    total: number;
-    completed: number;
-    inProgress: number;
-    totalEstimation: number;
-    totalReal: number;
-};
-
 /**
- * Per-branch aggregate stats (non-draft reports).
+ * Per-branch chart data for the Admin dashboard — Year-to-Date window.
+ * - total: total non-draft reports per branch (YTD)
+ * - totalRealisasi: sum of totalReal per branch (YTD, COMPLETED only)
  */
-export async function getPerBranchStats(): Promise<BranchStat[]> {
+export async function getAdminBranchChartData(): Promise<BranchChartData[]> {
+    const ytdStart = getYtdStart();
     try {
-        // Use Store as master branch list — all branches always appear
-        // even if they have zero reports yet.
-        const [allBranches, reportRows, completedRows, inProgressRows] =
-            await Promise.all([
-                prisma.store.groupBy({
-                    by: ["branchName"],
-                    orderBy: { branchName: "asc" },
-                }),
-                prisma.report.groupBy({
-                    by: ["branchName"],
-                    where: { status: { not: "DRAFT" } },
-                    _count: { _all: true },
-                    _sum: { totalEstimation: true, totalReal: true },
-                }),
-                prisma.report.groupBy({
-                    by: ["branchName"],
-                    where: { status: "COMPLETED" },
-                    _count: { _all: true },
-                }),
-                prisma.report.groupBy({
-                    by: ["branchName"],
-                    where: { status: "IN_PROGRESS" },
-                    _count: { _all: true },
-                }),
-            ]);
+        const [allBranches, totalRows, totalRealisasiRows] = await Promise.all([
+            prisma.store.groupBy({
+                by: ["branchName"],
+                orderBy: { branchName: "asc" },
+            }),
+            prisma.report.groupBy({
+                by: ["branchName"],
+                where: {
+                    status: { not: "DRAFT" },
+                    createdAt: { gte: ytdStart },
+                },
+                _count: { _all: true },
+            }),
+            prisma.report.groupBy({
+                by: ["branchName"],
+                where: {
+                    status: "COMPLETED",
+                    totalReal: { not: null },
+                    createdAt: { gte: ytdStart },
+                },
+                _sum: { totalReal: true },
+            }),
+        ]);
 
         const totalMap = new Map(
-            reportRows.map((r) => [
-                r.branchName,
-                {
-                    total: r._count._all,
-                    totalEstimation: Number(r._sum.totalEstimation ?? 0),
-                    totalReal: Number(r._sum.totalReal ?? 0),
-                },
-            ]),
-        );
-        const completedMap = new Map(
-            completedRows.map((r) => [r.branchName, r._count._all]),
-        );
-        const inProgressMap = new Map(
-            inProgressRows.map((r) => [r.branchName, r._count._all]),
+            totalRows.map((r) => [r.branchName, r._count._all]),
         );
 
-        return allBranches.map((b) => {
-            const totals = totalMap.get(b.branchName);
-            return {
-                branchName: b.branchName,
-                total: totals?.total ?? 0,
-                completed: completedMap.get(b.branchName) ?? 0,
-                inProgress: inProgressMap.get(b.branchName) ?? 0,
-                totalEstimation: totals?.totalEstimation ?? 0,
-                totalReal: totals?.totalReal ?? 0,
-            };
-        });
+        const totalRealisasiMap = new Map(
+            totalRealisasiRows.map((r) => [
+                r.branchName,
+                Number(r._sum.totalReal ?? 0),
+            ]),
+        );
+
+        return allBranches.map((b) => ({
+            cabang: b.branchName,
+            total: totalMap.get(b.branchName) ?? 0,
+            totalRealisasi: totalRealisasiMap.get(b.branchName) ?? 0,
+        }));
     } catch (error) {
-        logger.error({ operation: "getPerBranchStats" }, "Failed", error);
+        logger.error({ operation: "getAdminBranchChartData" }, "Failed", error);
         return [];
     }
 }
 
-export type MonthlyTrendPoint = {
-    month: string;
-    total: number;
-    completed: number;
+// ─── Realisasi Detail (YTD) ────────────────────────────────────────────────────
+
+export type RealisasiBranchStat = {
+    branchName: string;
+    count: number;
+    avg: number;
+    max: number;
+    min: number;
 };
 
-/**
- * Monthly report trend for the last 6 months (non-draft).
- * Returns data points ordered oldest to newest.
- */
-export async function getMonthlyTrend(): Promise<MonthlyTrendPoint[]> {
-    try {
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-        sixMonthsAgo.setDate(1);
-        sixMonthsAgo.setHours(0, 0, 0, 0);
+export type RealisasiMonthStat = {
+    yearMonth: string; // "2025-01"
+    label: string; // "Jan 2025"
+    count: number;
+    avg: number;
+};
 
-        const reports = await prisma.report.findMany({
-            where: { status: { not: "DRAFT" }, createdAt: { gte: sixMonthsAgo } },
-            select: { createdAt: true, status: true },
+export type AdminRealisasiDetail = {
+    globalAvg: number;
+    totalCompleted: number;
+    byBranch: RealisasiBranchStat[];
+    byMonth: RealisasiMonthStat[];
+    byMonthByBranch: Record<string, RealisasiMonthStat[]>;
+};
+
+const MONTH_LABELS = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "Mei",
+    "Jun",
+    "Jul",
+    "Agu",
+    "Sep",
+    "Okt",
+    "Nov",
+    "Des",
+];
+
+/**
+ * Returns detailed avg realisasi breakdown — per branch and per month (YTD).
+ */
+export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
+    const ytdStart = getYtdStart();
+    const empty: AdminRealisasiDetail = {
+        globalAvg: 0,
+        totalCompleted: 0,
+        byBranch: [],
+        byMonth: [],
+        byMonthByBranch: {},
+    };
+
+    try {
+        const rows = await prisma.report.findMany({
+            where: {
+                status: "COMPLETED",
+                totalReal: { not: null },
+                createdAt: { gte: ytdStart },
+            },
+            select: { branchName: true, totalReal: true, createdAt: true },
         });
 
-        const MONTH_LABELS = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
-        const buckets = new Map<string, MonthlyTrendPoint>();
+        if (rows.length === 0) return empty;
 
-        for (let i = 5; i >= 0; i--) {
-            const d = new Date();
-            d.setMonth(d.getMonth() - i);
+        const branchMap = new Map<string, number[]>();
+        const monthMap = new Map<string, number[]>();
+        const branchMonthMap = new Map<string, Map<string, number[]>>();
+
+        for (const r of rows) {
+            const val = Number(r.totalReal ?? 0);
+            if (!branchMap.has(r.branchName)) branchMap.set(r.branchName, []);
+            branchMap.get(r.branchName)!.push(val);
+
+            const d = r.createdAt;
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-            buckets.set(key, { month: MONTH_LABELS[d.getMonth()], total: 0, completed: 0 });
+            if (!monthMap.has(key)) monthMap.set(key, []);
+            monthMap.get(key)!.push(val);
+
+            if (!branchMonthMap.has(r.branchName)) {
+                branchMonthMap.set(r.branchName, new Map());
+            }
+            const branchMonth = branchMonthMap.get(r.branchName)!;
+            if (!branchMonth.has(key)) branchMonth.set(key, []);
+            branchMonth.get(key)!.push(val);
         }
 
-        for (const r of reports) {
-            const key = `${r.createdAt.getFullYear()}-${String(r.createdAt.getMonth() + 1).padStart(2, "0")}`;
-            const bucket = buckets.get(key);
-            if (!bucket) continue;
-            bucket.total++;
-            if (r.status === "COMPLETED") bucket.completed++;
+        const byBranch: RealisasiBranchStat[] = Array.from(branchMap.entries())
+            .map(([branchName, vals]) => ({
+                branchName,
+                count: vals.length,
+                avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
+                max: Math.max(...vals),
+                min: Math.min(...vals),
+            }))
+            .sort((a, b) => b.avg - a.avg);
+
+        // Build ordered list from Jan to current month
+        const now = new Date();
+        const buildMonthStats = (
+            source: Map<string, number[]>,
+        ): RealisasiMonthStat[] => {
+            const stats: RealisasiMonthStat[] = [];
+            for (let m = 0; m <= now.getMonth(); m++) {
+                const key = `${now.getFullYear()}-${String(m + 1).padStart(2, "0")}`;
+                const vals = source.get(key) ?? [];
+                stats.push({
+                    yearMonth: key,
+                    label: `${MONTH_LABELS[m]} ${now.getFullYear()}`,
+                    count: vals.length,
+                    avg:
+                        vals.length > 0
+                            ? Math.round(
+                                  vals.reduce((s, v) => s + v, 0) / vals.length,
+                              )
+                            : 0,
+                });
+            }
+            return stats;
+        };
+
+        const byMonth = buildMonthStats(monthMap);
+        const byMonthByBranch: Record<string, RealisasiMonthStat[]> = {};
+        for (const { branchName } of byBranch) {
+            const branchMonths = branchMonthMap.get(branchName) ?? new Map();
+            byMonthByBranch[branchName] = buildMonthStats(branchMonths);
         }
 
-        return Array.from(buckets.values());
+        const allVals = rows.map((r) => Number(r.totalReal ?? 0));
+        const globalAvg = Math.round(
+            allVals.reduce((s, v) => s + v, 0) / allVals.length,
+        );
+
+        return {
+            globalAvg,
+            totalCompleted: rows.length,
+            byBranch,
+            byMonth,
+            byMonthByBranch,
+        };
     } catch (error) {
-        logger.error({ operation: "getMonthlyTrend" }, "Failed", error);
-        return [];
+        logger.error({ operation: "getAdminRealisasiDetail" }, "Failed", error);
+        return empty;
     }
 }

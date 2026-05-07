@@ -35,6 +35,7 @@
         "@radix-ui/react-label": "^2.1.8",
         "@radix-ui/react-slot": "^1.2.4",
         "@react-pdf/renderer": "^4.3.2",
+        "@tabler/icons-react": "^3.42.0",
         "@uploadthing/react": "^7.3.3",
         "auto-skeleton-react": "^1.0.5",
         "bcryptjs": "^3.0.3",

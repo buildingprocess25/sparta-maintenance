@@ -6,6 +6,7 @@ import {
     fetchReportExportRows,
     fetchMaterialExportRows,
     fetchPjumExportRows,
+    fetchPreventiveExportRows,
     type ExportFilter,
 } from "@/app/admin/export/queries";
 
@@ -162,6 +163,35 @@ function buildPjumSheet(
     return buildSheet(data, headers.length);
 }
 
+function buildPreventiveSheet(
+    rows: Awaited<ReturnType<typeof fetchPreventiveExportRows>>,
+): XLSX.WorkSheet {
+    const headers = [
+        "Kode Toko",
+        "Nama Toko",
+        "Branch",
+        "Triwulan 1 (Jan-Mar)",
+        "Triwulan 2 (Apr-Jun)",
+        "Triwulan 3 (Jul-Sep)",
+        "Triwulan 4 (Okt-Des)",
+    ];
+
+    const data: XLSX.CellObject[][] = [
+        headers.map((h) => textCell(h)),
+        ...rows.map((r) => [
+            textCell(r.storeCode),
+            textCell(r.storeName),
+            textCell(r.branchName),
+            textCell(r.q1),
+            textCell(r.q2),
+            textCell(r.q3),
+            textCell(r.q4),
+        ]),
+    ];
+
+    return buildSheet(data, headers.length);
+}
+
 /**
  * Konversi array-of-arrays ke WorkSheet dan set auto column width.
  */
@@ -214,7 +244,12 @@ export async function POST(request: NextRequest) {
     }
     if (user.role !== "ADMIN") {
         logger.warn(
-            { operation: "adminExportXlsx", correlationId, userId: user.NIK, role: user.role },
+            {
+                operation: "adminExportXlsx",
+                correlationId,
+                userId: user.NIK,
+                role: user.role,
+            },
             "Non-admin attempted export",
         );
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -223,7 +258,7 @@ export async function POST(request: NextRequest) {
     // ─ Parse & validate body ─────────────────────────────────────────────────
     let body: {
         filter?: ExportFilter;
-        sheets?: ("reports" | "materials" | "pjum")[];
+        sheets?: ("reports" | "materials" | "pjum" | "preventive")[];
         splitFiles?: boolean;
         fileName?: string;
     };
@@ -231,27 +266,41 @@ export async function POST(request: NextRequest) {
     try {
         body = await request.json();
     } catch {
-        return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        return NextResponse.json(
+            { error: "Invalid JSON body" },
+            { status: 400 },
+        );
     }
 
     const filter: ExportFilter = body.filter ?? {};
-    const requestedSheets = body.sheets ?? ["reports", "materials", "pjum"];
+    const requestedSheets = body.sheets ?? [
+        "reports",
+        "materials",
+        "pjum",
+        "preventive",
+    ];
     const splitFiles = body.splitFiles ?? false;
-    const baseFileName = body.fileName ?? `sparta-export-${new Date().toISOString().slice(0, 10)}`;
+    const baseFileName =
+        body.fileName ??
+        `sparta-export-${new Date().toISOString().slice(0, 10)}`;
 
     // ─ Fetch data ────────────────────────────────────────────────────────────
     try {
-        const [reportRows, materialRows, pjumRows] = await Promise.all([
-            requestedSheets.includes("reports")
-                ? fetchReportExportRows(filter)
-                : Promise.resolve([]),
-            requestedSheets.includes("materials")
-                ? fetchMaterialExportRows(filter)
-                : Promise.resolve([]),
-            requestedSheets.includes("pjum")
-                ? fetchPjumExportRows(filter)
-                : Promise.resolve([]),
-        ]);
+        const [reportRows, materialRows, pjumRows, preventiveRows] =
+            await Promise.all([
+                requestedSheets.includes("reports")
+                    ? fetchReportExportRows(filter)
+                    : Promise.resolve([]),
+                requestedSheets.includes("materials")
+                    ? fetchMaterialExportRows(filter)
+                    : Promise.resolve([]),
+                requestedSheets.includes("pjum")
+                    ? fetchPjumExportRows(filter)
+                    : Promise.resolve([]),
+                requestedSheets.includes("preventive")
+                    ? fetchPreventiveExportRows(filter)
+                    : Promise.resolve([]),
+            ]);
 
         // ─ Build workbook(s) ─────────────────────────────────────────────────
 
@@ -261,18 +310,35 @@ export async function POST(request: NextRequest) {
 
             if (requestedSheets.includes("reports") && reportRows.length > 0) {
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, buildReportSheet(reportRows), "Rekap Laporan");
-                const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+                XLSX.utils.book_append_sheet(
+                    wb,
+                    buildReportSheet(reportRows),
+                    "Rekap Laporan",
+                );
+                const buf = XLSX.write(wb, {
+                    type: "buffer",
+                    bookType: "xlsx",
+                });
                 files.push({
                     name: `${baseFileName}-laporan.xlsx`,
                     data: Buffer.from(buf).toString("base64"),
                 });
             }
 
-            if (requestedSheets.includes("materials") && materialRows.length > 0) {
+            if (
+                requestedSheets.includes("materials") &&
+                materialRows.length > 0
+            ) {
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, buildMaterialSheet(materialRows), "Rekap Material");
-                const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+                XLSX.utils.book_append_sheet(
+                    wb,
+                    buildMaterialSheet(materialRows),
+                    "Rekap Material",
+                );
+                const buf = XLSX.write(wb, {
+                    type: "buffer",
+                    bookType: "xlsx",
+                });
                 files.push({
                     name: `${baseFileName}-material.xlsx`,
                     data: Buffer.from(buf).toString("base64"),
@@ -281,17 +347,50 @@ export async function POST(request: NextRequest) {
 
             if (requestedSheets.includes("pjum") && pjumRows.length > 0) {
                 const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, buildPjumSheet(pjumRows), "Rekap PJUM");
-                const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+                XLSX.utils.book_append_sheet(
+                    wb,
+                    buildPjumSheet(pjumRows),
+                    "Rekap PJUM",
+                );
+                const buf = XLSX.write(wb, {
+                    type: "buffer",
+                    bookType: "xlsx",
+                });
                 files.push({
                     name: `${baseFileName}-pjum.xlsx`,
                     data: Buffer.from(buf).toString("base64"),
                 });
             }
 
+            if (
+                requestedSheets.includes("preventive") &&
+                preventiveRows.length > 0
+            ) {
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(
+                    wb,
+                    buildPreventiveSheet(preventiveRows),
+                    "Rekap Preventif",
+                );
+                const buf = XLSX.write(wb, {
+                    type: "buffer",
+                    bookType: "xlsx",
+                });
+                files.push({
+                    name: `${baseFileName}-preventif.xlsx`,
+                    data: Buffer.from(buf).toString("base64"),
+                });
+            }
+
             const durationMs = Math.round(performance.now() - start);
             logger.info(
-                { operation: "adminExportXlsx", correlationId, userId: user.NIK, durationMs, fileCount: files.length },
+                {
+                    operation: "adminExportXlsx",
+                    correlationId,
+                    userId: user.NIK,
+                    durationMs,
+                    fileCount: files.length,
+                },
                 "Export XLSX (split) completed",
             );
 
@@ -302,20 +401,49 @@ export async function POST(request: NextRequest) {
         const wb = XLSX.utils.book_new();
 
         if (requestedSheets.includes("reports")) {
-            XLSX.utils.book_append_sheet(wb, buildReportSheet(reportRows), "Rekap Laporan");
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildReportSheet(reportRows),
+                "Rekap Laporan",
+            );
         }
         if (requestedSheets.includes("materials")) {
-            XLSX.utils.book_append_sheet(wb, buildMaterialSheet(materialRows), "Rekap Material");
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildMaterialSheet(materialRows),
+                "Rekap Material",
+            );
         }
         if (requestedSheets.includes("pjum")) {
-            XLSX.utils.book_append_sheet(wb, buildPjumSheet(pjumRows), "Rekap PJUM");
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildPjumSheet(pjumRows),
+                "Rekap PJUM",
+            );
+        }
+        if (requestedSheets.includes("preventive")) {
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildPreventiveSheet(preventiveRows),
+                "Rekap Preventif",
+            );
         }
 
         const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
         const durationMs = Math.round(performance.now() - start);
         logger.info(
-            { operation: "adminExportXlsx", correlationId, userId: user.NIK, durationMs, rows: reportRows.length + materialRows.length + pjumRows.length },
+            {
+                operation: "adminExportXlsx",
+                correlationId,
+                userId: user.NIK,
+                durationMs,
+                rows:
+                    reportRows.length +
+                    materialRows.length +
+                    pjumRows.length +
+                    preventiveRows.length,
+            },
             "Export XLSX (combined) completed",
         );
 
@@ -330,7 +458,12 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         const durationMs = Math.round(performance.now() - start);
         logger.error(
-            { operation: "adminExportXlsx", correlationId, userId: user.NIK, durationMs },
+            {
+                operation: "adminExportXlsx",
+                correlationId,
+                userId: user.NIK,
+                durationMs,
+            },
             "Export XLSX failed",
             error,
         );

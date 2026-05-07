@@ -6,6 +6,7 @@ import { SessionInterceptor } from "@/components/session-interceptor";
 
 import { SessionExpiryAlert } from "@/components/session-expiry-alert";
 import { PWARegister } from "@/components/pwa-register";
+import { PresenceTracker } from "@/components/presence-tracker";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -34,6 +35,7 @@ export default function RootLayout({
         <html lang="en" className={outfit.variable}>
             <body className="antialiased">
                 <PWARegister />
+                <PresenceTracker />
                 <SessionInterceptor>{children}</SessionInterceptor>
                 <SessionExpiryAlert />
                 <Toaster position="top-center" />

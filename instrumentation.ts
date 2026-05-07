@@ -5,4 +5,5 @@ export async function register() {
 
     const nodeInstrumentation = await import("@/instrumentation-node");
     await nodeInstrumentation.registerNodeErrorHooks();
+    await nodeInstrumentation.preloadAppSettings();
 }

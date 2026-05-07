@@ -8,10 +8,13 @@ import type { MaterialEstimationJson } from "@/types/report";
 
 export type ExportFilter = {
     fromDate?: string; // ISO date string
-    toDate?: string;   // ISO date string
-    branchName?: string;
+    toDate?: string; // ISO date string
+    branchName?: string | string[];
     status?: string;
-    bmsNIK?: string;
+    bmsQuery?: string;
+    search?: string;
+    searchQuery?: string;
+    year?: number;
 };
 
 // ─── Sheet 1: Report rows ─────────────────────────────────────────────────────
@@ -63,6 +66,18 @@ export type PjumExportRow = {
     approvedAt: Date | null;
 };
 
+// ─── Sheet 4: Preventive rows ───────────────────────────────────────────────────
+
+export type PreventiveExportRow = {
+    storeCode: string;
+    storeName: string;
+    branchName: string;
+    q1: string; // "Sudah" or "-"
+    q2: string;
+    q3: string;
+    q4: string;
+};
+
 // (MaterialEstimationJson imported from @/types/report — used directly below)
 
 // ─── Helper: build Report where clause ───────────────────────────────────────
@@ -76,7 +91,9 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     if (filter.fromDate || filter.toDate) {
         where.createdAt = {};
         if (filter.fromDate) {
-            (where.createdAt as Prisma.DateTimeFilter).gte = new Date(filter.fromDate);
+            (where.createdAt as Prisma.DateTimeFilter).gte = new Date(
+                filter.fromDate,
+            );
         }
         if (filter.toDate) {
             // Include the entire toDate day
@@ -87,15 +104,40 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     }
 
     if (filter.branchName) {
-        where.branchName = filter.branchName;
+        if (Array.isArray(filter.branchName)) {
+            where.branchName = { in: filter.branchName };
+        } else {
+            where.branchName = filter.branchName;
+        }
     }
 
     if (filter.status && filter.status !== "all") {
         where.status = filter.status as Prisma.EnumReportStatusFilter["equals"];
     }
 
-    if (filter.bmsNIK) {
-        where.createdByNIK = filter.bmsNIK;
+    if (filter.search) {
+        where.OR = [
+            { reportNumber: { contains: filter.search, mode: "insensitive" } },
+            { storeName: { contains: filter.search, mode: "insensitive" } },
+            { storeCode: { contains: filter.search, mode: "insensitive" } },
+        ];
+    }
+
+    if (filter.bmsQuery) {
+        where.OR = [
+            ...(where.OR || []),
+            {
+                createdByNIK: {
+                    contains: filter.bmsQuery,
+                    mode: "insensitive",
+                },
+            },
+            {
+                createdBy: {
+                    name: { contains: filter.bmsQuery, mode: "insensitive" },
+                },
+            },
+        ];
     }
 
     return where;
@@ -144,7 +186,10 @@ export async function fetchReportExportRows(
         }));
     } catch (error) {
         logger.error(
-            { operation: "fetchReportExportRows", filter: JSON.stringify(filter) },
+            {
+                operation: "fetchReportExportRows",
+                filter: JSON.stringify(filter),
+            },
             "Failed to fetch report export rows",
             error,
         );
@@ -176,7 +221,8 @@ export async function fetchMaterialExportRows(
         const rows: MaterialExportRow[] = [];
 
         for (const report of reports) {
-            const items = (report.estimations as unknown) as MaterialEstimationJson[];
+            const items =
+                report.estimations as unknown as MaterialEstimationJson[];
             if (!Array.isArray(items) || items.length === 0) continue;
 
             for (const item of items) {
@@ -198,7 +244,10 @@ export async function fetchMaterialExportRows(
         return rows;
     } catch (error) {
         logger.error(
-            { operation: "fetchMaterialExportRows", filter: JSON.stringify(filter) },
+            {
+                operation: "fetchMaterialExportRows",
+                filter: JSON.stringify(filter),
+            },
             "Failed to fetch material export rows",
             error,
         );
@@ -217,7 +266,9 @@ export async function fetchPjumExportRows(
         if (filter.fromDate || filter.toDate) {
             where.createdAt = {};
             if (filter.fromDate) {
-                (where.createdAt as Prisma.DateTimeFilter).gte = new Date(filter.fromDate);
+                (where.createdAt as Prisma.DateTimeFilter).gte = new Date(
+                    filter.fromDate,
+                );
             }
             if (filter.toDate) {
                 const end = new Date(filter.toDate);
@@ -227,11 +278,19 @@ export async function fetchPjumExportRows(
         }
 
         if (filter.branchName) {
-            where.branchName = filter.branchName;
+            if (Array.isArray(filter.branchName)) {
+                where.branchName = { in: filter.branchName };
+            } else {
+                where.branchName = filter.branchName;
+            }
         }
 
-        if (filter.bmsNIK) {
-            where.bmsNIK = filter.bmsNIK;
+        if (filter.bmsQuery) {
+            where.OR = [
+                { bmsNIK: { contains: filter.bmsQuery, mode: "insensitive" } },
+                // Note: PjumExport doesn't store bmsName directly in DB, only NIK.
+                // We'll search by NIK for now.
+            ];
         }
 
         const exports = await prisma.pjumExport.findMany({
@@ -277,12 +336,17 @@ export async function fetchPjumExportRows(
             reportCount: e.reportNumbers.length,
             createdByName: nameMap.get(e.createdByNIK) ?? e.createdByNIK,
             createdAt: e.createdAt,
-            approvedByName: e.approvedByNIK ? (nameMap.get(e.approvedByNIK) ?? e.approvedByNIK) : null,
+            approvedByName: e.approvedByNIK
+                ? (nameMap.get(e.approvedByNIK) ?? e.approvedByNIK)
+                : null,
             approvedAt: e.approvedAt,
         }));
     } catch (error) {
         logger.error(
-            { operation: "fetchPjumExportRows", filter: JSON.stringify(filter) },
+            {
+                operation: "fetchPjumExportRows",
+                filter: JSON.stringify(filter),
+            },
             "Failed to fetch PJUM export rows",
             error,
         );
@@ -307,5 +371,159 @@ export async function fetchAllBranchNames(): Promise<string[]> {
             error,
         );
         return [];
+    }
+}
+
+// ─── Query: Sheet 4 — Checklist Preventif ────────────────────────────────────
+
+export async function fetchPreventiveExportRows(
+    filter: ExportFilter,
+): Promise<PreventiveExportRow[]> {
+    try {
+        if (
+            !filter.branchName ||
+            (Array.isArray(filter.branchName) &&
+                filter.branchName.length !== 1) ||
+            (!Array.isArray(filter.branchName) && filter.branchName === "all")
+        ) {
+            throw new Error("Satu cabang wajib dipilih untuk ekspor preventif");
+        }
+
+        const year = filter.year || new Date().getFullYear();
+
+        const branchNameStr = Array.isArray(filter.branchName)
+            ? filter.branchName[0]
+            : filter.branchName;
+
+        const whereStore: Prisma.StoreWhereInput = {
+            branchName: branchNameStr,
+        };
+
+        if (filter.searchQuery) {
+            whereStore.OR = [
+                { code: { contains: filter.searchQuery, mode: "insensitive" } },
+                { name: { contains: filter.searchQuery, mode: "insensitive" } },
+            ];
+        }
+
+        const stores = await prisma.store.findMany({
+            where: whereStore,
+            orderBy: { code: "asc" },
+            select: {
+                code: true,
+                name: true,
+                branchName: true,
+            },
+        });
+
+        const storeCodes = stores.map((s) => s.code);
+        const yearStart = new Date(year, 0, 1);
+        const yearEnd = new Date(year + 1, 0, 1);
+
+        const reports = await prisma.report.findMany({
+            where: {
+                storeCode: { in: storeCodes },
+                status: { not: "DRAFT" },
+                createdAt: {
+                    gte: yearStart,
+                    lt: yearEnd,
+                },
+            },
+            select: {
+                storeCode: true,
+                createdAt: true,
+                items: true,
+                createdByNIK: true,
+                createdBy: { select: { name: true } },
+            },
+        });
+
+        const rows: PreventiveExportRow[] = stores.map((store) => {
+            const storeReports = reports.filter(
+                (r) => r.storeCode === store.code,
+            );
+
+            const quarterInfo: Record<
+                "q1" | "q2" | "q3" | "q4",
+                { doneAt: Date; bmsName: string; bmsNIK: string } | null
+            > = {
+                q1: null,
+                q2: null,
+                q3: null,
+                q4: null,
+            };
+
+            const updateQuarter = (
+                key: "q1" | "q2" | "q3" | "q4",
+                report: (typeof reports)[number],
+            ) => {
+                const existing = quarterInfo[key];
+                if (!existing || report.createdAt > existing.doneAt) {
+                    quarterInfo[key] = {
+                        doneAt: report.createdAt,
+                        bmsName: report.createdBy?.name ?? "",
+                        bmsNIK: report.createdByNIK ?? "",
+                    };
+                }
+            };
+
+            const dateFormatter = new Intl.DateTimeFormat("id-ID", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+            });
+
+            const formatQuarter = (
+                info: { doneAt: Date; bmsName: string; bmsNIK: string } | null,
+            ) => {
+                if (!info) return "-";
+                const dateLabel = dateFormatter.format(info.doneAt);
+                const bmsLabel = info.bmsName || info.bmsNIK || "-";
+                return `${dateLabel} - ${bmsLabel}`;
+            };
+
+            for (const report of storeReports) {
+                const items = report.items as any[];
+                if (items && Array.isArray(items)) {
+                    const hasCategoryI = items.some(
+                        (item) =>
+                            item.itemId && String(item.itemId).startsWith("I"),
+                    );
+                    if (hasCategoryI) {
+                        const month = new Date(report.createdAt).getMonth();
+                        if (month >= 0 && month <= 2)
+                            updateQuarter("q1", report);
+                        else if (month >= 3 && month <= 5)
+                            updateQuarter("q2", report);
+                        else if (month >= 6 && month <= 8)
+                            updateQuarter("q3", report);
+                        else if (month >= 9 && month <= 11)
+                            updateQuarter("q4", report);
+                    }
+                }
+            }
+
+            return {
+                storeCode: store.code,
+                storeName: store.name,
+                branchName: store.branchName,
+                q1: formatQuarter(quarterInfo.q1),
+                q2: formatQuarter(quarterInfo.q2),
+                q3: formatQuarter(quarterInfo.q3),
+                q4: formatQuarter(quarterInfo.q4),
+            };
+        });
+
+        return rows;
+    } catch (error) {
+        logger.error(
+            {
+                operation: "fetchPreventiveExportRows",
+                filter: JSON.stringify(filter),
+            },
+            "Failed to fetch preventive export rows",
+            error,
+        );
+        throw error;
     }
 }
