@@ -19,6 +19,7 @@ export async function sendPjumNotification(params: {
 }): Promise<void> {
     const startTime = Date.now();
     const correlationId = crypto.randomUUID();
+    const maxAttempts = 3;
 
     logger.info(
         {
@@ -38,9 +39,7 @@ export async function sendPjumNotification(params: {
         select: { email: true, name: true },
     });
 
-    const recipients: { email: string; name: string }[] = [
-        ...branchAdminUsers,
-    ];
+    const recipients: { email: string; name: string }[] = [...branchAdminUsers];
 
     if (recipients.length === 0) {
         // Fallback to dev email
@@ -70,26 +69,48 @@ export async function sendPjumNotification(params: {
         branchName: params.branchName,
     });
 
-    await sendEmail({
-        to: recipientEmails,
-        subject: `[SPARTA MAINTENANCE] PJUM Disetujui: ${params.bmsName} — Minggu ke-${params.weekNumber} ${params.monthName} ${params.year}`,
-        html,
-        attachments: [
-            {
-                filename: fileName,
-                content: params.pdfBuffer,
-                contentType: "application/pdf",
-            },
-        ],
-    });
+    let lastError: unknown = null;
 
-    logger.info(
-        {
-            operation: "sendPjumNotification",
-            correlationId,
-            recipients: recipientEmails,
-            duration: Date.now() - startTime,
-        },
-        "PJUM email sent",
-    );
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            await sendEmail({
+                to: recipientEmails,
+                subject: `[SPARTA MAINTENANCE] PJUM Disetujui: ${params.bmsName} — Minggu ke-${params.weekNumber} ${params.monthName} ${params.year}`,
+                html,
+                attachments: [
+                    {
+                        filename: fileName,
+                        content: params.pdfBuffer,
+                        contentType: "application/pdf",
+                    },
+                ],
+            });
+
+            logger.info(
+                {
+                    operation: "sendPjumNotification",
+                    correlationId,
+                    recipients: recipientEmails,
+                    attempt,
+                    duration: Date.now() - startTime,
+                },
+                "Email PJUM berhasil dikirim",
+            );
+            return;
+        } catch (error) {
+            lastError = error;
+            logger.error(
+                {
+                    operation: "sendPjumNotification",
+                    correlationId,
+                    recipients: recipientEmails,
+                    attempt,
+                },
+                "Email PJUM gagal dikirim",
+                error instanceof Error ? error : new Error(String(error)),
+            );
+        }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }

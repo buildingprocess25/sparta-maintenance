@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
@@ -50,10 +50,13 @@ type Props = {
 export function PjumApprovalDetail({ detail }: Props) {
     const router = useRouter();
     const [isApproving, startApproveTransition] = useTransition();
+    const [isLocked, setIsLocked] = useState(false);
 
     const fromDate = new Date(detail.fromDate);
 
     function handleApprove() {
+        if (isLocked) return;
+        setIsLocked(true);
         startApproveTransition(async () => {
             const result = await approvePjumExport({
                 pjumExportId: detail.id,
@@ -61,6 +64,7 @@ export function PjumApprovalDetail({ detail }: Props) {
 
             if (result.error) {
                 toast.error(result.error);
+                setIsLocked(false);
             } else {
                 toast.success(
                     "PJUM disetujui! PDF telah diupload ke Google Drive.",
@@ -106,7 +110,10 @@ export function PjumApprovalDetail({ detail }: Props) {
                                 </div>
                                 <Button variant="outline" size="sm" asChild>
                                     <a
-                                        href={detail.pjumFinalDriveUrl || `/api/reports/pjum-pdf?ids=${detail.reportNumbers.join(",")}&bmsNIK=${detail.bmsNIK}&from=${detail.fromDate}&to=${detail.toDate}&week=${detail.weekNumber}`}
+                                        href={
+                                            detail.pjumFinalDriveUrl ||
+                                            `/api/reports/pjum-pdf?ids=${detail.reportNumbers.join(",")}&bmsNIK=${detail.bmsNIK}&from=${detail.fromDate}&to=${detail.toDate}&week=${detail.weekNumber}`
+                                        }
                                         target="_blank"
                                         rel="noreferrer"
                                     >
@@ -414,7 +421,7 @@ export function PjumApprovalDetail({ detail }: Props) {
                             size="lg"
                             className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
                             onClick={handleApprove}
-                            disabled={isApproving}
+                            disabled={isApproving || isLocked}
                         >
                             {isApproving ? (
                                 <>
