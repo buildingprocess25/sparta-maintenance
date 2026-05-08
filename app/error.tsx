@@ -32,6 +32,10 @@ export default function GlobalError({
         rawMessage.includes("network") ||
         rawMessage.includes("connect");
 
+    const isServerActionMismatch =
+        rawMessage.includes("Failed to find Server Action") ||
+        rawMessage.includes("older or newer deployment");
+
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
             <Card className="w-full max-w-md text-center">
@@ -46,12 +50,16 @@ export default function GlobalError({
                     <CardTitle className="text-xl">
                         {isNetworkError
                             ? "Koneksi Bermasalah"
-                            : "Terjadi Kesalahan"}
+                            : isServerActionMismatch
+                              ? "Pembaruan Sistem Terdeteksi"
+                              : "Terjadi Kesalahan"}
                     </CardTitle>
                     <CardDescription className="text-base">
                         {isNetworkError
                             ? "Tidak dapat terhubung ke server. Periksa koneksi jaringan Anda dan coba lagi."
-                            : "Terjadi kesalahan yang tidak terduga. Silakan coba lagi."}
+                            : isServerActionMismatch
+                              ? "Ada update sistem terbaru. Silakan refresh browser untuk melanjutkan."
+                              : "Terjadi kesalahan yang tidak terduga. Silakan coba lagi."}
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
