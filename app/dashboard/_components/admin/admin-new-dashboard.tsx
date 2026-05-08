@@ -18,7 +18,7 @@ import { AdminStatCards } from "./admin-stat-cards";
 import type { AuthUser } from "@/lib/authorization";
 
 export async function AdminNewDashboard({ user }: { user: AuthUser }) {
-    const activeUserCount = getOnlineUsers().length;
+    const activeUserCount = (await getOnlineUsers()).length;
     const [overviewStats, branchChartData] = await Promise.all([
         getAdminOverviewStats(activeUserCount),
         getAdminBranchChartData(),

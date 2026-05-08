@@ -87,6 +87,7 @@ model User {
   reports       Report[]      @relation("CreatedReports")
   approvals     ApprovalLog[]
   activities    ActivityLog[]
+  presence      UserPresence?
 }
 
 model GoogleDriveFolderCache {
@@ -200,6 +201,15 @@ model ActivityLog {
 
   @@index([reportNumber])
   @@index([actorNIK])
+}
+
+model UserPresence {
+  userId    String   @id
+  lastSeen  DateTime
+
+  user      User     @relation(fields: [userId], references: [NIK])
+
+  @@index([lastSeen])
 }
 
 model PjumExport {

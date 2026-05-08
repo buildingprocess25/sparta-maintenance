@@ -1,53 +1,46 @@
-// lib/presence.ts
+import "server-only";
 
-// Declare a global map to hold active users across hot-reloads in development
-const globalForPresence = globalThis as unknown as {
-    activeUsers: Map<string, number> | undefined;
-};
-
-// Initialize the map if it doesn't exist
-export const activeUsers = globalForPresence.activeUsers ?? new Map<string, number>();
-
-if (process.env.NODE_ENV !== "production") {
-    globalForPresence.activeUsers = activeUsers;
-}
+import prisma from "@/lib/prisma";
 
 /**
  * Updates the last seen timestamp for a user.
  */
 export function markUserOnline(userId: string) {
-    activeUsers.set(userId, Date.now());
+    const now = new Date();
+    return prisma.userPresence.upsert({
+        where: { userId },
+        update: { lastSeen: now },
+        create: { userId, lastSeen: now },
+    });
 }
 
 /**
  * Checks if a specific user is currently considered online.
  */
-export function isUserOnline(userId: string): boolean {
-    const lastSeen = activeUsers.get(userId);
-    if (!lastSeen) return false;
-    
+export async function isUserOnline(userId: string): Promise<boolean> {
+    const presence = await prisma.userPresence.findUnique({
+        where: { userId },
+        select: { lastSeen: true },
+    });
+    if (!presence) return false;
+
     // 5 minutes interval + 1 minute grace period = 6 minutes threshold
     const OFFLINE_THRESHOLD_MS = 6 * 60 * 1000;
-    return (Date.now() - lastSeen) < OFFLINE_THRESHOLD_MS;
+    return Date.now() - presence.lastSeen.getTime() < OFFLINE_THRESHOLD_MS;
 }
 
 /**
  * Retrieves a list of all currently online user IDs.
  * Also performs lazy cleanup of stale entries.
  */
-export function getOnlineUsers(): string[] {
-    const onlineUsers: string[] = [];
-    const now = Date.now();
+export async function getOnlineUsers(): Promise<string[]> {
     const OFFLINE_THRESHOLD_MS = 6 * 60 * 1000;
-    
-    for (const [userId, lastSeen] of activeUsers.entries()) {
-        if (now - lastSeen < OFFLINE_THRESHOLD_MS) {
-            onlineUsers.push(userId);
-        } else {
-            // Lazy cleanup: remove stale entries to free up memory
-            activeUsers.delete(userId);
-        }
-    }
-    
-    return onlineUsers;
+    const cutoff = new Date(Date.now() - OFFLINE_THRESHOLD_MS);
+
+    const rows = await prisma.userPresence.findMany({
+        where: { lastSeen: { gt: cutoff } },
+        select: { userId: true },
+    });
+
+    return rows.map((row) => row.userId);
 }
