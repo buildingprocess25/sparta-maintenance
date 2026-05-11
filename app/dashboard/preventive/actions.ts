@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import type { ReportItemJson } from "@/types/report";
 
 export type AdminPreventiveFilters = {
@@ -42,7 +43,9 @@ export async function getAdminPreventive(
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.StoreWhereInput = {};
+        const where: Prisma.StoreWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         if (filters.search) {
             where.OR = [
@@ -85,6 +88,7 @@ export async function getAdminPreventive(
         const reports = await prisma.report.findMany({
             where: {
                 storeCode: { in: storeCodes },
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: { not: "DRAFT" },
                 createdAt: {
                     gte: yearStart,
@@ -197,13 +201,19 @@ export async function getAdminPreventive(
 export async function getReportYears() {
     try {
         const firstReport = await prisma.report.findFirst({
-            where: { status: { not: "DRAFT" } },
+            where: {
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                status: { not: "DRAFT" },
+            },
             orderBy: { createdAt: "asc" },
             select: { createdAt: true },
         });
 
         const lastReport = await prisma.report.findFirst({
-            where: { status: { not: "DRAFT" } },
+            where: {
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                status: { not: "DRAFT" },
+            },
             orderBy: { createdAt: "desc" },
             select: { createdAt: true },
         });

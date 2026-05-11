@@ -8,8 +8,11 @@ import {
     CardTitle,
     CardDescription,
 } from "@/components/ui/card";
-import { getAdminOverviewStats, getAdminBranchChartData } from "../../queries";
-import { getOnlineUsers } from "@/lib/presence";
+import {
+    getAdminOverviewStats,
+    getAdminBranchChartData,
+    getAdminVisibleOnlineUserCount,
+} from "../../queries";
 import {
     AdminLaporanChart,
     AdminRealisasiChart,
@@ -18,11 +21,11 @@ import { AdminStatCards } from "./admin-stat-cards";
 import type { AuthUser } from "@/lib/authorization";
 
 export async function AdminNewDashboard({ user }: { user: AuthUser }) {
-    const activeUserCount = (await getOnlineUsers()).length;
-    const [overviewStats, branchChartData] = await Promise.all([
-        getAdminOverviewStats(activeUserCount),
+    const [activeUserCount, branchChartData] = await Promise.all([
+        getAdminVisibleOnlineUserCount(),
         getAdminBranchChartData(),
     ]);
+    const overviewStats = await getAdminOverviewStats(activeUserCount);
 
     const year = new Date().getFullYear();
 

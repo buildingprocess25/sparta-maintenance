@@ -1,6 +1,8 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import { getOnlineUsers } from "@/lib/presence";
 
 /**
  * Fetch report statistics for a BMS user (their own reports, all time).
@@ -406,7 +408,10 @@ export async function getBMCApprovalHistory(
  */
 export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
     try {
-        return await fetchActivityLogs({}, limit);
+        return await fetchActivityLogs(
+            { report: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } },
+            limit,
+        );
     } catch (error) {
         logger.error({ operation: "getGlobalActivity" }, "Failed", error);
         return [];
@@ -430,6 +435,27 @@ export type AdminOverviewStats = {
     avgRealisasi: number;
 };
 
+export async function getAdminVisibleOnlineUserCount(): Promise<number> {
+    try {
+        const onlineUserIds = await getOnlineUsers();
+        if (onlineUserIds.length === 0) return 0;
+
+        return await prisma.user.count({
+            where: {
+                NIK: { in: onlineUserIds },
+                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+            },
+        });
+    } catch (error) {
+        logger.error(
+            { operation: "getAdminVisibleOnlineUserCount" },
+            "Failed",
+            error,
+        );
+        return 0;
+    }
+}
+
 export type BranchChartData = {
     cabang: string;
     total: number;
@@ -451,15 +477,21 @@ export async function getAdminOverviewStats(
         const [totalReports, completed, avgResult] = await Promise.all([
             prisma.report.count({
                 where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     status: { not: "DRAFT" },
                     createdAt: { gte: ytdStart },
                 },
             }),
             prisma.report.count({
-                where: { status: "COMPLETED", createdAt: { gte: ytdStart } },
+                where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    status: "COMPLETED",
+                    createdAt: { gte: ytdStart },
+                },
             }),
             prisma.report.aggregate({
                 where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     status: "COMPLETED",
                     totalReal: { not: null },
                     createdAt: { gte: ytdStart },
@@ -491,11 +523,13 @@ export async function getAdminBranchChartData(): Promise<BranchChartData[]> {
         const [allBranches, totalRows, totalRealisasiRows] = await Promise.all([
             prisma.store.groupBy({
                 by: ["branchName"],
+                where: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } },
                 orderBy: { branchName: "asc" },
             }),
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     status: { not: "DRAFT" },
                     createdAt: { gte: ytdStart },
                 },
@@ -504,6 +538,7 @@ export async function getAdminBranchChartData(): Promise<BranchChartData[]> {
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     status: "COMPLETED",
                     totalReal: { not: null },
                     createdAt: { gte: ytdStart },
@@ -590,6 +625,7 @@ export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
     try {
         const rows = await prisma.report.findMany({
             where: {
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: "COMPLETED",
                 totalReal: { not: null },
                 createdAt: { gte: ytdStart },

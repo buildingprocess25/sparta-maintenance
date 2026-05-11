@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import { revalidatePath } from "next/cache";
 
 export type AdminReportFilters = {
     search?: string;
@@ -28,7 +30,9 @@ export async function getAdminReports(
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.ReportWhereInput = {};
+        const where: Prisma.ReportWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         // Search: reportNumber, storeName, storeCode
         if (filters.search) {
@@ -125,5 +129,91 @@ export async function getAdminReports(
             error
         );
         throw new Error("Failed to load reports");
+    }
+}
+
+export async function deleteAdminReport(reportNumber: string) {
+    const correlationId = crypto.randomUUID();
+    const start = performance.now();
+
+    try {
+        const user = await getAuthUser();
+        if (!user || user.role !== "ADMIN") {
+            throw new Error("Unauthorized");
+        }
+
+        const report = await prisma.report.findUnique({
+            where: { reportNumber },
+            select: {
+                reportNumber: true,
+                branchName: true,
+                storeName: true,
+            },
+        });
+
+        if (!report) {
+            return { error: "Laporan tidak ditemukan" };
+        }
+
+        if (report.branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+            return { error: "Laporan HEAD OFFICE tidak dapat dihapus dari dashboard admin" };
+        }
+
+        await prisma.$transaction(async (tx) => {
+            await tx.approvalLog.deleteMany({ where: { reportNumber } });
+            await tx.activityLog.deleteMany({ where: { reportNumber } });
+
+            const relatedPjums = await tx.pjumExport.findMany({
+                where: { reportNumbers: { has: reportNumber } },
+                select: { id: true, reportNumbers: true },
+            });
+
+            for (const pjum of relatedPjums) {
+                const nextReportNumbers = pjum.reportNumbers.filter(
+                    (item) => item !== reportNumber,
+                );
+
+                if (nextReportNumbers.length === 0) {
+                    await tx.pjumExport.delete({ where: { id: pjum.id } });
+                } else {
+                    await tx.pjumExport.update({
+                        where: { id: pjum.id },
+                        data: { reportNumbers: { set: nextReportNumbers } },
+                    });
+                }
+            }
+
+            await tx.report.delete({ where: { reportNumber } });
+        });
+
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard/materials");
+        revalidatePath("/dashboard/pjum");
+        revalidatePath("/dashboard/preventive");
+        revalidatePath("/dashboard");
+        revalidatePath(`/reports/${reportNumber}`);
+
+        const durationMs = Math.round(performance.now() - start);
+        logger.info(
+            {
+                operation: "deleteAdminReport",
+                correlationId,
+                durationMs,
+                reportNumber,
+                userId: user.NIK,
+                branchName: report.branchName,
+            },
+            "Deleted admin report successfully",
+        );
+
+        return { success: true };
+    } catch (error) {
+        const durationMs = Math.round(performance.now() - start);
+        logger.error(
+            { operation: "deleteAdminReport", correlationId, durationMs, reportNumber },
+            "Failed to delete admin report",
+            error,
+        );
+        return { error: "Gagal menghapus laporan" };
     }
 }

@@ -1,8 +1,9 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { Prisma } from "@prisma/client";
-import type { MaterialEstimationJson } from "@/types/report";
+import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     const where: Prisma.ReportWhereInput = {
         // Exclude DRAFT-only records from export
         status: { not: "DRAFT" },
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
     };
 
     if (filter.fromDate || filter.toDate) {
@@ -265,7 +267,9 @@ export async function fetchPjumExportRows(
     filter: ExportFilter,
 ): Promise<PjumExportRow[]> {
     try {
-        const where: Prisma.PjumExportWhereInput = {};
+        const where: Prisma.PjumExportWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         if (filter.fromDate || filter.toDate) {
             where.createdAt = {};
@@ -364,6 +368,7 @@ export async function fetchAllBranchNames(): Promise<string[]> {
     try {
         const result = await prisma.report.findMany({
             distinct: ["branchName"],
+            where: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } },
             select: { branchName: true },
             orderBy: { branchName: "asc" },
         });
@@ -386,7 +391,9 @@ export async function fetchPreventiveExportRows(
     try {
         const year = filter.year || new Date().getFullYear();
 
-        const whereStore: Prisma.StoreWhereInput = {};
+        const whereStore: Prisma.StoreWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
         if (filter.branchName && filter.branchName !== "all") {
             if (Array.isArray(filter.branchName)) {
                 if (
@@ -424,6 +431,7 @@ export async function fetchPreventiveExportRows(
         const reports = await prisma.report.findMany({
             where: {
                 storeCode: { in: storeCodes },
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: { not: "DRAFT" },
                 createdAt: {
                     gte: yearStart,
@@ -482,7 +490,7 @@ export async function fetchPreventiveExportRows(
             };
 
             for (const report of storeReports) {
-                const items = report.items as any[];
+                const items = report.items as unknown as ReportItemJson[];
                 if (items && Array.isArray(items)) {
                     const hasCategoryI = items.some(
                         (item) =>

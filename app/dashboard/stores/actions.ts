@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { requireRole } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -31,7 +32,9 @@ export async function getAdminStores(
     if (!user || user.role !== "ADMIN") throw new Error("Unauthorized");
 
     try {
-        const where: Prisma.StoreWhereInput = {};
+        const where: Prisma.StoreWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         if (filters.search) {
             where.OR = [
@@ -98,7 +101,9 @@ export async function exportAdminStores(filters: ExportStoreFilters) {
     if (!authUser || authUser.role !== "ADMIN") throw new Error("Unauthorized");
 
     try {
-        const where: Prisma.StoreWhereInput = {};
+        const where: Prisma.StoreWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         if (filters.selectedBranches && filters.selectedBranches.length > 0) {
             where.branchName = { in: filters.selectedBranches };

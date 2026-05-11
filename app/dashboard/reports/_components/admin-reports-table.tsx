@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
     Select,
     SelectContent,
@@ -17,8 +18,22 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search } from "lucide-react";
-import { getAdminReports, AdminReportFilters } from "../actions";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Search, Trash2 } from "lucide-react";
+import {
+    deleteAdminReport,
+    getAdminReports,
+    AdminReportFilters,
+} from "../actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -72,6 +87,10 @@ export function AdminReportsTable({
     const [totalCount, setTotalCount] = useState(initialTotalCount);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+    const [reportToDelete, setReportToDelete] = useState<ReportItem | null>(
+        null,
+    );
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Filters
     const [search, setSearch] = useState("");
@@ -83,6 +102,43 @@ export function AdminReportsTable({
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
+
+    const openReportDetail = useCallback(
+        (reportNumber: string) => {
+            window.open(`/reports/${reportNumber}`, "_blank", "noopener,noreferrer");
+        },
+        [],
+    );
+
+    const handleDeleteReport = useCallback(async () => {
+        if (!reportToDelete) return;
+
+        setIsDeleting(true);
+        const toastId = toast.loading("Menghapus laporan...");
+
+        try {
+            const result = await deleteAdminReport(reportToDelete.reportNumber);
+
+            if (result.error) {
+                toast.error(result.error, { id: toastId });
+                return;
+            }
+
+            setReports((prev) =>
+                prev.filter(
+                    (report) =>
+                        report.reportNumber !== reportToDelete.reportNumber,
+                ),
+            );
+            setTotalCount((prev) => Math.max(0, prev - 1));
+            setReportToDelete(null);
+            toast.success("Laporan berhasil dihapus", { id: toastId });
+        } catch {
+            toast.error("Gagal menghapus laporan", { id: toastId });
+        } finally {
+            setIsDeleting(false);
+        }
+    }, [reportToDelete]);
 
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
@@ -108,7 +164,7 @@ export function AdminReportsTable({
                     setReports((prev) => [...prev, ...res.reports]);
                 }
                 setNextCursor(res.nextCursor);
-            } catch (error) {
+            } catch {
                 toast.error("Gagal memuat data laporan");
             } finally {
                 setIsLoading(false);
@@ -255,13 +311,16 @@ export function AdminReportsTable({
                                 <TableHead className="w-[140px]">
                                     Status
                                 </TableHead>
+                                <TableHead className="w-[70px] text-right">
+                                    Aksi
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={8}
+                                        colSpan={9}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
@@ -270,7 +329,7 @@ export function AdminReportsTable({
                             ) : reports.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={8}
+                                        colSpan={9}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada laporan yang ditemukan
@@ -278,7 +337,28 @@ export function AdminReportsTable({
                                 </TableRow>
                             ) : (
                                 reports.map((report) => (
-                                    <TableRow key={report.reportNumber}>
+                                    <TableRow
+                                        key={report.reportNumber}
+                                        role="link"
+                                        tabIndex={0}
+                                        className="cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                                        onClick={() =>
+                                            openReportDetail(
+                                                report.reportNumber,
+                                            )
+                                        }
+                                        onKeyDown={(event) => {
+                                            if (
+                                                event.key === "Enter" ||
+                                                event.key === " "
+                                            ) {
+                                                event.preventDefault();
+                                                openReportDetail(
+                                                    report.reportNumber,
+                                                );
+                                            }
+                                        }}
+                                    >
                                         <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
                                             {format(
                                                 new Date(report.updatedAt),
@@ -328,6 +408,24 @@ export function AdminReportsTable({
                                                 status={report.status}
                                             />
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button
+                                                type="button"
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                aria-label={`Hapus laporan ${report.reportNumber}`}
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setReportToDelete(report);
+                                                }}
+                                                onKeyDown={(event) => {
+                                                    event.stopPropagation();
+                                                }}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -345,6 +443,47 @@ export function AdminReportsTable({
                     )}
                 </div>
             </div>
+
+            <AlertDialog
+                open={!!reportToDelete}
+                onOpenChange={(open) => {
+                    if (!open && !isDeleting) setReportToDelete(null);
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus laporan?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Laporan {reportToDelete?.reportNumber} untuk toko{" "}
+                            {reportToDelete?.storeName} akan dihapus beserta log
+                            approval, aktivitas, dan referensi PJUM terkait.
+                            Tindakan ini tidak dapat dibatalkan.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isDeleting}>
+                            Batal
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            disabled={isDeleting}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                handleDeleteReport();
+                            }}
+                        >
+                            {isDeleting ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Menghapus...
+                                </>
+                            ) : (
+                                "Hapus"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

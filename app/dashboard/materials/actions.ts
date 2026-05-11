@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import type { MaterialEstimationJson } from "@/types/report";
 
 export type AdminMaterialFilters = {
@@ -41,6 +42,7 @@ export async function getAdminMaterials(
         }
 
         const where: Prisma.ReportWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: { not: "DRAFT" },
         };
 
@@ -48,22 +50,8 @@ export async function getAdminMaterials(
         // Prisma can't easily search inside JSON array (estimations) cross-database safely without raw SQL in standard API, 
         // but we'll try our best. We'll search report fields, and handle materialName filtering in memory if needed, 
         // but for simplicity we'll just filter report level. If we want materialName search in DB, we'd use raw SQL or stringContains on JSON string.
-        // Using string_contains on JSON is possible via Prisma `array_contains` or `string_contains` on Postgres JSONB. 
-        // To keep it simple and safe, we do string_contains on the JSON field.
+        // To keep it simple and safe, we fetch based on report fields and filter materialName in memory below.
         if (filters.search) {
-            where.OR = [
-                { reportNumber: { contains: filters.search, mode: "insensitive" } },
-                { storeName: { contains: filters.search, mode: "insensitive" } },
-                { storeCode: { contains: filters.search, mode: "insensitive" } },
-                {
-                    estimations: {
-                        array_contains: [{ materialName: filters.search }] as any // This might not work perfectly with partial match, so we fallback to raw or memory
-                    }
-                }
-            ];
-            // Since Prisma JSON filtering for partial match inside an array of objects is very limited,
-            // we will fetch based on report/store search, and THEN filter in memory for materialName.
-            // Let's remove JSON search from DB to avoid crash and do in-memory search for materialName.
             where.OR = [
                 { reportNumber: { contains: filters.search, mode: "insensitive" } },
                 { storeName: { contains: filters.search, mode: "insensitive" } },

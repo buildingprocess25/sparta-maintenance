@@ -1,0 +1,1 @@
+export const EXCLUDED_ADMIN_BRANCH_NAME = "HEAD OFFICE";

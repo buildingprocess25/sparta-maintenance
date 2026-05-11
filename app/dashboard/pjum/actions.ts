@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -37,7 +38,9 @@ export async function getAdminPjum(
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.PjumExportWhereInput = {};
+        const where: Prisma.PjumExportWhereInput = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        };
 
         if (filters.search) {
             // Because PjumExport doesn't have a relation to User in Prisma schema,

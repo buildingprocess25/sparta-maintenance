@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { Prisma, UserRole } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 
 export type AdminUserFilters = {
     search?: string;
@@ -28,11 +29,13 @@ export async function getAdminUsers(
         const where: Prisma.UserWhereInput = {
             // Always exclude ADMIN role from this view
             role: { not: UserRole.ADMIN },
+            NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
         };
 
         if (filters.search) {
             where.AND = [
                 { role: { not: UserRole.ADMIN } },
+                { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } },
                 {
                     OR: [
                         { name: { contains: filters.search, mode: "insensitive" } },
@@ -125,6 +128,7 @@ export async function exportAdminUsers(filters: ExportUserFilters) {
     try {
         const andClauses: Prisma.UserWhereInput[] = [
             { role: { not: UserRole.ADMIN } },
+            { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } },
         ];
 
         if (filters.role && filters.role !== "all") {
