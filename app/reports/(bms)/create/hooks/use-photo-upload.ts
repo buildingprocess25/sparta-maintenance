@@ -45,10 +45,6 @@ export function usePhotoUpload({
     checklist,
     setChecklist,
     selectedStoreCode,
-    store,
-    userBranchName,
-    draftReportId,
-    setDraftReportId,
 }: UsePhotoUploadParams) {
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [activePhotoItemId, setActivePhotoItemId] = useState<string | null>(
@@ -68,13 +64,7 @@ export function usePhotoUpload({
             setActivePhotoItemId(itemId);
             setIsCameraOpen(true);
         },
-        [
-            selectedStoreCode,
-            store,
-            userBranchName,
-            draftReportId,
-            setDraftReportId,
-        ],
+        [selectedStoreCode],
     );
 
     const handlePhotoCaptured = useCallback(
@@ -199,12 +189,14 @@ export function usePhotoUpload({
         [checklist, setChecklist],
     );
 
-    const handlePreviewPhoto = useCallback((file: File) => {
-        setPreviewPhoto(URL.createObjectURL(file));
+    const handlePreviewPhoto = useCallback((photo: File | string) => {
+        setPreviewPhoto(
+            typeof photo === "string" ? photo : URL.createObjectURL(photo),
+        );
     }, []);
 
     const _doClosePreview = useCallback(() => {
-        if (previewPhoto) URL.revokeObjectURL(previewPhoto);
+        if (previewPhoto?.startsWith("blob:")) URL.revokeObjectURL(previewPhoto);
         setPreviewPhoto(null);
     }, [previewPhoto]);
 

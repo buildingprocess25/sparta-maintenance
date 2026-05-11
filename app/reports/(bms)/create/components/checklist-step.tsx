@@ -46,7 +46,7 @@ interface ChecklistStepProps {
     onNotesChange: (itemId: string, itemName: string, value: string) => void;
     onHandlerChange: (itemId: string, itemName: string, value: string) => void;
     onOpenCamera: (itemId: string) => void;
-    onPreviewPhoto: (file: File) => void;
+    onPreviewPhoto: (photo: File | string) => void;
     onRemovePhoto: (itemId: string) => void;
     onBack: () => void;
     onNext: () => void;

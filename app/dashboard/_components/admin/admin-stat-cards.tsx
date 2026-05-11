@@ -43,7 +43,6 @@ export function AdminStatCards({
     avgRealisasi,
 }: Props) {
     const router = useRouter();
-
     const year = new Date().getFullYear();
 
     const cards: CardDef[] = [
@@ -113,7 +112,7 @@ export function AdminStatCards({
     }
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 md:gap-4 grid-cols-2 lg:grid-cols-4">
             {cards.map((card) => {
                 const Icon = card.icon;
                 return (
@@ -121,55 +120,57 @@ export function AdminStatCards({
                         key={card.id}
                         onClick={() => handleCardClick(card)}
                         className={`
-                                relative overflow-hidden rounded-xl p-5
-                                bg-gradient-to-br ${card.gradient}
-                                text-white shadow-lg
-                                transition-all duration-200
-                                ${
-                                    card.clickable
-                                        ? "cursor-pointer hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
-                                        : ""
-                                }
-                            `}
+                            relative overflow-hidden rounded-xl p-3 md:p-5
+                            bg-linear-to-br ${card.gradient}
+                            text-white shadow-lg
+                            transition-all duration-200
+                            ${
+                                card.clickable
+                                    ? "cursor-pointer hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0"
+                                    : ""
+                            }
+                        `}
                     >
-                        {/* Background decoration */}
-                        <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-white/10" />
-                        <div className="absolute -right-2 -bottom-6 h-20 w-20 rounded-full bg-white/5" />
+                        <div className="absolute -right-4 -top-4 h-16 w-16 md:h-24 md:w-24 rounded-full bg-white/10" />
+                        <div className="absolute -right-2 -bottom-6 h-12 w-12 md:h-20 md:w-20 rounded-full bg-white/5" />
 
-                        {/* Header row */}
-                        <div className="relative flex items-start justify-between mb-3">
-                            <div className={`p-2 rounded-lg ${card.iconBg}`}>
-                                <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                        <div className="relative flex items-start justify-between mb-2 md:mb-3">
+                            <div
+                                className={`p-1.5 md:p-2 rounded-lg ${card.iconBg}`}
+                            >
+                                <Icon
+                                    className={`h-4 w-4 md:h-5 md:w-5 ${card.iconColor}`}
+                                />
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 md:gap-2">
                                 {card.badge && (
                                     <span
-                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${card.badgeColor}`}
+                                        className={`text-[8px] md:text-[10px] font-bold px-1.5 md:px-2 py-0.5 rounded-full ${card.badgeColor}`}
                                     >
                                         {card.badge}
                                     </span>
                                 )}
                                 {card.clickable && (
-                                    <ArrowRight className="h-4 w-4 text-white/60" />
+                                    <ArrowRight className="h-3 w-3 md:h-4 md:w-4 text-white/60" />
                                 )}
                             </div>
                         </div>
 
-                        {/* Value */}
                         <div className="relative">
-                            <p className="text-3xl font-bold tracking-tight leading-none mb-1">
+                            <p className="text-xs md:text-3xl font-bold tracking-tight leading-none mb-1">
                                 {card.value}
                             </p>
-                            <p className="text-sm font-semibold text-white/90 mb-0.5">
+                            <p className="text-[10px] md:text-sm font-semibold text-white/90 mb-0.5">
                                 {card.title}
                             </p>
-                            <p className="text-xs text-white/60">{card.sub}</p>
+                            <p className="text-[8px] md:text-xs text-white/60">
+                                {card.sub}
+                            </p>
                         </div>
 
-                        {/* Hover hint for clickable cards */}
                         {card.action === "open-realisasi" && (
-                            <div className="relative mt-3 flex items-center gap-1 text-[11px] text-white/70 font-medium">
-                                <TrendingUp className="h-3 w-3" />
+                            <div className="relative mt-2 md:mt-3 flex items-center gap-1 text-[8px] md:text-[11px] text-white/70 font-medium">
+                                <TrendingUp className="h-2 w-2 md:h-3 md:w-3" />
                                 Lihat detail per cabang &amp; bulan
                             </div>
                         )}

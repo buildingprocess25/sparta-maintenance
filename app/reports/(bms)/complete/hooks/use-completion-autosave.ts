@@ -93,6 +93,16 @@ function genPhotoId(reportNumber: string, type: string): string {
     return `${reportNumber}-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function restorePhotoFromId(id: string): LocalPhoto | null {
+    const match = id.match(/^remote-\d+-(.+)$/);
+    if (!match) return null;
+
+    return {
+        id,
+        previewUrl: match[1],
+    };
+}
+
 export interface UseCompletionAutosave {
     /**
      * Store a File in IndexedDB. Returns a LocalPhoto with a blob: preview URL.
@@ -181,6 +191,12 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             // Restore selfie photos from IDB
             const selfiePhotos: LocalPhoto[] = [];
             for (const id of draft.selfiePhotoIds) {
+                const remotePhoto = restorePhotoFromId(id);
+                if (remotePhoto) {
+                    selfiePhotos.push(remotePhoto);
+                    continue;
+                }
+
                 const file = await idbGet(id);
                 if (file)
                     selfiePhotos.push({
@@ -194,6 +210,12 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             for (const [itemId, saved] of Object.entries(draft.itemStates)) {
                 const afterPhotos: LocalPhoto[] = [];
                 for (const id of saved.afterPhotoIds) {
+                    const remotePhoto = restorePhotoFromId(id);
+                    if (remotePhoto) {
+                        afterPhotos.push(remotePhoto);
+                        continue;
+                    }
+
                     const file = await idbGet(id);
                     if (file)
                         afterPhotos.push({
@@ -203,6 +225,12 @@ export function useCompletionAutosave(): UseCompletionAutosave {
                 }
                 const receiptPhotos: LocalPhoto[] = [];
                 for (const id of saved.receiptPhotoIds) {
+                    const remotePhoto = restorePhotoFromId(id);
+                    if (remotePhoto) {
+                        receiptPhotos.push(remotePhoto);
+                        continue;
+                    }
+
                     const file = await idbGet(id);
                     if (file)
                         receiptPhotos.push({
@@ -219,9 +247,29 @@ export function useCompletionAutosave(): UseCompletionAutosave {
                 });
             }
 
+            const additionalDocumentationPhotos: LocalPhoto[] = [];
+            for (const id of draft.additionalDocumentationPhotoIds ?? []) {
+                const remotePhoto = restorePhotoFromId(id);
+                if (remotePhoto) {
+                    additionalDocumentationPhotos.push(remotePhoto);
+                    continue;
+                }
+
+                const file = await idbGet(id);
+                if (file) {
+                    additionalDocumentationPhotos.push({
+                        id,
+                        previewUrl: URL.createObjectURL(file),
+                    });
+                }
+            }
+
             return {
                 globalNotes: draft.globalNotes,
                 selfiePhotos,
+                additionalDocumentationPhotos,
+                additionalDocumentationNote:
+                    draft.additionalDocumentationNote?.trim() || "",
                 itemStates,
             };
         },

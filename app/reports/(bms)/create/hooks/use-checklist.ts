@@ -157,7 +157,11 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                     c.items.some((i) => i.id === item.id),
                 );
 
-                if (item.condition === "baik" && !item.photo) {
+                if (
+                    item.condition === "baik" &&
+                    !item.photo &&
+                    !item.photoUrl
+                ) {
                     toast.error(
                         `Item "${item.name}" kondisi Baik wajib upload foto bukti`,
                     );
@@ -177,7 +181,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                         scrollToItem(item.id);
                         return false;
                     }
-                    if (!item.photo) {
+                    if (!item.photo && !item.photoUrl) {
                         toast.error(
                             `Item "${item.name}" rusak wajib upload foto`,
                         );
@@ -215,7 +219,8 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
 
                     if (
                         checkedItem.condition === "baik" &&
-                        !checkedItem.photo
+                        !checkedItem.photo &&
+                        !checkedItem.photoUrl
                     ) {
                         toast.error(
                             `Item "${item.name}" wajib upload foto bukti`,
@@ -236,7 +241,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                             scrollToItem(item.id);
                             return false;
                         }
-                        if (!checkedItem.photo) {
+                        if (!checkedItem.photo && !checkedItem.photoUrl) {
                             toast.error(
                                 `Item "${item.name}" rusak wajib upload foto`,
                             );

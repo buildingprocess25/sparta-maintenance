@@ -84,6 +84,7 @@ export default function CreateReportForm({
         stores,
         checklist,
         setChecklist,
+        setOpenCategories,
         bmsItems,
         setBmsItems,
         selectedStoreCode,
@@ -193,7 +194,7 @@ export default function CreateReportForm({
 
             toast.success("Laporan berhasil dibuat!");
             router.push("/reports");
-        } catch (err) {
+        } catch {
             setIsSubmitting(false);
             toast.error(
                 isEditMode

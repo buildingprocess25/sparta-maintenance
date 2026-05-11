@@ -31,8 +31,7 @@ export async function AdminNewDashboard({ user }: { user: AuthUser }) {
             <AppSidebar variant="inset" user={user} />
             <SidebarInset>
                 <SiteHeader title="Dashboard" />
-                <div className="flex flex-col gap-6 p-4 lg:p-6">
-                    {/* Summary Cards — colored, clickable */}
+                <div className="flex flex-col gap-2 md:gap-6 p-2 md:p-6">
                     <AdminStatCards
                         totalReports={overviewStats.totalReports}
                         completed={overviewStats.completed}
@@ -40,30 +39,31 @@ export async function AdminNewDashboard({ user }: { user: AuthUser }) {
                         avgRealisasi={overviewStats.avgRealisasi}
                     />
 
-                    {/* Charts */}
-                    <div className="grid gap-6 grid-cols-1">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>Total Laporan per Cabang</CardTitle>
-                                <CardDescription>
-                                    1 Januari {year} — hari ini
+                    <div className="grid gap-2 md:gap-6 grid-cols-1">
+                        <Card className="rounded-xl">
+                            <CardHeader className="px-3 md:px-6">
+                                <CardTitle className="text-xs md:text-xl font-semibold">
+                                    Total laporan per cabang
+                                </CardTitle>
+                                <CardDescription className="text-[10px] md:text-sm">
+                                    1 Januari {year} hingga hari ini
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="px-3 pt-0 md:px-6 md:pt-0">
                                 <AdminLaporanChart data={branchChartData} />
                             </CardContent>
                         </Card>
 
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>
-                                    Total Akumulasi Realisasi per Cabang
+                        <Card className="rounded-xl">
+                            <CardHeader className="px-3 md:px-6">
+                                <CardTitle className="text-xs md:text-xl font-semibold">
+                                    Total akumulasi realisasi per cabang
                                 </CardTitle>
-                                <CardDescription>
-                                    1 Januari {year} — hari ini
+                                <CardDescription className="text-[10px] md:text-sm">
+                                    1 Januari {year} hingga hari ini
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="px-3 pt-0 md:px-6 md:pt-0">
                                 <AdminRealisasiChart data={branchChartData} />
                             </CardContent>
                         </Card>

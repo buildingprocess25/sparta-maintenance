@@ -92,6 +92,8 @@ export interface CompletionDraftData {
     savedAt: string;
     globalNotes: string;
     selfiePhotoIds: string[];
+    additionalDocumentationPhotoIds?: string[];
+    additionalDocumentationNote?: string;
     itemStates: Record<string, DraftItemState>;
 }
 
@@ -100,5 +102,7 @@ export interface CompletionDraftData {
 export interface RestoredDraft {
     globalNotes: string;
     selfiePhotos: LocalPhoto[];
+    additionalDocumentationPhotos: LocalPhoto[];
+    additionalDocumentationNote: string;
     itemStates: Map<string, CompletionItemState>;
 }

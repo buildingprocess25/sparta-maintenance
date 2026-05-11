@@ -169,12 +169,16 @@ export function CompleteForm({
             rn: string,
             notes: string,
             states: Map<string, CompletionItemState>,
+            additionalPhotos: Array<{ id: string; previewUrl: string }>,
+            additionalNote: string,
         ): CompletionDraftData => ({
             version: 1,
             reportNumber: rn,
             savedAt: new Date().toISOString(),
             globalNotes: notes,
             selfiePhotoIds: [],
+            additionalDocumentationPhotoIds: additionalPhotos.map((p) => p.id),
+            additionalDocumentationNote: additionalNote,
             itemStates: Object.fromEntries(
                 [...states.entries()].map(([itemId, s]) => [
                     itemId,
@@ -196,9 +200,23 @@ export function CompleteForm({
         (notes: string, states: Map<string, CompletionItemState>) => {
             const rn = reportNumberRef.current;
             if (!rn) return;
-            autosave.triggerSave(rn, buildDraftData(rn, notes, states));
+            autosave.triggerSave(
+                rn,
+                buildDraftData(
+                    rn,
+                    notes,
+                    states,
+                    additionalDocumentationPhotos,
+                    additionalDocumentationNote,
+                ),
+            );
         },
-        [autosave, buildDraftData],
+        [
+            autosave,
+            buildDraftData,
+            additionalDocumentationPhotos,
+            additionalDocumentationNote,
+        ],
     );
 
     // ─── Load a report and restore draft if available ─────────────────────────
@@ -224,16 +242,40 @@ export function CompleteForm({
                 );
                 setCurrentReport(report);
                 setGlobalNotes(draft.globalNotes);
-                setAdditionalDocumentationPhotos([]);
-                setAdditionalDocumentationNote("");
+                const reportAdditionalPhotoUrls = parseStringArray(
+                    report.completionAdditionalPhotos,
+                );
+                setAdditionalDocumentationPhotos(
+                    draft.additionalDocumentationPhotos.length > 0
+                        ? draft.additionalDocumentationPhotos
+                        : reportAdditionalPhotoUrls.map((url, idx) =>
+                              toRemotePhoto(url, idx),
+                          ),
+                );
+                setAdditionalDocumentationNote(
+                    draft.additionalDocumentationNote ||
+                        report.completionAdditionalNote?.trim() ||
+                        "",
+                );
 
                 // Merge draft with fresh item states (in case new items were added)
                 const freshStates = buildItemStates(report);
                 const mergedStates = new Map(freshStates);
                 for (const [itemId, draftState] of draft.itemStates) {
-                    if (mergedStates.has(itemId)) {
-                        mergedStates.set(itemId, draftState);
-                    }
+                    const freshState = mergedStates.get(itemId);
+                    if (!freshState) continue;
+
+                    mergedStates.set(itemId, {
+                        ...draftState,
+                        afterPhotos:
+                            draftState.afterPhotos.length > 0
+                                ? draftState.afterPhotos
+                                : freshState.afterPhotos,
+                        realisasiEntries:
+                            draftState.realisasiEntries.length > 0
+                                ? draftState.realisasiEntries
+                                : freshState.realisasiEntries,
+                    });
                 }
                 setItemStates(mergedStates);
             } else {
@@ -315,7 +357,20 @@ export function CompleteForm({
                     file,
                     `additional-doc-${Date.now()}`,
                 );
-                setAdditionalDocumentationPhotos((prev) => [...prev, photo]);
+                setAdditionalDocumentationPhotos((prev) => {
+                    const next = [...prev, photo];
+                    autosave.triggerSave(
+                        rn,
+                        buildDraftData(
+                            rn,
+                            globalNotes,
+                            itemStates,
+                            next,
+                            additionalDocumentationNote,
+                        ),
+                    );
+                    return next;
+                });
                 return;
             }
 
@@ -339,7 +394,16 @@ export function CompleteForm({
                 return next;
             });
         },
-        [cameraTarget, currentReport, autosave, globalNotes, triggerAutosave],
+        [
+            cameraTarget,
+            currentReport,
+            autosave,
+            globalNotes,
+            itemStates,
+            additionalDocumentationNote,
+            buildDraftData,
+            triggerAutosave,
+        ],
     );
 
     // ── Item state change ─────────────────────────────────────────────────────
@@ -364,6 +428,56 @@ export function CompleteForm({
             triggerAutosave(value, itemStates);
         },
         [itemStates, triggerAutosave],
+    );
+
+    const handleAdditionalDocumentationPhotosChange = useCallback(
+        (photos: Array<{ id: string; previewUrl: string }>) => {
+            setAdditionalDocumentationPhotos(photos);
+            const rn = reportNumberRef.current;
+            if (!rn) return;
+            autosave.triggerSave(
+                rn,
+                buildDraftData(
+                    rn,
+                    globalNotes,
+                    itemStates,
+                    photos,
+                    additionalDocumentationNote,
+                ),
+            );
+        },
+        [
+            autosave,
+            buildDraftData,
+            globalNotes,
+            itemStates,
+            additionalDocumentationNote,
+        ],
+    );
+
+    const handleAdditionalDocumentationNoteChange = useCallback(
+        (value: string) => {
+            setAdditionalDocumentationNote(value);
+            const rn = reportNumberRef.current;
+            if (!rn) return;
+            autosave.triggerSave(
+                rn,
+                buildDraftData(
+                    rn,
+                    globalNotes,
+                    itemStates,
+                    additionalDocumentationPhotos,
+                    value,
+                ),
+            );
+        },
+        [
+            autosave,
+            buildDraftData,
+            globalNotes,
+            itemStates,
+            additionalDocumentationPhotos,
+        ],
     );
 
     // ── Submit ────────────────────────────────────────────────────────────────
@@ -531,6 +645,7 @@ export function CompleteForm({
         additionalDocumentationPhotos,
         additionalDocumentationNote,
         autosave,
+        uploadPhoto,
         startTransition,
         router,
     ]);
@@ -582,13 +697,13 @@ export function CompleteForm({
                             additionalDocumentationPhotos
                         }
                         onAdditionalDocumentationPhotosChange={
-                            setAdditionalDocumentationPhotos
+                            handleAdditionalDocumentationPhotosChange
                         }
                         additionalDocumentationNote={
                             additionalDocumentationNote
                         }
                         onAdditionalDocumentationNoteChange={
-                            setAdditionalDocumentationNote
+                            handleAdditionalDocumentationNoteChange
                         }
                         onOpenAdditionalCamera={handleOpenAdditionalCamera}
                         isPending={isPending}

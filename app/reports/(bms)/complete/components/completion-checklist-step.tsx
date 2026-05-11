@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import {
     AlertCircle,
@@ -98,15 +98,23 @@ export function CompletionChecklistStep({
     }
 
     // Damaged BMS items set for fast lookup
-    const damagedBMSItemIds = new Set<string>(
-        report.items
-            .filter(
-                (item) =>
-                    (item.condition === "RUSAK" ||
-                        item.preventiveCondition === "NOT_OK") &&
-                    item.handler === "BMS",
-            )
-            .map((i) => i.itemId),
+    const damagedBMSItemIds = useMemo(
+        () =>
+            new Set<string>(
+                report.items
+                    .filter(
+                        (item) =>
+                            (item.condition === "RUSAK" ||
+                                item.preventiveCondition === "NOT_OK") &&
+                            item.handler === "BMS",
+                    )
+                    .map((i) => i.itemId),
+            ),
+        [report.items],
+    );
+    const openCategoryIds = useMemo(
+        () => getCategoryIdsForItems(damagedBMSItemIds),
+        [damagedBMSItemIds],
     );
 
     const totalDamaged = damagedBMSItemIds.size;
@@ -116,7 +124,7 @@ export function CompletionChecklistStep({
     }).length;
 
     const [openCategories, setOpenCategories] = useState<Set<string>>(
-        new Set(),
+        () => openCategoryIds,
     );
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const closePreview = useHistoryBackClose(!!previewUrl, () =>
@@ -133,6 +141,10 @@ export function CompletionChecklistStep({
             }
             return next;
         });
+
+    useEffect(() => {
+        setOpenCategories(openCategoryIds);
+    }, [openCategoryIds]);
 
     return (
         <div className="flex flex-col max-w-5xl mx-auto w-full gap-4 md:gap-8">
@@ -454,5 +466,13 @@ export function CompletionChecklistStep({
                 </div>
             )}
         </div>
+    );
+}
+
+function getCategoryIdsForItems(itemIds: Set<string>): Set<string> {
+    return new Set(
+        checklistCategories
+            .filter((cat) => cat.items.some((item) => itemIds.has(item.id)))
+            .map((cat) => cat.id),
     );
 }

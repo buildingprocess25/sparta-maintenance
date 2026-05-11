@@ -30,12 +30,12 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
 
     // Filters for export
     const [storeQuery, setStoreQuery] = useState("");
-    const [selectedBranch, setSelectedBranch] = useState<string>("");
+    const [selectedBranch, setSelectedBranch] = useState<string>("all");
     const [year, setYear] = useState<number>(currentYear);
 
     const handleExport = async () => {
         if (!selectedBranch) {
-            toast.error("Silakan pilih 1 cabang untuk diekspor");
+            toast.error("Silakan pilih cabang untuk diekspor");
             return;
         }
 
@@ -49,7 +49,7 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
                 body: JSON.stringify({
                     filter: {
                         searchQuery: storeQuery || undefined,
-                        branchName: [selectedBranch], // Must be an array as expected by backend, but we restrict UI to 1
+                        branchName: selectedBranch === "all" ? undefined : [selectedBranch],
                         year: year,
                     },
                     sheets: ["preventive"], // Only export preventive sheet
@@ -65,7 +65,7 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `Rekap_Preventif_${selectedBranch}_Tahun_${year}.xlsx`;
+            a.download = `Rekap_Preventif_${selectedBranch === "all" ? "Semua_Cabang" : selectedBranch}_Tahun_${year}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -94,17 +94,18 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
                 <DialogHeader>
                     <DialogTitle>Ekspor Checklist Preventif</DialogTitle>
                     <DialogDescription>
-                        Unduh rekap checklist preventif dalam format Excel. Ekspor dibatasi maksimal 1 cabang untuk menjaga performa.
+                        Unduh rekap checklist preventif dalam format Excel.
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
-                        <Label>Cabang (Wajib)</Label>
+                        <Label>Cabang</Label>
                         <Select value={selectedBranch} onValueChange={setSelectedBranch}>
                             <SelectTrigger className="w-full text-sm h-10">
-                                <SelectValue placeholder="Pilih 1 Cabang" />
+                                <SelectValue placeholder="Pilih Cabang" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
+                                <SelectItem value="all">Semua Cabang</SelectItem>
                                 {branches.map((b) => (
                                     <SelectItem key={b} value={b}>
                                         {b}

@@ -72,10 +72,14 @@ export type PreventiveExportRow = {
     storeCode: string;
     storeName: string;
     branchName: string;
-    q1: string; // "Sudah" or "-"
-    q2: string;
-    q3: string;
-    q4: string;
+    q1By: string;
+    q1Date: Date | null;
+    q2By: string;
+    q2Date: Date | null;
+    q3By: string;
+    q3Date: Date | null;
+    q4By: string;
+    q4Date: Date | null;
 };
 
 // (MaterialEstimationJson imported from @/types/report — used directly below)
@@ -380,24 +384,21 @@ export async function fetchPreventiveExportRows(
     filter: ExportFilter,
 ): Promise<PreventiveExportRow[]> {
     try {
-        if (
-            !filter.branchName ||
-            (Array.isArray(filter.branchName) &&
-                filter.branchName.length !== 1) ||
-            (!Array.isArray(filter.branchName) && filter.branchName === "all")
-        ) {
-            throw new Error("Satu cabang wajib dipilih untuk ekspor preventif");
-        }
-
         const year = filter.year || new Date().getFullYear();
 
-        const branchNameStr = Array.isArray(filter.branchName)
-            ? filter.branchName[0]
-            : filter.branchName;
-
-        const whereStore: Prisma.StoreWhereInput = {
-            branchName: branchNameStr,
-        };
+        const whereStore: Prisma.StoreWhereInput = {};
+        if (filter.branchName && filter.branchName !== "all") {
+            if (Array.isArray(filter.branchName)) {
+                if (
+                    filter.branchName.length > 0 &&
+                    filter.branchName[0] !== "all"
+                ) {
+                    whereStore.branchName = { in: filter.branchName };
+                }
+            } else {
+                whereStore.branchName = filter.branchName;
+            }
+        }
 
         if (filter.searchQuery) {
             whereStore.OR = [
@@ -467,19 +468,17 @@ export async function fetchPreventiveExportRows(
                 }
             };
 
-            const dateFormatter = new Intl.DateTimeFormat("id-ID", {
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-            });
-
             const formatQuarter = (
                 info: { doneAt: Date; bmsName: string; bmsNIK: string } | null,
             ) => {
-                if (!info) return "-";
-                const dateLabel = dateFormatter.format(info.doneAt);
-                const bmsLabel = info.bmsName || info.bmsNIK || "-";
-                return `${dateLabel} - ${bmsLabel}`;
+                if (!info) {
+                    return { by: "", date: null };
+                }
+
+                return {
+                    by: info.bmsName || info.bmsNIK || "",
+                    date: info.doneAt,
+                };
             };
 
             for (const report of storeReports) {
@@ -503,14 +502,23 @@ export async function fetchPreventiveExportRows(
                 }
             }
 
+            const q1 = formatQuarter(quarterInfo.q1);
+            const q2 = formatQuarter(quarterInfo.q2);
+            const q3 = formatQuarter(quarterInfo.q3);
+            const q4 = formatQuarter(quarterInfo.q4);
+
             return {
                 storeCode: store.code,
                 storeName: store.name,
                 branchName: store.branchName,
-                q1: formatQuarter(quarterInfo.q1),
-                q2: formatQuarter(quarterInfo.q2),
-                q3: formatQuarter(quarterInfo.q3),
-                q4: formatQuarter(quarterInfo.q4),
+                q1By: q1.by,
+                q1Date: q1.date,
+                q2By: q2.by,
+                q2Date: q2.date,
+                q3By: q3.by,
+                q3Date: q3.date,
+                q4By: q4.by,
+                q4Date: q4.date,
             };
         });
 

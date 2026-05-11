@@ -71,7 +71,7 @@ export default async function EditReportPage({
             condition: item.condition,
             preventiveCondition: item.preventiveCondition,
             handler: item.handler,
-            photoUrl: item.photoUrl ?? null,
+            photoUrl: item.photoUrl ?? item.images?.[0] ?? null,
             images: item.images ?? [],
             notes: item.notes ?? null,
         })),

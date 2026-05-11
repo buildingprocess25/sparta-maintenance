@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { discardLocalDraftFiles } from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import {
     checklistCategories,
     type ChecklistItem,
@@ -26,6 +27,7 @@ type UseDraftParams = {
     setChecklist: React.Dispatch<
         React.SetStateAction<Map<string, ChecklistItem>>
     >;
+    setOpenCategories: React.Dispatch<React.SetStateAction<Set<string>>>;
     bmsItems: Map<string, BmsItemGroup>;
     setBmsItems: React.Dispatch<
         React.SetStateAction<Map<string, BmsItemGroup>>
@@ -48,6 +50,7 @@ export function useDraft({
     stores,
     checklist,
     setChecklist,
+    setOpenCategories,
     bmsItems,
     setBmsItems,
     selectedStoreCode,
@@ -138,14 +141,18 @@ export function useDraft({
                     if (
                         !url ||
                         (!url.startsWith("data:image") &&
-                            !url.startsWith("http"))
+                            !url.startsWith("http") &&
+                            !url.startsWith("/"))
                     )
                         return undefined;
                     try {
-                        const res = await fetch(url);
+                        const res = await fetch(
+                            url.startsWith("http") ? resolvePhotoUrl(url) : url,
+                        );
+                        if (!res.ok) return undefined;
                         const blob = await res.blob();
                         return new File([blob], `${name || "photo"}.jpg`, {
-                            type: "image/jpeg",
+                            type: blob.type || "image/jpeg",
                         });
                     } catch (e) {
                         console.error("Gagal restore file dari draft", e);
@@ -174,11 +181,15 @@ export function useDraft({
                     // Restore from Database Format (SerializedDraft)
                     const restoredFiles = await Promise.all(
                         existingDraft.items.map((it) =>
-                            fetchPhotoFromUrl(it.photoUrl, it.itemName),
+                            fetchPhotoFromUrl(
+                                it.photoUrl || it.images?.[0],
+                                it.itemName,
+                            ),
                         ),
                     );
 
                     existingDraft.items.forEach((item, i) => {
+                        const photoUrl = item.photoUrl || item.images?.[0];
                         // Preventive items are stored with preventiveCondition: "OK"/"NOT_OK"/"TIDAK_ADA"
                         // Map back to local condition values used by the form.
                         let restoredCondition: ChecklistCondition = "";
@@ -205,7 +216,7 @@ export function useDraft({
                                         item.handler === "Rekanan"
                                       ? "Rekanan"
                                       : "",
-                            photoUrl: item.photoUrl || undefined,
+                            photoUrl: photoUrl || undefined,
                             photo: restoredFiles[i],
                             notes: item.notes || undefined,
                         });
@@ -331,6 +342,7 @@ export function useDraft({
 
                 setChecklist(restored);
                 setBmsItems(restoredBms);
+                setOpenCategories(getCategoryIdsForItems(restored));
 
                 setShowDraftDialog(false);
                 if (loadingToastId !== undefined) toast.dismiss(loadingToastId);
@@ -345,6 +357,7 @@ export function useDraft({
             localDraftData,
             stores,
             setChecklist,
+            setOpenCategories,
             setBmsItems,
             handleStoreChange,
         ],
@@ -501,6 +514,7 @@ export function useDraft({
         isSubmitting,
         activeCategories,
         draftReportId,
+        disableAutoSave,
     ]);
 
     const buildDraftData = useCallback((): DraftData => {
@@ -598,4 +612,15 @@ export function useDraft({
         handleCreateNew,
         buildDraftData,
     };
+}
+
+function getCategoryIdsForItems(
+    restored: Map<string, ChecklistItem>,
+): Set<string> {
+    const itemIds = new Set(restored.keys());
+    return new Set(
+        checklistCategories
+            .filter((cat) => cat.items.some((item) => itemIds.has(item.id)))
+            .map((cat) => cat.id),
+    );
 }

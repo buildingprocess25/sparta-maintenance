@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Camera, CheckCircle2, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,6 +15,7 @@ import {
     type ChecklistItem as ChecklistItemType,
     type ChecklistCondition,
 } from "@/lib/checklist-data";
+import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import { LocalNotesTextarea } from "./local-notes-textarea";
 import { cn } from "@/lib/utils";
 
@@ -29,7 +31,7 @@ interface ChecklistItemProps {
     onNotesChange: (itemId: string, itemName: string, value: string) => void;
     onHandlerChange: (itemId: string, itemName: string, value: string) => void;
     onOpenCamera: (itemId: string) => void;
-    onPreviewPhoto: (file: File) => void;
+    onPreviewPhoto: (photo: File | string) => void;
     onRemovePhoto: (itemId: string) => void;
 }
 
@@ -47,6 +49,8 @@ export function ChecklistItemCard({
     const condition = itemData?.condition || "";
     const handler = itemData?.handler || "";
     const photo = itemData?.photo;
+    const photoUrl = itemData?.photoUrl;
+    const hasPhoto = !!photo || !!photoUrl;
     const isNotesRequired = condition === "rusak";
 
     return (
@@ -202,7 +206,7 @@ export function ChecklistItemCard({
             {/* Photo: Baik */}
             {condition === "baik" && (
                 <div className="space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                    {!photo ? (
+                    {!hasPhoto ? (
                         <div className="flex md:flex-row gap-2">
                             <Label className="text-sm">
                                 Foto Bukti{" "}
@@ -227,6 +231,7 @@ export function ChecklistItemCard({
                             </Label>
                             <PhotoThumbnail
                                 photo={photo}
+                                photoUrl={photoUrl}
                                 onPreview={onPreviewPhoto}
                                 onRemove={() => onRemovePhoto(item.id)}
                             />
@@ -238,7 +243,7 @@ export function ChecklistItemCard({
             {/* Photo + Handler: Rusak */}
             {condition === "rusak" && (
                 <div className=" space-y-3 pt-2 border-t animate-in slide-in-from-top-2">
-                    {!photo ? (
+                    {!hasPhoto ? (
                         <div className="flex md:flex-row gap-2">
                             <Label className="text-sm">
                                 Foto Kerusakan{" "}
@@ -263,6 +268,7 @@ export function ChecklistItemCard({
                             </Label>
                             <PhotoThumbnail
                                 photo={photo}
+                                photoUrl={photoUrl}
                                 onPreview={onPreviewPhoto}
                                 onRemove={() => onRemovePhoto(item.id)}
                             />
@@ -298,23 +304,34 @@ export function ChecklistItemCard({
 /* ─── Photo Thumbnail (internal) ─── */
 function PhotoThumbnail({
     photo,
+    photoUrl,
     onPreview,
     onRemove,
 }: {
-    photo: File;
-    onPreview: (file: File) => void;
+    photo?: File;
+    photoUrl?: string;
+    onPreview: (photo: File | string) => void;
     onRemove: () => void;
 }) {
+    const displayPhotoUrl = photoUrl ? resolvePhotoUrl(photoUrl) : undefined;
+    const localPhotoUrl = useMemo(
+        () => (!displayPhotoUrl && photo ? URL.createObjectURL(photo) : ""),
+        [displayPhotoUrl, photo],
+    );
+    const previewSrc = displayPhotoUrl || localPhotoUrl;
+
+    if (!previewSrc) return null;
+
     return (
         <div className="mt-2 space-y-2">
             {/* Thumbnail Preview */}
             <div
                 className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-green-200 bg-green-50"
-                onClick={() => onPreview(photo)}
+                onClick={() => onPreview(displayPhotoUrl ?? photo ?? previewSrc)}
             >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                    src={URL.createObjectURL(photo)}
+                    src={previewSrc}
                     alt="Preview"
                     className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
                 />
@@ -330,10 +347,12 @@ function PhotoThumbnail({
                     <CheckCircle2 className="h-4 w-4 text-green-700 shrink-0" />
                     <div className="min-w-0">
                         <p className="text-xs font-medium text-green-800 truncate">
-                            {photo.name}
+                            {photo?.name ?? "Foto tersimpan"}
                         </p>
                         <p className="text-[10px] text-green-600">
-                            {(photo.size / 1024).toFixed(0)} KB
+                            {photo
+                                ? `${(photo.size / 1024).toFixed(0)} KB`
+                                : "Foto laporan sebelumnya"}
                         </p>
                     </div>
                 </div>

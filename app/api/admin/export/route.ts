@@ -170,10 +170,14 @@ function buildPreventiveSheet(
         "Kode Toko",
         "Nama Toko",
         "Branch",
-        "Triwulan 1 (Jan-Mar)",
-        "Triwulan 2 (Apr-Jun)",
-        "Triwulan 3 (Jul-Sep)",
-        "Triwulan 4 (Okt-Des)",
+        "TW1 BMS",
+        "TW1 TGL",
+        "TW2 BMS",
+        "TW2 TGL",
+        "TW3 BMS",
+        "TW3 TGL",
+        "TW4 BMS",
+        "TW4 TGL",
     ];
 
     const data: XLSX.CellObject[][] = [
@@ -182,10 +186,14 @@ function buildPreventiveSheet(
             textCell(r.storeCode),
             textCell(r.storeName),
             textCell(r.branchName),
-            textCell(r.q1),
-            textCell(r.q2),
-            textCell(r.q3),
-            textCell(r.q4),
+            textCell(r.q1By),
+            dateCell(r.q1Date),
+            textCell(r.q2By),
+            dateCell(r.q2Date),
+            textCell(r.q3By),
+            dateCell(r.q3Date),
+            textCell(r.q4By),
+            dateCell(r.q4Date),
         ]),
     ];
 
