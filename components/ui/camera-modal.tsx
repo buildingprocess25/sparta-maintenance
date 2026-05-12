@@ -1,9 +1,12 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
-import { X, SwitchCamera } from "lucide-react";
+import { X, SwitchCamera, Zap, ZapOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+type TorchCapabilities = MediaTrackCapabilities & { torch?: boolean };
+type TorchConstraints = MediaTrackConstraintSet & { torch?: boolean };
 
 interface CameraModalProps {
     isOpen: boolean;
@@ -31,6 +34,8 @@ export function CameraModal({
         "environment",
     );
     const [permissionError, setPermissionError] = useState(false);
+    const [torchSupported, setTorchSupported] = useState(false);
+    const [torchOn, setTorchOn] = useState(false);
 
     // Start Camera
     const startCamera = async () => {
@@ -52,6 +57,23 @@ export function CameraModal({
             if (videoRef.current) {
                 videoRef.current.srcObject = newStream;
             }
+            try {
+                const videoTrack = newStream.getVideoTracks()[0];
+                if (
+                    videoTrack &&
+                    typeof videoTrack.getCapabilities === "function"
+                ) {
+                    const capabilities =
+                        videoTrack.getCapabilities() as TorchCapabilities;
+                    setTorchSupported(Boolean(capabilities.torch));
+                } else {
+                    setTorchSupported(false);
+                }
+            } catch (capabilityError) {
+                console.warn("Torch capability check failed:", capabilityError);
+                setTorchSupported(false);
+            }
+            setTorchOn(false);
             setPermissionError(false);
         } catch (err) {
             console.error("Camera Error:", err);
@@ -61,8 +83,18 @@ export function CameraModal({
     };
 
     // Stop Camera
-    const stopCamera = () => {
+    const stopCamera = async () => {
         if (stream) {
+            const videoTrack = stream.getVideoTracks()[0];
+            if (videoTrack && torchSupported && torchOn) {
+                try {
+                    await videoTrack.applyConstraints({
+                        advanced: [{ torch: false } as TorchConstraints],
+                    });
+                } catch {
+                    // Ignore torch shutdown errors during teardown
+                }
+            }
             stream.getTracks().forEach((track) => track.stop());
             setStream(null);
         }
@@ -73,12 +105,10 @@ export function CameraModal({
         if (isOpen) {
             startCamera();
         } else {
-            stopCamera();
+            void stopCamera();
         }
         return () => {
-            if (stream) {
-                stream.getTracks().forEach((track) => track.stop());
-            }
+            void stopCamera();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen, facingMode]);
@@ -236,6 +266,21 @@ export function CameraModal({
         );
     };
 
+    const toggleTorch = async () => {
+        if (!stream || !torchSupported) return;
+        const videoTrack = stream.getVideoTracks()[0];
+        if (!videoTrack) return;
+        try {
+            await videoTrack.applyConstraints({
+                advanced: [{ torch: !torchOn } as TorchConstraints],
+            });
+            setTorchOn(!torchOn);
+        } catch (error) {
+            toast.error("Flash tidak didukung pada kamera ini.");
+            setTorchSupported(false);
+        }
+    };
+
     const [isLandscape, setIsLandscape] = useState(false);
 
     useEffect(() => {
@@ -271,9 +316,30 @@ export function CameraModal({
                     >
                         <SwitchCamera className="h-8 w-8" />
                     </Button>
+                    {stream && torchSupported ? (
+                        <Button
+                            variant="ghost"
+                            size="icon-lg"
+                            className={`hover:bg-white/20 rounded-full ${
+                                torchOn ? "text-yellow-400" : "text-white"
+                            }`}
+                            onClick={toggleTorch}
+                            aria-label={
+                                torchOn ? "Matikan flash" : "Nyalakan flash"
+                            }
+                            aria-pressed={torchOn}
+                            title={torchOn ? "Matikan flash" : "Nyalakan flash"}
+                        >
+                            {torchOn ? (
+                                <Zap className="h-8 w-8" />
+                            ) : (
+                                <ZapOff className="h-8 w-8" />
+                            )}
+                        </Button>
+                    ) : null}
                 </div>
             ) : (
-                <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-linear-to-b from-black/50 to-transparent">
+                <div className="absolute top-0 left-0 right-0 p-4 flex items-center justify-between z-10 bg-linear-to-b from-black/50 to-transparent">
                     <Button
                         variant="ghost"
                         size="icon-lg"
@@ -282,14 +348,39 @@ export function CameraModal({
                     >
                         <X className="h-15 w-15" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="icon-lg"
-                        className="text-white hover:bg-white/20 rounded-full"
-                        onClick={toggleCamera}
-                    >
-                        <SwitchCamera className="h-15 w-15" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        {stream && torchSupported ? (
+                            <Button
+                                variant="ghost"
+                                size="icon-lg"
+                                className={`hover:bg-white/20 rounded-full ${
+                                    torchOn ? "text-yellow-400" : "text-white"
+                                }`}
+                                onClick={toggleTorch}
+                                aria-label={
+                                    torchOn ? "Matikan flash" : "Nyalakan flash"
+                                }
+                                aria-pressed={torchOn}
+                                title={
+                                    torchOn ? "Matikan flash" : "Nyalakan flash"
+                                }
+                            >
+                                {torchOn ? (
+                                    <Zap className="h-15 w-15" />
+                                ) : (
+                                    <ZapOff className="h-15 w-15" />
+                                )}
+                            </Button>
+                        ) : null}
+                        <Button
+                            variant="ghost"
+                            size="icon-lg"
+                            className="text-white hover:bg-white/20 rounded-full"
+                            onClick={toggleCamera}
+                        >
+                            <SwitchCamera className="h-15 w-15" />
+                        </Button>
+                    </div>
                 </div>
             )}
 

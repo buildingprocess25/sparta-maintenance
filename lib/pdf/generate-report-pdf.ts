@@ -1919,13 +1919,6 @@ function buildReportDocument(
                     )
                     .flatMap((i) => i.realisasiItems ?? []);
 
-                const totalEstimasi = data.totalEstimation;
-                const totalRealisasi = allRealisasi.reduce(
-                    (sum, r) => sum + r.quantity * r.price,
-                    0,
-                );
-                const selisih = totalEstimasi - totalRealisasi;
-
                 const mergedRows = data.estimations.map((est) => {
                     const real = allRealisasi.find(
                         (r) => r.materialName === est.materialName,
@@ -1960,6 +1953,19 @@ function buildReportDocument(
                         });
                     }
                 });
+
+                const visibleRows = mergedRows.filter(
+                    (row) => row.realQty > 0 || row.realTotal > 0,
+                );
+                const totalEstimasi = visibleRows.reduce(
+                    (sum, row) => sum + row.estTotal,
+                    0,
+                );
+                const totalRealisasi = visibleRows.reduce(
+                    (sum, row) => sum + row.realTotal,
+                    0,
+                );
+                const selisih = totalEstimasi - totalRealisasi;
 
                 const cellStyle = {
                     ...styles.completionTableCell,
@@ -2065,7 +2071,7 @@ function buildReportDocument(
                             ),
                         ),
                         // Data rows
-                        ...mergedRows.map((row, i) =>
+                        ...visibleRows.map((row, i) =>
                             React.createElement(
                                 View,
                                 {
