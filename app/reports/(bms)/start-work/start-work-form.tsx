@@ -9,6 +9,7 @@ import {
     type ChangeEvent,
 } from "react";
 import { toast } from "sonner";
+import imageCompression from "browser-image-compression";
 import { genPhotoId } from "@/lib/upload-photo";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import {
@@ -18,7 +19,6 @@ import {
     MapPin,
     Plus,
     ReceiptText,
-    SkipForward,
     Store,
     Trash2,
     User,
@@ -91,6 +91,22 @@ interface Props {
 
 function genId(): string {
     return genPhotoId();
+}
+
+const MATERIAL_STORE_COMPRESSION_OPTIONS = {
+    maxSizeMB: 0.07,
+    maxWidthOrHeight: 1280,
+    useWebWorker: true,
+} as const;
+
+async function compressMaterialStorePhoto(file: File): Promise<File> {
+    const compressed = (await imageCompression(
+        file,
+        MATERIAL_STORE_COMPRESSION_OPTIONS,
+    )) as Blob;
+    return new File([compressed], file.name || "photo.jpg", {
+        type: compressed.type || file.type || "image/jpeg",
+    });
 }
 
 // ─── Photo Thumbnails ─────────────────────────────────────────────────────────
@@ -226,10 +242,31 @@ export function StartWorkForm({
 
     // ── Camera handlers ───────────────────────────────────────────────────────
     const handleAddMaterialStorePhoto = useCallback((file: File) => {
-        const id = genId();
-        const previewUrl = URL.createObjectURL(file);
-        const photo: LocalPhoto = { id, previewUrl, file };
-        setMaterialStorePhotos((prev) => [...prev, photo]);
+        void (async () => {
+            try {
+                const compressedFile = await compressMaterialStorePhoto(file);
+                const id = genId();
+                const previewUrl = URL.createObjectURL(compressedFile);
+                const photo: LocalPhoto = {
+                    id,
+                    previewUrl,
+                    file: compressedFile,
+                };
+                setMaterialStorePhotos((prev) => [...prev, photo]);
+            } catch (error) {
+                console.warn(
+                    "Gagal mengompres foto toko material, pakai file asli:",
+                    error,
+                );
+                const id = genId();
+                const previewUrl = URL.createObjectURL(file);
+                const photo: LocalPhoto = { id, previewUrl, file };
+                setMaterialStorePhotos((prev) => [...prev, photo]);
+                toast.error(
+                    "Gagal mengompres foto toko material. Menggunakan file asli.",
+                );
+            }
+        })();
     }, []);
 
     const handlePhotoCaptured = useCallback(
@@ -445,6 +482,7 @@ export function StartWorkForm({
         materialStorePhotos,
         materialStores,
         router,
+        uploadPhoto,
     ]);
 
     // ─────────────────────────────────────────────────────────────────────────
