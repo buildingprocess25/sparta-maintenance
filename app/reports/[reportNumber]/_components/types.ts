@@ -52,4 +52,5 @@ export type ActionState = {
     ) => void;
     handleReviewCompletion: (decision: "approve" | "reject_revision") => void;
     handleFinalApproval: (decision: "approve" | "reject_revision") => void;
+    checkFinalApprovalReady: () => boolean;
 };

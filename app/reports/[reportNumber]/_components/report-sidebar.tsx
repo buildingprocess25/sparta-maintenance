@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {
     Building2,
     Calendar,
@@ -13,6 +16,16 @@ import {
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { isRekananZeroCost } from "@/lib/report-utils";
@@ -75,6 +88,24 @@ export function ReportSidebar({
         report.items as unknown as ReportItemJson[],
         report.estimations as unknown as MaterialEstimationJson[],
     );
+
+    const [finalDialogOpen, setFinalDialogOpen] = useState(false);
+    const [finalCooldown, setFinalCooldown] = useState(0);
+
+    useEffect(() => {
+        if (!finalDialogOpen) return;
+        const timer = window.setInterval(() => {
+            setFinalCooldown((prev) => {
+                if (prev <= 1) {
+                    window.clearInterval(timer);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [finalDialogOpen]);
 
     const hasAction =
         (viewer.role === "BMS" &&
@@ -496,26 +527,87 @@ export function ReportSidebar({
                                 </div>
                             ) : (
                                 <div className="flex flex-col gap-2">
-                                    <Button
-                                        className="w-full"
-                                        size="lg"
-                                        onClick={() =>
-                                            handleFinalApproval("approve")
-                                        }
-                                        disabled={isPending}
+                                    <AlertDialog
+                                        open={finalDialogOpen}
+                                        onOpenChange={(open) => {
+                                            setFinalDialogOpen(open);
+                                            if (!open) setFinalCooldown(0);
+                                        }}
                                     >
-                                        {isPending ? (
-                                            <>
-                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                                Memproses...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                                                Setujui Final (Selesai)
-                                            </>
-                                        )}
-                                    </Button>
+                                        <Button
+                                            className="w-full"
+                                            size="lg"
+                                            onClick={() => {
+                                                if (
+                                                    !actions.checkFinalApprovalReady()
+                                                ) {
+                                                    return;
+                                                }
+                                                setFinalCooldown(5);
+                                                setFinalDialogOpen(true);
+                                            }}
+                                            disabled={isPending}
+                                        >
+                                            {isPending ? (
+                                                <>
+                                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                    Memproses...
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                    Setujui Final (Selesai)
+                                                </>
+                                            )}
+                                        </Button>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                                <AlertDialogTitle>
+                                                    Konfirmasi Final
+                                                </AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Pastikan NOTA dan REALISASI
+                                                    sudah benar. Setelah
+                                                    disetujui, laporan selesai
+                                                    tidak dapat dicabut dan
+                                                    revisi harus input ulang
+                                                    dari awal.
+                                                </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+                                                Tombol akan aktif dalam{" "}
+                                                {finalCooldown} detik untuk
+                                                memastikan Anda yakin.
+                                            </div>
+                                            <AlertDialogFooter>
+                                                <AlertDialogCancel>
+                                                    Batal
+                                                </AlertDialogCancel>
+                                                <AlertDialogAction asChild>
+                                                    <Button
+                                                        onClick={() =>
+                                                            handleFinalApproval(
+                                                                "approve",
+                                                            )
+                                                        }
+                                                        disabled={
+                                                            isPending ||
+                                                            finalCooldown > 0
+                                                        }
+                                                    >
+                                                        {isPending ? (
+                                                            <>
+                                                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                                Memproses...
+                                                            </>
+                                                        ) : (
+                                                            "Saya Yakin, Setujui"
+                                                        )}
+                                                    </Button>
+                                                </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
                                     <Button
                                         variant="outline"
                                         size="lg"

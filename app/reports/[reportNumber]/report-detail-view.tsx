@@ -76,6 +76,9 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     const [viewedSections, setViewedSections] = useState<Set<string>>(
         new Set(),
     );
+    const [checkedRealisasiItems, setCheckedRealisasiItems] = useState<
+        Set<string>
+    >(new Set());
     const closeLightbox = useHistoryBackClose(!!lightboxSrc, () =>
         setLightboxSrc(null),
     );
@@ -111,8 +114,36 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         return s;
     }, [isBmcReviewer, isBnmReviewer, report]);
 
+    const requiredRealisasiItems = useMemo(() => {
+        if (!isBmcReviewer && !isBnmReviewer) return new Set<string>();
+        const s = new Set<string>();
+        report.items
+            .filter(
+                (item) =>
+                    (item.condition === "RUSAK" ||
+                        item.preventiveCondition === "NOT_OK") &&
+                    item.handler === "BMS" &&
+                    item.realisasiItems &&
+                    item.realisasiItems.length > 0,
+            )
+            .forEach((item) => s.add(item.itemId));
+        return s;
+    }, [isBmcReviewer, isBnmReviewer, report]);
+
     function handleSectionViewed(sectionId: string) {
         setViewedSections((prev) => new Set(prev).add(sectionId));
+    }
+
+    function handleRealisasiItemChecked(itemId: string) {
+        setCheckedRealisasiItems((prev) => {
+            const next = new Set(prev);
+            if (next.has(itemId)) {
+                next.delete(itemId);
+            } else {
+                next.add(itemId);
+            }
+            return next;
+        });
     }
 
     const handleSubmitCompletion = () => {
@@ -193,6 +224,20 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                 }, 150);
                 return;
             }
+
+            // Validasi item realisasi harus dicek semua
+            const uncheckedRealisasi = [...requiredRealisasiItems].filter(
+                (id) => !checkedRealisasiItems.has(id),
+            );
+            if (uncheckedRealisasi.length > 0) {
+                const firstItemId = uncheckedRealisasi[0];
+                const item = report.items.find((i) => i.itemId === firstItemId);
+                toast.warning("Cek semua item realisasi terlebih dahulu", {
+                    description: `Item ${firstItemId}${item ? ` - ${item.itemName}` : ""} belum dicek. Klik tombol "Cek Item Ini" untuk menandai NOTA dan nominal sudah sesuai.`,
+                });
+                setActiveTab("estimations");
+                return;
+            }
         }
         startTransition(async () => {
             const result = await reviewCompletion(
@@ -216,37 +261,58 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         });
     };
 
+    const checkFinalApprovalReady = () => {
+        if (!isBnmReviewer) return true;
+
+        const unviewed = [...requiredSections].filter(
+            (id) => !viewedSections.has(id),
+        );
+        if (unviewed.length > 0) {
+            const firstId = unviewed[0];
+            const sectionLabel =
+                firstId === "selfie"
+                    ? "Foto Selfie"
+                    : firstId === "nota"
+                      ? "Foto Nota / Struk Belanja"
+                      : firstId === "store"
+                        ? "Foto Toko Material"
+                        : firstId === "additional-docs"
+                          ? "Dokumentasi Tambahan"
+                          : `Foto Sesudah item ${firstId.replace("after-", "")}`;
+            toast.warning("Tinjau semua foto terlebih dahulu", {
+                description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
+            });
+            setActiveTab("estimations");
+            setTimeout(() => {
+                const el = document.getElementById(`review-${firstId}`);
+                if (el)
+                    el.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+            }, 150);
+            return false;
+        }
+
+        const uncheckedRealisasi = [...requiredRealisasiItems].filter(
+            (id) => !checkedRealisasiItems.has(id),
+        );
+        if (uncheckedRealisasi.length > 0) {
+            const firstItemId = uncheckedRealisasi[0];
+            const item = report.items.find((i) => i.itemId === firstItemId);
+            toast.warning("Cek semua item realisasi terlebih dahulu", {
+                description: `Item ${firstItemId}${item ? ` - ${item.itemName}` : ""} belum dicek. Klik tombol "Cek Item Ini" untuk menandai NOTA dan nominal sudah sesuai.`,
+            });
+            setActiveTab("estimations");
+            return false;
+        }
+
+        return true;
+    };
+
     const handleFinalApproval = (decision: "approve" | "reject_revision") => {
         if (decision === "approve" && isBnmReviewer) {
-            const unviewed = [...requiredSections].filter(
-                (id) => !viewedSections.has(id),
-            );
-            if (unviewed.length > 0) {
-                const firstId = unviewed[0];
-                const sectionLabel =
-                    firstId === "selfie"
-                        ? "Foto Selfie"
-                        : firstId === "nota"
-                          ? "Foto Nota / Struk Belanja"
-                          : firstId === "store"
-                            ? "Foto Toko Material"
-                            : firstId === "additional-docs"
-                              ? "Dokumentasi Tambahan"
-                              : `Foto Sesudah item ${firstId.replace("after-", "")}`;
-                toast.warning("Tinjau semua foto terlebih dahulu", {
-                    description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
-                });
-                setActiveTab("estimations");
-                setTimeout(() => {
-                    const el = document.getElementById(`review-${firstId}`);
-                    if (el)
-                        el.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                        });
-                }, 150);
-                return;
-            }
+            if (!checkFinalApprovalReady()) return;
         }
 
         startTransition(async () => {
@@ -281,6 +347,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
         handleReviewEstimation,
         handleReviewCompletion,
         handleFinalApproval,
+        checkFinalApprovalReady,
     };
 
     const hasWorkflowAction =
@@ -455,6 +522,12 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                                         viewedSections={viewedSections}
                                         isZeroCost={
                                             Number(report.totalEstimation) === 0
+                                        }
+                                        onRealisasiItemChecked={
+                                            handleRealisasiItemChecked
+                                        }
+                                        checkedRealisasiItems={
+                                            checkedRealisasiItems
                                         }
                                     />
                                 ) : (

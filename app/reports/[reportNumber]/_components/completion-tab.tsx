@@ -5,9 +5,10 @@ import {
     Eye,
     ImageIcon,
     Receipt,
-    SkipForward,
     Store,
     User,
+    CheckSquare,
+    Square,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +46,10 @@ type Props = {
     viewedSections?: Set<string>;
     /** True when total estimation is Rp 0 — selfie & nota were intentionally skipped */
     isZeroCost?: boolean;
+    /** Called when a realisasi item is checked/unchecked */
+    onRealisasiItemChecked?: (itemId: string) => void;
+    /** Set of realisasi item IDs already checked (from parent state) */
+    checkedRealisasiItems?: Set<string>;
 };
 
 function PhotoGrid({
@@ -104,6 +109,8 @@ export function CompletionTab({
     onSectionViewed,
     viewedSections = new Set(),
     isZeroCost = false,
+    onRealisasiItemChecked,
+    checkedRealisasiItems = new Set(),
 }: Props) {
     function makeClickHandler(sectionId: string) {
         return (src: string) => {
@@ -338,7 +345,7 @@ export function CompletionTab({
 
             {/* ── Per-item completion data ────────────────────────────────── */}
             <Card className="shadow-sm border-border/60">
-                <CardHeader className="border-b pb-3">
+                <CardHeader className="border-b">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                             <ClipboardList className="h-4 w-4 text-primary" />
@@ -390,7 +397,7 @@ export function CompletionTab({
                                 return (
                                     <div
                                         key={item.itemId}
-                                        className="p-4 space-y-4"
+                                        className="px-4 space-y-4"
                                     >
                                         {/* Item header */}
                                         <div className="flex items-start gap-2">
@@ -400,7 +407,7 @@ export function CompletionTab({
                                             >
                                                 {item.itemId}
                                             </Badge>
-                                            <div className="min-w-0">
+                                            <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-semibold leading-snug">
                                                     {item.itemName}
                                                 </p>
@@ -501,9 +508,51 @@ export function CompletionTab({
                                         {(realisasi.length > 0 ||
                                             estimasiItem.length > 0) && (
                                             <div className="space-y-1.5">
-                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                                                    Realisasi Biaya
-                                                </p>
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                                        Realisasi Biaya
+                                                    </p>
+                                                    {isReviewer &&
+                                                        realisasi.length >
+                                                            0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    onRealisasiItemChecked?.(
+                                                                        item.itemId,
+                                                                    )
+                                                                }
+                                                                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                                                                    checkedRealisasiItems.has(
+                                                                        item.itemId,
+                                                                    )
+                                                                        ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                                                                        : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
+                                                                }`}
+                                                            >
+                                                                {checkedRealisasiItems.has(
+                                                                    item.itemId,
+                                                                ) ? (
+                                                                    <>
+                                                                        <CheckSquare className="h-3.5 w-3.5" />
+                                                                        <span>
+                                                                            Sudah
+                                                                            Sesuai
+                                                                        </span>
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <Square className="h-3.5 w-3.5" />
+                                                                        <span>
+                                                                            Cek
+                                                                            Item
+                                                                            Ini
+                                                                        </span>
+                                                                    </>
+                                                                )}
+                                                            </button>
+                                                        )}
+                                                </div>
 
                                                 {/* ── Estimasi (per item) ─────────────────────────── */}
                                                 {estimasiItem.length > 0 && (
