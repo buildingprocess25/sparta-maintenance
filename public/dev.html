@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Developer Tools</title>
+        <style>
+            :root {
+                color-scheme: light;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    Segoe UI,
+                    Roboto,
+                    sans-serif;
+                line-height: 1.45;
+            }
+            body {
+                max-width: 44rem;
+                margin: 2rem auto;
+                padding: 0 1rem;
+            }
+            h1 {
+                font-size: 1.25rem;
+            }
+            .note {
+                padding: 0.75rem 1rem;
+                border-radius: 8px;
+                background: color-mix(in srgb, CanvasText 6%, Canvas);
+                margin: 1rem 0;
+                font-size: 0.9rem;
+            }
+            label {
+                display: flex;
+                gap: 0.5rem;
+                align-items: center;
+                margin: 0.35rem 0;
+                cursor: pointer;
+            }
+            fieldset {
+                border: 1px solid color-mix(in srgb, CanvasText 18%, Canvas);
+                border-radius: 8px;
+                margin: 1rem 0;
+                padding: 0.75rem 1rem;
+            }
+            legend {
+                padding: 0 0.35rem;
+            }
+            input[type="text"],
+            input[type="password"],
+            input[type="number"],
+            input[type="date"] {
+                width: 100%;
+                max-width: 22rem;
+                padding: 0.4rem 0.5rem;
+                border-radius: 6px;
+                border: 1px solid color-mix(in srgb, CanvasText 22%, Canvas);
+                box-sizing: border-box;
+            }
+            .row {
+                margin: 0.5rem 0;
+            }
+            .row label {
+                display: block;
+                font-weight: 600;
+                margin-bottom: 0.25rem;
+            }
+            button {
+                margin-top: 0.75rem;
+                padding: 0.55rem 1rem;
+                border-radius: 8px;
+                border: none;
+                font-weight: 600;
+                cursor: pointer;
+                background: #2563eb;
+                color: #fff;
+            }
+            button:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+            }
+            #log {
+                white-space: pre-wrap;
+                font-size: 0.85rem;
+                margin-top: 1rem;
+                padding: 0.75rem;
+                border-radius: 8px;
+                background: color-mix(in srgb, CanvasText 5%, Canvas);
+                min-height: 2rem;
+            }
+            .warn {
+                color: #b45309;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Revisi PJUM &amp; rebuild PDF</h1>
+
+        <div class="row">
+            <label for="pjumId">PjumExport ID (UUID)</label>
+            <input
+                type="text"
+                id="pjumId"
+                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                spellcheck="false"
+            />
+        </div>
+
+        <fieldset>
+            <legend>Field yang direvisi</legend>
+            <label>
+                <input type="checkbox" id="revWeek" />
+                <span><code>weekNumber</code></span>
+            </label>
+            <div class="row">
+                <input
+                    type="number"
+                    id="weekNumber"
+                    min="1"
+                    max="53"
+                    placeholder="contoh: 12"
+                    disabled
+                />
+            </div>
+
+            <label>
+                <input type="checkbox" id="revFrom" />
+                <span><code>fromDate</code></span>
+            </label>
+            <div class="row"><input type="date" id="fromDate" disabled /></div>
+
+            <label>
+                <input type="checkbox" id="revTo" />
+                <span><code>toDate</code></span>
+            </label>
+            <div class="row"><input type="date" id="toDate" disabled /></div>
+        </fieldset>
+
+        <fieldset>
+            <legend>Opsi</legend>
+            <label>
+                <input type="checkbox" id="persistDb" />
+                <span
+                    >Simpan perubahan ke database (<code>PjumExport</code>)
+                    sebelum generate</span
+                >
+            </label>
+            <label>
+                <input type="checkbox" id="uploadDrive" />
+                <span 
+                    >Upload ke Google Drive + update
+                    <code>pjumFinalDriveUrl</code>
+                
+            </label>
+        </fieldset>
+
+        <button type="button" id="btn">Generate PDF</button>
+
+        <pre id="log"></pre>
+
+        <script>
+            const $ = (id) => document.getElementById(id);
+            const log = (msg) => {
+                $("log").textContent += msg + "\n";
+            };
+            const clearLog = () => {
+                $("log").textContent = "";
+            };
+
+            function apiBase() {
+                const el = $("baseUrl");
+                const raw = el ? String(el.value || "").trim() : "";
+                if (raw) return raw.replace(/\/$/, "");
+                return window.location.origin;
+            }
+
+            [
+                ["revWeek", "weekNumber"],
+                ["revFrom", "fromDate"],
+                ["revTo", "toDate"],
+            ].forEach(([cb, inp]) => {
+                $(cb).addEventListener("change", () => {
+                    $(inp).disabled = !$(cb).checked;
+                });
+            });
+
+            $("btn").addEventListener("click", async () => {
+                clearLog();
+                const id = $("pjumId").value.trim();
+                if (!id) {
+                    log("Isi PjumExport ID.");
+                    return;
+                }
+
+                const revisions = {};
+                if ($("revWeek").checked) {
+                    const w = parseInt($("weekNumber").value, 10);
+                    if (!Number.isFinite(w) || w < 1 || w > 53) {
+                        log("weekNumber tidak valid (1–53).");
+                        return;
+                    }
+                    revisions.weekNumber = w;
+                }
+                if ($("revFrom").checked) {
+                    const v = $("fromDate").value;
+                    if (!v) {
+                        log("Pilih fromDate.");
+                        return;
+                    }
+                    revisions.fromDate = v;
+                }
+                if ($("revTo").checked) {
+                    const v = $("toDate").value;
+                    if (!v) {
+                        log("Pilih toDate.");
+                        return;
+                    }
+                    revisions.toDate = v;
+                }
+
+                const body = {
+                    pjumExportId: id,
+                    persistDb: $("persistDb").checked,
+                    uploadToDrive: $("uploadDrive").checked,
+                    revisions,
+                };
+
+                const headers = { "Content-Type": "application/json" };
+                const secEl = $("secret");
+                const sec = secEl ? String(secEl.value || "").trim() : "";
+                if (sec) headers["x-dev-pjum-revise-secret"] = sec;
+
+                $("btn").disabled = true;
+                log("Memanggil API…");
+                try {
+                    const res = await fetch(
+                        apiBase() + "/api/dev/revise-pjum",
+                        {
+                            method: "POST",
+                            headers,
+                            body: JSON.stringify(body),
+                        },
+                    );
+
+                    const ct = res.headers.get("content-type") || "";
+
+                    if (res.ok && ct.includes("application/pdf")) {
+                        const blob = await res.blob();
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement("a");
+                        a.href = url;
+                        a.download = "pjum-revised-" + id.slice(0, 8) + ".pdf";
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        log("Selesai: PDF diunduh.");
+                        return;
+                    }
+
+                    const text = await res.text();
+                    let data;
+                    try {
+                        data = JSON.parse(text);
+                    } catch {
+                        data = { raw: text };
+                    }
+                    if (!res.ok) {
+                        log(
+                            "Error HTTP " +
+                                res.status +
+                                ": " +
+                                (data.error || text),
+                        );
+                        if (data.details)
+                            log(JSON.stringify(data.details, null, 2));
+                        return;
+                    }
+                    log(JSON.stringify(data, null, 2));
+                } catch (e) {
+                    log(
+                        "Gagal fetch: " +
+                            (e && e.message ? e.message : String(e)),
+                    );
+                    log("Pastikan dev server jalan dan URL benar.");
+                } finally {
+                    $("btn").disabled = false;
+                }
+            });
+        </script>
+    </body>
+</html>
