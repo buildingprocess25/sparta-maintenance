@@ -2,8 +2,8 @@ name: Cleanup Approved PJUM Photos
 
 on:
   schedule:
-    # Every day at 17:00 UTC or 00:00 WIB
-    - cron: "0 17 * * *"
+    # Every day at 19:00 UTC or 02:00 WIB
+    - cron: "0 19 * * *"
   # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:
 
