@@ -25,6 +25,7 @@ import {
     IconArchive,
     IconSettings,
     IconSquareCheck,
+    IconAdjustments,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -92,6 +93,14 @@ const data = {
                     icon: IconBuildingStore,
                 },
             ],
+        },
+    ],
+    navIntervensi: [
+        {
+            title: "Revisi Laporan Maintenance",
+            url: "/dashboard/intervensi/revisi-laporan",
+            icon: IconAdjustments,
+            adminOnly: true,
         },
     ],
     navSecondary: [
@@ -254,6 +263,34 @@ export function AppSidebar({ user: authUser, ...props }: AppSidebarProps) {
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
+
+                {/* INTERVENSI — admin only */}
+                {authUser?.role === "ADMIN" && data.navIntervensi.length > 0 && (
+                    <SidebarGroup>
+                        <SidebarGroupLabel className="text-white/70">
+                            Intervensi
+                        </SidebarGroupLabel>
+                        <SidebarGroupContent>
+                            <SidebarMenu>
+                                {data.navIntervensi.map((item) => (
+                                    <SidebarMenuItem key={item.title}>
+                                        <SidebarMenuButton
+                                            asChild
+                                            tooltip={item.title}
+                                            className="hover:bg-white/10"
+                                            isActive={isItemActive(item.url)}
+                                        >
+                                            <Link href={item.url}>
+                                                <item.icon />
+                                                <span>{item.title}</span>
+                                            </Link>
+                                        </SidebarMenuButton>
+                                    </SidebarMenuItem>
+                                ))}
+                            </SidebarMenu>
+                        </SidebarGroupContent>
+                    </SidebarGroup>
+                )}
 
                 <SidebarGroup className="mt-auto">
                     <SidebarGroupContent>

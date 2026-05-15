@@ -28,9 +28,15 @@ export default async function ReportDetailPage({ params }: Props) {
     if (!report) notFound();
 
     // TAHAP 3: PENCEGAT (INTERCEPTOR) GOOGLE DRIVE
-    // Jika status laporan sudah selesai dan link Drive tersedia, tampikan UI sederhana
-    const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
+    // Prioritaskan link folder agar user bisa melihat semua versi dokumen (asli + revisi).
+    const driveFileUrl = report.reportFinalDriveUrl || report.completedPdfPath;
+    const driveFolderUrl = report.revisedPdfFolderUrl;
+    const driveUrl = driveFolderUrl || driveFileUrl;
+
     if (report.status === "COMPLETED" && driveUrl) {
+        const hasFolder = !!driveFolderUrl;
+        const hasRevision = !!report.revisedPdfDriveUrl;
+
         return (
             <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
                 <div className="bg-background max-w-md w-full border shadow-sm rounded-xl p-8 text-center space-y-6">
@@ -45,20 +51,48 @@ export default async function ReportDetailPage({ params }: Props) {
                             Laporan <strong>{reportNumber}</strong> telah diselesaikan dan diarsipkan di Google Drive.
                         </p>
                     </div>
-                    
+
                     <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm rounded-lg p-3 text-left">
                         <strong>Perhatian:</strong> Dokumen hanya dapat diakses menggunakan email internal perusahaan (SAT). Pastikan Anda telah login menggunakan email kantor di browser Anda.
                     </div>
 
+                    {/* Tombol utama: buka folder (jika ada) atau file langsung */}
                     <a
                         href={driveUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90"
                     >
-                        Buka Laporan di Google Drive
+                        {hasFolder ? "Buka Folder Laporan di Google Drive" : "Buka Laporan di Google Drive"}
                     </a>
-                    
+
+                    {/* Jika sudah ada folder, tampilkan juga link langsung ke PDF asli */}
+                    {hasFolder && driveFileUrl && (
+                        <a
+                            href={driveFileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent"
+                        >
+                            Buka PDF Asli Langsung
+                        </a>
+                    )}
+
+                    {/* Badge revisi jika sudah pernah di-revisi */}
+                    {hasRevision && report.revisedPdfDriveUrl && (
+                        <div className="rounded-lg border border-orange-200 bg-orange-50 p-3 text-left space-y-2">
+                            <p className="text-xs font-semibold text-orange-800">⚡ Tersedia PDF Revisi</p>
+                            <a
+                                href={report.revisedPdfDriveUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex w-full items-center justify-center gap-2 rounded-md border border-orange-300 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100"
+                            >
+                                Buka PDF Revisi
+                            </a>
+                        </div>
+                    )}
+
                     <div className="pt-2">
                         <Link prefetch={false} href="/reports" className="text-sm text-primary hover:underline">
                             Kembali ke Daftar Laporan

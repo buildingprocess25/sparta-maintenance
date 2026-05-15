@@ -5,6 +5,10 @@ import { logger } from "@/lib/logger";
 
 const MAX_UPLOAD_RETRIES = 3;
 const RETRY_DELAY_MS = [500, 1000, 2000]; // exponential backoff
+const DRIVE_CDN_SHARE_MODE = (
+    process.env.DRIVE_CDN_SHARE_MODE ?? "private"
+).toLowerCase();
+const DRIVE_CDN_SHARE_DOMAIN = process.env.DRIVE_CDN_SHARE_DOMAIN;
 
 export type DrivePhotoUploadResult = {
     fileId: string;
@@ -100,12 +104,51 @@ async function attemptUpload(
         throw new Error("Google Drive create returned empty file ID");
     }
 
-    // CRITICAL: Set public sharing permission
-    // Without this, file will return 403 Forbidden
-    let permissionSet = false;
-    let lastError: any = null;
+    await applyConfiguredSharing(fileId, fileName);
 
-    // Try up to 3 times to set permission
+    const url = buildCdnUrl(fileId);
+
+    return { fileId, url };
+}
+
+async function applyConfiguredSharing(
+    fileId: string,
+    fileName: string,
+): Promise<void> {
+    if (DRIVE_CDN_SHARE_MODE === "private") {
+        logger.info(
+            {
+                operation: "uploadPhotoToDriveCdn.setPermission",
+                fileId,
+                fileName,
+                shareMode: DRIVE_CDN_SHARE_MODE,
+            },
+            "Skipping Drive sharing permission; photos are served through the app proxy",
+        );
+        return;
+    }
+
+    const { drive } = getDriveCdnClient();
+    const requestBody =
+        DRIVE_CDN_SHARE_MODE === "domain"
+            ? {
+                  role: "reader",
+                  type: "domain",
+                  domain: DRIVE_CDN_SHARE_DOMAIN,
+              }
+            : {
+                  role: "reader",
+                  type: "anyone",
+              };
+
+    if (DRIVE_CDN_SHARE_MODE === "domain" && !DRIVE_CDN_SHARE_DOMAIN) {
+        throw new Error(
+            "DRIVE_CDN_SHARE_DOMAIN wajib diisi jika DRIVE_CDN_SHARE_MODE=domain",
+        );
+    }
+
+    let lastError: unknown = null;
+
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
             logger.info(
@@ -114,29 +157,27 @@ async function attemptUpload(
                     fileId,
                     fileName,
                     attempt,
+                    shareMode: DRIVE_CDN_SHARE_MODE,
                 },
-                "Attempting to set public permission",
+                "Attempting to set Drive sharing permission",
             );
 
             await drive.permissions.create({
                 fileId,
-                requestBody: {
-                    role: "reader",
-                    type: "anyone",
-                },
+                requestBody,
                 supportsAllDrives: true,
             });
 
-            permissionSet = true;
             logger.info(
                 {
                     operation: "uploadPhotoToDriveCdn.setPermission",
                     fileId,
                     fileName,
+                    shareMode: DRIVE_CDN_SHARE_MODE,
                 },
-                "Successfully set public permission",
+                "Successfully set Drive sharing permission",
             );
-            break;
+            return;
         } catch (permError) {
             lastError = permError;
             logger.warn(
@@ -145,6 +186,7 @@ async function attemptUpload(
                     fileId,
                     fileName,
                     attempt,
+                    shareMode: DRIVE_CDN_SHARE_MODE,
                     errorMessage:
                         permError instanceof Error
                             ? permError.message
@@ -153,58 +195,42 @@ async function attemptUpload(
                         permError &&
                         typeof permError === "object" &&
                         "code" in permError
-                            ? (permError as any).code
+                            ? (permError as { code?: unknown }).code
                             : undefined,
                 },
-                "Failed to set public permission",
+                "Failed to set Drive sharing permission",
             );
 
             if (attempt < 3) {
-                await sleep(500 * attempt); // Backoff: 500ms, 1000ms
+                await sleep(500 * attempt);
             }
         }
     }
 
-    // If permission setting failed after all retries, throw error
-    if (!permissionSet) {
-        logger.error(
+    await cleanupFileWithFailedPermission(fileId);
+
+    throw new Error(
+        `Failed to set Drive sharing permission: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
+    );
+}
+
+async function cleanupFileWithFailedPermission(fileId: string): Promise<void> {
+    try {
+        const { drive } = getDriveCdnClient();
+        await drive.files.delete({
+            fileId,
+            supportsAllDrives: true,
+        });
+        logger.info(
             {
-                operation: "uploadPhotoToDriveCdn.setPermission",
+                operation: "uploadPhotoToDriveCdn.cleanup",
                 fileId,
-                fileName,
-                errorMessage:
-                    lastError instanceof Error
-                        ? lastError.message
-                        : String(lastError),
             },
-            "Failed to set public permission after 3 attempts - file will not be accessible",
+            "Deleted file with failed permission",
         );
-
-        // Delete the file since it's not usable
-        try {
-            await drive.files.delete({
-                fileId,
-                supportsAllDrives: true,
-            });
-            logger.info(
-                {
-                    operation: "uploadPhotoToDriveCdn.cleanup",
-                    fileId,
-                },
-                "Deleted file with failed permission",
-            );
-        } catch (deleteError) {
-            // Ignore delete errors
-        }
-
-        throw new Error(
-            `Failed to set public permission: ${lastError instanceof Error ? lastError.message : String(lastError)}`,
-        );
+    } catch {
+        // Ignore delete errors.
     }
-
-    const url = buildCdnUrl(fileId);
-
-    return { fileId, url };
 }
 
 /**

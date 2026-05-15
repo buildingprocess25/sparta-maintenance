@@ -1,5 +1,4 @@
 import Image from "next/image";
-import { redirect } from "next/navigation";
 import { getMaintenanceState } from "@/lib/maintenance";
 import {
     Card,
@@ -11,11 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 export default function MaintenancePage() {
-    const { enabled, message } = getMaintenanceState();
-
-    if (!enabled) {
-        redirect("/");
-    }
+    const { message } = getMaintenanceState();
 
     return (
         <main className="min-h-screen flex flex-col items-center justify-center p-6 gap-8">
