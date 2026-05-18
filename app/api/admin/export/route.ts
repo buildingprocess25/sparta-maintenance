@@ -245,12 +245,12 @@ export async function POST(request: NextRequest) {
         "Export XLSX started",
     );
 
-    // ─ Auth: only ADMIN ──────────────────────────────────────────────────────
+    // ─ Auth: ADMIN, or BMC for preventive-only export ───────────────────────
     const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (user.role !== "ADMIN") {
+    if (user.role !== "ADMIN" && user.role !== "BMC") {
         logger.warn(
             {
                 operation: "adminExportXlsx",
@@ -291,6 +291,36 @@ export async function POST(request: NextRequest) {
     const baseFileName =
         body.fileName ??
         `sparta-export-${new Date().toISOString().slice(0, 10)}`;
+
+    if (user.role === "BMC") {
+        const isPreventiveOnly =
+            requestedSheets.length === 1 && requestedSheets[0] === "preventive";
+        if (!isPreventiveOnly) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        const selectedBranches = Array.isArray(filter.branchName)
+            ? filter.branchName
+            : filter.branchName
+              ? [filter.branchName]
+              : [];
+        if (selectedBranches.length !== 1) {
+            return NextResponse.json(
+                { error: "Pilih satu cabang untuk ekspor preventif" },
+                { status: 400 },
+            );
+        }
+
+        const selectedBranch = selectedBranches[0];
+        if (!user.branchNames.includes(selectedBranch)) {
+            return NextResponse.json(
+                { error: "Anda tidak punya akses ke cabang ini" },
+                { status: 403 },
+            );
+        }
+
+        filter.branchName = [selectedBranch];
+    }
 
     // ─ Fetch data ────────────────────────────────────────────────────────────
     try {

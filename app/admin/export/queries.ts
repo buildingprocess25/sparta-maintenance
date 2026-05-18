@@ -427,17 +427,31 @@ export async function fetchPreventiveExportRows(
         const storeCodes = stores.map((s) => s.code);
         const yearStart = new Date(year, 0, 1);
         const yearEnd = new Date(year + 1, 0, 1);
+        const reportWhere: Prisma.ReportWhereInput = {
+            storeCode: { in: storeCodes },
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+            status: { not: "DRAFT" },
+            createdAt: {
+                gte: yearStart,
+                lt: yearEnd,
+            },
+        };
+
+        if (filter.branchName && filter.branchName !== "all") {
+            if (Array.isArray(filter.branchName)) {
+                if (
+                    filter.branchName.length > 0 &&
+                    filter.branchName[0] !== "all"
+                ) {
+                    reportWhere.branchName = { in: filter.branchName };
+                }
+            } else {
+                reportWhere.branchName = filter.branchName;
+            }
+        }
 
         const reports = await prisma.report.findMany({
-            where: {
-                storeCode: { in: storeCodes },
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: { not: "DRAFT" },
-                createdAt: {
-                    gte: yearStart,
-                    lt: yearEnd,
-                },
-            },
+            where: reportWhere,
             select: {
                 storeCode: true,
                 createdAt: true,

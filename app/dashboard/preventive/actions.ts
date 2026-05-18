@@ -29,6 +29,14 @@ export type PreventiveRow = {
     q4: PreventiveQuarterInfo | null; // Okt-Des
 };
 
+function getBranchScope(user: NonNullable<Awaited<ReturnType<typeof getAuthUser>>>) {
+    if (user.role === "ADMIN") {
+        return { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } };
+    }
+
+    return { branchName: { in: user.branchNames } };
+}
+
 export async function getAdminPreventive(
     cursor: string | null,
     limit: number = 20,
@@ -39,12 +47,12 @@ export async function getAdminPreventive(
 
     try {
         const user = await getAuthUser();
-        if (!user || user.role !== "ADMIN") {
+        if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
             throw new Error("Unauthorized");
         }
 
         const where: Prisma.StoreWhereInput = {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+            ...getBranchScope(user),
         };
 
         if (filters.search) {
@@ -55,6 +63,9 @@ export async function getAdminPreventive(
         }
 
         if (filters.branchName && filters.branchName !== "all") {
+            if (user.role === "BMC" && !user.branchNames.includes(filters.branchName)) {
+                throw new Error("Unauthorized branch access");
+            }
             where.branchName = filters.branchName;
         }
 
@@ -88,7 +99,7 @@ export async function getAdminPreventive(
         const reports = await prisma.report.findMany({
             where: {
                 storeCode: { in: storeCodes },
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                ...getBranchScope(user),
                 status: { not: "DRAFT" },
                 createdAt: {
                     gte: yearStart,
@@ -178,8 +189,9 @@ export async function getAdminPreventive(
                 correlationId,
                 durationMs,
                 count: stores.length,
+                role: user.role,
             },
-            "Fetched admin preventive successfully",
+            "Fetched preventive successfully",
         );
 
         return {
@@ -191,7 +203,7 @@ export async function getAdminPreventive(
         const durationMs = Math.round(performance.now() - start);
         logger.error(
             { operation: "getAdminPreventive", correlationId, durationMs },
-            "Failed to fetch admin preventive",
+            "Failed to fetch preventive",
             error,
         );
         throw new Error("Failed to load preventive data");
@@ -200,9 +212,14 @@ export async function getAdminPreventive(
 
 export async function getReportYears() {
     try {
+        const user = await getAuthUser();
+        if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+            throw new Error("Unauthorized");
+        }
+
         const firstReport = await prisma.report.findFirst({
             where: {
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                ...getBranchScope(user),
                 status: { not: "DRAFT" },
             },
             orderBy: { createdAt: "asc" },
@@ -211,7 +228,7 @@ export async function getReportYears() {
 
         const lastReport = await prisma.report.findFirst({
             where: {
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                ...getBranchScope(user),
                 status: { not: "DRAFT" },
             },
             orderBy: { createdAt: "desc" },

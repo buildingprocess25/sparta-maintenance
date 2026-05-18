@@ -42,6 +42,8 @@ export function AdminPreventiveTable({
     branches,
     availableYears,
     defaultBranch,
+    lockedBranchLabel,
+    actions,
 }: {
     initialData: PreventiveRow[];
     initialNextCursor: string | null;
@@ -49,6 +51,8 @@ export function AdminPreventiveTable({
     branches: string[];
     availableYears: number[];
     defaultBranch: string;
+    lockedBranchLabel?: string;
+    actions?: React.ReactNode;
 }) {
     const currentYear = new Date().getFullYear();
     const [data, setData] = useState<PreventiveRow[]>(initialData);
@@ -151,19 +155,25 @@ export function AdminPreventiveTable({
                         onChange={(e) => setSearch(e.target.value)}
                     />
                 </div>
-                <Select value={branchName} onValueChange={setBranchName}>
-                    <SelectTrigger className="w-full sm:w-[200px] h-9 text-sm bg-background">
-                        <SelectValue placeholder="Semua Cabang" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Cabang</SelectItem>
-                        {branches.map((b) => (
-                            <SelectItem key={b} value={b}>
-                                {b}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                {lockedBranchLabel ? (
+                    <div className="flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm text-foreground sm:w-[260px]">
+                        <span className="truncate">{lockedBranchLabel}</span>
+                    </div>
+                ) : (
+                    <Select value={branchName} onValueChange={setBranchName}>
+                        <SelectTrigger className="w-full sm:w-[200px] h-9 text-sm bg-background">
+                            <SelectValue placeholder="Semua Cabang" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">Semua Cabang</SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b} value={b}>
+                                    {b}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
                 <Select
                     value={year.toString()}
                     onValueChange={(val) => setYear(parseInt(val))}
@@ -179,6 +189,11 @@ export function AdminPreventiveTable({
                         ))}
                     </SelectContent>
                 </Select>
+                {actions && (
+                    <div className="w-full sm:w-auto sm:ml-auto">
+                        {actions}
+                    </div>
+                )}
             </div>
 
             <div className="rounded-md border bg-card flex-1 overflow-hidden flex flex-col">

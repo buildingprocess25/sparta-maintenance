@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import { revalidatePath } from "next/cache";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -20,7 +21,9 @@ export type PjumRow = {
     fromDate: Date;
     toDate: Date;
     reportCount: number;
+    reportNumbers: string[];
     status: string;
+    pjumFinalDriveUrl: string | null;
     createdAt: Date;
 };
 
@@ -78,6 +81,7 @@ export async function getAdminPjum(
                 toDate: true,
                 status: true,
                 reportNumbers: true,
+                pjumFinalDriveUrl: true,
                 createdAt: true,
             },
         });
@@ -116,7 +120,9 @@ export async function getAdminPjum(
             fromDate: p.fromDate,
             toDate: p.toDate,
             reportCount: p.reportNumbers.length,
+            reportNumbers: p.reportNumbers,
             status: p.status,
+            pjumFinalDriveUrl: p.pjumFinalDriveUrl,
             createdAt: p.createdAt,
         }));
 
@@ -133,5 +139,91 @@ export async function getAdminPjum(
             error
         );
         throw new Error("Failed to load PJUM");
+    }
+}
+
+export async function cancelAdminPjum(pjumExportId: string) {
+    const correlationId = crypto.randomUUID();
+    const start = performance.now();
+
+    try {
+        const user = await getAuthUser();
+        if (!user || user.role !== "ADMIN") {
+            throw new Error("Unauthorized");
+        }
+
+        const pjumExport = await prisma.pjumExport.findUnique({
+            where: { id: pjumExportId },
+            select: {
+                id: true,
+                branchName: true,
+                bmsNIK: true,
+                weekNumber: true,
+                status: true,
+                reportNumbers: true,
+            },
+        });
+
+        if (!pjumExport) {
+            return { error: "PJUM tidak ditemukan" };
+        }
+
+        if (pjumExport.branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+            return {
+                error: "PJUM HEAD OFFICE tidak dapat dibatalkan dari dashboard admin",
+            };
+        }
+
+        if (pjumExport.status === "APPROVED") {
+            return {
+                error: "PJUM yang sudah disetujui tidak dapat dibatalkan",
+            };
+        }
+
+        const updatedReports = await prisma.$transaction(async (tx) => {
+            const reportResult = await tx.report.updateMany({
+                where: {
+                    reportNumber: { in: pjumExport.reportNumbers },
+                    pjumExportedAt: { not: null },
+                },
+                data: { pjumExportedAt: null },
+            });
+
+            await tx.pjumExport.delete({ where: { id: pjumExport.id } });
+
+            return reportResult.count;
+        });
+
+        revalidatePath("/dashboard/pjum");
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard");
+        revalidatePath("/reports/pjum");
+        revalidatePath(`/reports/pjum/${pjumExport.id}`);
+
+        const durationMs = Math.round(performance.now() - start);
+        logger.info(
+            {
+                operation: "cancelAdminPjum",
+                correlationId,
+                durationMs,
+                pjumExportId,
+                userId: user.NIK,
+                branchName: pjumExport.branchName,
+                bmsNIK: pjumExport.bmsNIK,
+                weekNumber: pjumExport.weekNumber,
+                updatedReports,
+            },
+            "Cancelled admin PJUM successfully",
+        );
+
+        return { success: true, updatedReports };
+    } catch (error) {
+        const durationMs = Math.round(performance.now() - start);
+        logger.error(
+            { operation: "cancelAdminPjum", correlationId, durationMs, pjumExportId },
+            "Failed to cancel admin PJUM",
+            error,
+        );
+        return { error: "Gagal membatalkan PJUM" };
     }
 }

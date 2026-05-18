@@ -7,6 +7,7 @@ import {
     Plus,
     Users,
     Key,
+    ClipboardCheck,
 } from "lucide-react";
 import { getBMCStats, getBranchActivity } from "../queries";
 import { DashboardShell } from "./shared/dashboard-shell";
@@ -59,6 +60,13 @@ const MENUS: DashboardMenuItem[] = [
         description: "Kelola data user dan toko cabang",
         icon: Users,
         href: "/bmc/database",
+        variant: "outline",
+    },
+    {
+        title: "Checklist Preventif",
+        description: "Pantau preventive seluruh toko area cabang",
+        icon: ClipboardCheck,
+        href: "/dashboard/preventive",
         variant: "outline",
     },
     {

@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
     Select,
     SelectContent,
@@ -17,8 +19,23 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { Loader2, Search } from "lucide-react";
-import { getAdminPjum, AdminPjumFilters, PjumRow } from "../actions";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ExternalLink, Loader2, RotateCcw, Search } from "lucide-react";
+import {
+    cancelAdminPjum,
+    getAdminPjum,
+    AdminPjumFilters,
+    PjumRow,
+} from "../actions";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
@@ -54,6 +71,20 @@ function getStatusLabel(status: string) {
     }
 }
 
+function buildPjumViewUrl(item: PjumRow) {
+    if (item.pjumFinalDriveUrl) return item.pjumFinalDriveUrl;
+
+    const search = new URLSearchParams({
+        ids: item.reportNumbers.join(","),
+        bmsNIK: item.bmsNIK,
+        from: new Date(item.fromDate).toISOString(),
+        to: new Date(item.toDate).toISOString(),
+        week: String(item.weekNumber),
+    });
+
+    return `/api/reports/pjum-pdf?${search.toString()}`;
+}
+
 export function AdminPjumTable({
     initialData,
     initialNextCursor,
@@ -65,6 +96,7 @@ export function AdminPjumTable({
     initialTotalCount: number;
     branches: string[];
 }) {
+    const router = useRouter();
     const [pjums, setPjums] = useState<PjumRow[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialNextCursor,
@@ -72,6 +104,8 @@ export function AdminPjumTable({
     const [totalCount, setTotalCount] = useState<number>(initialTotalCount);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
+    const [pjumToCancel, setPjumToCancel] = useState<PjumRow | null>(null);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     // Filters
     const [search, setSearch] = useState("");
@@ -100,7 +134,7 @@ export function AdminPjumTable({
                     setPjums((prev) => [...prev, ...res.pjums]);
                 }
                 setNextCursor(res.nextCursor);
-            } catch (error) {
+            } catch {
                 toast.error("Gagal memuat data PJUM");
             } finally {
                 setIsLoading(false);
@@ -145,6 +179,33 @@ export function AdminPjumTable({
 
         return () => observer.disconnect();
     }, [nextCursor, isFetchingNextPage, isLoading, loadData]);
+
+    const handleCancelPjum = async () => {
+        if (!pjumToCancel) return;
+
+        setIsCancelling(true);
+        try {
+            const result = await cancelAdminPjum(pjumToCancel.id);
+            if (result.error) {
+                toast.error(result.error);
+                return;
+            }
+
+            setPjums((prev) =>
+                prev.filter((item) => item.id !== pjumToCancel.id),
+            );
+            setTotalCount((prev) => Math.max(0, prev - 1));
+            toast.success(
+                `PJUM dibatalkan. ${result.updatedReports ?? 0} laporan dapat dibuat PJUM ulang.`,
+            );
+            setPjumToCancel(null);
+            router.refresh();
+        } catch {
+            toast.error("Gagal membatalkan PJUM");
+        } finally {
+            setIsCancelling(false);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -210,13 +271,16 @@ export function AdminPjumTable({
                                 <TableHead className="min-w-[120px]">
                                     Dibuat Pada
                                 </TableHead>
+                                <TableHead className="w-[120px] text-right">
+                                    Aksi
+                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="h-32 text-center"
                                     >
                                         <div className="flex items-center justify-center">
@@ -227,7 +291,7 @@ export function AdminPjumTable({
                             ) : pjums.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada data PJUM ditemukan
@@ -270,6 +334,50 @@ export function AdminPjumTable({
                                                 { locale: id },
                                             )}
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <div className="flex justify-end gap-1.5">
+                                                <Button
+                                                    asChild
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8"
+                                                    aria-label={`Lihat PJUM minggu ${item.weekNumber}`}
+                                                >
+                                                    <a
+                                                        href={buildPjumViewUrl(
+                                                            item,
+                                                        )}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <ExternalLink className="h-4 w-4" />
+                                                    </a>
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    aria-label={`Batalkan PJUM minggu ${item.weekNumber}`}
+                                                    disabled={
+                                                        item.status ===
+                                                        "APPROVED"
+                                                    }
+                                                    title={
+                                                        item.status ===
+                                                        "APPROVED"
+                                                            ? "PJUM yang sudah disetujui tidak dapat dibatalkan"
+                                                            : "Batalkan PJUM"
+                                                    }
+                                                    onClick={() =>
+                                                        setPjumToCancel(item)
+                                                    }
+                                                >
+                                                    <RotateCcw className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -291,6 +399,48 @@ export function AdminPjumTable({
                     </div>
                 )}
             </div>
+
+            <AlertDialog
+                open={!!pjumToCancel}
+                onOpenChange={(open) => {
+                    if (!open && !isCancelling) setPjumToCancel(null);
+                }}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Batalkan PJUM?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            PJUM minggu {pjumToCancel?.weekNumber} untuk{" "}
+                            {pjumToCancel?.bmsName} akan dihapus, dan status
+                            PJUM pada {pjumToCancel?.reportCount ?? 0} laporan
+                            terkait akan dikosongkan agar bisa dibuat ulang
+                            dengan tanggal yang benar.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isCancelling}>
+                            Batal
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            variant="destructive"
+                            disabled={isCancelling}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                handleCancelPjum();
+                            }}
+                        >
+                            {isCancelling ? (
+                                <>
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    Membatalkan...
+                                </>
+                            ) : (
+                                "Batalkan PJUM"
+                            )}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

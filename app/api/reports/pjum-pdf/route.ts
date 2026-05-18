@@ -8,10 +8,16 @@ import {
     downloadPdfSnapshot,
     uploadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 
 export async function GET(request: NextRequest) {
     const user = await getAuthUser();
-    if (!user || (user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
+    if (
+        !user ||
+        (user.role !== "BMC" &&
+            user.role !== "BNM_MANAGER" &&
+            user.role !== "ADMIN")
+    ) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -51,23 +57,31 @@ export async function GET(request: NextRequest) {
     try {
         const fromDate = new Date(from);
         const toDate = new Date(to);
-        let exportRecord: { id: string; pjumPdfPath: string | null } | null =
-            null;
+        let exportRecord: {
+            id: string;
+            branchName: string;
+            pjumPdfPath: string | null;
+        } | null = null;
 
         if (
             !Number.isNaN(fromDate.getTime()) &&
             !Number.isNaN(toDate.getTime())
         ) {
+            const branchScope =
+                user.role === "ADMIN"
+                    ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
+                    : { branchName: { in: user.branchNames } };
             const candidates = await prisma.pjumExport.findMany({
                 where: {
                     bmsNIK,
                     weekNumber,
                     fromDate,
                     toDate,
-                    branchName: { in: user.branchNames },
+                    ...branchScope,
                 },
                 select: {
                     id: true,
+                    branchName: true,
                     reportNumbers: true,
                     pjumPdfPath: true,
                 },
@@ -111,13 +125,19 @@ export async function GET(request: NextRequest) {
             requester: {
                 NIK: user.NIK,
                 name: user.name,
-                branchNames: user.branchNames,
+                branchNames:
+                    user.role === "ADMIN" && exportRecord
+                        ? [exportRecord.branchName]
+                        : user.branchNames,
             },
         });
 
         if (exportRecord) {
             const snapshotPath = buildPjumSnapshotPath({
-                branchName: user.branchNames[0] ?? "unknown",
+                branchName:
+                    user.role === "ADMIN"
+                        ? exportRecord.branchName
+                        : user.branchNames[0] ?? "unknown",
                 bmsNIK,
                 weekNumber,
                 from,

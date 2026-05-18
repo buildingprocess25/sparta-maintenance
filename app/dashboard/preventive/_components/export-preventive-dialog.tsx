@@ -23,14 +23,22 @@ import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 
-export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
+export function ExportPreventiveDialog({
+    branches,
+    allowAllBranches = true,
+}: {
+    branches: string[];
+    allowAllBranches?: boolean;
+}) {
     const currentYear = new Date().getFullYear();
+    const defaultBranch = allowAllBranches ? "all" : (branches[0] ?? "");
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     // Filters for export
     const [storeQuery, setStoreQuery] = useState("");
-    const [selectedBranch, setSelectedBranch] = useState<string>("all");
+    const [selectedBranch, setSelectedBranch] =
+        useState<string>(defaultBranch);
     const [year, setYear] = useState<number>(currentYear);
 
     const handleExport = async () => {
@@ -49,7 +57,10 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
                 body: JSON.stringify({
                     filter: {
                         searchQuery: storeQuery || undefined,
-                        branchName: selectedBranch === "all" ? undefined : [selectedBranch],
+                        branchName:
+                            selectedBranch === "all"
+                                ? undefined
+                                : [selectedBranch],
                         year: year,
                     },
                     sheets: ["preventive"], // Only export preventive sheet
@@ -73,8 +84,12 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
 
             toast.success("File berhasil diunduh", { id: toastId });
             setOpen(false); // Close dialog on success
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId });
+        } catch (error) {
+            const message =
+                error instanceof Error
+                    ? error.message
+                    : "Gagal mengekspor data";
+            toast.error(message, { id: toastId });
         } finally {
             setIsLoading(false);
         }
@@ -100,12 +115,19 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
                 <div className="grid gap-4 py-4">
                     <div className="grid gap-2">
                         <Label>Cabang</Label>
-                        <Select value={selectedBranch} onValueChange={setSelectedBranch}>
+                        <Select
+                            value={selectedBranch}
+                            onValueChange={setSelectedBranch}
+                        >
                             <SelectTrigger className="w-full text-sm h-10">
                                 <SelectValue placeholder="Pilih Cabang" />
                             </SelectTrigger>
                             <SelectContent className="max-h-60">
-                                <SelectItem value="all">Semua Cabang</SelectItem>
+                                {allowAllBranches && (
+                                    <SelectItem value="all">
+                                        Semua Cabang
+                                    </SelectItem>
+                                )}
                                 {branches.map((b) => (
                                     <SelectItem key={b} value={b}>
                                         {b}
@@ -145,7 +167,10 @@ export function ExportPreventiveDialog({ branches }: { branches: string[] }) {
                     <Button variant="outline" onClick={() => setOpen(false)}>
                         Batal
                     </Button>
-                    <Button onClick={handleExport} disabled={isLoading || !selectedBranch}>
+                    <Button
+                        onClick={handleExport}
+                        disabled={isLoading || !selectedBranch}
+                    >
                         {isLoading && (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}

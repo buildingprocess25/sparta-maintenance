@@ -5,69 +5,117 @@
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
 ![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?logo=tailwindcss&logoColor=white)
-![Supabase](https://img.shields.io/badge/Supabase-3FCF8E?logo=supabase&logoColor=fff)
-![Vercel](https://img.shields.io/badge/Vercel-%23000000.svg?logo=vercel&logoColor=white)
+![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 
-**Sistem Pelaporan dan Tracking Aset — Maintenance**
+**SPARTA Maintenance** adalah aplikasi internal untuk pelaporan, approval, realisasi, arsip PDF, dan pertanggungjawaban uang muka maintenance toko.
 
-Platform terpusat untuk pelaporan kerusakan, monitoring perbaikan, dan pengelolaan estimasi biaya maintenance di seluruh store.
+Aplikasi ini dipakai oleh tim BMS, BMC, BnM Manager, Branch Admin, dan Admin untuk mengelola laporan kerusakan toko dari estimasi awal sampai pekerjaan selesai, final approval, arsip dokumen, dan PJUM.
 
 ---
 
 ## Tech Stack
 
-| Layer     | Technology                                                |
-| --------- | --------------------------------------------------------- |
-| Framework | [Next.js 16](https://nextjs.org/) (App Router)            |
-| Language  | TypeScript 5                                              |
-| UI        | React 19 · shadcn/ui · Tailwind CSS 4                     |
-| Database  | PostgreSQL via [Neon](https://neon.tech/)                 |
-| ORM       | [Prisma 7](https://www.prisma.io/) (Neon adapter)         |
-| Storage   | [Supabase](https://supabase.com/) (photo uploads)         |
-| Auth      | Session-based JWT ([jose](https://github.com/panva/jose)) |
-| PDF       | [@react-pdf/renderer](https://react-pdf.org/)             |
-| Email     | Nodemailer + Gmail OAuth2                                 |
-| Font      | Outfit · Geist Sans · Geist Mono                          |
+| Layer | Teknologi |
+| --- | --- |
+| Framework | Next.js 16 App Router, React 19 |
+| Language | TypeScript 5 |
+| UI | Tailwind CSS 4, shadcn/ui, Radix/Base UI, lucide-react, Tabler Icons, Recharts |
+| Database | PostgreSQL |
+| ORM | Prisma 7 (`@prisma/client`, adapter Neon/PG tersedia) |
+| Auth | Session cookie JWT dengan `jose`, password hash `bcryptjs` |
+| Upload foto | UploadThing dan Google Drive CDN/proxy |
+| Arsip dokumen | Google Drive API |
+| PDF | `@react-pdf/renderer`, `pdf-lib` |
+| Email | Nodemailer + Gmail OAuth2 |
+| Deploy | Docker standalone Next.js, Render Blueprint |
+| PWA | Web manifest, service worker, offline page |
 
 ---
 
-## Features
+## Fitur Utama
 
-### Role-Based Access
-
-| Role      | Full Name                      | Capabilities                             |
-| --------- | ------------------------------ | ---------------------------------------- |
-| **BMS**   | Branch Maintenance Support     | Buat laporan, estimasi BMS, lihat status |
-| **BMC**   | Branch Maintenance Coordinator | Approve/reject laporan, riwayat approval |
-| **ADMIN** | Administrator                  | Verifikasi dokumen, arsip, pengaturan    |
-
-### Core Flow
-
-```
-BMS membuat laporan → Isi checklist kondisi toko → Estimasi biaya BMS
-    → Submit → BMC review & approve/reject → PDF report generated
-```
-
-- **Checklist Kondisi** — Inspeksi item store dengan kondisi (Baik/Rusak/Tidak Ada), foto, dan catatan
-- **Estimasi BMS** — Input material, jumlah, satuan, dan harga per item rusak
-- **Draft Auto-Save** — Debounce 2 detik, termasuk checklist & estimasi BMS
-- **Approval Workflow** — BMC approve/reject dengan catatan; laporan rejected bisa diedit ulang
-- **PDF Generation** — Generate laporan lengkap dengan React-PDF
-- **Email Notification** — Notifikasi otomatis saat laporan di-submit via Gmail OAuth2
+- **Role-based dashboard** untuk BMS, BMC, BnM Manager, dan Admin.
+- **Alur laporan maintenance BMS** dari draft, submit estimasi, approval BMC, mulai pekerjaan, penyelesaian, review BMC, sampai final approval BnM.
+- **Checklist kondisi toko** dengan status item, foto, catatan, estimasi material, dan realisasi biaya.
+- **Draft dan autosave** pada form laporan dan penyelesaian pekerjaan.
+- **PJUM** untuk rekap pertanggungjawaban uang muka mingguan, approval BnM, data PUM, dan arsip final.
+- **PDF report dan PJUM** dengan snapshot/arsip Google Drive.
+- **Manajemen data master** user, toko, material, laporan, preventive checklist, dan PJUM di dashboard Admin.
+- **Manajemen cabang oleh BMC** untuk user BMS/Branch Admin dan toko di cabang terkait.
+- **Notifikasi email** untuk submit laporan dan approval PJUM.
+- **Presence tracking** untuk menghitung user aktif/online.
+- **Maintenance mode** via env hard override atau toggle Admin.
+- **Cron cleanup** untuk laporan pending lama dan workflow cleanup foto approved.
+- **Backup database** ke Google Drive melalui script dan GitHub Actions.
 
 ---
 
-## Getting Started
+## Role dan Akses
 
-### Prerequisites
+| Role | Penggunaan utama |
+| --- | --- |
+| `BMS` | Membuat laporan, mengisi checklist/estimasi, mulai pekerjaan, submit penyelesaian, melihat status laporannya. |
+| `BMC` | Review estimasi dan penyelesaian laporan cabang, membuat PJUM, melihat arsip Drive, mengelola BMS/Branch Admin/toko cabang. |
+| `BNM_MANAGER` | Final approval laporan setelah disetujui BMC, approval/reject PJUM, melihat laporan/PJUM di branch yang ditangani. |
+| `BRANCH_ADMIN` | Role data cabang yang dapat dikelola/import, tetapi saat ini tidak termasuk whitelist login aplikasi utama. |
+| `ADMIN` | Dashboard admin, rekap laporan/material/PJUM/preventive, manajemen user/toko, export, settings, arsip, intervensi revisi laporan. |
 
-- **Node.js** ≥ 18
-- **npm** (included with Node.js)
-- **PostgreSQL** database (recommended: [Neon](https://neon.tech/))
-- **Supabase** project (for photo storage)
+Catatan login: `app/login/action.ts` hanya mengizinkan `BMS`, `BMC`, `BNM_MANAGER`, dan `ADMIN`.
 
-### 1. Clone & Install
+---
+
+## Alur Laporan
+
+Status laporan mengikuti enum `ReportStatus` di Prisma:
+
+```text
+DRAFT
+  -> PENDING_ESTIMATION
+  -> ESTIMATION_APPROVED
+  -> IN_PROGRESS
+  -> PENDING_REVIEW
+  -> APPROVED_BMC
+  -> COMPLETED
+```
+
+Jalur revisi/penolakan:
+
+- `ESTIMATION_REJECTED_REVISION`: estimasi dikembalikan ke BMS untuk revisi.
+- `ESTIMATION_REJECTED`: estimasi ditolak permanen.
+- `REVIEW_REJECTED_REVISION`: hasil pekerjaan dikembalikan ke BMS untuk revisi.
+
+Jika laporan memakai handler `REKANAN`, approval estimasi BMC dapat langsung memindahkan laporan ke `APPROVED_BMC` untuk final approval BnM.
+
+---
+
+## Alur PJUM
+
+1. BMC memilih laporan yang memenuhi syarat dan membuat dokumen PJUM mingguan.
+2. PJUM masuk status `PENDING_APPROVAL`.
+3. BnM Manager melakukan approval atau rejection.
+4. Jika approved, data PUM diisi dan PDF final PJUM serta PDF final report diarsipkan ke Google Drive.
+
+Status PJUM:
+
+- `PENDING_APPROVAL`
+- `APPROVED`
+- `REJECTED`
+
+---
+
+## Prasyarat
+
+- Node.js 22 direkomendasikan, mengikuti Dockerfile `node:22-bookworm-slim`.
+- npm.
+- PostgreSQL.
+- Akun Google/OAuth client untuk Gmail dan Google Drive.
+- UploadThing token jika memakai endpoint UploadThing.
+- Akses Google Drive folder untuk arsip PDF dan Drive CDN foto.
+
+---
+
+## Setup Lokal
 
 ```bash
 git clone <repository-url>
@@ -75,261 +123,300 @@ cd sparta-maintenance
 npm install
 ```
 
-### 2. Environment Variables
-
-Buat file `.env` di root project:
+Buat file `.env` di root project, lalu isi minimal:
 
 ```env
 # Database
 DATABASE_URL="postgresql://..."
-DIRECT_URL="postgresql://..."    # Direct connection (non-pooled)
+DIRECT_URL="postgresql://..."
 
 # Session
-SESSION_SECRET="your-secret-key-min-32-chars"
+SESSION_SECRET="secret-minimal-32-karakter"
 
-# Supabase (Photo Storage)
-NEXT_PUBLIC_SUPABASE_URL="https://xxx.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="eyJhbGci..."
+# URL aplikasi
+APP_BASE_URL="http://localhost:3000"
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Gmail + Google Drive OAuth2
+# Google OAuth untuk Gmail dan arsip PDF Drive
 GMAIL_USER="your-email@gmail.com"
 GOOGLE_CLIENT_ID="xxx.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="xxx"
 GOOGLE_REFRESH_TOKEN="xxx"
+GOOGLE_DRIVE_ROOT_FOLDER_ID="folder-id-arsip"
 
-# App URL
-APP_BASE_URL="http://localhost:3000"
-NEXT_PUBLIC_APP_URL="http://localhost:3000"
+# Google Drive CDN/proxy untuk foto
+DRIVE_CDN_CLIENT_ID="xxx.apps.googleusercontent.com"
+DRIVE_CDN_CLIENT_SECRET="xxx"
+DRIVE_CDN_REFRESH_TOKEN="xxx"
+DRIVE_CDN_ROOT_FOLDER_ID="folder-id-foto"
+DRIVE_CDN_SHARE_MODE="private"
 
-# Google Drive (PDF Archive)
-GOOGLE_DRIVE_ROOT_FOLDER_ID="your-google-drive-folder-id"
+# UploadThing
+UPLOADTHING_TOKEN="xxx"
 
-# Maintenance Mode (optional, requires redeploy)
+# Cron dan cleanup
+CRON_SECRET="secret-cron"
+CLEANUP_PENDING_EXPIRY_DAYS="14"
+
+# Maintenance dan logging
 MAINTENANCE_MODE="false"
-MAINTENANCE_MESSAGE="Sistem sedang maintenance. Silakan coba lagi beberapa saat."
+REQUEST_LOG_ENABLED="true"
+REQUEST_LOG_SAMPLE_RATE="0.15"
+REQUEST_LOG_SLOW_MS="1200"
 
-# Dev only (optional)
+# Opsional development
 DEV_EMAIL_RECIPIENT="dev@example.com"
+DEV_PJUM_REVISE_SECRET="dev-only-secret"
 ```
 
-### 2.2 Maintenance Mode (Optional)
-
-Saat `MAINTENANCE_MODE=true`, sistem masuk mode maintenance:
-
-1. Semua halaman aplikasi diarahkan ke `/maintenance`.
-2. Semua endpoint `/api/*` mengembalikan HTTP `503` dengan JSON maintenance.
-3. Mode ini berlaku untuk semua role (termasuk ADMIN).
-
-Perubahan nilai maintenance menggunakan environment variable dan membutuhkan redeploy.
-
-### 2.1 Google Drive Preparation
-
-Panduan ini memakai satu OAuth client untuk Gmail dan Google Drive sekaligus.
-
-1. Buka Google Cloud Console di `https://console.cloud.google.com/` lalu pilih project yang akan dipakai.
-2. Masuk ke `APIs & Services` → `Library`, lalu aktifkan dua API berikut:
-    - `Google Drive API`
-    - `Gmail API`
-3. Masuk ke `APIs & Services` → `OAuth consent screen`.
-4. Pilih tipe user:
-    - `Internal` jika memakai Google Workspace organisasi dan semua akun ada di domain yang sama.
-    - `External` jika memakai akun Gmail biasa atau akun di luar domain Workspace.
-5. Isi data dasar aplikasi:
-    - `App name`: bebas, misalnya `SPARTA Maintenance`
-    - `User support email`: email kamu
-    - `Developer contact information`: email kamu
-6. Jika status app masih `Testing`, tambahkan email yang akan dipakai login ke bagian `Test users`.
-7. Masuk ke `APIs & Services` → `Credentials` → `Create Credentials` → `OAuth client ID`.
-8. Pilih `Application type: Web application`.
-9. Isi nama client, misalnya `SPARTA Local OAuth`.
-10. Tambahkan `Authorized redirect URI` berikut:
-
-```text
-http://127.0.0.1:3005/oauth2/callback
-```
-
-1. Setelah client dibuat, salin `Client ID` dan `Client Secret`.
-2. Isi `.env` dengan nilai berikut:
-
-```env
-GOOGLE_CLIENT_ID="<OAuth client ID>"
-GOOGLE_CLIENT_SECRET="<OAuth client secret>"
-GOOGLE_REFRESH_TOKEN=""
-GOOGLE_DRIVE_ROOT_FOLDER_ID="<ID folder tujuan arsip>"
-```
-
-1. Ambil `GOOGLE_DRIVE_ROOT_FOLDER_ID` dari URL folder Google Drive tujuan.
-2. Contoh URL folder:
-
-```text
-https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOp
-```
-
-1. Nilai ID adalah bagian setelah `/folders/`, yaitu `1AbCdEfGhIjKlMnOp`.
-2. Jalankan script generator token:
+Generate Prisma Client:
 
 ```bash
-npm run auth:google
-```
-
-1. Script akan mencetak URL login Google. Buka URL itu di browser.
-2. Login memakai akun Google yang memang akan dipakai untuk kirim email dan akses Drive.
-3. Saat layar consent muncul, izinkan akses Gmail dan Google Drive.
-4. Setelah sukses, browser akan diarahkan ke `http://127.0.0.1:3005/oauth2/callback` dan terminal akan mencetak refresh token baru.
-5. Salin token tersebut ke `.env`:
-
-```env
-GOOGLE_REFRESH_TOKEN="<refresh token baru>"
-```
-
-1. Jalankan validasi koneksi Drive:
-
-```bash
-npm run test:gdrive
-```
-
-1. Jika berhasil, terminal akan menampilkan `Google Drive setup OK` dan metadata folder.
-
-Troubleshooting cepat:
-
-1. Error `invalid_grant`: refresh token tidak cocok dengan `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, sudah direvoke, atau dibuat tanpa scope Drive. Generate ulang dengan `npm run auth:google`.
-2. Error `access_denied`: akun Google yang login belum masuk daftar `Test users` jika OAuth consent screen masih mode `Testing`.
-3. Error permission/404 folder: pastikan `GOOGLE_DRIVE_ROOT_FOLDER_ID` benar dan akun Google yang dipakai memang punya akses ke folder tersebut.
-4. Script tidak mengembalikan refresh token: hapus grant lama untuk aplikasi tersebut di halaman Google Account Permissions, lalu jalankan lagi `npm run auth:google`.
-
-### 3. Setup Database
-
-```bash
-# Generate Prisma Client
 npm run db:generate
+```
 
-# Push schema ke database
-npm run db:push
+Jalankan migrasi sesuai workflow database yang dipakai project:
 
-# (Optional) Seed data awal
+```bash
+npx prisma migrate deploy
+```
+
+Untuk data awal development:
+
+```bash
 npm run db:seed
 ```
 
-### 4. Create Admin User
+Buat user manual via CLI:
 
 ```bash
 npm run create-user
 ```
 
-### 5. Run Development Server
+Jalankan dev server:
 
 ```bash
 npm run dev
 ```
 
-Buka [http://localhost:3000](http://localhost:3000).
+Buka `http://localhost:3000`.
 
 ---
 
-## Project Structure
+## Google OAuth dan Drive
 
+Project memakai Google OAuth untuk tiga kebutuhan:
+
+- Gmail OAuth2 untuk kirim email.
+- Google Drive arsip PDF laporan/PJUM.
+- Google Drive CDN/proxy untuk foto.
+
+Aktifkan API berikut di Google Cloud Console:
+
+- Gmail API.
+- Google Drive API.
+
+Untuk membuat refresh token:
+
+```bash
+npm run auth:google
 ```
+
+Script akan membuka flow OAuth lokal dengan redirect:
+
+```text
+http://127.0.0.1:3005/oauth2/callback
+```
+
+Setelah token didapat, isi `GOOGLE_REFRESH_TOKEN`. Jika Drive CDN memakai OAuth client atau folder berbeda, isi juga `DRIVE_CDN_REFRESH_TOKEN` dan variabel `DRIVE_CDN_*`.
+
+Validasi Drive utama:
+
+```bash
+npm run test:gdrive
+```
+
+---
+
+## Script npm
+
+| Command | Fungsi |
+| --- | --- |
+| `npm run dev` | Menjalankan Next.js development server. |
+| `npm run build` | Build production. |
+| `npm run start` | Menjalankan production server hasil build. |
+| `npm run lint` | Menjalankan ESLint. |
+| `npm run db:generate` | Generate Prisma Client. |
+| `npm run db:studio` | Membuka Prisma Studio. |
+| `npm run db:seed` | Seed data awal. |
+| `npm run create-user` | Membuat user lewat CLI. |
+| `npm run auth:google` | Membuat Google OAuth refresh token. |
+| `npm run test:gdrive` | Validasi koneksi Google Drive. |
+| `npm run backup:db` | Backup database ke lokal/Drive. |
+| `npm run cleanup:pending` | Cleanup laporan pending sesuai expiry. |
+| `npm run cleanup-photos` | Dry-run arsip foto PJUM approved. |
+| `npm run cleanup-photos:execute` | Eksekusi arsip foto PJUM approved. |
+| `npm run cleanup-photos-v2` | Dry-run cleanup foto PJUM approved versi baru. |
+| `npm run cleanup-photos-v2:execute` | Eksekusi cleanup foto PJUM approved versi baru. |
+| `npm run import:stores` | Import data toko. |
+| `npm run prune:stores` | Prune toko berdasarkan branch. |
+| `npm run fix:store-branch` | Koreksi branch toko dari file XLSX. |
+
+---
+
+## Endpoint Penting
+
+| Endpoint | Fungsi |
+| --- | --- |
+| `GET /api/health` | Health check untuk Render. |
+| `GET /api/reports/[reportNumber]/pdf` | Stream PDF laporan maintenance. |
+| `GET /api/reports/pjum-pdf` | Stream PDF paket PJUM. |
+| `GET /api/drive/report-archive` | Redirect BMC ke folder arsip report Drive. |
+| `GET /api/drive/pjum-archive` | Redirect BMC ke folder arsip PJUM Drive. |
+| `GET /api/cron/cleanup-pending-reports` | Cron cleanup, butuh `Authorization: Bearer <CRON_SECRET>`. |
+| `GET/POST /api/uploadthing` | UploadThing file router. |
+| `GET /api/photos/[fileId]` | Proxy foto dari Drive CDN. |
+
+Endpoint preview PDF hanya aktif di non-production:
+
+- `GET /api/preview-pdf`
+- `GET /api/preview-pjum`
+- `GET /api/reports/preview-pdf`
+
+---
+
+## Struktur Project
+
+```text
 sparta-maintenance/
-├── app/                    # Next.js App Router pages
-│   ├── api/                # API routes (auth, reports)
-│   ├── approval/           # BMC approval pages
-│   ├── dashboard/          # Dashboard (role-based menus & stats)
-│   ├── login/              # Login page
-│   ├── reports/            # BMS report pages
-│   │   ├── create/         # Create report form (checklist + estimasi)
-│   │   │   └── components/ # Extracted UI components
-│   │   ├── edit/           # Edit rejected reports
-│   │   ├── finished/       # Completed reports
-│   │   └── [reportNumber]/ # Report detail & PDF view
-│   └── user-manual/        # User manual page
-├── components/
-│   ├── layout/             # Header, Footer, shared layouts
-│   └── ui/                 # shadcn/ui components
-├── lib/
-│   ├── email/              # Email service (Gmail OAuth2)
-│   ├── hooks/              # Custom React hooks
-│   ├── pdf/                # PDF generation (React-PDF)
-│   ├── authorization.ts    # Role-based auth guards
-│   ├── checklist-data.ts   # Checklist categories & items
-│   ├── prisma.ts           # Prisma client singleton
-│   ├── session.ts          # JWT session management
-│   └── supabase.ts         # Supabase client
-├── prisma/
-│   ├── schema.prisma       # Database schema
-│   └── seed.ts             # Seed script
-├── types/                  # Shared TypeScript types
-└── scripts/                # Utility scripts (create-user)
+├── app/                         # Next.js App Router
+│   ├── api/                     # API routes: health, auth, PDF, photos, cron, Drive
+│   ├── dashboard/               # Dashboard role-based dan admin backoffice
+│   ├── reports/                 # Laporan BMS/BMC/BNM dan PJUM
+│   │   ├── (bms)/create         # Form laporan BMS
+│   │   ├── (bms)/start-work     # Mulai pengerjaan
+│   │   ├── (bms)/complete       # Penyelesaian pekerjaan
+│   │   ├── pjum                 # PJUM create/approval/detail
+│   │   └── [reportNumber]       # Detail laporan
+│   ├── bmc/database             # Manajemen user/toko cabang oleh BMC
+│   ├── admin/                   # Halaman admin legacy/khusus
+│   ├── login                    # Login
+│   ├── change-password          # Ganti password wajib/manual
+│   ├── forgot-password          # Request reset password
+│   ├── reset-password           # Reset password token
+│   └── maintenance              # Halaman maintenance mode
+├── components/                  # Shared UI, sidebar, layout, session/presence helpers
+├── hooks/                       # Hooks global
+├── lib/                         # Domain logic, auth, Prisma, PDF, Google Drive, email, storage
+│   ├── email/                   # Mailer dan template email
+│   ├── google-drive/            # Client Drive, CDN client, archive helpers
+│   ├── jobs/                    # Job cleanup pending reports
+│   ├── pdf/                     # Generator dan snapshot PDF
+│   └── storage/                 # URL/proxy/upload foto
+├── prisma/                      # Schema, migrations, seed
+├── public/                      # Assets, icons, service worker, offline page
+├── scripts/                     # Utility CLI/import/backup/cleanup
+└── types/                       # Shared TypeScript types
 ```
 
 ---
 
-## Database Schema
+## Database
 
-```mermaid
-erDiagram
-    User ||--o{ Report : creates
-    User ||--o{ ApprovalLog : approves
-    Store ||--o{ Report : has
-    Report ||--o{ ApprovalLog : logs
+Model utama:
 
-    User {
-        string NIK PK
-        string email UK
-        string name
-        enum role "BMS | BMC | ADMIN"
-        string[] branchNames
-    }
+- `User`: data akun, role, branch scope, password hash, presence.
+- `Store`: data toko dan branch.
+- `Report`: laporan maintenance, checklist JSON, estimasi, realisasi, foto, status, PDF paths, arsip Drive.
+- `ApprovalLog`: catatan approval/rejection laporan.
+- `ActivityLog`: timeline aktivitas laporan.
+- `PjumExport`: dokumen PJUM, status approval, data PUM, PDF final.
+- `PjumBankAccount`: rekening PUM per BMS.
+- `GoogleDriveFolderCache`: cache folder Drive.
+- `AppSetting`: setting sistem seperti maintenance toggle.
+- `UserPresence`: last seen user.
 
-    Store {
-        string code PK
-        string name
-        string branchName
-    }
+Schema ada di [prisma/schema.prisma](prisma/schema.prisma).
 
-    Report {
-        string reportNumber PK
-        string branchName
-        string storeName
-        enum status "DRAFT | PENDING | APPROVED | REJECTED | COMPLETED"
-        decimal totalEstimation
-        json items "ChecklistItem[]"
-        json estimations "MaterialEstimation[]"
-    }
+---
 
-    ApprovalLog {
-        uuid id PK
-        string reportNumber FK
-        string approverNIK FK
-        enum status
-        string notes
-    }
+## Maintenance Mode
+
+Maintenance mode punya dua sumber:
+
+1. `MAINTENANCE_MODE=true` sebagai hard override dari environment.
+2. Toggle Admin yang disimpan melalui `AppSetting`.
+
+Saat aktif:
+
+- User non-admin diarahkan ke `/maintenance`.
+- Endpoint `/api/*` mengembalikan `503`, kecuali `/api/health`.
+- `ADMIN` tetap dapat masuk untuk mengelola sistem.
+
+---
+
+## Deploy
+
+Project siap deploy sebagai Docker standalone Next.js.
+
+Build image:
+
+```bash
+docker build -t sparta-maintenance .
+```
+
+Run container:
+
+```bash
+docker run --env-file .env -p 3000:3000 sparta-maintenance
+```
+
+Render Blueprint tersedia di [render.yaml](render.yaml). Health check memakai:
+
+```text
+/api/health
 ```
 
 ---
 
-## Available Scripts
+## Backup dan Cleanup
 
-| Command               | Description                          |
-| --------------------- | ------------------------------------ |
-| `npm run dev`         | Start development server             |
-| `npm run build`       | Build production bundle              |
-| `npm run start`       | Start production server              |
-| `npm run lint`        | Run ESLint                           |
-| `npm run db:generate` | Generate Prisma Client               |
-| `npm run db:push`     | Push schema to database              |
-| `npm run db:studio`   | Open Prisma Studio                   |
-| `npm run db:seed`     | Seed database                        |
-| `npm run db:reset`    | Reset database & re-apply migrations |
-| `npm run create-user` | Create a new user via CLI            |
+Backup database:
+
+```bash
+npm run backup:db
+```
+
+GitHub Actions yang tersedia:
+
+- `.github/workflows/backup-db.yml`
+- `.github/workflows/cleanup-approved-photos.yml`
 
 ---
 
-## Teams
+## Dokumentasi Aktif
 
-<a href="https://github.com/buildingprocess25/sparta-maintenance/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=buildingprocess25/sparta-maintenance" />
-</a>
+Dokumentasi yang dipertahankan di repo:
+
+- [README.md](README.md): onboarding dan referensi operasional project.
+- [AI_CONTEXT.md](AI_CONTEXT.md): konteks kerja untuk AI/developer.
+- [AI_RULES.md](AI_RULES.md): aturan kerja AI/developer.
+
+Folder dokumentasi lama seperti `.docs/`, `docs/`, dan spesifikasi Kiro sudah tidak menjadi sumber rujukan aktif.
+
+---
+
+## Catatan Developer
+
+- Middleware/proxy route protection ada di [proxy.ts](proxy.ts).
+- Auth helper server-side ada di [lib/authorization.ts](lib/authorization.ts).
+- Session cookie berlaku 8 jam, dikelola di [lib/session.ts](lib/session.ts).
+- Prisma datasource membaca `DIRECT_URL` lalu fallback ke `DATABASE_URL` melalui [prisma.config.ts](prisma.config.ts).
+- Preview PDF dan endpoint dev tertentu dinonaktifkan di production.
+- `next.config.ts` memakai `output: "standalone"` untuk Docker/Render.
+
+---
 
 ## License
 
-Proprietary — Internal asset of **PT Sumber Alfaria Trijaya, Tbk**. All rights reserved. See [LICENSE](LICENSE) for details.
+Proprietary. Internal asset of **PT Sumber Alfaria Trijaya, Tbk**. All rights reserved. See [LICENSE](LICENSE) for details.
