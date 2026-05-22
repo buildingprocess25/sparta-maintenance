@@ -18,6 +18,9 @@ export async function GET(
     }
 
     const reportNumber = (await params).reportNumber;
+    const shouldRegenerate =
+        request.nextUrl.searchParams.get("regenerate") === "1" ||
+        request.nextUrl.searchParams.get("force") === "1";
 
     try {
         const report = await prisma.report.findUnique({
@@ -77,7 +80,20 @@ export async function GET(
             );
         }
 
-        const snapshotPath = resolveReportSnapshotPath(report);
+        if (
+            shouldRegenerate &&
+            user.role !== "ADMIN" &&
+            process.env.NODE_ENV !== "development"
+        ) {
+            return NextResponse.json(
+                { error: "Regenerate PDF hanya untuk ADMIN" },
+                { status: 403 },
+            );
+        }
+
+        const snapshotPath = shouldRegenerate
+            ? null
+            : resolveReportSnapshotPath(report);
         if (snapshotPath) {
             const snapshotBuffer = await downloadPdfSnapshot(snapshotPath);
             if (snapshotBuffer) {
@@ -95,6 +111,7 @@ export async function GET(
         const generated = await generateAndSaveReportSnapshot({
             reportNumber,
             checkpoint: "COMPLETED",
+            updateFinalDriveUrl: shouldRegenerate,
         });
 
         return new NextResponse(generated.buffer as unknown as BodyInit, {
@@ -102,7 +119,9 @@ export async function GET(
                 "Content-Type": "application/pdf",
                 "Content-Disposition": `inline; filename="${reportNumber}.pdf"`,
                 "Cache-Control": "private, max-age=3600, immutable",
-                "X-PDF-Source": "generated",
+                "X-PDF-Source": shouldRegenerate
+                    ? "regenerated"
+                    : "generated",
             },
         });
     } catch (error) {

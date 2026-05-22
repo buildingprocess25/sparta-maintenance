@@ -24,6 +24,7 @@ const checkpointFieldMap: Record<
 export async function generateAndSaveReportSnapshot(params: {
     reportNumber: string;
     checkpoint: ReportPdfCheckpoint;
+    updateFinalDriveUrl?: boolean;
 }) {
     if (params.checkpoint !== "COMPLETED") {
         throw new Error(
@@ -31,7 +32,6 @@ export async function generateAndSaveReportSnapshot(params: {
         );
     }
     const built = await buildReportPdfBuffer(params.reportNumber);
-    const version = String(built.report.updatedAt.getTime());
 
     const path = buildFinalReportDrivePath({
         branchName: built.report.branchName,
@@ -49,7 +49,12 @@ export async function generateAndSaveReportSnapshot(params: {
     const fieldName = checkpointFieldMap[params.checkpoint];
     await prisma.report.update({
         where: { reportNumber: params.reportNumber },
-        data: { [fieldName]: driveUrl },
+        data: {
+            [fieldName]: driveUrl,
+            ...(params.updateFinalDriveUrl
+                ? { reportFinalDriveUrl: driveUrl }
+                : {}),
+        },
     });
 
     return {

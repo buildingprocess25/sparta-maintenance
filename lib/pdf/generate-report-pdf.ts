@@ -18,6 +18,7 @@ import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
 import { extractMaterialStoresFromItems } from "@/lib/report-material-stores";
 import { resolvePhotoUrl, isGoogleDriveCdnUrl } from "@/lib/storage/photo-url";
 import { logger } from "@/lib/logger";
+import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -2004,77 +2005,16 @@ function buildReportDocument(
                 if (!isCompletionSubmitted || data.estimations.length === 0)
                     return null;
 
-                // Gather all realisasi items from rusak/not_ok items
-                const allRealisasi = data.items
-                    .filter(
-                        (i) =>
-                            i.condition === "RUSAK" ||
-                            i.preventiveCondition === "NOT_OK",
-                    )
-                    .flatMap((i) => i.realisasiItems ?? []);
-
-                const mergedRows = data.estimations.map((est) => {
-                    const real = allRealisasi.find(
-                        (r) => r.materialName === est.materialName,
-                    );
-                    return {
-                        material: est.materialName,
-                        qty: est.quantity,
-                        unit: est.unit,
-                        estPrice: est.price,
-                        estTotal: est.totalPrice,
-                        realQty: real ? real.quantity : 0,
-                        realPrice: real ? real.price : 0,
-                        realTotal: real ? real.quantity * real.price : 0,
-                    };
-                });
-                // Add realisasi items that don't match any estimation
-                allRealisasi.forEach((r) => {
-                    if (
-                        !data.estimations.some(
-                            (e) => e.materialName === r.materialName,
-                        )
-                    ) {
-                        mergedRows.push({
-                            material: r.materialName,
-                            qty: 0,
-                            unit: r.unit,
-                            estPrice: 0,
-                            estTotal: 0,
-                            realQty: r.quantity,
-                            realPrice: r.price,
-                            realTotal: r.quantity * r.price,
-                        });
-                    }
-                });
-
-                const visibleRows = mergedRows.filter(
-                    (row) => row.realQty > 0 || row.realTotal > 0,
+                const {
+                    visibleRows,
+                    totalEstimasi,
+                    totalDiscount,
+                    totalRealisasi,
+                    selisih,
+                } = buildRealisasiDanaTaktisSummary(
+                    data.items,
+                    data.estimations,
                 );
-                const totalDiscount = data.items
-                    .filter(
-                        (i) =>
-                            i.condition === "RUSAK" ||
-                            i.preventiveCondition === "NOT_OK",
-                    )
-                    .reduce(
-                        (sum, item) =>
-                            sum + Math.max(0, item.discountAmount ?? 0),
-                        0,
-                    );
-                const totalEstimasi = visibleRows.reduce(
-                    (sum, row) => sum + row.estTotal,
-                    0,
-                );
-                const totalRealisasiBeforeDiscount = visibleRows.reduce(
-                    (sum, row) => sum + row.realTotal,
-                    0,
-                );
-                const totalRealisasi = Math.max(
-                    0,
-                    totalRealisasiBeforeDiscount - totalDiscount,
-                );
-                const selisih = totalEstimasi - totalRealisasi;
 
                 const cellStyle = {
                     ...styles.completionTableCell,
@@ -2204,7 +2144,7 @@ function buildReportDocument(
                                             textAlign: "center",
                                         },
                                     },
-                                    String(row.qty),
+                                    String(row.estQty),
                                 ),
                                 React.createElement(
                                     Text,

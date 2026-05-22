@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { checklistCategories } from "@/lib/checklist-data";
-import { resolvePhotoUrl } from "@/lib/storage/photo-url";
+import { normalizePhotoUrl, resolvePhotoUrl } from "@/lib/storage/photo-url";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 type Props = {
@@ -209,10 +209,21 @@ export function ChecklistTab({
                                             !preventive
                                         )
                                             return null;
+                                        const firstImage = Array.isArray(
+                                            reportItem?.images,
+                                        )
+                                            ? reportItem.images[0]
+                                            : undefined;
+                                        const rawPhotoUrl =
+                                            normalizePhotoUrl(firstImage) ??
+                                            normalizePhotoUrl(
+                                                reportItem?.photoUrl,
+                                            );
+                                        const resolvedPhotoUrl = rawPhotoUrl
+                                            ? resolvePhotoUrl(rawPhotoUrl)
+                                            : "";
                                         const hasPhoto =
-                                            (reportItem?.images &&
-                                                reportItem.images.length > 0) ||
-                                            reportItem?.photoUrl;
+                                            resolvedPhotoUrl.length > 0;
                                         const isDamaged =
                                             condition === "RUSAK" ||
                                             preventive === "NOT_OK";
@@ -370,17 +381,16 @@ export function ChecklistTab({
                                                             <div
                                                                 className="relative group overflow-hidden rounded-lg border-2 border-green-200 bg-green-50 w-full cursor-pointer"
                                                                 onClick={() => {
-                                                                    const photoUrl = reportItem?.images?.[0] || reportItem?.photoUrl || "";
-                                                                    onPhotoClick(resolvePhotoUrl(photoUrl));
+                                                                    onPhotoClick(
+                                                                        resolvedPhotoUrl,
+                                                                    );
                                                                 }}
                                                             >
                                                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                                                 <img
-                                                                    src={resolvePhotoUrl(
-                                                                        reportItem?.images?.[0] ||
-                                                                        reportItem?.photoUrl ||
-                                                                        ""
-                                                                    )}
+                                                                    src={
+                                                                        resolvedPhotoUrl
+                                                                    }
                                                                     alt={`Foto ${checklistItem.name}`}
                                                                     className="w-full h-40 object-cover group-hover:scale-105 transition-transform duration-200"
                                                                 />

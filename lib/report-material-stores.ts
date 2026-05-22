@@ -1,4 +1,5 @@
 import type { MaterialStoreJson, ReportItemJson } from "@/types/report";
+import { normalizePhotoUrl } from "@/lib/storage/photo-url";
 
 function normalizeMaterialStore(
     value: Partial<MaterialStoreJson> | null | undefined,
@@ -7,8 +8,8 @@ function normalizeMaterialStore(
     const city = value?.city?.trim();
     const photoUrls = Array.isArray(value?.photoUrls)
         ? value?.photoUrls
-              .map((url) => url?.trim())
-              .filter((url): url is string => Boolean(url))
+              .map(normalizePhotoUrl)
+              .filter((url): url is string => url !== null)
         : [];
 
     if (!name || !city) return null;

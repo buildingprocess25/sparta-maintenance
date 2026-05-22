@@ -24,17 +24,27 @@ export default function GlobalError({
 
     const isDevelopment = process.env.NODE_ENV === "development";
     const rawMessage = error.message ?? "";
+    const normalizedMessage = rawMessage.toLowerCase();
 
     // Deteksi apakah error terkait koneksi/jaringan
     const isNetworkError =
-        rawMessage.includes("terhubung ke server") ||
-        rawMessage.includes("koneksi") ||
-        rawMessage.includes("network") ||
-        rawMessage.includes("connect");
+        normalizedMessage.includes("terhubung ke server") ||
+        normalizedMessage.includes("koneksi") ||
+        normalizedMessage.includes("network") ||
+        normalizedMessage.includes("connect");
 
     const isServerActionMismatch =
         rawMessage.includes("Failed to find Server Action") ||
         rawMessage.includes("older or newer deployment");
+
+    function handleRetry() {
+        if (isServerActionMismatch) {
+            window.location.reload();
+            return;
+        }
+
+        reset();
+    }
 
     return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-background">
@@ -78,9 +88,9 @@ export default function GlobalError({
                             ID Referensi Error: {error.digest}
                         </p>
                     )}
-                    <Button onClick={reset} className="w-full" size="lg">
+                    <Button onClick={handleRetry} className="w-full" size="lg">
                         <RefreshCw className="mr-2 h-4 w-4" />
-                        Coba Lagi
+                        {isServerActionMismatch ? "Refresh Browser" : "Coba Lagi"}
                     </Button>
                     <Button
                         variant="outline"

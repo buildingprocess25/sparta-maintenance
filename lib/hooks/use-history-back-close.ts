@@ -27,22 +27,37 @@ export function useHistoryBackClose(
     useEffect(() => {
         if (!isOpen) return;
 
-        history.pushState({ _lightbox: true }, "");
+        let pushedHistory = false;
+        try {
+            history.pushState({ _lightbox: true }, "");
+            pushedHistory = true;
+        } catch (error) {
+            console.warn("Unable to push lightbox history state", error);
+        }
 
         const handler = () => onCloseRef.current();
-        window.addEventListener("popstate", handler, { once: true });
+        if (pushedHistory) {
+            window.addEventListener("popstate", handler, { once: true });
+        }
 
         return () => {
-            window.removeEventListener("popstate", handler);
+            if (pushedHistory) {
+                window.removeEventListener("popstate", handler);
+            }
         };
     }, [isOpen]);
 
     // Close via button / backdrop: pop the history entry → triggers popstate → onClose
     return () => {
-        if (history.state?._lightbox) {
-            history.back();
-        } else {
-            onCloseRef.current();
+        try {
+            if (history.state?._lightbox) {
+                history.back();
+                return;
+            }
+        } catch (error) {
+            console.warn("Unable to close lightbox through browser history", error);
         }
+
+        onCloseRef.current();
     };
 }

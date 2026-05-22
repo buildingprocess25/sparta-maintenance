@@ -21,7 +21,7 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import { resolvePhotoUrl } from "@/lib/storage/photo-url";
+import { normalizePhotoUrls, resolvePhotoUrl } from "@/lib/storage/photo-url";
 import type {
     ReportItemJson,
     MaterialEstimationJson,
@@ -60,17 +60,21 @@ function PhotoGrid({
     urls: string[];
     onPhotoClick: (src: string) => void;
 }) {
-    if (urls.length === 0) return null;
+    const displayUrls = normalizePhotoUrls(urls)
+        .map(resolvePhotoUrl)
+        .filter((url) => url.length > 0);
+
+    if (displayUrls.length === 0) return null;
     return (
         <div className="flex flex-wrap gap-2">
-            {urls.map((url, i) => (
+            {displayUrls.map((url, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                    key={i}
-                    src={resolvePhotoUrl(url)}
+                    key={`${url}-${i}`}
+                    src={url}
                     alt={`Foto ${i + 1}`}
                     className="h-24 w-24 object-cover rounded-md border cursor-zoom-in hover:opacity-80 transition-opacity"
-                    onClick={() => onPhotoClick(resolvePhotoUrl(url))}
+                    onClick={() => onPhotoClick(url)}
                 />
             ))}
         </div>

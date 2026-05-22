@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { ReportDetailView } from "./report-detail-view";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { parseMaterialStores } from "@/lib/report-material-stores";
+import { normalizePhotoUrl, normalizePhotoUrls } from "@/lib/storage/photo-url";
 
 type Props = {
     params: Promise<{ reportNumber: string }>;
@@ -134,12 +135,7 @@ export default async function ReportDetailPage({ params }: Props) {
         if (trimmed.startsWith("[")) {
             try {
                 const parsed = JSON.parse(trimmed);
-                return Array.isArray(parsed)
-                    ? parsed.filter(
-                          (url): url is string =>
-                              typeof url === "string" && url.trim().length > 0,
-                      )
-                    : [];
+                return normalizePhotoUrls(parsed);
             } catch {
                 return [];
             }
@@ -148,26 +144,26 @@ export default async function ReportDetailPage({ params }: Props) {
         if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
             try {
                 const parsed = JSON.parse(trimmed);
-                if (typeof parsed === "string" && parsed.trim().length > 0) {
-                    return [parsed];
-                }
+                const normalized = normalizePhotoUrl(parsed);
+                return normalized ? [normalized] : [];
             } catch {
                 return [];
             }
         }
 
-        return trimmed.length > 0 ? [trimmed] : [];
+        const normalized = normalizePhotoUrl(trimmed);
+        return normalized ? [normalized] : [];
     }
 
     // Parse receipt URLs — stored as JSONB array, but may come back as a JSON
     // string with some DB drivers (e.g. Neon). Handle both forms defensively.
     function parseJsonArray(raw: unknown): string[] {
         if (!raw) return [];
-        if (Array.isArray(raw)) return raw as string[];
+        if (Array.isArray(raw)) return normalizePhotoUrls(raw);
         if (typeof raw === "string" && raw.startsWith("[")) {
             try {
                 const parsed = JSON.parse(raw);
-                return Array.isArray(parsed) ? (parsed as string[]) : [];
+                return normalizePhotoUrls(parsed);
             } catch {
                 return [];
             }

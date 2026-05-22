@@ -15,6 +15,9 @@ export const metadata: Metadata = {
     description:
         "Aplikasi pelaporan kerusakan, monitoring progres perbaikan, dan tracking aset maintenance toko secara terpusat.",
     manifest: "/manifest.webmanifest",
+    other: {
+        google: "notranslate",
+    },
     appleWebApp: {
         capable: true,
         statusBarStyle: "default",
@@ -32,8 +35,12 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en" className={outfit.variable}>
-            <body className="antialiased">
+        <html
+            lang="id"
+            translate="no"
+            className={`${outfit.variable} notranslate`}
+        >
+            <body className="antialiased notranslate" translate="no">
                 <PWARegister />
                 <PresenceTracker />
                 <SessionInterceptor>{children}</SessionInterceptor>
