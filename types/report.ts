@@ -40,6 +40,7 @@ export interface ReportItemJson {
     materialStoreCity?: string;
     receiptImages?: string[]; // Foto nota/struk belanja
     realisasiItems?: RealisasiItemJson[]; // Realisasi biaya (per baris material)
+    discountAmount?: number; // Potongan harga per item saat penyelesaian
     materialStores?: MaterialStoreJson[]; // Toko tempat beli material (bisa >1)
     completionNotes?: string; // Catatan saat penyelesaian (terpisah dari notes inspeksi)
 }

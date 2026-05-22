@@ -10,14 +10,18 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 import { ReportSelectDialog } from "./components/report-select-dialog";
 import { CompletionChecklistStep } from "./components/completion-checklist-step";
-import { createInitialItemState } from "./types";
+import {
+    createInitialItemState,
+    hasActualPrice,
+    realisasiGrandTotal,
+    realisasiNetTotal,
+} from "./types";
 
 import { submitCompletionWork } from "@/app/reports/actions/submit-completion-work";
 import { fetchReportForCompletion } from "./actions";
 import type { WorkableReport, ReportForCompletion } from "./queries";
 import type { CompletionDraftData, CompletionItemState } from "./types";
 import { useCompletionAutosave } from "./hooks/use-completion-autosave";
-import { realisasiGrandTotal } from "./types";
 import { useRouter } from "next/navigation";
 import type {
     MaterialEstimationJson,
@@ -121,6 +125,10 @@ function buildItemStates(
                     existingRealisasi.length > 0
                         ? toRealisasiEntries(item.itemId, existingRealisasi)
                         : baseState.realisasiEntries,
+                discountAmount:
+                    typeof item.discountAmount === "number"
+                        ? Math.max(0, item.discountAmount)
+                        : baseState.discountAmount,
                 notes: item.completionNotes?.trim() || "",
             });
         }
@@ -172,7 +180,7 @@ export function CompleteForm({
             additionalPhotos: Array<{ id: string; previewUrl: string }>,
             additionalNote: string,
         ): CompletionDraftData => ({
-            version: 1,
+            version: 2,
             reportNumber: rn,
             savedAt: new Date().toISOString(),
             globalNotes: notes,
@@ -185,6 +193,7 @@ export function CompleteForm({
                     {
                         afterPhotoIds: s.afterPhotos.map((p) => p.id),
                         realisasiEntries: s.realisasiEntries,
+                        discountAmount: s.discountAmount,
                         materialStores: s.materialStores,
                         receiptPhotoIds: [],
                         notes: s.notes,
@@ -275,6 +284,9 @@ export function CompleteForm({
                             draftState.realisasiEntries.length > 0
                                 ? draftState.realisasiEntries
                                 : freshState.realisasiEntries,
+                        discountAmount:
+                            draftState.discountAmount ??
+                            freshState.discountAmount,
                     });
                 }
                 setItemStates(mergedStates);
@@ -513,11 +525,31 @@ export function CompleteForm({
             }
             if (
                 state.realisasiEntries.some(
-                    (e) => !e.materialName.trim() || e.price < 0,
+                    (e) => !e.materialName.trim() || !hasActualPrice(e),
                 )
             ) {
                 toast.error(
-                    "Semua baris realisasi harus memiliki nama barang dan harga tidak boleh minus",
+                    "Semua baris realisasi harus memiliki nama barang dan harga aktual/real",
+                    { description: `Item: ${item.itemName}` },
+                );
+                return;
+            }
+            if (state.realisasiEntries.some((e) => e.price !== null && e.price < 0)) {
+                toast.error("Harga aktual/real tidak boleh minus", {
+                    description: `Item: ${item.itemName}`,
+                });
+                return;
+            }
+            if (state.discountAmount < 0) {
+                toast.error("Potongan harga tidak boleh minus", {
+                    description: `Item: ${item.itemName}`,
+                });
+                return;
+            }
+            const itemSubtotal = realisasiGrandTotal(state.realisasiEntries);
+            if (state.discountAmount > itemSubtotal) {
+                toast.error(
+                    "Potongan harga tidak boleh lebih besar dari total item",
                     { description: `Item: ${item.itemName}` },
                 );
                 return;
@@ -575,10 +607,14 @@ export function CompleteForm({
                         materialName: e.materialName,
                         quantity: e.quantity,
                         unit: e.unit,
-                        price: e.price,
-                        totalPrice: e.quantity * e.price,
+                        price: e.price ?? 0,
+                        totalPrice: e.quantity * (e.price ?? 0),
                     })),
-                    actualCost: realisasiGrandTotal(state.realisasiEntries),
+                    discountAmount: state.discountAmount,
+                    actualCost: realisasiNetTotal(
+                        state.realisasiEntries,
+                        state.discountAmount,
+                    ),
                     materialStores: [],
                     receiptImages: [],
                     notes: state.notes.trim() || undefined,

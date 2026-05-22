@@ -335,7 +335,9 @@ function buildRevisionDocument(data: RevisionPdfData) {
             }
         }
 
-        const itemTotal = rows.reduce((s, r) => s + r.subtotal, 0);
+        const discountAmount = Math.max(0, item.discountAmount ?? 0);
+        const itemSubtotal = rows.reduce((s, r) => s + r.subtotal, 0);
+        const itemTotal = Math.max(0, itemSubtotal - discountAmount);
         grandTotal += itemTotal;
 
         return React.createElement(
@@ -498,6 +500,50 @@ function buildRevisionDocument(data: RevisionPdfData) {
                               ),
                           ),
                       ),
+                      discountAmount > 0
+                          ? React.createElement(
+                                View,
+                                {
+                                    style:
+                                        rows.length % 2 === 0
+                                            ? s.tableRow
+                                            : s.tableRowAlt,
+                                },
+                                React.createElement(Text, {
+                                    style: { ...s.tableCell, width: "30%" },
+                                }),
+                                React.createElement(Text, {
+                                    style: { ...s.tableCell, width: "10%" },
+                                }),
+                                React.createElement(Text, {
+                                    style: { ...s.tableCell, width: "12%" },
+                                }),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...s.tableCell,
+                                            width: "24%",
+                                            textAlign: "right",
+                                            fontFamily: "Helvetica-Bold",
+                                        },
+                                    },
+                                    "Potongan Harga",
+                                ),
+                                React.createElement(
+                                    Text,
+                                    {
+                                        style: {
+                                            ...s.tableCell,
+                                            width: "24%",
+                                            textAlign: "right",
+                                            fontFamily: "Helvetica-Bold",
+                                        },
+                                    },
+                                    `-${fmtCurrency(discountAmount)}`,
+                                ),
+                            )
+                          : null,
                       // Item total
                       React.createElement(
                           View,

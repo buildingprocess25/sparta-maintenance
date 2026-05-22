@@ -9,6 +9,7 @@ import {
 } from "@/lib/google-drive/files";
 import { buildDriveFolderUrl } from "@/lib/google-drive/archive";
 import { logger } from "@/lib/logger";
+import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import type {
     MaterialEstimationJson,
     ReportItemJson,
@@ -148,8 +149,6 @@ export async function saveRealisasiRevision(
             input.items.map((i) => [i.itemId, i]),
         );
 
-        let newTotalReal = 0;
-
         const updatedItems: ReportItemJson[] = currentItems.map((item) => {
             const rev = revisedByItemId.get(item.itemId);
             if (!rev) return item;
@@ -164,12 +163,6 @@ export async function saveRealisasiRevision(
                 }),
             );
 
-            const itemTotal = realisasiItems.reduce(
-                (s, r) => s + r.totalPrice,
-                0,
-            );
-            newTotalReal += itemTotal;
-
             return {
                 ...item,
                 realisasiItems,
@@ -180,18 +173,7 @@ export async function saveRealisasiRevision(
             };
         });
 
-        // Items tanpa realisasi dikontribusikan 0 (tidak dijumlah lagi)
-        // Items yang tidak direvisi tetap menggunakan nilai lama
-        for (const item of currentItems) {
-            if (!revisedByItemId.has(item.itemId)) {
-                const oldTotal =
-                    item.realisasiItems?.reduce(
-                        (s, r) => s + r.totalPrice,
-                        0,
-                    ) ?? 0;
-                newTotalReal += oldTotal;
-            }
-        }
+        const newTotalReal = calculateTotalRealisasiFromItems(updatedItems);
 
         await prisma.report.update({
             where: { reportNumber: input.reportNumber },

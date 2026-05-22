@@ -27,6 +27,7 @@ import type {
     MaterialEstimationJson,
     MaterialStoreJson,
 } from "@/types/report";
+import { calculateItemRealisasiTotal } from "@/lib/realisasi";
 
 type Props = {
     items: ReportItemJson[];
@@ -125,12 +126,7 @@ export function CompletionTab({
 
     // Calculate grand total realization across all items
     const grandTotalRealisasi = items.reduce((total, item) => {
-        const realisasiItems = item.realisasiItems ?? [];
-        const itemTotal = realisasiItems.reduce(
-            (sum, r) => sum + (r.totalPrice || 0),
-            0,
-        );
-        return total + itemTotal;
+        return total + calculateItemRealisasiTotal(item);
     }, 0);
 
     // Items that are BMS-handled and broken/not-ok — show even if only before
@@ -345,7 +341,7 @@ export function CompletionTab({
 
             {/* ── Per-item completion data ────────────────────────────────── */}
             <Card className="shadow-sm border-border/60">
-                <CardHeader className="border-b">
+                <CardHeader className="border-b pb-0">
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base font-semibold flex items-center gap-2">
                             <ClipboardList className="h-4 w-4 text-primary" />
@@ -381,13 +377,15 @@ export function CompletionTab({
                         <div className="divide-y">
                             {completedItems.map((item) => {
                                 const realisasi = item.realisasiItems ?? [];
+                                const discountAmount = Math.max(
+                                    0,
+                                    item.discountAmount ?? 0,
+                                );
                                 const estimasiItem = estimations.filter(
                                     (e) => e.itemId === item.itemId,
                                 );
-                                const totalRealisasi = realisasi.reduce(
-                                    (sum, r) => sum + r.totalPrice,
-                                    0,
-                                );
+                                const totalRealisasi =
+                                    calculateItemRealisasiTotal(item);
                                 const totalEstimasi = estimasiItem.reduce(
                                     (sum, e) => sum + e.totalPrice,
                                     0,
@@ -397,7 +395,7 @@ export function CompletionTab({
                                 return (
                                     <div
                                         key={item.itemId}
-                                        className="px-4 space-y-4"
+                                        className="px-4 py-2 space-y-4"
                                     >
                                         {/* Item header */}
                                         <div className="flex items-start gap-2">
@@ -754,6 +752,26 @@ export function CompletionTab({
                                                                             </TableRow>
                                                                         ),
                                                                     )}
+                                                                    {discountAmount >
+                                                                        0 && (
+                                                                        <TableRow className="bg-primary/5 hover:bg-primary/5 border-t border-dashed">
+                                                                            <TableCell
+                                                                                colSpan={
+                                                                                    3
+                                                                                }
+                                                                                className="text-right text-xs font-semibold py-1.5"
+                                                                            >
+                                                                                Potongan
+                                                                                Harga
+                                                                            </TableCell>
+                                                                            <TableCell className="text-right text-sm font-bold font-mono text-primary py-1.5">
+                                                                                -
+                                                                                {formatCurrency(
+                                                                                    discountAmount,
+                                                                                )}
+                                                                            </TableCell>
+                                                                        </TableRow>
+                                                                    )}
                                                                     <TableRow className="bg-primary/5 hover:bg-primary/5 border-t border-dashed">
                                                                         <TableCell
                                                                             colSpan={
@@ -807,6 +825,21 @@ export function CompletionTab({
                                                                         </p>
                                                                     </div>
                                                                 ),
+                                                            )}
+                                                            {discountAmount >
+                                                                0 && (
+                                                                <div className="p-3 flex justify-between items-center bg-primary/5 border-t">
+                                                                    <p className="text-sm font-semibold">
+                                                                        Potongan
+                                                                        Harga
+                                                                    </p>
+                                                                    <p className="text-sm font-bold font-mono text-primary">
+                                                                        -
+                                                                        {formatCurrency(
+                                                                            discountAmount,
+                                                                        )}
+                                                                    </p>
+                                                                </div>
                                                             )}
                                                             <div className="p-3 flex justify-between items-center bg-primary/5">
                                                                 <p className="text-sm font-semibold">

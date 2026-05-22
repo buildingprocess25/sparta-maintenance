@@ -18,6 +18,7 @@ export interface CompletionItemInput {
     itemId: string;
     afterImages: string[];
     realisasiItems: RealisasiItemJson[];
+    discountAmount?: number;
     /** Computed sum of realisasiItems — stored for backward compat display */
     actualCost: number;
     materialStores: MaterialStoreJson[];
@@ -92,6 +93,7 @@ export async function submitCompletionWork(
                 afterImages: completion.afterImages,
                 // New structured fields
                 realisasiItems: completion.realisasiItems,
+                discountAmount: Math.max(0, completion.discountAmount ?? 0),
                 materialStores: completion.materialStores,
                 completionNotes: completion.notes,
                 // Backward-compat derived fields

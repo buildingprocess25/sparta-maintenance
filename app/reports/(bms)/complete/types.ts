@@ -24,15 +24,26 @@ export interface RealisasiEntry {
     materialName: string;
     quantity: number;
     unit: string;
-    price: number; // harga per satuan
+    price: number | null; // harga aktual per satuan; null = belum diisi
 }
 
 export function realisasiTotal(entry: RealisasiEntry): number {
-    return entry.quantity * entry.price;
+    return entry.price === null ? 0 : entry.quantity * entry.price;
 }
 
 export function realisasiGrandTotal(entries: RealisasiEntry[]): number {
     return entries.reduce((s, e) => s + realisasiTotal(e), 0);
+}
+
+export function realisasiNetTotal(
+    entries: RealisasiEntry[],
+    discountAmount: number,
+): number {
+    return Math.max(0, realisasiGrandTotal(entries) - discountAmount);
+}
+
+export function hasActualPrice(entry: RealisasiEntry): boolean {
+    return entry.price !== null;
 }
 
 // ─── Toko Material ───────────────────────────────────────────────────────────
@@ -48,6 +59,7 @@ export interface MaterialStoreEntry {
 export interface CompletionItemState {
     afterPhotos: LocalPhoto[];
     realisasiEntries: RealisasiEntry[];
+    discountAmount: number;
     materialStores: MaterialStoreEntry[];
     receiptPhotos: LocalPhoto[];
     /** Catatan penyelesaian — selalu kosong awalnya, bukan dari data laporan */
@@ -65,8 +77,9 @@ export function createInitialItemState(
             materialName: e.materialName,
             quantity: e.quantity,
             unit: e.unit,
-            price: e.price,
+            price: null,
         })),
+        discountAmount: 0,
         materialStores:
             estimations.length > 0
                 ? [{ id: `store-${Date.now()}`, name: "", city: "" }]
@@ -81,13 +94,14 @@ export function createInitialItemState(
 export interface DraftItemState {
     afterPhotoIds: string[];
     realisasiEntries: RealisasiEntry[];
+    discountAmount?: number;
     materialStores: MaterialStoreEntry[];
     receiptPhotoIds: string[];
     notes: string;
 }
 
 export interface CompletionDraftData {
-    version: 1;
+    version: 2;
     reportNumber: string;
     savedAt: string;
     globalNotes: string;

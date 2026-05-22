@@ -10,7 +10,7 @@ import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { uploadPjumToDrive } from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
-import type { ReportItemJson } from "@/types/report";
+import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import {
     buildFinalReportDrivePath,
     deletePdfSnapshots,
@@ -254,16 +254,7 @@ export async function getPjumExportDetail(
         });
 
         const reportSummaries = reports.map((r) => {
-            const items = (r.items ?? []) as unknown as ReportItemJson[];
-            let totalRealisasi = 0;
-            for (const item of items) {
-                if (item.realisasiItems && item.realisasiItems.length > 0) {
-                    for (const real of item.realisasiItems) {
-                        totalRealisasi +=
-                            (real.quantity || 0) * (real.price || 0);
-                    }
-                }
-            }
+            const totalRealisasi = calculateTotalRealisasiFromItems(r.items);
             return {
                 reportNumber: r.reportNumber,
                 storeName: r.storeName,
@@ -425,18 +416,10 @@ export async function approvePjumExport(input: {
             },
         });
 
-        let totalExpenditure = 0;
-        for (const report of reports) {
-            const items = (report.items ?? []) as unknown as ReportItemJson[];
-            for (const item of items) {
-                if (item.realisasiItems && item.realisasiItems.length > 0) {
-                    for (const real of item.realisasiItems) {
-                        totalExpenditure +=
-                            (real.quantity || 0) * (real.price || 0);
-                    }
-                }
-            }
-        }
+        const totalExpenditure = reports.reduce(
+            (sum, report) => sum + calculateTotalRealisasiFromItems(report.items),
+            0,
+        );
 
         const pjumFormData: PjumFormData = {
             weekNumber: pjumExport.weekNumber,

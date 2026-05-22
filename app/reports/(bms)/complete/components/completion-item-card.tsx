@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Camera, ChevronDown, Plus, Trash2, ZoomIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,7 +22,7 @@ import { unitOptions } from "@/lib/checklist-data";
 import { LocalNotesTextarea } from "../../create/components/local-notes-textarea";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 import type { CompletionItemState, RealisasiEntry } from "../types";
-import { realisasiGrandTotal, realisasiTotal } from "../types";
+import { realisasiGrandTotal, realisasiNetTotal, realisasiTotal } from "../types";
 
 // ─── Re-export types so existing imports keep working ─────────────────────────
 export type { CompletionItemState } from "../types";
@@ -46,27 +45,29 @@ function PriceInput({
     onCommit,
     className,
 }: {
-    value: number;
-    onCommit: (v: number) => void;
+    value: number | null;
+    onCommit: (v: number | null) => void;
     className?: string;
 }) {
     const fmt = (n: number) =>
         Number.isFinite(n) ? formatIDR(Math.max(0, n)) : "";
-    const [local, setLocal] = useState(fmt(value));
+    const displayValue = value === null ? "" : fmt(value);
 
     return (
         <Input
             type="text"
             inputMode="numeric"
-            placeholder="0"
-            value={local}
+            placeholder="Isi harga real"
+            value={displayValue}
             onChange={(e) => {
                 const raw = e.target.value.replace(/[^0-9]/g, "");
-                const num = parseInt(raw, 10) || 0;
-                setLocal(num ? formatIDR(num) : raw);
+                if (raw === "") {
+                    onCommit(null);
+                    return;
+                }
+                const num = parseInt(raw, 10);
                 onCommit(num);
             }}
-            onBlur={() => setLocal(fmt(value))}
             className={className}
         />
     );
@@ -157,15 +158,19 @@ function PhotoThumbnails({
 
 function RealisasiTable({
     entries,
+    discountAmount,
     onChange,
+    onDiscountChange,
 }: {
     entries: RealisasiEntry[];
+    discountAmount: number;
     onChange: (entries: RealisasiEntry[]) => void;
+    onDiscountChange: (discountAmount: number) => void;
 }) {
     const update = (
         id: string,
         field: keyof RealisasiEntry,
-        value: string | number,
+        value: string | number | null,
     ) =>
         onChange(
             entries.map((e) => (e.id === id ? { ...e, [field]: value } : e)),
@@ -181,11 +186,12 @@ function RealisasiTable({
                 materialName: "",
                 quantity: 1,
                 unit: "pcs",
-                price: 0,
+                price: null,
             },
         ]);
 
-    const grandTotal = realisasiGrandTotal(entries);
+    const subtotal = realisasiGrandTotal(entries);
+    const grandTotal = realisasiNetTotal(entries, discountAmount);
 
     return (
         <div className="border rounded-lg overflow-x-auto">
@@ -305,18 +311,52 @@ function RealisasiTable({
 
                     {/* Grand total */}
                     {entries.length > 0 && (
-                        <TableRow className="bg-primary/10 font-bold">
-                            <TableCell
-                                colSpan={5}
-                                className="text-right text-sm"
-                            >
-                                Total :
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-primary">
-                                Rp {formatIDR(grandTotal)}
-                            </TableCell>
-                            <TableCell />
-                        </TableRow>
+                        <>
+                            <TableRow>
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm"
+                                >
+                                    Subtotal :
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-medium">
+                                    Rp {formatIDR(subtotal)}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                            <TableRow>
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm"
+                                >
+                                    Potongan Harga :
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <PriceInput
+                                        value={discountAmount}
+                                        onCommit={(v) =>
+                                            onDiscountChange(
+                                                Math.max(0, v ?? 0),
+                                            )
+                                        }
+                                        className="h-8 text-right"
+                                    />
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                            <TableRow className="bg-primary/10 font-bold">
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm"
+                                >
+                                    Total :
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-primary">
+                                    Rp {formatIDR(grandTotal)}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                        </>
                     )}
                 </TableBody>
             </Table>
@@ -472,8 +512,12 @@ export function CompletionItemCard({
                     </div>
                     <RealisasiTable
                         entries={state.realisasiEntries}
+                        discountAmount={state.discountAmount}
                         onChange={(entries) =>
                             onChange({ realisasiEntries: entries })
+                        }
+                        onDiscountChange={(discountAmount) =>
+                            onChange({ discountAmount })
                         }
                     />
                 </div>

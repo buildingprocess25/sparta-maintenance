@@ -186,7 +186,7 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             }
 
             // Validate version
-            if (draft.version !== 1) return null;
+            if (draft.version !== 2) return null;
 
             // Restore selfie photos from IDB
             const selfiePhotos: LocalPhoto[] = [];
@@ -241,6 +241,7 @@ export function useCompletionAutosave(): UseCompletionAutosave {
                 itemStates.set(itemId, {
                     afterPhotos,
                     realisasiEntries: saved.realisasiEntries,
+                    discountAmount: saved.discountAmount ?? 0,
                     materialStores: saved.materialStores,
                     receiptPhotos,
                     notes: saved.notes,

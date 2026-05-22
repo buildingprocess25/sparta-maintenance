@@ -34,17 +34,25 @@ export function calculateTotalRealisasiFromItems(items: unknown): number {
     let totalRealisasi = 0;
 
     for (const item of reportItems) {
-        if (!item.realisasiItems || item.realisasiItems.length === 0) {
-            continue;
-        }
-
-        for (const realisasi of item.realisasiItems) {
-            totalRealisasi +=
-                (realisasi.quantity || 0) * (realisasi.price || 0);
-        }
+        totalRealisasi += calculateItemRealisasiTotal(item);
     }
 
     return totalRealisasi;
+}
+
+export function calculateItemRealisasiTotal(item: ReportItemJson): number {
+    const subtotal = (item.realisasiItems ?? []).reduce(
+        (sum, realisasi) =>
+            sum + (realisasi.totalPrice ?? realisasi.quantity * realisasi.price),
+        0,
+    );
+    const discount =
+        typeof item.discountAmount === "number" &&
+        Number.isFinite(item.discountAmount)
+            ? Math.max(0, item.discountAmount)
+            : 0;
+
+    return Math.max(0, subtotal - discount);
 }
 
 export function hasRealisasiItems(items: unknown): boolean {

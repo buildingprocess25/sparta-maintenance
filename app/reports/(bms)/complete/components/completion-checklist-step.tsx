@@ -34,7 +34,7 @@ import {
 } from "./completion-item-card";
 import type { ReportForCompletion } from "../queries";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
-import { realisasiGrandTotal } from "../types";
+import { hasActualPrice, realisasiNetTotal } from "../types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -43,7 +43,7 @@ function isItemComplete(state: CompletionItemState): boolean {
         state.afterPhotos.length > 0 &&
         state.realisasiEntries.length > 0 &&
         state.realisasiEntries.every(
-            (e) => e.materialName.trim().length > 0 && e.price >= 0,
+            (e) => e.materialName.trim().length > 0 && hasActualPrice(e),
         )
     );
 }
@@ -306,8 +306,9 @@ export function CompletionChecklistStep({
                                     return (
                                         sum +
                                         (s
-                                            ? realisasiGrandTotal(
+                                            ? realisasiNetTotal(
                                                   s.realisasiEntries,
+                                                  s.discountAmount,
                                               )
                                             : 0)
                                     );

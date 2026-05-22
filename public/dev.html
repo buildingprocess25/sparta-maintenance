@@ -57,6 +57,15 @@
                 border: 1px solid color-mix(in srgb, CanvasText 22%, Canvas);
                 box-sizing: border-box;
             }
+            .inline {
+                display: flex;
+                gap: 0.5rem;
+                align-items: end;
+                flex-wrap: wrap;
+            }
+            .inline input {
+                flex: 1 1 18rem;
+            }
             .row {
                 margin: 0.5rem 0;
             }
@@ -75,9 +84,44 @@
                 background: #2563eb;
                 color: #fff;
             }
+            button.secondary {
+                background: #0f172a;
+            }
             button:disabled {
                 opacity: 0.55;
                 cursor: not-allowed;
+            }
+            .hidden {
+                display: none;
+            }
+            .muted {
+                color: color-mix(in srgb, CanvasText 62%, Canvas);
+                font-size: 0.85rem;
+            }
+            .pill {
+                display: inline-flex;
+                border-radius: 999px;
+                padding: 0.1rem 0.45rem;
+                background: color-mix(in srgb, CanvasText 8%, Canvas);
+                font-size: 0.75rem;
+                font-weight: 700;
+            }
+            .report-list {
+                display: grid;
+                gap: 0.5rem;
+                margin-top: 0.75rem;
+            }
+            .report-item {
+                display: grid;
+                gap: 0.2rem;
+                padding: 0.65rem 0.75rem;
+                border: 1px solid color-mix(in srgb, CanvasText 14%, Canvas);
+                border-radius: 8px;
+                background: color-mix(in srgb, CanvasText 3%, Canvas);
+            }
+            .report-item label {
+                align-items: flex-start;
+                margin: 0;
             }
             #log {
                 white-space: pre-wrap;
@@ -98,13 +142,20 @@
 
         <div class="row">
             <label for="pjumId">PjumExport ID (UUID)</label>
-            <input
-                type="text"
-                id="pjumId"
-                placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-                spellcheck="false"
-            />
+            <div class="inline">
+                <input
+                    type="text"
+                    id="pjumId"
+                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                    spellcheck="false"
+                />
+                <button type="button" class="secondary" id="searchBtn">
+                    Cari
+                </button>
+            </div>
         </div>
+
+        <div id="pjumSummary" class="note hidden"></div>
 
         <fieldset>
             <legend>Field yang direvisi</legend>
@@ -134,6 +185,14 @@
                 <span><code>toDate</code></span>
             </label>
             <div class="row"><input type="date" id="toDate" disabled /></div>
+
+            <label>
+                <input type="checkbox" id="revReports" disabled />
+                <span>Cabut laporan dari PJUM</span>
+            </label>
+            <div id="reportsPanel" class="note">
+                Cari PJUM dulu untuk menampilkan daftar laporan.
+            </div>
         </fieldset>
 
         <fieldset>
@@ -147,10 +206,10 @@
             </label>
             <label>
                 <input type="checkbox" id="uploadDrive" />
-                <span 
+                <span
                     >Upload ke Google Drive + update
                     <code>pjumFinalDriveUrl</code>
-                
+                </span>
             </label>
         </fieldset>
 
@@ -160,6 +219,11 @@
 
         <script>
             const $ = (id) => document.getElementById(id);
+            const uuidPattern =
+                /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            let loadedPjum = null;
+            let autoLoadTimer = null;
+
             const log = (msg) => {
                 $("log").textContent += msg + "\n";
             };
@@ -174,6 +238,142 @@
                 return window.location.origin;
             }
 
+            function requestHeaders(includeJson) {
+                const headers = includeJson ? { "Content-Type": "application/json" } : {};
+                const secEl = $("secret");
+                const sec = secEl ? String(secEl.value || "").trim() : "";
+                if (sec) headers["x-dev-pjum-revise-secret"] = sec;
+                return headers;
+            }
+
+            function setText(parent, text, className) {
+                const el = document.createElement("div");
+                if (className) el.className = className;
+                el.textContent = text;
+                parent.appendChild(el);
+                return el;
+            }
+
+            function renderSummary(data) {
+                const summary = $("pjumSummary");
+                summary.textContent = "";
+                summary.classList.remove("hidden");
+                setText(
+                    summary,
+                    `${data.bmsName} (${data.bmsNIK}) • ${data.branchName}`,
+                );
+                setText(
+                    summary,
+                    `Minggu ${data.weekNumber} • ${data.fromDate} s/d ${data.toDate} • ${data.status}`,
+                    "muted",
+                );
+                setText(
+                    summary,
+                    `${data.reports.length} laporan tersimpan di PJUM ini`,
+                    "muted",
+                );
+            }
+
+            function renderReports(data) {
+                const panel = $("reportsPanel");
+                panel.textContent = "";
+                if (!data.reports.length) {
+                    panel.textContent = "PJUM ini belum memiliki laporan.";
+                    return;
+                }
+
+                const hint = document.createElement("div");
+                hint.className = "muted";
+                hint.textContent =
+                    "Centang laporan yang ingin dicabut. Saat persistDb aktif, laporan itu akan dilepas dari PJUM dan pjumExportedAt dikosongkan.";
+                panel.appendChild(hint);
+
+                const list = document.createElement("div");
+                list.className = "report-list";
+                panel.appendChild(list);
+
+                for (const report of data.reports) {
+                    const item = document.createElement("div");
+                    item.className = "report-item";
+
+                    const label = document.createElement("label");
+                    const checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.className = "removeReport";
+                    checkbox.value = report.reportNumber;
+                    checkbox.disabled = !$("revReports").checked;
+
+                    const content = document.createElement("span");
+                    const title = document.createElement("strong");
+                    title.textContent = `${report.reportNumber} • ${report.storeName}`;
+                    content.appendChild(title);
+                    const meta = document.createElement("div");
+                    meta.className = "muted";
+                    meta.textContent = `${report.storeCode || "-"} • ${report.status} • ${report.date.slice(0, 10)}`;
+                    content.appendChild(meta);
+
+                    label.appendChild(checkbox);
+                    label.appendChild(content);
+                    item.appendChild(label);
+                    list.appendChild(item);
+                }
+            }
+
+            function clearLoadedPjum() {
+                loadedPjum = null;
+                $("revReports").checked = false;
+                $("revReports").disabled = true;
+                $("pjumSummary").classList.add("hidden");
+                $("pjumSummary").textContent = "";
+                $("reportsPanel").textContent =
+                    "Cari PJUM dulu untuk menampilkan daftar laporan.";
+            }
+
+            async function loadPjum() {
+                clearLog();
+                const id = $("pjumId").value.trim();
+                if (!id) {
+                    log("Isi PjumExport ID.");
+                    return;
+                }
+                if (!uuidPattern.test(id)) {
+                    log("PjumExport ID harus UUID valid.");
+                    return;
+                }
+
+                $("searchBtn").disabled = true;
+                log("Mencari data PJUM…");
+                try {
+                    const res = await fetch(
+                        `${apiBase()}/api/dev/revise-pjum?id=${encodeURIComponent(id)}`,
+                        { headers: requestHeaders(false) },
+                    );
+                    const data = await res.json();
+                    if (!res.ok) {
+                        log(`Error HTTP ${res.status}: ${data.error || "Gagal memuat PJUM"}`);
+                        return;
+                    }
+
+                    loadedPjum = data;
+                    $("weekNumber").value = data.weekNumber;
+                    $("fromDate").value = data.fromDate;
+                    $("toDate").value = data.toDate;
+                    $("revReports").disabled = false;
+                    $("revReports").checked = false;
+                    renderSummary(data);
+                    renderReports(data);
+                    log("Data PJUM dimuat.");
+                } catch (e) {
+                    log(
+                        "Gagal fetch: " +
+                            (e && e.message ? e.message : String(e)),
+                    );
+                    log("Pastikan dev server jalan dan URL benar.");
+                } finally {
+                    $("searchBtn").disabled = false;
+                }
+            }
+
             [
                 ["revWeek", "weekNumber"],
                 ["revFrom", "fromDate"],
@@ -182,6 +382,34 @@
                 $(cb).addEventListener("change", () => {
                     $(inp).disabled = !$(cb).checked;
                 });
+            });
+
+            $("revReports").addEventListener("change", () => {
+                document.querySelectorAll(".removeReport").forEach((input) => {
+                    input.disabled = !$("revReports").checked;
+                    if (input.disabled) input.checked = false;
+                });
+            });
+
+            $("searchBtn").addEventListener("click", loadPjum);
+            $("pjumId").addEventListener("keydown", (event) => {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    loadPjum();
+                }
+            });
+            $("pjumId").addEventListener("input", () => {
+                const id = $("pjumId").value.trim();
+                window.clearTimeout(autoLoadTimer);
+                if (loadedPjum && loadedPjum.id !== id) {
+                    clearLoadedPjum();
+                }
+                if (
+                    uuidPattern.test(id) &&
+                    (!loadedPjum || loadedPjum.id !== id)
+                ) {
+                    autoLoadTimer = window.setTimeout(loadPjum, 350);
+                }
             });
 
             $("btn").addEventListener("click", async () => {
@@ -217,6 +445,16 @@
                     }
                     revisions.toDate = v;
                 }
+                if ($("revReports").checked) {
+                    const removedReportNumbers = Array.from(
+                        document.querySelectorAll(".removeReport:checked"),
+                    ).map((input) => input.value);
+                    if (removedReportNumbers.length === 0) {
+                        log("Pilih minimal 1 laporan yang ingin dicabut.");
+                        return;
+                    }
+                    revisions.removedReportNumbers = removedReportNumbers;
+                }
 
                 const body = {
                     pjumExportId: id,
@@ -225,11 +463,6 @@
                     revisions,
                 };
 
-                const headers = { "Content-Type": "application/json" };
-                const secEl = $("secret");
-                const sec = secEl ? String(secEl.value || "").trim() : "";
-                if (sec) headers["x-dev-pjum-revise-secret"] = sec;
-
                 $("btn").disabled = true;
                 log("Memanggil API…");
                 try {
@@ -237,7 +470,7 @@
                         apiBase() + "/api/dev/revise-pjum",
                         {
                             method: "POST",
-                            headers,
+                            headers: requestHeaders(true),
                             body: JSON.stringify(body),
                         },
                     );

@@ -928,6 +928,12 @@ function renderItemMaterialTable(item: ReportItemJson) {
     const realisasiItems = item.realisasiItems ?? [];
     const itemNote = item.notes;
     const hasMaterialRows = realisasiItems.length > 0;
+    const discountAmount = Math.max(0, item.discountAmount ?? 0);
+    const itemSubtotal = realisasiItems.reduce(
+        (sum, row) => sum + (row.totalPrice ?? row.quantity * row.price),
+        0,
+    );
+    const itemTotal = Math.max(0, itemSubtotal - discountAmount);
 
     if (!hasMaterialRows && !itemNote) return null;
 
@@ -1008,7 +1014,7 @@ function renderItemMaterialTable(item: ReportItemJson) {
                   ),
                   ...realisasiItems.map((row, idx) => {
                       const rowTotal =
-                          row.totalPrice || row.quantity * row.price;
+                          row.totalPrice ?? row.quantity * row.price;
 
                       return React.createElement(
                           View,
@@ -1065,6 +1071,94 @@ function renderItemMaterialTable(item: ReportItemJson) {
                           ),
                       );
                   }),
+                  discountAmount > 0
+                      ? React.createElement(
+                            View,
+                            {
+                                style:
+                                    realisasiItems.length % 2 === 0
+                                        ? styles.completionTableRow
+                                        : styles.completionTableRowAlt,
+                            },
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "34%" },
+                            }),
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "10%" },
+                            }),
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "10%" },
+                            }),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...cellStyle,
+                                        width: "23%",
+                                        textAlign: "right",
+                                        fontFamily: "Helvetica-Bold",
+                                    },
+                                },
+                                "Potongan Harga",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...cellStyle,
+                                        width: "23%",
+                                        textAlign: "right",
+                                        fontFamily: "Helvetica-Bold",
+                                    },
+                                },
+                                `-${formatCurrency(discountAmount)}`,
+                            ),
+                        )
+                      : null,
+                  discountAmount > 0
+                      ? React.createElement(
+                            View,
+                            {
+                                style:
+                                    (realisasiItems.length + 1) % 2 === 0
+                                        ? styles.completionTableRow
+                                        : styles.completionTableRowAlt,
+                            },
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "34%" },
+                            }),
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "10%" },
+                            }),
+                            React.createElement(Text, {
+                                style: { ...cellStyle, width: "10%" },
+                            }),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...cellStyle,
+                                        width: "23%",
+                                        textAlign: "right",
+                                        fontFamily: "Helvetica-Bold",
+                                    },
+                                },
+                                "Total Item",
+                            ),
+                            React.createElement(
+                                Text,
+                                {
+                                    style: {
+                                        ...cellStyle,
+                                        width: "23%",
+                                        textAlign: "right",
+                                        fontFamily: "Helvetica-Bold",
+                                    },
+                                },
+                                formatCurrency(itemTotal),
+                            ),
+                        )
+                      : null,
               )
             : null,
         itemNote
@@ -1957,13 +2051,28 @@ function buildReportDocument(
                 const visibleRows = mergedRows.filter(
                     (row) => row.realQty > 0 || row.realTotal > 0,
                 );
+                const totalDiscount = data.items
+                    .filter(
+                        (i) =>
+                            i.condition === "RUSAK" ||
+                            i.preventiveCondition === "NOT_OK",
+                    )
+                    .reduce(
+                        (sum, item) =>
+                            sum + Math.max(0, item.discountAmount ?? 0),
+                        0,
+                    );
                 const totalEstimasi = visibleRows.reduce(
                     (sum, row) => sum + row.estTotal,
                     0,
                 );
-                const totalRealisasi = visibleRows.reduce(
+                const totalRealisasiBeforeDiscount = visibleRows.reduce(
                     (sum, row) => sum + row.realTotal,
                     0,
+                );
+                const totalRealisasi = Math.max(
+                    0,
+                    totalRealisasiBeforeDiscount - totalDiscount,
                 );
                 const selisih = totalEstimasi - totalRealisasi;
 
@@ -2207,6 +2316,46 @@ function buildReportDocument(
                                 formatCurrency(totalEstimasi),
                             ),
                         ),
+                        totalDiscount > 0
+                            ? React.createElement(
+                                  View,
+                                  { style: styles.completionTotalRow },
+                                  React.createElement(
+                                      Text,
+                                      {
+                                          style: {
+                                              ...styles.totalLabel,
+                                              width: "74%",
+                                              fontSize: 7,
+                                          },
+                                      },
+                                      "",
+                                  ),
+                                  React.createElement(
+                                      Text,
+                                      {
+                                          style: {
+                                              ...styles.totalLabel,
+                                              width: "13%",
+                                              fontSize: 7,
+                                              textAlign: "right",
+                                          },
+                                      },
+                                      "Potongan Harga",
+                                  ),
+                                  React.createElement(
+                                      Text,
+                                      {
+                                          style: {
+                                              ...styles.totalValue,
+                                              width: "13%",
+                                              fontSize: 7,
+                                          },
+                                      },
+                                      `-${formatCurrency(totalDiscount)}`,
+                                  ),
+                              )
+                            : null,
                         React.createElement(
                             View,
                             { style: styles.completionTotalRow },
