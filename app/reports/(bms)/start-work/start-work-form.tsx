@@ -49,6 +49,11 @@ import { startWorkWithPhotos } from "@/app/reports/actions/start-work-with-photo
 import type { StartableReport, ReportForStartWork } from "./queries";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import type { MaterialEstimationJson } from "@/types/report";
+import {
+    useStartWorkAutosave,
+    type StartWorkDraftData,
+    type StartWorkLocalPhoto,
+} from "./hooks/use-start-work-autosave";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -65,13 +70,7 @@ function isTotalEstimationZero(
 
 type CameraTarget = "selfie" | "receipt" | "store" | null;
 
-interface LocalPhoto {
-    id: string;
-    previewUrl: string;
-    file: File;
-    /** Google Drive CDN file ID — populated after successful upload */
-    fileId?: string;
-}
+type LocalPhoto = StartWorkLocalPhoto;
 
 interface MaterialStoreEntry {
     id: string;
@@ -160,6 +159,8 @@ export function StartWorkForm({
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { uploadPhoto } = usePhotoUpload();
+    const autosave = useStartWorkAutosave();
+    const reportNumberRef = useRef<string | null>(prefillReport ?? null);
 
     // ── Dialog ────────────────────────────────────────────────────────────────
     const [dialogOpen, setDialogOpen] = useState(!prefillReport);
@@ -190,21 +191,69 @@ export function StartWorkForm({
         setPreviewUrl(null),
     );
 
+    const buildDraftData = useCallback(
+        (reportNumber: string): StartWorkDraftData => ({
+            version: 1,
+            reportNumber,
+            savedAt: new Date().toISOString(),
+            selfiePhotoIds: selfiePhotos.map((photo) => photo.id),
+            materialStorePhotoIds: materialStorePhotos.map(
+                (photo) => photo.id,
+            ),
+            receiptPhotoIds: receiptPhotos.map((photo) => photo.id),
+            materialStores,
+            skipPhotos,
+        }),
+        [
+            selfiePhotos,
+            materialStorePhotos,
+            receiptPhotos,
+            materialStores,
+            skipPhotos,
+        ],
+    );
+
+    useEffect(() => {
+        const reportNumber = reportNumberRef.current;
+        if (!currentReport || !reportNumber) return;
+        autosave.triggerSave(reportNumber, buildDraftData(reportNumber));
+    }, [autosave, buildDraftData, currentReport]);
+
     // ── Load report ───────────────────────────────────────────────────────────
-    const loadReport = useCallback(async (reportNumber: string) => {
-        const report = await fetchReportForStartWork(reportNumber);
-        if (!report) {
-            toast.error("Laporan tidak ditemukan atau tidak dapat diakses");
-            setDialogOpen(true);
-            return;
-        }
-        setCurrentReport(report);
-        setSelfiePhotos([]);
-        setMaterialStorePhotos([]);
-        setReceiptPhotos([]);
-        setMaterialStores([]);
-        setSkipPhotos(false);
-    }, []);
+    const loadReport = useCallback(
+        async (reportNumber: string) => {
+            const report = await fetchReportForStartWork(reportNumber);
+            if (!report) {
+                toast.error("Laporan tidak ditemukan atau tidak dapat diakses");
+                setDialogOpen(true);
+                return;
+            }
+
+            reportNumberRef.current = reportNumber;
+            const draft = await autosave.restoreDraft(reportNumber);
+
+            setCurrentReport(report);
+            if (draft) {
+                setSelfiePhotos(draft.selfiePhotos);
+                setMaterialStorePhotos(draft.materialStorePhotos);
+                setReceiptPhotos(draft.receiptPhotos);
+                setMaterialStores(draft.materialStores);
+                setSkipPhotos(draft.skipPhotos);
+                toast.info(
+                    "Draft mulai pekerjaan ditemukan, data berhasil dipulihkan",
+                    { duration: 3000 },
+                );
+                return;
+            }
+
+            setSelfiePhotos([]);
+            setMaterialStorePhotos([]);
+            setReceiptPhotos([]);
+            setMaterialStores([]);
+            setSkipPhotos(false);
+        },
+        [autosave],
+    );
 
     // ── Auto-load prefilled report on mount ───────────────────────────────────
     useEffect(() => {
@@ -223,6 +272,7 @@ export function StartWorkForm({
         async (reportNumber: string) => {
             setDialogOpen(false);
             setIsFetchingReport(true);
+            reportNumberRef.current = reportNumber;
             try {
                 await loadReport(reportNumber);
             } catch {
@@ -243,34 +293,37 @@ export function StartWorkForm({
     // ── Camera handlers ───────────────────────────────────────────────────────
     const handleAddMaterialStorePhoto = useCallback((file: File) => {
         void (async () => {
+            const reportNumber = reportNumberRef.current;
+            if (!reportNumber) return;
+
             try {
                 const compressedFile = await compressMaterialStorePhoto(file);
-                const id = genId();
-                const previewUrl = URL.createObjectURL(compressedFile);
-                const photo: LocalPhoto = {
-                    id,
-                    previewUrl,
-                    file: compressedFile,
-                };
+                const photo = await autosave.addPhoto(
+                    reportNumber,
+                    compressedFile,
+                    "store",
+                );
                 setMaterialStorePhotos((prev) => [...prev, photo]);
             } catch (error) {
                 console.warn(
                     "Gagal mengompres foto toko material, pakai file asli:",
                     error,
                 );
-                const id = genId();
-                const previewUrl = URL.createObjectURL(file);
-                const photo: LocalPhoto = { id, previewUrl, file };
+                const photo = await autosave.addPhoto(
+                    reportNumber,
+                    file,
+                    "store",
+                );
                 setMaterialStorePhotos((prev) => [...prev, photo]);
                 toast.error(
                     "Gagal mengompres foto toko material. Menggunakan file asli.",
                 );
             }
         })();
-    }, []);
+    }, [autosave]);
 
     const handlePhotoCaptured = useCallback(
-        (file: File) => {
+        async (file: File) => {
             if (!cameraTarget) return;
             setCameraTarget(null);
 
@@ -279,13 +332,22 @@ export function StartWorkForm({
                 return;
             }
 
-            const id = genId();
-            const previewUrl = URL.createObjectURL(file);
-            const photo: LocalPhoto = { id, previewUrl, file };
+            const reportNumber = reportNumberRef.current;
+            if (!reportNumber) return;
 
             if (cameraTarget === "selfie") {
+                const photo = await autosave.addPhoto(
+                    reportNumber,
+                    file,
+                    "selfie",
+                );
                 setSelfiePhotos((prev) => [...prev, photo]);
             } else {
+                const photo = await autosave.addPhoto(
+                    reportNumber,
+                    file,
+                    "receipt",
+                );
                 setReceiptPhotos((prev) => {
                     const next = [...prev, photo];
                     // Auto-add a store entry when first receipt is added
@@ -298,24 +360,27 @@ export function StartWorkForm({
                 });
             }
         },
-        [cameraTarget, handleAddMaterialStorePhoto],
+        [autosave, cameraTarget, handleAddMaterialStorePhoto],
     );
 
     const handleRemoveSelfiePhoto = useCallback((id: string) => {
+        void autosave.removePhoto(id);
         setSelfiePhotos((prev) => prev.filter((p) => p.id !== id));
-    }, []);
+    }, [autosave]);
 
     const handleRemoveReceiptPhoto = useCallback((id: string) => {
+        void autosave.removePhoto(id);
         setReceiptPhotos((prev) => {
             const next = prev.filter((p) => p.id !== id);
             if (next.length === 0) setMaterialStores([]);
             return next;
         });
-    }, []);
+    }, [autosave]);
 
     const handleRemoveStorePhoto = useCallback((id: string) => {
+        void autosave.removePhoto(id);
         setMaterialStorePhotos((prev) => prev.filter((p) => p.id !== id));
-    }, []);
+    }, [autosave]);
 
     const handleOpenStoreGallery = useCallback(() => {
         storeGalleryInputRef.current?.click();
@@ -472,6 +537,7 @@ export function StartWorkForm({
                 description:
                     "Status laporan diubah menjadi 'Sedang Dikerjakan'.",
             });
+            await autosave.clearDraft(rn);
             router.push(`/reports/${rn}`);
         });
     }, [
@@ -481,6 +547,7 @@ export function StartWorkForm({
         receiptPhotos,
         materialStorePhotos,
         materialStores,
+        autosave,
         router,
         uploadPhoto,
     ]);
