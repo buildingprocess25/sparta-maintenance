@@ -67,6 +67,13 @@ const exportSchema = z.object({
         .max(5, "Minggu ke maksimal 5"),
 });
 
+class PjumExportConflictError extends Error {
+    constructor(message = "Beberapa laporan sudah masuk PJUM lain") {
+        super(message);
+        this.name = "PjumExportConflictError";
+    }
+}
+
 const SEARCHABLE_PJUM_STATUSES = [
     "ESTIMATION_APPROVED",
     "IN_PROGRESS",
@@ -249,7 +256,7 @@ export async function getBmcPjumHistory(
 
 /**
  * Get all PJUM ranges that have ever been used by a BMS.
- * Used by UI to disable overlapping date selections.
+ * Used by UI to warn about overlapping date selections.
  */
 export async function getPjumBlockedRanges(
     bmsNIK: string,
@@ -404,13 +411,16 @@ export async function exportPjum(input: {
         const user = await requireRole("BMC");
         await validateCSRF(await headers());
 
-        const {
-            reportNumbers: safeNumbers,
-            bmsNIK,
-            from,
-            to,
-            weekNumber,
-        } = exportSchema.parse(input);
+        const parsed = exportSchema.parse(input);
+        const safeNumbers = Array.from(new Set(parsed.reportNumbers));
+        const { bmsNIK, from, to, weekNumber } = parsed;
+
+        if (safeNumbers.length !== parsed.reportNumbers.length) {
+            return {
+                error: "Nomor laporan duplikat dalam daftar PJUM",
+                pjumExportId: null,
+            };
+        }
 
         const rangeFromDate = new Date(from);
         rangeFromDate.setHours(0, 0, 0, 0);
@@ -432,24 +442,6 @@ export async function exportPjum(input: {
         if (rangeFromDate > rangeToDate) {
             return {
                 error: "Rentang tanggal tidak valid",
-                pjumExportId: null,
-            };
-        }
-
-        // Block all overlapping ranges that have ever been used for this BMS.
-        const overlappingExport = await prisma.pjumExport.findFirst({
-            where: {
-                bmsNIK,
-                branchName: { in: user.branchNames },
-                fromDate: { lte: rangeToEndOfDay },
-                toDate: { gte: rangeFromDate },
-            },
-            orderBy: { fromDate: "asc" },
-        });
-
-        if (overlappingExport) {
-            return {
-                error: `Rentang tanggal ${from} sampai ${to} overlap dengan PJUM yang sudah ada (${overlappingExport.fromDate.toLocaleDateString("id-ID")} - ${overlappingExport.toDate.toLocaleDateString("id-ID")})`,
                 pjumExportId: null,
             };
         }
@@ -494,30 +486,63 @@ export async function exportPjum(input: {
             };
         }
 
+        const activeExportWithSelectedReports = await prisma.pjumExport.findFirst(
+            {
+                where: {
+                    status: { in: ["PENDING_APPROVAL", "APPROVED"] },
+                    reportNumbers: { hasSome: safeNumbers },
+                },
+                select: {
+                    id: true,
+                    reportNumbers: true,
+                },
+            },
+        );
+
+        if (activeExportWithSelectedReports) {
+            const duplicateNumbers =
+                activeExportWithSelectedReports.reportNumbers.filter(
+                    (reportNumber) => eligibleSet.has(reportNumber),
+                );
+            return {
+                error:
+                    duplicateNumbers.length > 0
+                        ? `Laporan ${duplicateNumbers.join(", ")} sudah masuk PJUM lain`
+                        : "Beberapa laporan sudah masuk PJUM lain",
+                pjumExportId: null,
+            };
+        }
+
         const branchName = rangeReports[0].branchName;
 
-        // Create PjumExport record in PENDING_APPROVAL status
-        const pjumExport = await prisma.pjumExport.create({
-            data: {
-                status: "PENDING_APPROVAL",
-                bmsNIK,
-                branchName,
-                weekNumber,
-                fromDate: rangeFromDate,
-                toDate: rangeToDate,
-                reportNumbers: safeNumbers,
-                createdByNIK: user.NIK,
-            },
-        });
+        const pjumExport = await prisma.$transaction(async (tx) => {
+            const updateResult = await tx.report.updateMany({
+                where: {
+                    reportNumber: { in: safeNumbers },
+                    status: "COMPLETED",
+                    pjumExportedAt: null,
+                },
+                data: { pjumExportedAt: new Date() },
+            });
 
-        // Mark reports as included in PJUM
-        await prisma.report.updateMany({
-            where: {
-                reportNumber: { in: safeNumbers },
-                status: "COMPLETED",
-                pjumExportedAt: null,
-            },
-            data: { pjumExportedAt: new Date() },
+            if (updateResult.count !== safeNumbers.length) {
+                throw new PjumExportConflictError(
+                    "Data laporan berubah. Klik Cari Laporan lagi sebelum membuat PJUM",
+                );
+            }
+
+            return tx.pjumExport.create({
+                data: {
+                    status: "PENDING_APPROVAL",
+                    bmsNIK,
+                    branchName,
+                    weekNumber,
+                    fromDate: rangeFromDate,
+                    toDate: rangeToDate,
+                    reportNumbers: safeNumbers,
+                    createdByNIK: user.NIK,
+                },
+            });
         });
 
         // Generate and upload PDF snapshot to Drive
@@ -577,6 +602,14 @@ export async function exportPjum(input: {
             pjumFinalDriveUrl: snapshotDriveUrl,
         };
     } catch (error) {
+        if (error instanceof PjumExportConflictError) {
+            return {
+                error: error.message,
+                pjumExportId: null,
+                pjumFinalDriveUrl: null,
+            };
+        }
+
         logger.error(
             { operation: "exportPjum" },
             "Failed to create PJUM",
