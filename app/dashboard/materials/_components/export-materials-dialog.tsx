@@ -68,8 +68,11 @@ export function ExportMaterialsDialog({ branches }: { branches: string[] }) {
 
             toast.success("File berhasil diunduh", { id: toastId });
             setOpen(false); // Close dialog on success
-        } catch (error: any) {
-            toast.error(error.message, { id: toastId });
+        } catch (error: unknown) {
+            toast.error(
+                error instanceof Error ? error.message : "Gagal mengekspor data",
+                { id: toastId },
+            );
         } finally {
             setIsLoading(false);
         }

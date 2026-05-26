@@ -10,7 +10,6 @@ import {
     CardContent,
     CardDescription,
     CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import { IconAlertTriangle, IconSettings } from "@tabler/icons-react";
 

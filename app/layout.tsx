@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Outfit } from "next/font/google";
+import { Suspense } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { SessionInterceptor } from "@/components/session-interceptor";
@@ -7,8 +8,17 @@ import { SessionInterceptor } from "@/components/session-interceptor";
 import { SessionExpiryAlert } from "@/components/session-expiry-alert";
 import { PWARegister } from "@/components/pwa-register";
 import { PresenceTracker } from "@/components/presence-tracker";
+import { RouteProgress } from "@/components/route-progress";
 
-const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
+const geistSans = Geist({
+    subsets: ["latin"],
+    variable: "--font-geist-sans",
+});
+
+const geistMono = Geist_Mono({
+    subsets: ["latin"],
+    variable: "--font-geist-mono",
+});
 
 export const metadata: Metadata = {
     title: "SPARTA Maintenance | Pusat Pelaporan Pekerjaan Maintenance Toko",
@@ -38,11 +48,17 @@ export default function RootLayout({
         <html
             lang="id"
             translate="no"
-            className={`${outfit.variable} notranslate`}
+            className={`${geistSans.variable} ${geistMono.variable} notranslate`}
         >
-            <body className="antialiased notranslate" translate="no">
+            <body
+                className={`${geistSans.className} antialiased notranslate`}
+                translate="no"
+            >
                 <PWARegister />
                 <PresenceTracker />
+                <Suspense fallback={null}>
+                    <RouteProgress />
+                </Suspense>
                 <SessionInterceptor>{children}</SessionInterceptor>
                 <SessionExpiryAlert />
                 <Toaster position="top-center" />

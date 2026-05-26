@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Readable } from "node:stream";
 import { getDriveCdnClient } from "@/lib/google-drive/cdn-client";
 import { logger } from "@/lib/logger";
 
@@ -44,7 +45,7 @@ export async function GET(
         );
 
         // Convert Node.js stream to Web ReadableStream
-        const stream = response.data as any;
+        const stream = response.data as Readable;
         const webStream = new ReadableStream({
             start(controller) {
                 stream.on("data", (chunk: Buffer) => {

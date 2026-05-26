@@ -78,7 +78,7 @@ export function AdminMaterialsTable({
                     setMaterials((prev) => [...prev, ...res.materials]);
                 }
                 setNextCursor(res.nextCursor);
-            } catch (error) {
+            } catch {
                 toast.error("Gagal memuat data material");
             } finally {
                 setIsLoading(false);
