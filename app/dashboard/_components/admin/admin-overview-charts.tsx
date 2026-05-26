@@ -1,130 +1,151 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import {
+    Bar,
+    CartesianGrid,
+    ComposedChart,
+    Line,
+    XAxis,
+    YAxis,
+} from "recharts";
 import {
     ChartContainer,
     ChartTooltip,
     ChartTooltipContent,
 } from "@/components/ui/chart";
-import type { BranchChartData } from "../../queries";
+import type { AdminTrendDatum } from "../../queries";
 
-const chartConfigLaporan = {
-    total: { label: "Total Laporan", color: "#60afdb" },
+const trendConfig = {
+    completed: { label: "Laporan Selesai", color: "#43acff" },
+    avgRealisasi: {
+        label: "Rata-rata Realisasi",
+        color: "#f59e0b",
+    },
 };
 
-const chartConfigRealisasi = {
-    totalRealisasi: { label: "Total Akumulasi (Rp)", color: "#60afdb" },
+type TrendChartProps = {
+    data: AdminTrendDatum[];
 };
 
-type Props = {
-    data: BranchChartData[];
-};
-
-export function AdminLaporanChart({ data }: Props) {
-    return (
-        <div className="w-full overflow-x-auto pb-4">
-            <div className="min-w-200">
-                <ChartContainer
-                    config={chartConfigLaporan}
-                    className="h-80 w-full"
-                >
-                    <BarChart
-                        data={data}
-                        margin={{ top: 20, right: 0, left: -20, bottom: 40 }}
-                    >
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="cabang"
-                            tickLine={false}
-                            axisLine={false}
-                            interval={0}
-                            tick={{
-                                angle: -45,
-                                textAnchor: "end",
-                                fontSize: 11,
-                            }}
-                        />
-                        <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={10}
-                            tickFormatter={(value) =>
-                                new Intl.NumberFormat("id-ID", {
-                                    notation: "compact",
-                                    compactDisplay: "short",
-                                }).format(value)
-                            }
-                        />
-                        <ChartTooltip
-                            content={
-                                <ChartTooltipContent className="w-auto [&_.flex-1]:gap-6" />
-                            }
-                        />
-                        <Bar
-                            dataKey="total"
-                            fill="var(--color-total)"
-                            radius={[4, 4, 0, 0]}
-                        />
-                    </BarChart>
-                </ChartContainer>
-            </div>
-        </div>
-    );
+function formatTooltipRp(value: number): string {
+    return `Rp ${Math.round(value).toLocaleString("id-ID")}`;
 }
 
-export function AdminRealisasiChart({ data }: Props) {
+export function AdminTrendChart({ data }: TrendChartProps) {
     return (
-        <div className="w-full overflow-x-auto pb-4">
-            <div className="min-w-200">
-                <ChartContainer
-                    config={chartConfigRealisasi}
-                    className="h-80 w-full"
-                >
-                    <BarChart
-                        data={data}
-                        margin={{ top: 20, right: 0, left: 0, bottom: 40 }}
-                    >
-                        <CartesianGrid vertical={false} />
-                        <XAxis
-                            dataKey="cabang"
-                            tickLine={false}
-                            axisLine={false}
-                            interval={0}
-                            tick={{
-                                angle: -45,
-                                textAnchor: "end",
-                                fontSize: 11,
+        <ChartContainer config={trendConfig} className="h-88 w-full">
+            <ComposedChart
+                data={data}
+                margin={{ top: 12, right: 12, left: -24, bottom: 0 }}
+            >
+                <CartesianGrid vertical={false} />
+                <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={0}
+                    height={80}
+                    tick={{
+                        angle: -40,
+                        textAnchor: "end",
+                        fontSize: 11,
+                    }}
+                />
+                <YAxis
+                    yAxisId="left"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) =>
+                        new Intl.NumberFormat("id-ID", {
+                            notation: "compact",
+                            compactDisplay: "short",
+                        }).format(Number(value))
+                    }
+                />
+                <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) =>
+                        new Intl.NumberFormat("id-ID", {
+                            notation: "compact",
+                            compactDisplay: "short",
+                        }).format(Number(value))
+                    }
+                />
+                <ChartTooltip
+                    content={
+                        <ChartTooltipContent
+                            className="min-w-72 gap-2 p-3"
+                            labelFormatter={(label, payload) => {
+                                const row = payload?.[0]?.payload as
+                                    | AdminTrendDatum
+                                    | undefined;
+                                return (
+                                    <div className="space-y-1">
+                                        <div className="text-sm font-semibold">
+                                            {row?.branchName ?? label}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            Ringkasan laporan selesai per cabang
+                                        </div>
+                                    </div>
+                                );
+                            }}
+                            formatter={(value, name, item) => {
+                                const row = item.payload as AdminTrendDatum;
+                                if (name === "avgRealisasi") {
+                                    return (
+                                        <div className="grid w-64 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+                                            <span className="text-muted-foreground">
+                                                Rata-rata realisasi
+                                            </span>
+                                            <span className="text-right font-mono font-medium tabular-nums text-foreground">
+                                                {formatTooltipRp(Number(value))}
+                                            </span>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="grid w-64 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
+                                        <span className="text-muted-foreground">
+                                            Laporan selesai
+                                        </span>
+                                        <span className="text-right font-mono font-medium tabular-nums text-foreground">
+                                            {Number(value).toLocaleString(
+                                                "id-ID",
+                                            )}{" "}
+                                            laporan
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                            Total realisasi
+                                        </span>
+                                        <span className="text-right font-mono font-medium tabular-nums text-foreground">
+                                            {formatTooltipRp(row.realisasi)}
+                                        </span>
+                                    </div>
+                                );
                             }}
                         />
-                        <YAxis
-                            tickLine={false}
-                            axisLine={false}
-                            tickMargin={10}
-                            tickFormatter={(value) =>
-                                new Intl.NumberFormat("id-ID", {
-                                    notation: "compact",
-                                    compactDisplay: "short",
-                                }).format(value)
-                            }
-                        />
-                        <ChartTooltip
-                            content={
-                                <ChartTooltipContent
-                                    className="w-auto [&_.flex-1]:gap-6"
-                                    formatter={(value) =>
-                                        `Rp ${Number(value).toLocaleString("id-ID")}`
-                                    }
-                                />
-                            }
-                        />
-                        <Bar
-                            dataKey="totalRealisasi"
-                            fill="var(--color-totalRealisasi)"
-                            radius={[4, 4, 0, 0]}
-                        />
-                    </BarChart>
-                </ChartContainer>
-            </div>
-        </div>
+                    }
+                />
+                <Bar
+                    dataKey="completed"
+                    yAxisId="left"
+                    fill="var(--color-completed)"
+                    radius={[4, 4, 0, 0]}
+                />
+                <Line
+                    dataKey="avgRealisasi"
+                    yAxisId="right"
+                    type="monotone"
+                    stroke="var(--color-avgRealisasi)"
+                    strokeWidth={2}
+                    dot={false}
+                />
+            </ComposedChart>
+        </ChartContainer>
     );
 }

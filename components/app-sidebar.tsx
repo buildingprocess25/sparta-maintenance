@@ -121,7 +121,11 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
     user?: AuthUser;
 };
 
-export function AppSidebar({ user: authUser, ...props }: AppSidebarProps) {
+export function AppSidebar({
+    user: authUser,
+    variant = "sidebar",
+    ...props
+}: AppSidebarProps) {
     const { isMobile } = useSidebar();
     const [isPending, startTransition] = React.useTransition();
     const displayUser = authUser
@@ -145,18 +149,13 @@ export function AppSidebar({ user: authUser, ...props }: AppSidebarProps) {
     };
 
     return (
-        <Sidebar collapsible="offcanvas" {...props} variant="inset">
+        <Sidebar collapsible="offcanvas" variant={variant} {...props}>
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <div
-                            className={cn(
-                                "items-center gap-3 shrink-0",
-                                "flex",
-                            )}
-                        >
+                        <div className={cn("flex w-full justify-center")}>
                             {/* Logo Container with Glass Effect */}
-                            <div className="flex items-center gap-3 md:gap-4 px-3 py-1.5 md:px-4 md:py-2 rounded-xl bg-black/10 backdrop-blur-sm border border-white/5">
+                            <div className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/5 bg-black/10 px-3 py-1.5 backdrop-blur-sm md:gap-4 md:px-4 md:py-2">
                                 <Image
                                     src="/assets/Alfamart-Emblem.png"
                                     alt="Alfamart"

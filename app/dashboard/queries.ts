@@ -428,13 +428,6 @@ function getYtdStart(): Date {
     return d;
 }
 
-export type AdminOverviewStats = {
-    totalReports: number;
-    completed: number;
-    activeUsers: number;
-    avgRealisasi: number;
-};
-
 export async function getAdminVisibleOnlineUserCount(): Promise<number> {
     try {
         const onlineUserIds = await getOnlineUsers();
@@ -456,116 +449,557 @@ export async function getAdminVisibleOnlineUserCount(): Promise<number> {
     }
 }
 
-export type BranchChartData = {
-    cabang: string;
-    total: number;
+export type AdminKpiMetric = {
+    totalReports: number;
+    completedReports: number;
+    inProgressReports: number;
+    pendingReviewReports: number;
+    revisionReports: number;
+    completionRate: number;
     totalRealisasi: number;
+    avgRealisasi: number;
+    activeUsers: number;
+    unpjumCompletedReports: number;
+    pendingPjum: number;
 };
 
+export type AdminStatusDatum = {
+    status: string;
+    label: string;
+    count: number;
+};
+
+export type AdminTrendDatum = {
+    label: string;
+    branchName: string;
+    completed: number;
+    realisasi: number;
+    avgRealisasi: number;
+};
+
+export type AdminTrendPeriod = "ytd" | "30d" | "90d" | "12m";
+
+export type AdminBranchOption = {
+    name: string;
+};
+
+export type AdminBranchPerformanceDatum = {
+    branchName: string;
+    totalReports: number;
+    completedReports: number;
+    openReports: number;
+    completionRate: number;
+    totalRealisasi: number;
+    avgRealisasi: number;
+};
+
+export type AdminAttentionReport = {
+    reportNumber: string;
+    storeName: string;
+    branchName: string;
+    status: string;
+    statusLabel: string;
+    createdAt: Date;
+    updatedAt: Date;
+    ageDays: number;
+    ownerName: string;
+};
+
+export type AdminPjumSummary = {
+    total: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+};
+
+export type AdminCommandCenterData = {
+    kpi: AdminKpiMetric;
+    status: AdminStatusDatum[];
+    trends: AdminTrendDatum[];
+    branchOptions: AdminBranchOption[];
+    branches: AdminBranchPerformanceDatum[];
+    attentionReports: AdminAttentionReport[];
+    pjum: AdminPjumSummary;
+    recentActivity: ActivityItem[];
+};
+
+const ADMIN_STATUS_LABELS: Record<string, string> = {
+    PENDING_ESTIMATION: "Menunggu Estimasi",
+    ESTIMATION_APPROVED: "Siap Dikerjakan",
+    ESTIMATION_REJECTED_REVISION: "Revisi Estimasi",
+    ESTIMATION_REJECTED: "Ditolak",
+    IN_PROGRESS: "Berjalan",
+    PENDING_REVIEW: "Review BMC",
+    APPROVED_BMC: "Final BNM",
+    REVIEW_REJECTED_REVISION: "Revisi Pekerjaan",
+    COMPLETED: "Selesai",
+};
+
+const ADMIN_STATUS_ORDER = [
+    "PENDING_ESTIMATION",
+    "ESTIMATION_APPROVED",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "APPROVED_BMC",
+    "ESTIMATION_REJECTED_REVISION",
+    "REVIEW_REJECTED_REVISION",
+    "ESTIMATION_REJECTED",
+    "COMPLETED",
+];
+
+function getMonthKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function getMonthLabel(date: Date): string {
+    return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function getDayKey(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function getDayLabel(date: Date): string {
+    return date.toLocaleDateString("id-ID", {
+        day: "2-digit",
+        month: "short",
+    });
+}
+
+function getRecentMonthKeys(count: number): { key: string; label: string }[] {
+    const months: { key: string; label: string }[] = [];
+    const current = new Date();
+    current.setDate(1);
+    current.setHours(0, 0, 0, 0);
+
+    for (let i = count - 1; i >= 0; i--) {
+        const date = new Date(current);
+        date.setMonth(current.getMonth() - i);
+        months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
+    }
+
+    return months;
+}
+
+function getYtdMonthKeys(): { key: string; label: string }[] {
+    const months: { key: string; label: string }[] = [];
+    const now = new Date();
+
+    for (let month = 0; month <= now.getMonth(); month++) {
+        const date = new Date(now.getFullYear(), month, 1);
+        months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
+    }
+
+    return months;
+}
+
+function getRecentDayKeys(count: number): { key: string; label: string }[] {
+    const days: { key: string; label: string }[] = [];
+    const current = new Date();
+    current.setHours(0, 0, 0, 0);
+
+    for (let i = count - 1; i >= 0; i--) {
+        const date = new Date(current);
+        date.setDate(current.getDate() - i);
+        days.push({ key: getDayKey(date), label: getDayLabel(date) });
+    }
+
+    return days;
+}
+
+function getStartOfRecentMonths(count: number): Date {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    d.setMonth(d.getMonth() - (count - 1));
+    return d;
+}
+
+function getStartOfRecentDays(count: number): Date {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - (count - 1));
+    return d;
+}
+
+function getTrendWindow(period: AdminTrendPeriod): {
+    start: Date;
+    buckets: { key: string; label: string }[];
+    bucketKey: (date: Date) => string;
+} {
+    if (period === "30d") {
+        return {
+            start: getStartOfRecentDays(30),
+            buckets: getRecentDayKeys(30),
+            bucketKey: getDayKey,
+        };
+    }
+
+    if (period === "90d") {
+        return {
+            start: getStartOfRecentDays(90),
+            buckets: getRecentDayKeys(90),
+            bucketKey: getDayKey,
+        };
+    }
+
+    if (period === "12m") {
+        return {
+            start: getStartOfRecentMonths(12),
+            buckets: getRecentMonthKeys(12),
+            bucketKey: getMonthKey,
+        };
+    }
+
+    return {
+        start: getYtdStart(),
+        buckets: getYtdMonthKeys(),
+        bucketKey: getMonthKey,
+    };
+}
+
+function calculateAgeDays(date: Date): number {
+    const diff = Date.now() - date.getTime();
+    return Math.max(0, Math.floor(diff / 86_400_000));
+}
+
 /**
- * Aggregate stats for the Admin dashboard overview cards — Year-to-Date window.
- * - totalReports: all non-draft reports since 1 Jan this year
- * - completed: COMPLETED reports since 1 Jan this year
- * - activeUsers: count passed in from in-memory presence store
- * - avgRealisasi: average totalReal across COMPLETED reports (YTD)
+ * ADMIN command-center data for the dashboard.
+ * Combines operational backlog, branch performance, trend, PJUM, and activity data.
  */
-export async function getAdminOverviewStats(
-    activeUsers: number,
-): Promise<AdminOverviewStats> {
+export async function getAdminCommandCenterData(
+    period: AdminTrendPeriod = "ytd",
+): Promise<AdminCommandCenterData> {
     const ytdStart = getYtdStart();
+    const trendWindow = getTrendWindow(period);
+
+    const empty: AdminCommandCenterData = {
+        kpi: {
+            totalReports: 0,
+            completedReports: 0,
+            inProgressReports: 0,
+            pendingReviewReports: 0,
+            revisionReports: 0,
+            completionRate: 0,
+            totalRealisasi: 0,
+            avgRealisasi: 0,
+            activeUsers: 0,
+            unpjumCompletedReports: 0,
+            pendingPjum: 0,
+        },
+        status: [],
+        trends: [],
+        branchOptions: [],
+        branches: [],
+        attentionReports: [],
+        pjum: { total: 0, pending: 0, approved: 0, rejected: 0 },
+        recentActivity: [],
+    };
+
     try {
-        const [totalReports, completed, avgResult] = await Promise.all([
+        const baseWhere = {
+            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+            status: { not: "DRAFT" as const },
+            createdAt: { gte: ytdStart },
+        };
+
+        const [
+            activeUsers,
+            totalReports,
+            completedReports,
+            inProgressReports,
+            pendingReviewReports,
+            revisionReports,
+            unpjumCompletedReports,
+            totalRealisasi,
+            avgRealisasi,
+            statusRows,
+            branchRows,
+            completedBranchRows,
+            trendRows,
+            userBranchRows,
+            attentionReports,
+            pjumRows,
+            recentActivity,
+        ] = await Promise.all([
+            getAdminVisibleOnlineUserCount(),
+            prisma.report.count({ where: baseWhere }),
+            prisma.report.count({
+                where: { ...baseWhere, status: "COMPLETED" },
+            }),
             prisma.report.count({
                 where: {
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                    status: { not: "DRAFT" },
-                    createdAt: { gte: ytdStart },
+                    ...baseWhere,
+                    status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
                 },
             }),
             prisma.report.count({
                 where: {
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    ...baseWhere,
+                    status: { in: ["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"] },
+                },
+            }),
+            prisma.report.count({
+                where: {
+                    ...baseWhere,
+                    status: {
+                        in: [
+                            "ESTIMATION_REJECTED_REVISION",
+                            "REVIEW_REJECTED_REVISION",
+                        ],
+                    },
+                },
+            }),
+            prisma.report.count({
+                where: {
+                    ...baseWhere,
                     status: "COMPLETED",
-                    createdAt: { gte: ytdStart },
+                    pjumExportedAt: null,
                 },
             }),
             prisma.report.aggregate({
                 where: {
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    ...baseWhere,
                     status: "COMPLETED",
                     totalReal: { not: null },
-                    createdAt: { gte: ytdStart },
+                },
+                _sum: { totalReal: true },
+            }),
+            prisma.report.aggregate({
+                where: {
+                    ...baseWhere,
+                    status: "COMPLETED",
+                    totalReal: { not: null },
                 },
                 _avg: { totalReal: true },
             }),
-        ]);
-
-        return {
-            totalReports,
-            completed,
-            activeUsers,
-            avgRealisasi: Number(avgResult._avg.totalReal ?? 0),
-        };
-    } catch (error) {
-        logger.error({ operation: "getAdminOverviewStats" }, "Failed", error);
-        return { totalReports: 0, completed: 0, activeUsers, avgRealisasi: 0 };
-    }
-}
-
-/**
- * Per-branch chart data for the Admin dashboard — Year-to-Date window.
- * - total: total non-draft reports per branch (YTD)
- * - totalRealisasi: sum of totalReal per branch (YTD, COMPLETED only)
- */
-export async function getAdminBranchChartData(): Promise<BranchChartData[]> {
-    const ytdStart = getYtdStart();
-    try {
-        const [allBranches, totalRows, totalRealisasiRows] = await Promise.all([
-            prisma.store.groupBy({
-                by: ["branchName"],
-                where: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } },
-                orderBy: { branchName: "asc" },
+            prisma.report.groupBy({
+                by: ["status"],
+                where: baseWhere,
+                _count: { _all: true },
             }),
             prisma.report.groupBy({
                 by: ["branchName"],
-                where: {
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                    status: { not: "DRAFT" },
-                    createdAt: { gte: ytdStart },
-                },
+                where: baseWhere,
                 _count: { _all: true },
             }),
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    ...baseWhere,
                     status: "COMPLETED",
                     totalReal: { not: null },
+                },
+                _count: { _all: true },
+                _sum: { totalReal: true },
+                _avg: { totalReal: true },
+            }),
+            prisma.report.findMany({
+                where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    status: "COMPLETED",
+                    createdAt: { gte: trendWindow.start },
+                },
+                select: {
+                    branchName: true,
+                    totalReal: true,
+                },
+            }),
+            prisma.user.findMany({
+                select: { branchNames: true },
+            }),
+            prisma.report.findMany({
+                where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    status: {
+                        in: [
+                            "PENDING_ESTIMATION",
+                            "PENDING_REVIEW",
+                            "APPROVED_BMC",
+                            "ESTIMATION_REJECTED_REVISION",
+                            "REVIEW_REJECTED_REVISION",
+                            "IN_PROGRESS",
+                        ],
+                    },
+                },
+                orderBy: [{ updatedAt: "asc" }],
+                take: 8,
+                select: {
+                    reportNumber: true,
+                    storeName: true,
+                    branchName: true,
+                    status: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    createdBy: { select: { name: true } },
+                },
+            }),
+            prisma.pjumExport.groupBy({
+                by: ["status"],
+                where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     createdAt: { gte: ytdStart },
                 },
-                _sum: { totalReal: true },
+                _count: { _all: true },
             }),
+            getGlobalActivity(8),
         ]);
 
-        const totalMap = new Map(
-            totalRows.map((r) => [r.branchName, r._count._all]),
+        const statusCountMap = new Map(
+            statusRows.map((r) => [r.status, r._count._all]),
         );
+        const status = ADMIN_STATUS_ORDER.map((statusKey) => ({
+            status: statusKey,
+            label: ADMIN_STATUS_LABELS[statusKey] ?? statusKey,
+            count: statusCountMap.get(statusKey as never) ?? 0,
+        })).filter((item) => item.count > 0);
 
-        const totalRealisasiMap = new Map(
-            totalRealisasiRows.map((r) => [
+        const branchOptions = Array.from(
+            new Set(
+                userBranchRows
+                    .map((user) => user.branchNames[0])
+                    .filter(
+                        (name) =>
+                            name &&
+                            name.trim() !== "" &&
+                            name !== EXCLUDED_ADMIN_BRANCH_NAME,
+                    ),
+            ),
+        )
+            .sort((a, b) => a.localeCompare(b, "id-ID"))
+            .map((name) => ({ name }));
+
+        const branchParentMap = new Map<string, string>();
+        for (const user of userBranchRows) {
+            const parentBranch = user.branchNames[0];
+            if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
+                continue;
+            }
+
+            for (const branchName of user.branchNames) {
+                if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+                    continue;
+                }
+                branchParentMap.set(branchName, parentBranch);
+            }
+        }
+
+        const completedBranchMap = new Map(
+            completedBranchRows.map((r) => [
                 r.branchName,
-                Number(r._sum.totalReal ?? 0),
+                {
+                    count: r._count._all,
+                    totalRealisasi: Number(r._sum.totalReal ?? 0),
+                    avgRealisasi: Number(r._avg.totalReal ?? 0),
+                },
             ]),
         );
 
-        return allBranches.map((b) => ({
-            cabang: b.branchName,
-            total: totalMap.get(b.branchName) ?? 0,
-            totalRealisasi: totalRealisasiMap.get(b.branchName) ?? 0,
+        const branches = branchRows
+            .map((row) => {
+                const completed = completedBranchMap.get(row.branchName);
+                const completedCount = completed?.count ?? 0;
+                return {
+                    branchName: row.branchName,
+                    totalReports: row._count._all,
+                    completedReports: completedCount,
+                    openReports: row._count._all - completedCount,
+                    completionRate:
+                        row._count._all > 0
+                            ? Math.round((completedCount / row._count._all) * 100)
+                            : 0,
+                    totalRealisasi: completed?.totalRealisasi ?? 0,
+                    avgRealisasi: completed?.avgRealisasi ?? 0,
+                };
+            })
+            .sort((a, b) => b.openReports - a.openReports || b.totalReports - a.totalReports)
+            .slice(0, 8);
+
+        const trendBranchNames = branchOptions.map((branch) => branch.name);
+        const trendMap = new Map(
+            trendBranchNames.map((branchName) => [
+                branchName,
+                {
+                    label: branchName,
+                    branchName,
+                    completed: 0,
+                    realisasi: 0,
+                    avgRealisasi: 0,
+                },
+            ]),
+        );
+
+        for (const row of trendRows) {
+            const parentBranchName =
+                branchParentMap.get(row.branchName) ?? row.branchName;
+            const current = trendMap.get(parentBranchName);
+            if (!current) continue;
+
+            current.completed += 1;
+            current.realisasi += Number(row.totalReal ?? 0);
+        }
+
+        const trends = Array.from(trendMap.values()).map((row) => ({
+            ...row,
+            avgRealisasi:
+                row.completed > 0
+                    ? Math.round(row.realisasi / row.completed)
+                    : 0,
         }));
+
+        const pjumCountMap = new Map(
+            pjumRows.map((r) => [r.status, r._count._all]),
+        );
+        const pjum = {
+            pending: pjumCountMap.get("PENDING_APPROVAL") ?? 0,
+            approved: pjumCountMap.get("APPROVED") ?? 0,
+            rejected: pjumCountMap.get("REJECTED") ?? 0,
+            total: pjumRows.reduce((sum, row) => sum + row._count._all, 0),
+        };
+
+        return {
+            kpi: {
+                totalReports,
+                completedReports,
+                inProgressReports,
+                pendingReviewReports,
+                revisionReports,
+                completionRate:
+                    totalReports > 0
+                        ? Math.round((completedReports / totalReports) * 100)
+                        : 0,
+                totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+                avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
+                activeUsers,
+                unpjumCompletedReports,
+                pendingPjum: pjum.pending,
+            },
+            status,
+            trends,
+            branchOptions,
+            branches,
+            attentionReports: attentionReports.map((report) => ({
+                reportNumber: report.reportNumber,
+                storeName: report.storeName,
+                branchName: report.branchName,
+                status: report.status,
+                statusLabel:
+                    ADMIN_STATUS_LABELS[report.status] ?? report.status,
+                createdAt: report.createdAt,
+                updatedAt: report.updatedAt,
+                ageDays: calculateAgeDays(report.updatedAt),
+                ownerName: report.createdBy.name,
+            })),
+            pjum,
+            recentActivity,
+        };
     } catch (error) {
-        logger.error({ operation: "getAdminBranchChartData" }, "Failed", error);
-        return [];
+        logger.error(
+            { operation: "getAdminCommandCenterData" },
+            "Failed",
+            error,
+        );
+        return empty;
     }
 }
 
