@@ -5,11 +5,11 @@ import {
     Banknote,
     CheckCircle2,
     CircleDollarSign,
+    Clock3,
     FileText,
     ListChecks,
     Users,
 } from "lucide-react";
-import { AppSidebar } from "@/components/app-sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,6 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import {
     Table,
     TableBody,
@@ -32,13 +31,15 @@ import {
 import type { AuthUser } from "@/lib/authorization";
 import {
     getAdminCommandCenterData,
+    type AdminAttentionReport,
     type AdminBranchPerformanceDatum,
     type AdminKpiMetric,
     type AdminStatusDatum,
     type AdminTrendPeriod,
 } from "../../queries";
+import { ActivitySectionWide } from "../shared/activity-feed";
 import { AdminTrendChart } from "./admin-overview-charts";
-import { SiteHeader } from "./admin-site-header";
+import { AdminDashboardShell } from "./admin-dashboard-shell";
 
 const PERIOD_OPTIONS: { value: AdminTrendPeriod; label: string }[] = [
     { value: "ytd", label: "YTD" },
@@ -360,20 +361,27 @@ function BranchPerformanceTable({
 
 function AttentionTable({
     reports,
+    title,
+    description,
+    emptyMessage,
+    icon: Icon,
 }: {
-    reports: Awaited<
-        ReturnType<typeof getAdminCommandCenterData>
-    >["attentionReports"];
+    reports: AdminAttentionReport[];
+    title: string;
+    description: string;
+    emptyMessage: string;
+    icon: React.ElementType;
 }) {
     return (
         <Card className="overflow-hidden">
             <CardHeader>
                 <div className="flex items-center justify-between gap-4">
                     <div>
-                        <CardTitle>Antrian Prioritas</CardTitle>
-                        <CardDescription>
-                            Laporan aktif paling lama tanpa pembaruan
-                        </CardDescription>
+                        <CardTitle className="flex items-center gap-2">
+                            <Icon className="h-4 w-4 text-primary" />
+                            {title}
+                        </CardTitle>
+                        <CardDescription>{description}</CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
                         <Link href="/dashboard/reports">
@@ -398,7 +406,7 @@ function AttentionTable({
                         {reports.length === 0 ? (
                             <TableRow>
                                 <TableCell colSpan={5}>
-                                    Tidak ada antrian prioritas.
+                                    {emptyMessage}
                                 </TableCell>
                             </TableRow>
                         ) : (
@@ -447,54 +455,58 @@ export async function AdminNewDashboard({
     const data = await getAdminCommandCenterData(selectedPeriod);
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="sidebar" user={user} />
-            <SidebarInset>
-                <SiteHeader title="Dashboard" />
-                <main className="flex flex-col gap-6 p-4 md:p-6">
-                    <DashboardHeader kpi={data.kpi} />
-                    <KpiGrid kpi={data.kpi} pjum={data.pjum} />
+        <AdminDashboardShell
+            user={user}
+            title="Dashboard"
+            contentClassName="md:p-6"
+        >
+            <DashboardHeader kpi={data.kpi} />
+            <KpiGrid kpi={data.kpi} pjum={data.pjum} />
 
-                    <Card>
-                        <CardHeader>
-                            <div>
-                                <CardTitle>Distribusi Status</CardTitle>
-                                <CardDescription>
-                                    KPI komposisi status laporan tahun berjalan
-                                </CardDescription>
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <StatusDistributionKpis status={data.status} />
-                        </CardContent>
-                    </Card>
+            <Card>
+                <CardHeader>
+                    <div>
+                        <CardTitle>Distribusi Status</CardTitle>
+                        <CardDescription>
+                            KPI komposisi status laporan tahun berjalan
+                        </CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <StatusDistributionKpis status={data.status} />
+                </CardContent>
+            </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                                <div>
-                                    <CardTitle>
-                                        Laporan Selesai per Cabang
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Jumlah laporan selesai dan rata-rata
-                                        realisasi per cabang berdasarkan data
-                                        cabang dari user
-                                    </CardDescription>
-                                </div>
-                                <TrendPeriodFilter period={selectedPeriod} />
-                            </div>
-                        </CardHeader>
-                        <CardContent>
-                            <AdminTrendChart data={data.trends} />
-                        </CardContent>
-                    </Card>
+            <Card>
+                <CardHeader>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                            <CardTitle>Laporan Selesai per Cabang</CardTitle>
+                            <CardDescription>
+                                Jumlah laporan selesai dan rata-rata realisasi
+                                per cabang berdasarkan data cabang dari user
+                            </CardDescription>
+                        </div>
+                        <TrendPeriodFilter period={selectedPeriod} />
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <AdminTrendChart data={data.trends} />
+                </CardContent>
+            </Card>
 
-                    <BranchPerformanceTable branches={data.branches} />
-                    <AttentionTable reports={data.attentionReports} />
-
-                </main>
-            </SidebarInset>
-        </SidebarProvider>
+            <BranchPerformanceTable branches={data.branches} />
+            <AttentionTable
+                reports={data.stuckReports}
+                title="Stuck Reports"
+                description="Laporan aktif yang tidak bergerak lebih dari 7 hari"
+                emptyMessage="Tidak ada laporan stuck lebih dari 7 hari."
+                icon={Clock3}
+            />
+            <ActivitySectionWide
+                activities={data.recentActivity}
+                emptyMessage="Belum ada aktivitas terbaru untuk ditampilkan."
+            />
+        </AdminDashboardShell>
     );
 }

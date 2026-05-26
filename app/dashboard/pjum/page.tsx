@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "../_components/admin/admin-site-header";
+import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAdminPjum } from "./actions";
 import { AdminPjumTable } from "./_components/admin-pjum-table";
@@ -20,21 +18,18 @@ export default async function AdminPjumPage() {
     const initialData = await getAdminPjum(null, 20, {});
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
-                <SiteHeader title="PJUM">
-                    <ExportPjumDialog branches={branches} />
-                </SiteHeader>
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
-                    <AdminPjumTable 
-                        initialData={initialData.pjums} 
-                        initialNextCursor={initialData.nextCursor} 
-                        initialTotalCount={initialData.totalCount}
-                        branches={branches} 
-                    />
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <AdminDashboardShell
+            user={user}
+            title="PJUM"
+            headerActions={<ExportPjumDialog branches={branches} />}
+            contentClassName="h-full"
+        >
+            <AdminPjumTable
+                initialData={initialData.pjums}
+                initialNextCursor={initialData.nextCursor}
+                initialTotalCount={initialData.totalCount}
+                branches={branches}
+            />
+        </AdminDashboardShell>
     );
 }

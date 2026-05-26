@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "../_components/admin/admin-site-header";
+import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { AdminReportsTable } from "./_components/admin-reports-table";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAdminReports } from "./actions";
@@ -25,22 +23,19 @@ export default async function AdminReportsPage({ searchParams }: Props) {
     ]);
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
-                <SiteHeader title="Laporan Maintenance">
-                    <ExportReportsDialog branches={branches} />
-                </SiteHeader>
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
-                    <AdminReportsTable
-                        initialData={initialReports.reports}
-                        initialNextCursor={initialReports.nextCursor}
-                        initialTotalCount={initialReports.totalCount}
-                        branches={branches}
-                        initialStatus={initialStatus ?? "all"}
-                    />
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <AdminDashboardShell
+            user={user}
+            title="Laporan Maintenance"
+            headerActions={<ExportReportsDialog branches={branches} />}
+            contentClassName="h-full"
+        >
+            <AdminReportsTable
+                initialData={initialReports.reports}
+                initialNextCursor={initialReports.nextCursor}
+                initialTotalCount={initialReports.totalCount}
+                branches={branches}
+                initialStatus={initialStatus ?? "all"}
+            />
+        </AdminDashboardShell>
     );
 }

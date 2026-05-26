@@ -1,8 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import prisma from "@/lib/prisma";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { SiteHeader } from "@/app/dashboard/_components/admin/admin-site-header";
+import { AdminDashboardShell } from "@/app/dashboard/_components/admin/admin-dashboard-shell";
 import { RevisiLaporanClient } from "./revisi-laporan-client";
 import type { SearchedReport } from "./revisi-laporan-client";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
@@ -49,17 +47,12 @@ export default async function RevisiLaporanPage({ searchParams }: Props) {
     }
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
-                <SiteHeader title="Revisi Laporan Maintenance" />
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
-                    <RevisiLaporanClient
-                        initialQuery={q ?? ""}
-                        report={report}
-                    />
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <AdminDashboardShell
+            user={user}
+            title="Revisi Laporan Maintenance"
+            contentClassName="h-full"
+        >
+            <RevisiLaporanClient initialQuery={q ?? ""} report={report} />
+        </AdminDashboardShell>
     );
 }

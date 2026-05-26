@@ -1,8 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
-import { SiteHeader } from "../_components/admin/admin-site-header";
+import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { AdminUsersTable } from "./_components/admin-users-table";
 import { ExportUsersDialog } from "./_components/export-users-dialog";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
@@ -21,21 +19,18 @@ export default async function AdminUsersPage() {
     ]);
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
-                <SiteHeader title="Management User">
-                    <ExportUsersDialog branches={branches} />
-                </SiteHeader>
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
-                    <AdminUsersTable
-                        initialData={initialData.users}
-                        initialNextCursor={initialData.nextCursor}
-                        initialTotalCount={initialData.totalCount}
-                        branches={branches}
-                    />
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <AdminDashboardShell
+            user={user}
+            title="Management User"
+            headerActions={<ExportUsersDialog branches={branches} />}
+            contentClassName="h-full"
+        >
+            <AdminUsersTable
+                initialData={initialData.users}
+                initialNextCursor={initialData.nextCursor}
+                initialTotalCount={initialData.totalCount}
+                branches={branches}
+            />
+        </AdminDashboardShell>
     );
 }

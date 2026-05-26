@@ -1,10 +1,8 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
-import { SiteHeader } from "../_components/admin/admin-site-header";
+import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAdminPreventive, getReportYears } from "./actions";
 import { AdminPreventiveTable } from "./_components/admin-preventive-table";
@@ -71,23 +69,20 @@ export default async function AdminPreventivePage() {
     }
 
     return (
-        <SidebarProvider>
-            <AppSidebar variant="inset" user={user} />
-            <SidebarInset>
-                <SiteHeader title="Checklist Preventif">
-                    <ExportPreventiveDialog branches={branches} />
-                </SiteHeader>
-                <div className="flex flex-col gap-6 p-4 lg:p-6 h-full">
-                    <AdminPreventiveTable
-                        initialData={initialData.rows}
-                        initialNextCursor={initialData.nextCursor}
-                        initialTotalCount={initialData.totalCount}
-                        branches={branches}
-                        availableYears={years}
-                        defaultBranch={defaultBranch}
-                    />
-                </div>
-            </SidebarInset>
-        </SidebarProvider>
+        <AdminDashboardShell
+            user={user}
+            title="Checklist Preventif"
+            headerActions={<ExportPreventiveDialog branches={branches} />}
+            contentClassName="h-full"
+        >
+            <AdminPreventiveTable
+                initialData={initialData.rows}
+                initialNextCursor={initialData.nextCursor}
+                initialTotalCount={initialData.totalCount}
+                branches={branches}
+                availableYears={years}
+                defaultBranch={defaultBranch}
+            />
+        </AdminDashboardShell>
     );
 }
