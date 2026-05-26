@@ -8,7 +8,6 @@ import {
     CheckCircle2,
     ChevronDown,
     Loader2,
-    Store,
     Trash2,
     ZoomIn,
 } from "lucide-react";
@@ -118,11 +117,6 @@ export function CompletionChecklistStep({
     );
 
     const totalDamaged = damagedBMSItemIds.size;
-    const totalCompleted = [...damagedBMSItemIds].filter((id) => {
-        const s = itemStates.get(id);
-        return s ? isItemComplete(s) : false;
-    }).length;
-
     const [openCategories, setOpenCategories] = useState<Set<string>>(
         () => openCategoryIds,
     );
@@ -151,38 +145,7 @@ export function CompletionChecklistStep({
             {/* Checklist */}
             <div className="w-full">
                 <Card className="py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
-                    <CardHeader className="px-1 md:px-6 flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle className="text-base flex items-center gap-2">
-                                <Store className="h-4 w-4 text-primary" />
-                                {report.storeName}
-                            </CardTitle>
-                            <CardDescription className="text-xs">
-                                {report.reportNumber} · {report.branchName}
-                            </CardDescription>
-                        </div>
-
-                        {totalDamaged > 0 && (
-                            <div className="flex items-center gap-1.5 text-sm">
-                                {totalCompleted === totalDamaged ? (
-                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                ) : (
-                                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                                )}
-                                <span
-                                    className={
-                                        totalCompleted === totalDamaged
-                                            ? "text-green-700 font-medium"
-                                            : "text-muted-foreground"
-                                    }
-                                >
-                                    {totalCompleted}/{totalDamaged} item selesai
-                                </span>
-                            </div>
-                        )}
-                    </CardHeader>
-
-                    <CardContent className="space-y-3 px-1 md:px-6 pb-0 md:pb-6">
+                    <CardContent className="space-y-3 px-1 pb-0 md:px-6 md:py-6">
                         {totalDamaged === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-6">
                                 Tidak ada item rusak yang dikerjakan BMS pada laporan ini.

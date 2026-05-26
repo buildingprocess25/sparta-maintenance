@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
+import { serializeStartWorkSelfieUrls } from "@/lib/report-start-work-revision";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type {
@@ -31,6 +32,16 @@ export interface AdditionalCompletionDocumentationInput {
     note?: string;
 }
 
+export interface StartWorkRevisionInput {
+    selfieUrls: string[];
+    selfieFileIds: string[];
+    receiptUrls: string[];
+    receiptFileIds: string[];
+    materialStores: MaterialStoreJson[];
+    materialStorePhotoFileIds: string[];
+    skipPhotos?: boolean;
+}
+
 /**
  * BMS submits completed work with photo evidence, actual costs, and store info.
  * Merges completion data into the items JSON array on the report.
@@ -46,6 +57,7 @@ export async function submitCompletionWork(
     additionalDocumentation?: AdditionalCompletionDocumentationInput,
     notes?: string,
     completionFileIds: string[] = [],
+    startWorkRevision?: StartWorkRevisionInput,
 ) {
     try {
         const user = await requireRole("BMS");
@@ -58,7 +70,10 @@ export async function submitCompletionWork(
                 createdByNIK: true,
                 status: true,
                 items: true,
+                totalEstimation: true,
                 startSelfieUrl: true,
+                startReceiptUrls: true,
+                startMaterialStores: true,
                 uploadthingFileKeys: true,
                 drivePhotoFileIds: true,
             },
@@ -113,12 +128,54 @@ export async function submitCompletionWork(
         const validSelfieUrls = selfieUrls.filter(
             (url) => url.trim().length > 0,
         );
-        const selfieUrlValue =
+        const completionSelfieUrlValue =
             validSelfieUrls.length > 0
                 ? validSelfieUrls.length === 1
                     ? validSelfieUrls[0]
                     : JSON.stringify(validSelfieUrls)
                 : report.startSelfieUrl;
+
+        const startWorkUpdate = startWorkRevision
+            ? normalizeStartWorkRevision(startWorkRevision)
+            : null;
+
+        if (startWorkUpdate) {
+            const totalEstimation = Number(report.totalEstimation);
+            if (startWorkUpdate.skipPhotos && totalEstimation !== 0) {
+                return {
+                    error: "Lewati foto mulai pekerjaan hanya diperbolehkan jika total estimasi adalah Rp 0",
+                };
+            }
+
+            if (!startWorkUpdate.skipPhotos) {
+                if (startWorkUpdate.selfieUrls.length === 0) {
+                    return {
+                        error: "Foto selfie mulai pekerjaan wajib diisi",
+                    };
+                }
+
+                if (startWorkUpdate.receiptUrls.length === 0) {
+                    return {
+                        error: "Foto nota/struk mulai pekerjaan wajib diisi",
+                    };
+                }
+
+                if (startWorkUpdate.materialStores.length === 0) {
+                    return {
+                        error: "Data toko material mulai pekerjaan wajib diisi",
+                    };
+                }
+
+                const storePhotoUrls = startWorkUpdate.materialStores.flatMap(
+                    (store) => store.photoUrls ?? [],
+                );
+                if (storePhotoUrls.length === 0) {
+                    return {
+                        error: "Foto toko material mulai pekerjaan wajib diisi",
+                    };
+                }
+            }
+        }
 
         // Merge existing file keys with new completion keys (legacy UploadThing)
         const existingKeys = Array.isArray(report.uploadthingFileKeys)
@@ -133,6 +190,7 @@ export async function submitCompletionWork(
         const mergedFileIds = [
             ...existingFileIds,
             ...completionFileIds.filter((id) => id.trim().length > 0),
+            ...(startWorkUpdate?.fileIds ?? []),
         ];
 
         const totalReal = calculateTotalRealisasiFromItems(updatedItems);
@@ -146,7 +204,19 @@ export async function submitCompletionWork(
                     finishedAt: new Date(),
                     totalReal: new Prisma.Decimal(totalReal),
                     items: updatedItems as unknown as Prisma.InputJsonValue,
-                    startSelfieUrl: selfieUrlValue || null,
+                    startSelfieUrl: startWorkUpdate
+                        ? serializeStartWorkSelfieUrls(
+                              startWorkUpdate.selfieUrls,
+                          )
+                        : completionSelfieUrlValue || null,
+                    ...(startWorkUpdate
+                        ? {
+                              startReceiptUrls:
+                                  startWorkUpdate.receiptUrls as unknown as Prisma.InputJsonValue,
+                              startMaterialStores:
+                                  startWorkUpdate.materialStores as unknown as Prisma.InputJsonValue,
+                          }
+                        : {}),
                     completionAdditionalPhotos:
                         (additionalDocumentation?.photos ??
                             []) as unknown as Prisma.InputJsonValue,
@@ -195,4 +265,32 @@ export async function submitCompletionWork(
             detail: getErrorDetail(error),
         };
     }
+}
+
+function normalizeStartWorkRevision(input: StartWorkRevisionInput) {
+    const selfieUrls = cleanStringArray(input.selfieUrls);
+    const receiptUrls = cleanStringArray(input.receiptUrls);
+    const materialStores = input.materialStores
+        .map((store) => ({
+            name: store.name.trim(),
+            city: store.city.trim(),
+            photoUrls: cleanStringArray(store.photoUrls ?? []),
+        }))
+        .filter((store) => store.name.length > 0 && store.city.length > 0);
+
+    return {
+        selfieUrls,
+        receiptUrls,
+        materialStores,
+        skipPhotos: input.skipPhotos === true,
+        fileIds: [
+            ...cleanStringArray(input.selfieFileIds),
+            ...cleanStringArray(input.receiptFileIds),
+            ...cleanStringArray(input.materialStorePhotoFileIds),
+        ],
+    };
+}
+
+function cleanStringArray(values: string[]): string[] {
+    return values.map((value) => value.trim()).filter((value) => value.length > 0);
 }

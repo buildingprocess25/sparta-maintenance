@@ -52,6 +52,7 @@ export interface MaterialStoreEntry {
     id: string;
     name: string;
     city: string;
+    photoUrls?: string[];
 }
 
 // ─── Item State ───────────────────────────────────────────────────────────────
@@ -106,6 +107,11 @@ export interface CompletionDraftData {
     savedAt: string;
     globalNotes: string;
     selfiePhotoIds: string[];
+    startWorkSelfiePhotoIds?: string[];
+    startWorkMaterialStorePhotoIds?: string[];
+    startWorkReceiptPhotoIds?: string[];
+    startWorkMaterialStores?: MaterialStoreEntry[];
+    startWorkSkipPhotos?: boolean;
     additionalDocumentationPhotoIds?: string[];
     additionalDocumentationNote?: string;
     itemStates: Record<string, DraftItemState>;
@@ -116,6 +122,11 @@ export interface CompletionDraftData {
 export interface RestoredDraft {
     globalNotes: string;
     selfiePhotos: LocalPhoto[];
+    startWorkSelfiePhotos: LocalPhoto[];
+    startWorkMaterialStorePhotos: LocalPhoto[];
+    startWorkReceiptPhotos: LocalPhoto[];
+    startWorkMaterialStores: MaterialStoreEntry[];
+    startWorkSkipPhotos: boolean;
     additionalDocumentationPhotos: LocalPhoto[];
     additionalDocumentationNote: string;
     itemStates: Map<string, CompletionItemState>;
