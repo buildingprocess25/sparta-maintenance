@@ -11,6 +11,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { Search, Filter, CalendarDays } from "lucide-react";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 type Props = {
     role: string;
@@ -66,15 +67,17 @@ export function BmcApprovalFilters({ role }: Props) {
                     <SelectContent>
                         <SelectItem value="all">Semua Status</SelectItem>
                         <SelectItem value="pending_estimation">
-                            Menunggu Persetujuan Estimasi
+                            {getReportStatusLabel("PENDING_ESTIMATION")}
                         </SelectItem>
                         <SelectItem value="pending_review">
-                            Menunggu Review Penyelesaian
+                            {getReportStatusLabel("PENDING_REVIEW")}
                         </SelectItem>
                         <SelectItem value="in_progress">
-                            Sedang Dikerjakan
+                            {getReportStatusLabel("IN_PROGRESS")}
                         </SelectItem>
-                        <SelectItem value="completed">Selesai</SelectItem>
+                        <SelectItem value="completed">
+                            {getReportStatusLabel("COMPLETED")}
+                        </SelectItem>
                     </SelectContent>
                 </Select>
             )}

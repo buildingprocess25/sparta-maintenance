@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers } from "@/lib/presence";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 /**
  * Fetch report statistics for a BMS user (their own reports, all time).
@@ -536,15 +537,19 @@ type AdminBranchAccumulator = {
 };
 
 const ADMIN_STATUS_LABELS: Record<string, string> = {
-    PENDING_ESTIMATION: "Menunggu Estimasi",
-    ESTIMATION_APPROVED: "Siap Dikerjakan",
-    ESTIMATION_REJECTED_REVISION: "Revisi Estimasi",
-    ESTIMATION_REJECTED: "Ditolak",
-    IN_PROGRESS: "Berjalan",
-    PENDING_REVIEW: "Review BMC",
-    APPROVED_BMC: "Final BNM",
-    REVIEW_REJECTED_REVISION: "Revisi Pekerjaan",
-    COMPLETED: "Selesai",
+    PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+    ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
+    ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
+        "ESTIMATION_REJECTED_REVISION",
+    ),
+    ESTIMATION_REJECTED: getReportStatusLabel("ESTIMATION_REJECTED"),
+    IN_PROGRESS: getReportStatusLabel("IN_PROGRESS"),
+    PENDING_REVIEW: getReportStatusLabel("PENDING_REVIEW"),
+    APPROVED_BMC: getReportStatusLabel("APPROVED_BMC"),
+    REVIEW_REJECTED_REVISION: getReportStatusLabel(
+        "REVIEW_REJECTED_REVISION",
+    ),
+    COMPLETED: getReportStatusLabel("COMPLETED"),
 };
 
 const ADMIN_STATUS_ORDER = [

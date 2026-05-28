@@ -54,7 +54,7 @@ export async function getAdminStores(
             take: limit + 1,
             skip: cursor ? 1 : 0,
             cursor: cursor ? { code: cursor } : undefined,
-            orderBy: [{ branchName: "asc" }, { name: "asc" }],
+            orderBy: [{ branchName: "asc" }, { name: "asc" }, { code: "asc" }],
             select: {
                 code: true,
                 name: true,

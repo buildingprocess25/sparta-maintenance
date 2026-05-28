@@ -10,10 +10,10 @@ import { revalidatePath } from "next/cache";
 export type AdminReportFilters = {
     search?: string;
     status?: string;
-    bmsQuery?: string;
     branchName?: string;
     fromDate?: string;
     toDate?: string;
+    pjumStatus?: string;
 };
 
 export async function getAdminReports(
@@ -34,25 +34,50 @@ export async function getAdminReports(
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         };
 
-        // Search: reportNumber, storeName, storeCode
+        const andFilters: Prisma.ReportWhereInput[] = [];
+
+        // Search: reportNumber, storeName, storeCode, BMS NIK, BMS name
         if (filters.search) {
-            where.OR = [
-                { reportNumber: { contains: filters.search, mode: "insensitive" } },
-                { storeName: { contains: filters.search, mode: "insensitive" } },
-                { storeCode: { contains: filters.search, mode: "insensitive" } },
-            ];
+            andFilters.push({
+                OR: [
+                    {
+                        reportNumber: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        storeName: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        storeCode: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        createdByNIK: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        createdBy: {
+                            name: {
+                                contains: filters.search,
+                                mode: "insensitive",
+                            },
+                        },
+                    },
+                ],
+            });
         }
 
         if (filters.status && filters.status !== "all") {
             where.status = filters.status as Prisma.EnumReportStatusFilter["equals"];
-        }
-
-        if (filters.bmsQuery) {
-            where.OR = [
-                ...(where.OR || []),
-                { createdByNIK: { contains: filters.bmsQuery, mode: "insensitive" } },
-                { createdBy: { name: { contains: filters.bmsQuery, mode: "insensitive" } } },
-            ];
         }
 
         if (filters.branchName && filters.branchName !== "all") {
@@ -70,6 +95,19 @@ export async function getAdminReports(
                 where.createdAt.lte = end;
             }
         }
+
+        if (filters.pjumStatus && filters.pjumStatus !== "all") {
+            if (filters.pjumStatus === "exported") {
+                where.pjumExportedAt = { not: null };
+            }
+            if (filters.pjumStatus === "not_exported") {
+                where.pjumExportedAt = null;
+            }
+        }
+
+        if (andFilters.length > 0) {
+            where.AND = andFilters;
+        }
         
         // Count total reports for the given filters
         const totalCount = await prisma.report.count({ where });
@@ -79,7 +117,7 @@ export async function getAdminReports(
             take: limit + 1, // Take one extra to determine if there's a next page
             skip: cursor ? 1 : 0,
             cursor: cursor ? { reportNumber: cursor } : undefined,
-            orderBy: { updatedAt: "desc" },
+            orderBy: [{ updatedAt: "desc" }, { reportNumber: "desc" }],
             select: {
                 reportNumber: true,
                 createdAt: true,
@@ -90,6 +128,8 @@ export async function getAdminReports(
                 status: true,
                 totalEstimation: true,
                 totalReal: true,
+                finishedAt: true,
+                pjumExportedAt: true,
                 createdByNIK: true,
                 createdBy: {
                     select: {

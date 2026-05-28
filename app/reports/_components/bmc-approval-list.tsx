@@ -34,6 +34,7 @@ import {
     MapPin,
 } from "lucide-react";
 import { BmcApprovalFilters } from "./bmc-approval-filters";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 type ApprovalUser = {
     role: string;
@@ -52,13 +53,13 @@ function getStatusBadge(status: string) {
         case "PENDING_ESTIMATION":
             return (
                 <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80 border-yellow-200 shadow-none whitespace-nowrap">
-                    Menunggu Persetujuan Estimasi
+                    {getReportStatusLabel("PENDING_ESTIMATION")}
                 </Badge>
             );
         case "PENDING_REVIEW":
             return (
                 <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100/80 border-purple-200 shadow-none whitespace-nowrap">
-                    Menunggu Review Penyelesaian
+                    {getReportStatusLabel("PENDING_REVIEW")}
                 </Badge>
             );
         default:
@@ -269,7 +270,9 @@ export async function BmcApprovalList({
                                         {pendingEstimation}
                                     </p>
                                     <p className="text-muted-foreground mt-0.5">
-                                        Menunggu Persetujuan Estimasi
+                                        {getReportStatusLabel(
+                                            "PENDING_ESTIMATION",
+                                        )}
                                     </p>
                                 </div>
                             </CardContent>
@@ -286,7 +289,9 @@ export async function BmcApprovalList({
                                         {pendingReview}
                                     </p>
                                     <p className="text-muted-foreground mt-0.5">
-                                        Menunggu Review Penyelesaian
+                                        {getReportStatusLabel(
+                                            "PENDING_REVIEW",
+                                        )}
                                     </p>
                                 </div>
                             </CardContent>

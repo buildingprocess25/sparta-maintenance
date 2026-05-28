@@ -1,30 +1,34 @@
 import { CheckCircle2, Clock, Wrench, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+    getReportStatusLabel,
+    isRejectedReportStatus,
+} from "@/lib/report-status";
 
 const STATUS_STEPS = [
     { key: "DIBUAT", label: "Laporan Dibuat", icon: CheckCircle2 },
     {
         key: "PENDING_ESTIMATION",
-        label: "Menunggu Persetujuan Estimasi",
+        label: getReportStatusLabel("PENDING_ESTIMATION"),
         icon: Clock,
     },
     {
         key: "ESTIMATION_APPROVED",
-        label: "Estimasi Disetujui",
+        label: getReportStatusLabel("ESTIMATION_APPROVED"),
         icon: CheckCircle2,
     },
-    { key: "IN_PROGRESS", label: "Sedang Dikerjakan", icon: Wrench },
+    { key: "IN_PROGRESS", label: getReportStatusLabel("IN_PROGRESS"), icon: Wrench },
     {
         key: "PENDING_REVIEW",
-        label: "Menunggu Review Penyelesaian",
+        label: getReportStatusLabel("PENDING_REVIEW"),
         icon: Clock,
     },
     {
         key: "APPROVED_BMC",
-        label: "Menunggu Persetujuan Final BNM",
+        label: getReportStatusLabel("APPROVED_BMC"),
         icon: Clock,
     },
-    { key: "COMPLETED", label: "Selesai", icon: CheckCircle2 },
+    { key: "COMPLETED", label: getReportStatusLabel("COMPLETED"), icon: CheckCircle2 },
 ];
 
 const STATUS_ORDER: Record<string, number> = {
@@ -39,14 +43,6 @@ const STATUS_ORDER: Record<string, number> = {
     COMPLETED: 6,
 };
 
-function isRejectionStatus(status: string) {
-    return (
-        status === "ESTIMATION_REJECTED" ||
-        status === "ESTIMATION_REJECTED_REVISION" ||
-        status === "REVIEW_REJECTED_REVISION"
-    );
-}
-
 function getRejectionStep(status: string) {
     if (
         status === "ESTIMATION_REJECTED" ||
@@ -59,15 +55,11 @@ function getRejectionStep(status: string) {
 
 export function StatusTimeline({ status }: { status: string }) {
     const currentOrder = STATUS_ORDER[status] ?? 0;
-    const isRejected = isRejectionStatus(status);
+    const isRejected = isRejectedReportStatus(status);
     const rejectionStep = getRejectionStep(status);
 
     const currentLabel = isRejected
-        ? status === "ESTIMATION_REJECTED"
-            ? "Estimasi Ditolak"
-            : status === "ESTIMATION_REJECTED_REVISION"
-              ? "Estimasi Ditolak (Revisi)"
-              : "Penyelesaian Ditolak (Revisi)"
+        ? getReportStatusLabel(status)
         : (STATUS_STEPS[currentOrder]?.label ?? status);
 
     return (
@@ -168,9 +160,7 @@ export function StatusTimeline({ status }: { status: string }) {
                                     )}
                                 >
                                     {isRejectedStep
-                                        ? status === "ESTIMATION_REJECTED"
-                                            ? "Estimasi Ditolak"
-                                            : "Penyelesaian Ditolak (Revisi)"
+                                        ? getReportStatusLabel(status)
                                         : step.label}
                                 </span>
                             </div>

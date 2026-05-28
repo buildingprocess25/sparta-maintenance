@@ -10,6 +10,9 @@ import { revalidatePath } from "next/cache";
 export type AdminPjumFilters = {
     search?: string;
     branchName?: string;
+    status?: string;
+    fromDate?: string;
+    toDate?: string;
 };
 
 export type PjumRow = {
@@ -46,22 +49,41 @@ export async function getAdminPjum(
         };
 
         if (filters.search) {
+            const search = filters.search.trim();
             // Because PjumExport doesn't have a relation to User in Prisma schema,
             // we find matching NIKs first based on the name
             const matchingUsers = await prisma.user.findMany({
-                where: { name: { contains: filters.search, mode: "insensitive" } },
+                where: { name: { contains: search, mode: "insensitive" } },
                 select: { NIK: true }
             });
             const matchedNIKs = matchingUsers.map(u => u.NIK);
 
             where.OR = [
-                { bmsNIK: { contains: filters.search, mode: "insensitive" } },
+                { bmsNIK: { contains: search, mode: "insensitive" } },
+                { branchName: { contains: search, mode: "insensitive" } },
+                { reportNumbers: { has: search } },
                 ...(matchedNIKs.length > 0 ? [{ bmsNIK: { in: matchedNIKs } }] : []),
             ];
         }
 
         if (filters.branchName && filters.branchName !== "all") {
             where.branchName = filters.branchName;
+        }
+
+        if (filters.status && filters.status !== "all") {
+            where.status = filters.status as Prisma.EnumPjumStatusFilter["equals"];
+        }
+
+        if (filters.fromDate || filters.toDate) {
+            where.createdAt = {};
+            if (filters.fromDate) {
+                where.createdAt.gte = new Date(filters.fromDate);
+            }
+            if (filters.toDate) {
+                const end = new Date(filters.toDate);
+                end.setHours(23, 59, 59, 999);
+                where.createdAt.lte = end;
+            }
         }
 
         const totalCount = await prisma.pjumExport.count({ where });
@@ -71,7 +93,7 @@ export async function getAdminPjum(
             take: limit + 1,
             skip: cursor ? 1 : 0,
             cursor: cursor ? { id: cursor } : undefined,
-            orderBy: { createdAt: "desc" },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
             select: {
                 id: true,
                 weekNumber: true,

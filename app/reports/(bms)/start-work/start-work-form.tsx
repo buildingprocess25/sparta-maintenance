@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
 import { genPhotoId } from "@/lib/upload-photo";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
+import { getReportStatusLabel } from "@/lib/report-status";
 import {
     Camera,
     ImagePlus,
@@ -534,8 +535,7 @@ export function StartWorkForm({
             }
 
             toast.success("Pengerjaan dimulai!", {
-                description:
-                    "Status laporan diubah menjadi 'Sedang Dikerjakan'.",
+                description: `Status laporan diubah menjadi '${getReportStatusLabel("IN_PROGRESS")}'.`,
             });
             await autosave.clearDraft(rn);
             router.push(`/reports/${rn}`);

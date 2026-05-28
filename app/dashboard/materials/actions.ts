@@ -5,11 +5,9 @@ import { Prisma } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
-import type { MaterialEstimationJson } from "@/types/report";
 
 export type AdminMaterialFilters = {
     search?: string;
-    bmsQuery?: string;
     branchName?: string;
 };
 
@@ -27,6 +25,99 @@ export type MaterialRow = {
     totalPrice: number;
 };
 
+type MaterialCursor = {
+    updatedAt: string;
+    reportNumber: string;
+    rowIndex: number;
+};
+
+type MaterialRawRow = MaterialRow & {
+    updatedAt: Date;
+    rowIndex: number | bigint;
+};
+
+function encodeMaterialCursor(row: MaterialRawRow): string {
+    const cursor: MaterialCursor = {
+        updatedAt: row.updatedAt.toISOString(),
+        reportNumber: row.reportNumber,
+        rowIndex: Number(row.rowIndex),
+    };
+
+    return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeMaterialCursor(cursor: string | null): MaterialCursor | null {
+    if (!cursor) return null;
+
+    try {
+        const parsed = JSON.parse(
+            Buffer.from(cursor, "base64url").toString("utf8"),
+        ) as Partial<MaterialCursor>;
+
+        if (
+            typeof parsed.updatedAt !== "string" ||
+            typeof parsed.reportNumber !== "string" ||
+            typeof parsed.rowIndex !== "number"
+        ) {
+            return null;
+        }
+
+        return {
+            updatedAt: parsed.updatedAt,
+            reportNumber: parsed.reportNumber,
+            rowIndex: parsed.rowIndex,
+        };
+    } catch {
+        return null;
+    }
+}
+
+function buildMaterialWhereSql(
+    filters: AdminMaterialFilters,
+    cursor?: MaterialCursor | null,
+) {
+    const conditions: Prisma.Sql[] = [
+        Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`,
+        Prisma.sql`r."status" = 'COMPLETED'::"ReportStatus"`,
+        Prisma.sql`r."reportFinalDriveUrl" IS NOT NULL`,
+        Prisma.sql`jsonb_typeof(r."estimations"::jsonb) = 'array'`,
+    ];
+
+    const search = filters.search?.trim();
+    if (search) {
+        const searchPattern = `%${search}%`;
+        conditions.push(Prisma.sql`(
+            r."reportNumber" ILIKE ${searchPattern}
+            OR r."storeName" ILIKE ${searchPattern}
+            OR COALESCE(r."storeCode", '') ILIKE ${searchPattern}
+            OR r."createdByNIK" ILIKE ${searchPattern}
+            OR u."name" ILIKE ${searchPattern}
+            OR COALESCE(material.value->>'materialName', '') ILIKE ${searchPattern}
+        )`);
+    }
+
+    if (filters.branchName && filters.branchName !== "all") {
+        conditions.push(Prisma.sql`r."branchName" = ${filters.branchName}`);
+    }
+
+    if (cursor) {
+        conditions.push(Prisma.sql`(
+            r."updatedAt" < ${new Date(cursor.updatedAt)}
+            OR (
+                r."updatedAt" = ${new Date(cursor.updatedAt)}
+                AND r."reportNumber" < ${cursor.reportNumber}
+            )
+            OR (
+                r."updatedAt" = ${new Date(cursor.updatedAt)}
+                AND r."reportNumber" = ${cursor.reportNumber}
+                AND material.ordinality::int > ${cursor.rowIndex}
+            )
+        )`);
+    }
+
+    return Prisma.join(conditions, " AND ");
+}
+
 export async function getAdminMaterials(
     cursor: string | null,
     limit: number = 20,
@@ -41,128 +132,66 @@ export async function getAdminMaterials(
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.ReportWhereInput = {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: { not: "DRAFT" },
-        };
+        const decodedCursor = decodeMaterialCursor(cursor);
+        const whereSql = buildMaterialWhereSql(filters);
+        const pageWhereSql = buildMaterialWhereSql(filters, decodedCursor);
 
-        // For search, we can search reportNumber, storeName, storeCode.
-        // Prisma can't easily search inside JSON array (estimations) cross-database safely without raw SQL in standard API, 
-        // but we'll try our best. We'll search report fields, and handle materialName filtering in memory if needed, 
-        // but for simplicity we'll just filter report level. If we want materialName search in DB, we'd use raw SQL or stringContains on JSON string.
-        // To keep it simple and safe, we fetch based on report fields and filter materialName in memory below.
-        if (filters.search) {
-            where.OR = [
-                { reportNumber: { contains: filters.search, mode: "insensitive" } },
-                { storeName: { contains: filters.search, mode: "insensitive" } },
-                { storeCode: { contains: filters.search, mode: "insensitive" } },
-            ];
-        }
-
-        if (filters.bmsQuery) {
-            where.OR = [
-                ...(where.OR || []),
-                { createdByNIK: { contains: filters.bmsQuery, mode: "insensitive" } },
-                { createdBy: { name: { contains: filters.bmsQuery, mode: "insensitive" } } },
-            ];
-        }
-
-        if (filters.branchName && filters.branchName !== "all") {
-            where.branchName = filters.branchName;
-        }
-
-        // We only want reports that HAVE estimations. We can check if estimations is not null, 
-        // but Prisma json filtering is strict. We just fetch and filter empty ones in memory.
-
-        // Calculate total unique materials from ALL reports matching the filter
-        const allEstimations = await prisma.report.findMany({
-            where,
-            select: { estimations: true },
-        });
-
-        const uniqueMaterialsSet = new Set<string>();
-        for (const report of allEstimations) {
-            const items = report.estimations as unknown as MaterialEstimationJson[];
-            if (!Array.isArray(items)) continue;
-            for (const item of items) {
-                if (item?.materialName) {
-                    // Apply in-memory search filter for materialName if search exists
-                    if (filters.search) {
-                        const searchLower = filters.search.toLowerCase();
-                        if (!item.materialName.toLowerCase().includes(searchLower)) {
-                            continue;
-                        }
-                    }
-                    uniqueMaterialsSet.add(item.materialName.trim().toLowerCase());
-                }
-            }
-        }
-        const totalUniqueCount = uniqueMaterialsSet.size;
-
-        const reports = await prisma.report.findMany({
-            where,
-            take: limit + 1,
-            skip: cursor ? 1 : 0,
-            cursor: cursor ? { reportNumber: cursor } : undefined,
-            orderBy: { updatedAt: "desc" },
-            select: {
-                reportNumber: true,
-                storeName: true,
-                storeCode: true,
-                branchName: true,
-                createdByNIK: true,
-                createdBy: {
-                    select: {
-                        name: true,
-                    },
-                },
-                estimations: true,
-            },
-        });
+        const [countRows, rawRows] = await Promise.all([
+            prisma.$queryRaw<Array<{ count: bigint }>>`
+                SELECT COUNT(DISTINCT lower(trim(material.value->>'materialName'))) AS count
+                FROM "Report" r
+                JOIN "User" u ON u."NIK" = r."createdByNIK"
+                CROSS JOIN LATERAL jsonb_array_elements(r."estimations"::jsonb)
+                    WITH ORDINALITY AS material(value, ordinality)
+                WHERE ${whereSql}
+                    AND COALESCE(trim(material.value->>'materialName'), '') <> ''
+            `,
+            prisma.$queryRaw<MaterialRawRow[]>`
+                SELECT
+                    r."reportNumber" AS "reportNumber",
+                    r."storeName" AS "storeName",
+                    r."storeCode" AS "storeCode",
+                    r."branchName" AS "branchName",
+                    r."createdByNIK" AS "bmsNIK",
+                    u."name" AS "bmsName",
+                    COALESCE(material.value->>'materialName', '') AS "materialName",
+                    COALESCE(NULLIF(material.value->>'quantity', '')::numeric, 0)::float8 AS "quantity",
+                    COALESCE(material.value->>'unit', '') AS "unit",
+                    COALESCE(NULLIF(material.value->>'price', '')::numeric, 0)::float8 AS "price",
+                    COALESCE(NULLIF(material.value->>'totalPrice', '')::numeric, 0)::float8 AS "totalPrice",
+                    r."updatedAt" AS "updatedAt",
+                    material.ordinality::int AS "rowIndex"
+                FROM "Report" r
+                JOIN "User" u ON u."NIK" = r."createdByNIK"
+                CROSS JOIN LATERAL jsonb_array_elements(r."estimations"::jsonb)
+                    WITH ORDINALITY AS material(value, ordinality)
+                WHERE ${pageWhereSql}
+                    AND COALESCE(trim(material.value->>'materialName'), '') <> ''
+                ORDER BY r."updatedAt" DESC, r."reportNumber" DESC, material.ordinality::int ASC
+                LIMIT ${limit + 1}
+            `,
+        ]);
 
         let nextCursor: typeof cursor = null;
-        if (reports.length > limit) {
-            const nextItem = reports.pop();
-            nextCursor = nextItem!.reportNumber;
+        if (rawRows.length > limit) {
+            const nextItem = rawRows.pop();
+            nextCursor = nextItem ? encodeMaterialCursor(nextItem) : null;
         }
 
-        const materials: MaterialRow[] = [];
-
-        for (const report of reports) {
-            const items = (report.estimations as unknown) as MaterialEstimationJson[];
-            if (!Array.isArray(items) || items.length === 0) continue;
-
-            for (const item of items) {
-                // If there's a search term, and it didn't match report fields, check materialName
-                if (filters.search) {
-                    const searchLower = filters.search.toLowerCase();
-                    const matchReport = 
-                        report.reportNumber.toLowerCase().includes(searchLower) ||
-                        report.storeName.toLowerCase().includes(searchLower) ||
-                        (report.storeCode && report.storeCode.toLowerCase().includes(searchLower));
-                    
-                    const matchMaterial = item.materialName.toLowerCase().includes(searchLower);
-
-                    if (!matchReport && !matchMaterial) {
-                        continue;
-                    }
-                }
-
-                materials.push({
-                    reportNumber: report.reportNumber,
-                    storeName: report.storeName,
-                    storeCode: report.storeCode,
-                    branchName: report.branchName,
-                    bmsNIK: report.createdByNIK,
-                    bmsName: report.createdBy.name,
-                    materialName: item.materialName,
-                    quantity: Number(item.quantity || 0),
-                    unit: item.unit || "",
-                    price: Number(item.price || 0),
-                    totalPrice: Number(item.totalPrice || 0),
-                });
-            }
-        }
+        const materials: MaterialRow[] = rawRows.map((row) => ({
+            reportNumber: row.reportNumber,
+            storeName: row.storeName,
+            storeCode: row.storeCode,
+            branchName: row.branchName,
+            bmsNIK: row.bmsNIK,
+            bmsName: row.bmsName,
+            materialName: row.materialName,
+            quantity: Number(row.quantity || 0),
+            unit: row.unit || "",
+            price: Number(row.price || 0),
+            totalPrice: Number(row.totalPrice || 0),
+        }));
+        const totalUniqueCount = Number(countRows[0]?.count ?? 0);
 
         const durationMs = Math.round(performance.now() - start);
         logger.info(

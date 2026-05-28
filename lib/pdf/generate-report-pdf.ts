@@ -19,6 +19,7 @@ import { extractMaterialStoresFromItems } from "@/lib/report-material-stores";
 import { resolvePhotoUrl, isGoogleDriveCdnUrl } from "@/lib/storage/photo-url";
 import { logger } from "@/lib/logger";
 import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -604,17 +605,29 @@ function getStampLabelConfig(action: string): { label: string; color: string } {
         case "CREATED":
             return { label: "Dibuat", color: "#2563eb" };
         case "ESTIMATION_APPROVED":
-            return { label: "Estimasi Disetujui", color: "#16a34a" };
+            return {
+                label: getReportStatusLabel("ESTIMATION_APPROVED"),
+                color: "#16a34a",
+            };
         case "ESTIMATION_REJECTED":
-            return { label: "Estimasi Ditolak", color: "#dc2626" };
+            return {
+                label: getReportStatusLabel("ESTIMATION_REJECTED"),
+                color: "#dc2626",
+            };
         case "ESTIMATION_REJECTED_REVISION":
-            return { label: "Estimasi Ditolak (Revisi)", color: "#d97706" };
+            return {
+                label: getReportStatusLabel("ESTIMATION_REJECTED_REVISION"),
+                color: "#d97706",
+            };
         case "WORK_APPROVED":
             return { label: "Disetujui", color: "#16a34a" };
         case "FINAL_APPROVED_BNM":
             return { label: "Mengetahui", color: "#0369a1" };
         case "WORK_REJECTED_REVISION":
-            return { label: "Penyelesaian Ditolak (Revisi)", color: "#d97706" };
+            return {
+                label: getReportStatusLabel("REVIEW_REJECTED_REVISION"),
+                color: "#d97706",
+            };
         case "FINAL_REJECTED_REVISION_BNM":
             return { label: "Final Review BNM Ditolak", color: "#dc2626" };
         default:

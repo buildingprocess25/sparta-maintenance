@@ -77,7 +77,7 @@ export async function getAdminUsers(
             take: limit + 1,
             skip: cursor ? 1 : 0,
             cursor: cursor ? { NIK: cursor } : undefined,
-            orderBy: { name: "asc" },
+            orderBy: [{ name: "asc" }, { NIK: "asc" }],
             select: {
                 NIK: true,
                 name: true,

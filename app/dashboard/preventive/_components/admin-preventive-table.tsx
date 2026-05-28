@@ -81,7 +81,15 @@ export function AdminPreventiveTable({
                 branchName,
                 year,
             });
-            setData((prev) => [...prev, ...result.rows]);
+            setData((prev) => {
+                const existing = new Set(prev.map((item) => item.storeCode));
+                return [
+                    ...prev,
+                    ...result.rows.filter(
+                        (item) => !existing.has(item.storeCode),
+                    ),
+                ];
+            });
             setNextCursor(result.nextCursor);
         } catch (error) {
             console.error("Failed to load more:", error);

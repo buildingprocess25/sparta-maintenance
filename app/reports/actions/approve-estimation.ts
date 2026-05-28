@@ -8,6 +8,7 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { isRekananZeroCost } from "@/lib/report-utils";
+import { getReportStatusLabel } from "@/lib/report-status";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 
 type EstimationDecision = "approve" | "reject_revision" | "reject";
@@ -43,7 +44,7 @@ export async function reviewEstimation(
 
         if (report.status !== ReportStatus.PENDING_ESTIMATION) {
             return {
-                error: "Laporan harus berstatus 'Menunggu Persetujuan Estimasi'",
+                error: `Laporan harus berstatus '${getReportStatusLabel("PENDING_ESTIMATION")}'`,
             };
         }
 

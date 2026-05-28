@@ -29,6 +29,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 import { isRekananZeroCost } from "@/lib/report-utils";
+import { getReportStatusLabel } from "@/lib/report-status";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { StatusBadge } from "./status-badge";
 import type { ReportData, Viewer, ActionState } from "./types";
@@ -217,7 +218,7 @@ export function ReportSidebar({
                                     {report.status ===
                                     "REVIEW_REJECTED_REVISION"
                                         ? "Pekerjaan Ditolak — Perlu Revisi"
-                                        : "Sedang Dikerjakan"}
+                                        : getReportStatusLabel("IN_PROGRESS")}
                                 </p>
                                 <p className="text-xs text-blue-700 mt-0.5">
                                     {report.status ===
@@ -258,7 +259,9 @@ export function ReportSidebar({
                                 >
                                     {isRekananBypass
                                         ? "Laporan Rekanan — Tanpa Estimasi"
-                                        : "Menunggu Review Estimasi"}
+                                        : getReportStatusLabel(
+                                              "PENDING_ESTIMATION",
+                                          )}
                                 </p>
                                 <p
                                     className={cn(
@@ -379,7 +382,7 @@ export function ReportSidebar({
                         <div className="space-y-3">
                             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
                                 <p className="text-sm font-medium text-purple-800">
-                                    Menunggu Review Penyelesaian
+                                    {getReportStatusLabel("PENDING_REVIEW")}
                                 </p>
                                 <p className="text-xs text-purple-700 mt-0.5">
                                     Tinjau hasil pengerjaan dan putuskan
@@ -474,7 +477,7 @@ export function ReportSidebar({
                         <div className="space-y-3">
                             <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
                                 <p className="text-sm font-medium text-cyan-800">
-                                    Menunggu Persetujuan Final BNM
+                                    {getReportStatusLabel("APPROVED_BMC")}
                                 </p>
                                 <p className="text-xs text-cyan-700 mt-0.5">
                                     {isRekananBypass

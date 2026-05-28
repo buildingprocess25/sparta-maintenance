@@ -145,7 +145,17 @@ export function AdminStoresTable({
                     setStores(res.stores);
                     setTotalCount(res.totalCount);
                 } else {
-                    setStores((prev) => [...prev, ...res.stores]);
+                    setStores((prev) => {
+                        const existing = new Set(
+                            prev.map((store) => store.code),
+                        );
+                        return [
+                            ...prev,
+                            ...res.stores.filter(
+                                (store) => !existing.has(store.code),
+                            ),
+                        ];
+                    });
                 }
                 setNextCursor(res.nextCursor);
             } catch {

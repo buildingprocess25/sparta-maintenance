@@ -65,6 +65,12 @@ import {
     exportPjum,
     getPjumBlockedRanges,
 } from "../actions";
+import { getReportStatusLabel } from "@/lib/report-status";
+import {
+    getPjumStatusBadgeClass,
+    getPjumStatusLabel,
+    PJUM_STATUS_OPTIONS,
+} from "@/lib/pjum-status";
 
 type Props = {
     bmsUsers: PjumBmsUser[];
@@ -221,7 +227,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none whitespace-nowrap"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Estimasi
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("PENDING_ESTIMATION")}
                 </Badge>
             );
         case "ESTIMATION_APPROVED":
@@ -230,7 +237,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none whitespace-nowrap"
                 >
-                    <Check className="h-3 w-3" /> Estimasi Disetujui
+                    <Check className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("ESTIMATION_APPROVED")}
                 </Badge>
             );
         case "ESTIMATION_REJECTED_REVISION":
@@ -239,7 +247,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none whitespace-nowrap"
                 >
-                    <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
+                    <X className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("ESTIMATION_REJECTED_REVISION")}
                 </Badge>
             );
         case "ESTIMATION_REJECTED":
@@ -248,7 +257,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none whitespace-nowrap"
                 >
-                    <X className="h-3 w-3" /> Estimasi Ditolak
+                    <X className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("ESTIMATION_REJECTED")}
                 </Badge>
             );
         case "IN_PROGRESS":
@@ -257,7 +267,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none whitespace-nowrap"
                 >
-                    <Wrench className="h-3 w-3" /> Sedang Dikerjakan
+                    <Wrench className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("IN_PROGRESS")}
                 </Badge>
             );
         case "PENDING_REVIEW":
@@ -266,7 +277,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none whitespace-nowrap"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Review
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("PENDING_REVIEW")}
                 </Badge>
             );
         case "APPROVED_BMC":
@@ -275,7 +287,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-indigo-100 text-indigo-700 hover:bg-indigo-100/80 border-indigo-200 shadow-none whitespace-nowrap"
                 >
-                    <Clock className="h-3 w-3" /> Menunggu Persetujuan Final BNM
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("APPROVED_BMC")}
                 </Badge>
             );
         case "REVIEW_REJECTED_REVISION":
@@ -284,7 +297,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none whitespace-nowrap"
                 >
-                    <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
+                    <X className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("REVIEW_REJECTED_REVISION")}
                 </Badge>
             );
         case "COMPLETED":
@@ -293,7 +307,8 @@ function getStatusBadge(status: string) {
                     variant="secondary"
                     className="gap-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100/80 border-emerald-200 shadow-none whitespace-nowrap"
                 >
-                    <CheckCircle2 className="h-3 w-3" /> Selesai
+                    <CheckCircle2 className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("COMPLETED")}
                 </Badge>
             );
         default:
@@ -302,37 +317,14 @@ function getStatusBadge(status: string) {
 }
 
 function getPjumHistoryStatusBadge(status: PjumHistoryRow["status"]) {
-    switch (status) {
-        case "PENDING_APPROVAL":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-amber-100 text-amber-700 hover:bg-amber-100/80 border-amber-200 shadow-none whitespace-nowrap"
-                >
-                    Menunggu Approval
-                </Badge>
-            );
-        case "APPROVED":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none whitespace-nowrap"
-                >
-                    Disetujui
-                </Badge>
-            );
-        case "REJECTED":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none whitespace-nowrap"
-                >
-                    Ditolak
-                </Badge>
-            );
-        default:
-            return <Badge variant="outline">{status}</Badge>;
-    }
+    return (
+        <Badge
+            variant="secondary"
+            className={`${getPjumStatusBadgeClass(status)} border-transparent shadow-none whitespace-nowrap`}
+        >
+            {getPjumStatusLabel(status)}
+        </Badge>
+    );
 }
 
 // Mobile badge (text only, no icon, compact)
@@ -349,15 +341,19 @@ const STATUS_BADGE_MOBILE: Record<string, string> = {
 };
 
 const STATUS_LABEL_MOBILE: Record<string, string> = {
-    PENDING_ESTIMATION: "Menunggu Persetujuan Estimasi",
-    ESTIMATION_APPROVED: "Estimasi Disetujui",
-    ESTIMATION_REJECTED_REVISION: "Est. Ditolak (Revisi)",
-    ESTIMATION_REJECTED: "Est. Ditolak",
-    IN_PROGRESS: "Sedang Dikerjakan",
-    PENDING_REVIEW: "Menunggu Review",
-    APPROVED_BMC: "Menunggu Persetujuan Final BNM",
-    REVIEW_REJECTED_REVISION: "Penyelesaian Ditolak (Revisi)",
-    COMPLETED: "Selesai",
+    PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+    ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
+    ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
+        "ESTIMATION_REJECTED_REVISION",
+    ),
+    ESTIMATION_REJECTED: getReportStatusLabel("ESTIMATION_REJECTED"),
+    IN_PROGRESS: getReportStatusLabel("IN_PROGRESS"),
+    PENDING_REVIEW: getReportStatusLabel("PENDING_REVIEW"),
+    APPROVED_BMC: getReportStatusLabel("APPROVED_BMC"),
+    REVIEW_REJECTED_REVISION: getReportStatusLabel(
+        "REVIEW_REJECTED_REVISION",
+    ),
+    COMPLETED: getReportStatusLabel("COMPLETED"),
 };
 
 export function PjumView({ bmsUsers, historyItems }: Props) {
@@ -1168,15 +1164,14 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         <SelectItem value="all">
                                             Semua Status
                                         </SelectItem>
-                                        <SelectItem value="PENDING_APPROVAL">
-                                            Menunggu Approval
-                                        </SelectItem>
-                                        <SelectItem value="APPROVED">
-                                            Disetujui
-                                        </SelectItem>
-                                        <SelectItem value="REJECTED">
-                                            Ditolak
-                                        </SelectItem>
+                                        {PJUM_STATUS_OPTIONS.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

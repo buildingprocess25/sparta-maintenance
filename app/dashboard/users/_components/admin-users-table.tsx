@@ -171,7 +171,15 @@ export function AdminUsersTable({
                     setUsers(res.users);
                     setTotalCount(res.totalCount);
                 } else {
-                    setUsers((prev) => [...prev, ...res.users]);
+                    setUsers((prev) => {
+                        const existing = new Set(prev.map((user) => user.NIK));
+                        return [
+                            ...prev,
+                            ...res.users.filter(
+                                (user) => !existing.has(user.NIK),
+                            ),
+                        ];
+                    });
                 }
                 setNextCursor(res.nextCursor);
             } catch {

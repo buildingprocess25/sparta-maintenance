@@ -51,6 +51,7 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { PjumExportListItem } from "../approval-actions";
+import { getPjumStatusBadgeClass, getPjumStatusLabel } from "@/lib/pjum-status";
 
 type Props = {
     items: PjumExportListItem[];
@@ -221,10 +222,14 @@ export function PjumApprovalList({
                                                 <span
                                                     className={cn(
                                                         "inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap mb-2",
-                                                        "bg-amber-100 text-amber-700",
+                                                        getPjumStatusBadgeClass(
+                                                            item.status,
+                                                        ),
                                                     )}
                                                 >
-                                                    Menunggu Approval
+                                                    {getPjumStatusLabel(
+                                                        item.status,
+                                                    )}
                                                 </span>
                                                 {/* Row 3: branch + week */}
                                                 <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5">

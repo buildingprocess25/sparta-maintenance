@@ -8,6 +8,7 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getReportStatusLabel } from "@/lib/report-status";
 import type {
     ReportItemJson,
     RealisasiItemJson,
@@ -75,7 +76,7 @@ export async function submitCompletionWork(
             report.status !== ReportStatus.REVIEW_REJECTED_REVISION
         ) {
             return {
-                error: "Laporan harus dalam status 'Sedang Dikerjakan' atau 'Penyelesaian Ditolak (Revisi)' untuk mengajukan penyelesaian",
+                error: `Laporan harus dalam status '${getReportStatusLabel("IN_PROGRESS")}' atau '${getReportStatusLabel("REVIEW_REJECTED_REVISION")}' untuk mengajukan penyelesaian`,
             };
         }
 

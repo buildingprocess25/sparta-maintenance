@@ -1,16 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
 import {
     Table,
     TableBody,
@@ -29,7 +22,15 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ExternalLink, Loader2, RotateCcw, Search } from "lucide-react";
+import {
+    Building2,
+    CalendarDays,
+    CircleDot,
+    ExternalLink,
+    Loader2,
+    RotateCcw,
+    Search,
+} from "lucide-react";
 import {
     cancelAdminPjum,
     getAdminPjum,
@@ -40,35 +41,19 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import {
+    Filters,
+    type Filter,
+    type FilterFieldConfig,
+} from "@/components/reui/filters";
+import {
+    getPjumStatusBadgeClass,
+    getPjumStatusLabel,
+    PJUM_STATUS_OPTIONS,
+} from "@/lib/pjum-status";
 
 function formatDate(date: Date) {
     return format(new Date(date), "dd MMM yyyy", { locale: id });
-}
-
-function getStatusColor(status: string) {
-    switch (status) {
-        case "APPROVED":
-            return "bg-green-100 text-green-700 hover:bg-green-100";
-        case "REJECTED":
-            return "bg-red-100 text-red-700 hover:bg-red-100";
-        case "PENDING_APPROVAL":
-            return "bg-amber-100 text-amber-700 hover:bg-amber-100";
-        default:
-            return "bg-gray-100 text-gray-700 hover:bg-gray-100";
-    }
-}
-
-function getStatusLabel(status: string) {
-    switch (status) {
-        case "APPROVED":
-            return "Disetujui";
-        case "REJECTED":
-            return "Ditolak";
-        case "PENDING_APPROVAL":
-            return "Menunggu Approval";
-        default:
-            return status;
-    }
 }
 
 function buildPjumViewUrl(item: PjumRow) {
@@ -107,18 +92,70 @@ export function AdminPjumTable({
     const [pjumToCancel, setPjumToCancel] = useState<PjumRow | null>(null);
     const [isCancelling, setIsCancelling] = useState(false);
 
-    // Filters
     const [search, setSearch] = useState("");
-    const [branchName, setBranchName] = useState("all");
+    const [activeFilters, setActiveFilters] = useState<Filter<string>[]>([]);
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
 
+    const filterFields = useMemo<FilterFieldConfig<string>[]>(
+        () => [
+            {
+                key: "branchName",
+                label: "Cabang",
+                type: "select",
+                placeholder: "Pilih cabang",
+                icon: <Building2 className="h-3.5 w-3.5" />,
+                options: branches.map((branch) => ({
+                    value: branch,
+                    label: branch,
+                })),
+            },
+            {
+                key: "status",
+                label: "Status",
+                type: "select",
+                placeholder: "Pilih status",
+                icon: <CircleDot className="h-3.5 w-3.5" />,
+                options: PJUM_STATUS_OPTIONS,
+            },
+            {
+                key: "fromDate",
+                label: "Dari",
+                type: "date",
+                icon: <CalendarDays className="h-3.5 w-3.5" />,
+            },
+            {
+                key: "toDate",
+                label: "Sampai",
+                type: "date",
+                icon: <CalendarDays className="h-3.5 w-3.5" />,
+            },
+        ],
+        [branches],
+    );
+
+    const getFilterValue = useCallback(
+        (key: string) =>
+            activeFilters.find((filter) => filter.field === key)?.values[0] ?? "",
+        [activeFilters],
+    );
+
+    const searchValue = search.trim();
+    const branchName = String(getFilterValue("branchName"));
+    const status = String(getFilterValue("status"));
+    const fromDate = String(getFilterValue("fromDate"));
+    const toDate = String(getFilterValue("toDate"));
+    const hasActiveFilter = searchValue.length > 0 || activeFilters.length > 0;
+
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
             const filters: AdminPjumFilters = {
-                search: search || undefined,
-                branchName: branchName === "all" ? undefined : branchName,
+                search: searchValue || undefined,
+                branchName: branchName || undefined,
+                status: status || undefined,
+                fromDate: fromDate || undefined,
+                toDate: toDate || undefined,
             };
 
             try {
@@ -131,7 +168,15 @@ export function AdminPjumTable({
                     setPjums(res.pjums);
                     setTotalCount(res.totalCount);
                 } else {
-                    setPjums((prev) => [...prev, ...res.pjums]);
+                    setPjums((prev) => {
+                        const existing = new Set(prev.map((item) => item.id));
+                        return [
+                            ...prev,
+                            ...res.pjums.filter(
+                                (item) => !existing.has(item.id),
+                            ),
+                        ];
+                    });
                 }
                 setNextCursor(res.nextCursor);
             } catch {
@@ -141,8 +186,13 @@ export function AdminPjumTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, branchName],
+        [searchValue, branchName, status, fromDate, toDate],
     );
+
+    const resetFilters = useCallback(() => {
+        setSearch("");
+        setActiveFilters([]);
+    }, []);
 
     // Initial load when filters change (debounced for text inputs)
     useEffect(() => {
@@ -155,7 +205,7 @@ export function AdminPjumTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, branchName, loadData]);
+    }, [searchValue, branchName, status, fromDate, toDate, loadData]);
 
     // Intersection Observer for Infinite Scroll
     useEffect(() => {
@@ -210,38 +260,48 @@ export function AdminPjumTable({
     return (
         <div className="space-y-4">
             {/* Filters */}
-            <div className="flex items-center justify-between">
-                <div className="text-sm">
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="text-sm text-muted-foreground">
                     Total{" "}
                     <span className="text-foreground font-medium">
                         {totalCount}
                     </span>{" "}
                     PJUM
                 </div>
+                {hasActiveFilter && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={resetFilters}
+                    >
+                        Reset Filter
+                    </Button>
+                )}
             </div>
-            <div className="flex flex-wrap items-center gap-2 w-full">
-                <div className="relative flex-[2] min-w-[200px]">
-                    <Search className="absolute left-2.5 top-2.5 h-3 w-3 text-muted-foreground" />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
+                <div className="relative w-full lg:max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                        placeholder="Cari NIK / Nama BMS..."
-                        className="pl-8 bg-white h-8 text-xs w-full"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Cari BMS, NIK, cabang, no laporan..."
+                        className="h-8 bg-white pl-8 text-xs"
                     />
                 </div>
-                <Select value={branchName} onValueChange={setBranchName}>
-                    <SelectTrigger className="flex-[1] min-w-[150px] bg-white h-8 text-xs">
-                        <SelectValue placeholder="Cabang" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Semua Cabang</SelectItem>
-                        {branches.map((b) => (
-                            <SelectItem key={b} value={b}>
-                                {b}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <Filters
+                    filters={activeFilters}
+                    fields={filterFields}
+                    onChange={setActiveFilters}
+                    size="sm"
+                    allowMultiple={false}
+                    className="w-full flex-1"
+                    i18n={{
+                        addFilter: "Filter",
+                        searchFields: "Cari filter...",
+                    }}
+                />
             </div>
 
             {/* Table */}
@@ -250,17 +310,14 @@ export function AdminPjumTable({
                     <Table className="text-xs">
                         <TableHeader>
                             <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead className="w-[100px]">
-                                    Minggu Ke-
+                                <TableHead className="min-w-[180px]">
+                                    Minggu / Periode
                                 </TableHead>
                                 <TableHead className="min-w-[120px]">
                                     Cabang
                                 </TableHead>
                                 <TableHead className="min-w-[150px]">
                                     BMS
-                                </TableHead>
-                                <TableHead className="min-w-[180px]">
-                                    Periode
                                 </TableHead>
                                 <TableHead className="w-[120px]">
                                     Jml Laporan
@@ -270,6 +327,9 @@ export function AdminPjumTable({
                                 </TableHead>
                                 <TableHead className="min-w-[120px]">
                                     Dibuat Pada
+                                </TableHead>
+                                <TableHead className="w-[140px]">
+                                    Dokumen
                                 </TableHead>
                                 <TableHead className="w-[120px] text-right">
                                     Aksi
@@ -300,8 +360,14 @@ export function AdminPjumTable({
                             ) : (
                                 pjums.map((item) => (
                                     <TableRow key={item.id}>
-                                        <TableCell className="font-medium">
-                                            Minggu {item.weekNumber}
+                                        <TableCell>
+                                            <div className="font-medium">
+                                                Minggu {item.weekNumber}
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground">
+                                                {formatDate(item.fromDate)} -{" "}
+                                                {formatDate(item.toDate)}
+                                            </div>
                                         </TableCell>
                                         <TableCell>{item.branchName}</TableCell>
                                         <TableCell>
@@ -313,18 +379,16 @@ export function AdminPjumTable({
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            {formatDate(item.fromDate)} -{" "}
-                                            {formatDate(item.toDate)}
-                                        </TableCell>
-                                        <TableCell>
                                             {item.reportCount}
                                         </TableCell>
                                         <TableCell>
                                             <Badge
                                                 variant="secondary"
-                                                className={`font-normal ${getStatusColor(item.status)}`}
+                                                className={`font-normal ${getPjumStatusBadgeClass(item.status)}`}
                                             >
-                                                {getStatusLabel(item.status)}
+                                                {getPjumStatusLabel(
+                                                    item.status,
+                                                )}
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
@@ -334,36 +398,33 @@ export function AdminPjumTable({
                                                 { locale: id },
                                             )}
                                         </TableCell>
+                                        <TableCell>
+                                            <Button
+                                                asChild
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                className="h-8 gap-1.5 bg-white text-xs"
+                                            >
+                                                <a
+                                                    href={buildPjumViewUrl(item)}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    aria-label={`Lihat PDF PJUM minggu ${item.weekNumber}`}
+                                                >
+                                                    <ExternalLink className="h-3.5 w-3.5" />
+                                                    Lihat PDF
+                                                </a>
+                                            </Button>
+                                        </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1.5">
                                                 <Button
-                                                    asChild
                                                     type="button"
-                                                    size="icon"
+                                                    size="sm"
                                                     variant="ghost"
-                                                    className="h-8 w-8"
-                                                    aria-label={`Lihat PJUM minggu ${item.weekNumber}`}
-                                                >
-                                                    <a
-                                                        href={buildPjumViewUrl(
-                                                            item,
-                                                        )}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                    >
-                                                        <ExternalLink className="h-4 w-4" />
-                                                    </a>
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="icon"
-                                                    variant="ghost"
-                                                    className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    className="h-8 gap-1.5 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     aria-label={`Batalkan PJUM minggu ${item.weekNumber}`}
-                                                    disabled={
-                                                        item.status ===
-                                                        "APPROVED"
-                                                    }
                                                     title={
                                                         item.status ===
                                                         "APPROVED"
@@ -374,7 +435,8 @@ export function AdminPjumTable({
                                                         setPjumToCancel(item)
                                                     }
                                                 >
-                                                    <RotateCcw className="h-4 w-4" />
+                                                    <RotateCcw className="h-3.5 w-3.5" />
+                                                    Batalkan
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -411,10 +473,11 @@ export function AdminPjumTable({
                         <AlertDialogTitle>Batalkan PJUM?</AlertDialogTitle>
                         <AlertDialogDescription>
                             PJUM minggu {pjumToCancel?.weekNumber} untuk{" "}
-                            {pjumToCancel?.bmsName} akan dihapus, dan status
-                            PJUM pada {pjumToCancel?.reportCount ?? 0} laporan
-                            terkait akan dikosongkan agar bisa dibuat ulang
-                            dengan tanggal yang benar.
+                            {pjumToCancel?.bmsName} akan dihapus dari daftar
+                            PJUM. Status PJUM pada{" "}
+                            {pjumToCancel?.reportCount ?? 0} laporan terkait
+                            akan dikosongkan agar laporan tersebut bisa masuk
+                            PJUM ulang.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

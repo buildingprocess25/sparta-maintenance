@@ -1,82 +1,18 @@
 import { Badge } from "@/components/ui/badge";
+import {
+    getReportStatusBadgeClass,
+    getReportStatusLabel,
+    isReportStatusKey,
+} from "@/lib/report-status";
 
 export function StatusBadge({ status }: { status: string }) {
-    switch (status) {
-        case "PENDING_ESTIMATION":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80"
-                >
-                    Menunggu Persetujuan Estimasi
-                </Badge>
-            );
-        case "ESTIMATION_APPROVED":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-green-100 text-green-800 hover:bg-green-100/80"
-                >
-                    Estimasi Disetujui
-                </Badge>
-            );
-        case "ESTIMATION_REJECTED_REVISION":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-orange-100 text-orange-800 hover:bg-orange-100/80"
-                >
-                    Estimasi Ditolak (Revisi)
-                </Badge>
-            );
-        case "ESTIMATION_REJECTED":
-            return <Badge variant="destructive">Estimasi Ditolak</Badge>;
-        case "IN_PROGRESS":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-blue-100 text-blue-800 hover:bg-blue-100/80"
-                >
-                    Sedang Dikerjakan
-                </Badge>
-            );
-        case "PENDING_REVIEW":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-purple-100 text-purple-800 hover:bg-purple-100/80"
-                >
-                    Menunggu Review Penyelesaian
-                </Badge>
-            );
-        case "APPROVED_BMC":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100/80"
-                >
-                    Menunggu Persetujuan Final BNM
-                </Badge>
-            );
-        case "REVIEW_REJECTED_REVISION":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-orange-100 text-orange-800 hover:bg-orange-100/80"
-                >
-                    Penyelesaian Ditolak (Revisi)
-                </Badge>
-            );
-        case "COMPLETED":
-            return (
-                <Badge
-                    variant="secondary"
-                    className="bg-purple-100 text-purple-800 hover:bg-purple-100/80"
-                >
-                    Selesai
-                </Badge>
-            );
-        default:
-            return <Badge variant="outline">{status}</Badge>;
+    if (!isReportStatusKey(status)) {
+        return <Badge variant="outline">{status}</Badge>;
     }
+
+    return (
+        <Badge variant="secondary" className={getReportStatusBadgeClass(status)}>
+            {getReportStatusLabel(status)}
+        </Badge>
+    );
 }

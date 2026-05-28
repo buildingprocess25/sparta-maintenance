@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { ActivityEntry } from "./types";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 const ACTIVITY_HISTORY_CONFIG: Record<
     string,
@@ -35,17 +36,17 @@ const ACTIVITY_HISTORY_CONFIG: Record<
         negative: false,
     },
     ESTIMATION_APPROVED: {
-        label: "Estimasi Disetujui",
+        label: getReportStatusLabel("ESTIMATION_APPROVED"),
         positive: true,
         negative: false,
     },
     ESTIMATION_REJECTED_REVISION: {
-        label: "Estimasi Ditolak (Revisi)",
+        label: getReportStatusLabel("ESTIMATION_REJECTED_REVISION"),
         positive: false,
         negative: true,
     },
     ESTIMATION_REJECTED: {
-        label: "Estimasi Ditolak",
+        label: getReportStatusLabel("ESTIMATION_REJECTED"),
         positive: false,
         negative: true,
     },
@@ -55,7 +56,7 @@ const ACTIVITY_HISTORY_CONFIG: Record<
         negative: false,
     },
     WORK_REJECTED_REVISION: {
-        label: "Penyelesaian Ditolak (Revisi)",
+        label: getReportStatusLabel("REVIEW_REJECTED_REVISION"),
         positive: false,
         negative: true,
     },

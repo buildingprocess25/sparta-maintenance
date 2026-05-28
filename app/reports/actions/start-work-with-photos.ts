@@ -7,6 +7,7 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getReportStatusLabel } from "@/lib/report-status";
 import type { MaterialStoreJson } from "@/types/report";
 
 export interface StartWorkPhotoInput {
@@ -57,7 +58,7 @@ export async function startWorkWithPhotos(
 
         if (report.status !== ReportStatus.ESTIMATION_APPROVED) {
             return {
-                error: "Laporan harus berstatus 'Estimasi Disetujui' untuk memulai pengerjaan",
+                error: `Laporan harus berstatus '${getReportStatusLabel("ESTIMATION_APPROVED")}' untuk memulai pengerjaan`,
             };
         }
 

@@ -210,10 +210,12 @@ export async function fetchMaterialExportRows(
 ): Promise<MaterialExportRow[]> {
     try {
         const where = buildReportWhere(filter);
+        where.status = "COMPLETED";
+        where.reportFinalDriveUrl = { not: null };
 
         const reports = await prisma.report.findMany({
             where,
-            orderBy: { createdAt: "asc" },
+            orderBy: [{ createdAt: "asc" }, { reportNumber: "asc" }],
             select: {
                 reportNumber: true,
                 storeName: true,

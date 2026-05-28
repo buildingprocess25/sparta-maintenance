@@ -29,24 +29,11 @@ import { Download, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
+import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
 
 const STATUS_OPTIONS = [
     { value: "all", label: "Semua Status" },
-    { value: "PENDING_ESTIMATION", label: "Menunggu Persetujuan Estimasi" },
-    { value: "ESTIMATION_APPROVED", label: "Estimasi Disetujui" },
-    {
-        value: "ESTIMATION_REJECTED_REVISION",
-        label: "Estimasi Ditolak (Revisi)",
-    },
-    { value: "ESTIMATION_REJECTED", label: "Estimasi Ditolak" },
-    { value: "IN_PROGRESS", label: "Sedang Dikerjakan" },
-    { value: "PENDING_REVIEW", label: "Menunggu Review Penyelesaian" },
-    { value: "APPROVED_BMC", label: "Menunggu Persetujuan Final BNM" },
-    {
-        value: "REVIEW_REJECTED_REVISION",
-        label: "Penyelesaian Ditolak (Revisi)",
-    },
-    { value: "COMPLETED", label: "Selesai" },
+    ...REPORT_STATUS_OPTIONS,
 ];
 
 export function ExportReportsDialog({ branches }: { branches: string[] }) {

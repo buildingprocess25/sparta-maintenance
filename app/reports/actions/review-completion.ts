@@ -7,6 +7,7 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 type ReviewDecision = "approve" | "reject_revision";
 
@@ -34,7 +35,7 @@ export async function reviewCompletion(
 
         if (report.status !== ReportStatus.PENDING_REVIEW) {
             return {
-                error: "Laporan harus berstatus 'Menunggu Review Penyelesaian' untuk di-review",
+                error: `Laporan harus berstatus '${getReportStatusLabel("PENDING_REVIEW")}' untuk di-review`,
             };
         }
 

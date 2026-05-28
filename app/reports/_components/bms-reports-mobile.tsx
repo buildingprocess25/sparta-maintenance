@@ -5,6 +5,7 @@ import { Building2, CalendarDays, ChevronRight, Wrench } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ReportData } from "./bms-reports-list";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 type StatusConfig = {
     label: string;
@@ -14,52 +15,52 @@ type StatusConfig = {
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
     DRAFT: {
-        label: "Draft",
+        label: getReportStatusLabel("DRAFT"),
         badge: "bg-gray-100 text-gray-600",
         bar: "bg-gray-300",
     },
     PENDING_ESTIMATION: {
-        label: "Menunggu Persetujuan Estimasi",
+        label: getReportStatusLabel("PENDING_ESTIMATION"),
         badge: "bg-yellow-100 text-yellow-700",
         bar: "bg-yellow-400",
     },
     ESTIMATION_APPROVED: {
-        label: "Estimasi Disetujui",
+        label: getReportStatusLabel("ESTIMATION_APPROVED"),
         badge: "bg-green-100 text-green-700",
         bar: "bg-green-500",
     },
     ESTIMATION_REJECTED_REVISION: {
-        label: "Estimasi Ditolak — Revisi",
+        label: getReportStatusLabel("ESTIMATION_REJECTED_REVISION"),
         badge: "bg-orange-100 text-orange-700",
         bar: "bg-orange-500",
     },
     ESTIMATION_REJECTED: {
-        label: "Estimasi Ditolak",
+        label: getReportStatusLabel("ESTIMATION_REJECTED"),
         badge: "bg-red-100 text-red-700",
         bar: "bg-red-500",
     },
     IN_PROGRESS: {
-        label: "Sedang Dikerjakan",
+        label: getReportStatusLabel("IN_PROGRESS"),
         badge: "bg-blue-100 text-blue-700",
         bar: "bg-blue-500",
     },
     PENDING_REVIEW: {
-        label: "Menunggu Review",
+        label: getReportStatusLabel("PENDING_REVIEW"),
         badge: "bg-purple-100 text-purple-700",
         bar: "bg-purple-500",
     },
     APPROVED_BMC: {
-        label: "Menunggu Persetujuan Final BNM",
+        label: getReportStatusLabel("APPROVED_BMC"),
         badge: "bg-cyan-100 text-cyan-700",
         bar: "bg-cyan-500",
     },
     REVIEW_REJECTED_REVISION: {
-        label: "Pekerjaan Ditolak — Revisi",
+        label: getReportStatusLabel("REVIEW_REJECTED_REVISION"),
         badge: "bg-orange-100 text-orange-700",
         bar: "bg-orange-500",
     },
     COMPLETED: {
-        label: "Selesai",
+        label: getReportStatusLabel("COMPLETED"),
         badge: "bg-emerald-100 text-emerald-700",
         bar: "bg-emerald-500",
     },

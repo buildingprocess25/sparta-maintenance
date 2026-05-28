@@ -25,7 +25,8 @@ import {
     IconArchive,
     IconSettings,
     IconSquareCheck,
-    IconAdjustments,
+    IconBuildingCommunity,
+    IconUserCog,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -63,24 +64,44 @@ const data = {
                     icon: IconReport,
                 },
                 {
-                    title: "List Material",
-                    url: "/dashboard/materials",
-                    icon: IconListDetails,
-                },
-                {
-                    title: "PJUM",
-                    url: "/dashboard/pjum",
-                    icon: IconFileDescription,
-                },
-                {
                     title: "Checklist Preventif",
                     url: "/dashboard/preventive",
                     icon: IconSquareCheck,
                 },
+                {
+                    title: "Dokumen PJUM",
+                    url: "/dashboard/pjum",
+                    icon: IconFileDescription,
+                },
+                {
+                    title: "Material",
+                    url: "/dashboard/materials",
+                    icon: IconListDetails,
+                },
             ],
         },
         {
-            title: "Management Database",
+            title: "Monitoring",
+            items: [
+                {
+                    title: "Performa Cabang",
+                    url: "#",
+                    icon: IconBuildingCommunity,
+                },
+                {
+                    title: "Performa BMS",
+                    url: "#",
+                    icon: IconUserCog,
+                },
+                {
+                    title: "User Online",
+                    url: "#",
+                    icon: IconUsers,
+                },
+            ],
+        },
+        {
+            title: "Master Data",
             items: [
                 {
                     title: "User",
@@ -95,18 +116,10 @@ const data = {
             ],
         },
     ],
-    navIntervensi: [
-        {
-            title: "Revisi Laporan Maintenance",
-            url: "/dashboard/intervensi/revisi-laporan",
-            icon: IconAdjustments,
-            adminOnly: true,
-        },
-    ],
     navSecondary: [
         {
             title: "Arsip Dokumen SPARTA-M",
-            url: "https://drive.google.com/drive/folders/1n66NgqwyewwRghAMRU6LVPs3W1dTIlmj",
+            url: "/admin/archive",
             icon: IconArchive,
         },
         {
@@ -262,34 +275,6 @@ export function AppSidebar({
                         </SidebarGroupContent>
                     </SidebarGroup>
                 ))}
-
-                {/* INTERVENSI — admin only */}
-                {authUser?.role === "ADMIN" && data.navIntervensi.length > 0 && (
-                    <SidebarGroup>
-                        <SidebarGroupLabel className="text-white/70">
-                            Intervensi
-                        </SidebarGroupLabel>
-                        <SidebarGroupContent>
-                            <SidebarMenu>
-                                {data.navIntervensi.map((item) => (
-                                    <SidebarMenuItem key={item.title}>
-                                        <SidebarMenuButton
-                                            asChild
-                                            tooltip={item.title}
-                                            className="hover:bg-white/10"
-                                            isActive={isItemActive(item.url)}
-                                        >
-                                            <Link href={item.url}>
-                                                <item.icon />
-                                                <span>{item.title}</span>
-                                            </Link>
-                                        </SidebarMenuButton>
-                                    </SidebarMenuItem>
-                                ))}
-                            </SidebarMenu>
-                        </SidebarGroupContent>
-                    </SidebarGroup>
-                )}
 
                 <SidebarGroup className="mt-auto">
                     <SidebarGroupContent>

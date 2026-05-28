@@ -8,6 +8,7 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { generateAndSaveReportSnapshot } from "@/lib/pdf/report-snapshots";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 type FinalDecision = "approve" | "reject_revision";
 
@@ -43,7 +44,7 @@ export async function approveFinal(
 
         if (report.status !== ReportStatus.APPROVED_BMC) {
             return {
-                error: "Laporan harus berstatus 'Menunggu Persetujuan Final BNM' untuk diproses",
+                error: `Laporan harus berstatus '${getReportStatusLabel("APPROVED_BMC")}' untuk diproses`,
             };
         }
 

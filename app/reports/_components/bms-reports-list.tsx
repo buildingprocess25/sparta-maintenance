@@ -46,7 +46,6 @@ import {
     Loader2,
     CalendarDays,
     Wrench,
-    RotateCcw,
 } from "lucide-react";
 import {
     Pagination,
@@ -58,6 +57,10 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 import { BmsReportsMobile } from "./bms-reports-mobile";
+import {
+    getReportStatusLabel,
+    getReportStatusLabelFromSlug,
+} from "@/lib/report-status";
 
 // Type for report data from server
 export type ReportData = {
@@ -168,13 +171,6 @@ export default function BmsReportsList({
         });
     };
 
-    const handleResetFilters = () => {
-        setSearchQuery("");
-        setStatusFilter("all");
-        setDateRangeFilter("all");
-        startTransition(() => router.replace(pathname));
-    };
-
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "DRAFT":
@@ -192,8 +188,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
                     >
-                        <Clock className="h-3 w-3" /> Menunggu Persetujuan
-                        Estimasi
+                        <Clock className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("PENDING_ESTIMATION")}
                     </Badge>
                 );
             case "ESTIMATION_APPROVED":
@@ -202,7 +198,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
                     >
-                        <Check className="h-3 w-3" /> Estimasi Disetujui
+                        <Check className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("ESTIMATION_APPROVED")}
                     </Badge>
                 );
             case "ESTIMATION_REJECTED_REVISION":
@@ -211,7 +208,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                     >
-                        <X className="h-3 w-3" /> Estimasi Ditolak (Revisi)
+                        <X className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("ESTIMATION_REJECTED_REVISION")}
                     </Badge>
                 );
             case "ESTIMATION_REJECTED":
@@ -220,7 +218,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
                     >
-                        <X className="h-3 w-3" /> Estimasi Ditolak
+                        <X className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("ESTIMATION_REJECTED")}
                     </Badge>
                 );
             case "IN_PROGRESS":
@@ -229,7 +228,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
                     >
-                        <Wrench className="h-3 w-3" /> Sedang Dikerjakan
+                        <Wrench className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("IN_PROGRESS")}
                     </Badge>
                 );
             case "PENDING_REVIEW":
@@ -238,8 +238,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none"
                     >
-                        <Clock className="h-3 w-3" /> Menunggu Review
-                        Penyelesaian
+                        <Clock className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("PENDING_REVIEW")}
                     </Badge>
                 );
             case "APPROVED_BMC":
@@ -248,8 +248,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-cyan-100 text-cyan-700 hover:bg-cyan-100/80 border-cyan-200 shadow-none"
                     >
-                        <Clock className="h-3 w-3" /> Menunggu Persetujuan Final
-                        BNM
+                        <Clock className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("APPROVED_BMC")}
                     </Badge>
                 );
             case "REVIEW_REJECTED_REVISION":
@@ -258,7 +258,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
                     >
-                        <X className="h-3 w-3" /> Penyelesaian Ditolak (Revisi)
+                        <X className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("REVIEW_REJECTED_REVISION")}
                     </Badge>
                 );
             case "COMPLETED":
@@ -267,7 +268,8 @@ export default function BmsReportsList({
                         variant="secondary"
                         className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 shadow-none"
                     >
-                        <Check className="h-3 w-3" /> Selesai
+                        <Check className="h-3 w-3" />{" "}
+                        {getReportStatusLabel("COMPLETED")}
                     </Badge>
                 );
             default:
@@ -452,37 +454,55 @@ export default function BmsReportsList({
                                             Perlu Tindakan
                                         </SelectItem>
                                         <SelectItem value="waiting_review">
-                                            Menunggu Review
+                                            Review
                                         </SelectItem>
                                         <SelectItem value="draft">
-                                            Draft
+                                            {getReportStatusLabel("DRAFT")}
                                         </SelectItem>
                                         <SelectItem value="pending_estimation">
-                                            Menunggu Persetujuan Estimasi
+                                            {getReportStatusLabelFromSlug(
+                                                "pending_estimation",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="estimation_approved">
-                                            Estimasi Disetujui
+                                            {getReportStatusLabelFromSlug(
+                                                "estimation_approved",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="estimation_rejected_revision">
-                                            Estimasi Ditolak (Revisi)
+                                            {getReportStatusLabelFromSlug(
+                                                "estimation_rejected_revision",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="estimation_rejected">
-                                            Estimasi Ditolak
+                                            {getReportStatusLabelFromSlug(
+                                                "estimation_rejected",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="in_progress">
-                                            Sedang Dikerjakan
+                                            {getReportStatusLabelFromSlug(
+                                                "in_progress",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="pending_review">
-                                            Menunggu Review Penyelesaian
+                                            {getReportStatusLabelFromSlug(
+                                                "pending_review",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="approved_bmc">
-                                            Menunggu Persetujuan Final BNM
+                                            {getReportStatusLabelFromSlug(
+                                                "approved_bmc",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="review_rejected_revision">
-                                            Penyelesaian Ditolak (Revisi)
+                                            {getReportStatusLabelFromSlug(
+                                                "review_rejected_revision",
+                                            )}
                                         </SelectItem>
                                         <SelectItem value="completed">
-                                            Selesai
+                                            {getReportStatusLabelFromSlug(
+                                                "completed",
+                                            )}
                                         </SelectItem>
                                     </SelectContent>
                                 </Select>

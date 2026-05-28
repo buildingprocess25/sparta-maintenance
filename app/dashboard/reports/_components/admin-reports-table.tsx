@@ -1,15 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -28,7 +21,15 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, Search, Trash2 } from "lucide-react";
+import {
+    Building2,
+    CalendarDays,
+    CircleDot,
+    Loader2,
+    ReceiptText,
+    Search,
+    Trash2,
+} from "lucide-react";
 import {
     deleteAdminReport,
     getAdminReports,
@@ -38,26 +39,20 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
+import { Badge } from "@/components/ui/badge";
+import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
+import {
+    createFilter,
+    Filters,
+    type Filter,
+    type FilterFieldConfig,
+} from "@/components/reui/filters";
 
 type ReportItem = Awaited<ReturnType<typeof getAdminReports>>["reports"][0];
 
-const STATUS_OPTIONS = [
-    { value: "all", label: "Semua Status" },
-    { value: "PENDING_ESTIMATION", label: "Menunggu Persetujuan Estimasi" },
-    { value: "ESTIMATION_APPROVED", label: "Estimasi Disetujui" },
-    {
-        value: "ESTIMATION_REJECTED_REVISION",
-        label: "Estimasi Ditolak (Revisi)",
-    },
-    { value: "ESTIMATION_REJECTED", label: "Estimasi Ditolak" },
-    { value: "IN_PROGRESS", label: "Sedang Dikerjakan" },
-    { value: "PENDING_REVIEW", label: "Menunggu Review Penyelesaian" },
-    { value: "APPROVED_BMC", label: "Menunggu Persetujuan Final BNM" },
-    {
-        value: "REVIEW_REJECTED_REVISION",
-        label: "Penyelesaian Ditolak (Revisi)",
-    },
-    { value: "COMPLETED", label: "Selesai" },
+const PJUM_OPTIONS = [
+    { value: "exported", label: "Sudah PJUM" },
+    { value: "not_exported", label: "Belum PJUM" },
 ];
 
 function formatRp(n: number | null | undefined) {
@@ -65,7 +60,34 @@ function formatRp(n: number | null | undefined) {
     return `Rp ${n.toLocaleString("id-ID")}`;
 }
 
-// Removed local StatusBadge, using global one from reports feature
+function formatCompactDate(date: Date | string | null): string {
+    if (!date) return "-";
+    return format(new Date(date), "dd MMM yyyy", { locale: id });
+}
+
+function getPjumBadge(report: ReportItem) {
+    if (report.pjumExportedAt) {
+        return (
+            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                Sudah PJUM
+            </Badge>
+        );
+    }
+
+    if (report.status === "COMPLETED") {
+        return (
+            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                Belum PJUM
+            </Badge>
+        );
+    }
+
+    return (
+        <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
+            Belum eligible
+        </Badge>
+    );
+}
 
 export function AdminReportsTable({
     initialData,
@@ -91,17 +113,75 @@ export function AdminReportsTable({
         null,
     );
     const [isDeleting, setIsDeleting] = useState(false);
-
-    // Filters
     const [search, setSearch] = useState("");
-    const [bmsQuery, setBmsQuery] = useState("");
-    const [branchName, setBranchName] = useState("all");
-    const [status, setStatus] = useState(initialStatus);
-    const [fromDate, setFromDate] = useState("");
-    const [toDate, setToDate] = useState("");
+
+    const [activeFilters, setActiveFilters] = useState<Filter<string>[]>(() =>
+        initialStatus === "all"
+            ? []
+            : [createFilter<string>("status", "is", [initialStatus])],
+    );
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
+
+    const filterFields = useMemo<FilterFieldConfig<string>[]>(
+        () => [
+            {
+                key: "branchName",
+                label: "Cabang",
+                type: "select",
+                placeholder: "Pilih cabang",
+                icon: <Building2 className="h-3.5 w-3.5" />,
+                options: branches.map((branch) => ({
+                    value: branch,
+                    label: branch,
+                })),
+            },
+            {
+                key: "status",
+                label: "Status",
+                type: "select",
+                placeholder: "Pilih status",
+                icon: <CircleDot className="h-3.5 w-3.5" />,
+                options: REPORT_STATUS_OPTIONS,
+            },
+            {
+                key: "pjumStatus",
+                label: "PJUM",
+                type: "select",
+                placeholder: "Pilih PJUM",
+                icon: <ReceiptText className="h-3.5 w-3.5" />,
+                options: PJUM_OPTIONS,
+            },
+            {
+                key: "fromDate",
+                label: "Dari",
+                type: "date",
+                icon: <CalendarDays className="h-3.5 w-3.5" />,
+            },
+            {
+                key: "toDate",
+                label: "Sampai",
+                type: "date",
+                icon: <CalendarDays className="h-3.5 w-3.5" />,
+            },
+        ],
+        [branches],
+    );
+
+    const getFilterValue = useCallback(
+        (key: string) =>
+            activeFilters.find((filter) => filter.field === key)?.values[0] ?? "",
+        [activeFilters],
+    );
+
+    const searchValue = search.trim();
+    const branchName = String(getFilterValue("branchName"));
+    const status = String(getFilterValue("status"));
+    const fromDate = String(getFilterValue("fromDate"));
+    const toDate = String(getFilterValue("toDate"));
+    const pjumStatus = String(getFilterValue("pjumStatus"));
+    const hasActiveFilter = searchValue.length > 0 || activeFilters.length > 0;
 
     const openReportDetail = useCallback(
         (reportNumber: string) => {
@@ -143,12 +223,12 @@ export function AdminReportsTable({
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
             const filters: AdminReportFilters = {
-                search: search || undefined,
-                bmsQuery: bmsQuery || undefined,
-                branchName: branchName === "all" ? undefined : branchName,
-                status: status === "all" ? undefined : status,
+                search: searchValue || undefined,
+                branchName: branchName || undefined,
+                status: status || undefined,
                 fromDate: fromDate || undefined,
                 toDate: toDate || undefined,
+                pjumStatus: pjumStatus || undefined,
             };
 
             try {
@@ -161,7 +241,17 @@ export function AdminReportsTable({
                     setReports(res.reports);
                     setTotalCount(res.totalCount);
                 } else {
-                    setReports((prev) => [...prev, ...res.reports]);
+                    setReports((prev) => {
+                        const existing = new Set(
+                            prev.map((report) => report.reportNumber),
+                        );
+                        return [
+                            ...prev,
+                            ...res.reports.filter(
+                                (report) => !existing.has(report.reportNumber),
+                            ),
+                        ];
+                    });
                 }
                 setNextCursor(res.nextCursor);
             } catch {
@@ -171,8 +261,20 @@ export function AdminReportsTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, bmsQuery, branchName, status, fromDate, toDate],
+        [
+            searchValue,
+            branchName,
+            status,
+            fromDate,
+            toDate,
+            pjumStatus,
+        ],
     );
+
+    const resetFilters = useCallback(() => {
+        setSearch("");
+        setActiveFilters([]);
+    }, []);
 
     // Initial load when filters change (debounced for text inputs)
     useEffect(() => {
@@ -185,7 +287,15 @@ export function AdminReportsTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, bmsQuery, branchName, status, fromDate, toDate, loadData]);
+    }, [
+        searchValue,
+        branchName,
+        status,
+        fromDate,
+        toDate,
+        pjumStatus,
+        loadData,
+    ]);
 
     // Intersection Observer for Infinite Scroll
     useEffect(() => {
@@ -213,80 +323,48 @@ export function AdminReportsTable({
     return (
         <div className="space-y-4">
             {/* Filters */}
-            <div className="flex items-center justify-between">
-                <div className="text-sm">
-                    Total <span className="text-foreground">{totalCount}</span>{" "}
-                    laporan
+            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                <div className="text-sm text-muted-foreground">
+                    Total{" "}
+                    <span className="font-medium text-foreground">
+                        {totalCount}
+                    </span>{" "}
+                    laporan sesuai filter
                 </div>
+                {hasActiveFilter && (
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-xs"
+                        onClick={resetFilters}
+                    >
+                        Reset Filter
+                    </Button>
+                )}
             </div>
-            <div className="flex flex-wrap items-center gap-2 w-full">
-                <div className="relative flex-[2] min-w-[180px]">
-                    <Search className="absolute left-2.5 top-2.5 h-3 w-3 text-muted-foreground" />
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
+                <div className="relative w-full lg:max-w-sm">
+                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
-                        placeholder="Cari Laporan / Toko..."
-                        className="pl-8 bg-white h-8 text-xs w-full"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Cari laporan, toko, BMS..."
+                        className="h-8 bg-white pl-8 text-xs"
                     />
                 </div>
-                <div className="flex-[1.5] min-w-[150px]">
-                    <Input
-                        placeholder="NIK / Nama BMS..."
-                        className="bg-white h-8 text-xs w-full"
-                        value={bmsQuery}
-                        onChange={(e) => setBmsQuery(e.target.value)}
-                    />
-                </div>
-                <Select value={branchName} onValueChange={setBranchName}>
-                    <SelectTrigger className="flex-[0.7] min-w-[120px] bg-white h-8 text-xs">
-                        <SelectValue placeholder="Cabang" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all" className="text-xs">
-                            Semua Cabang
-                        </SelectItem>
-                        {branches.map((b) => (
-                            <SelectItem key={b} value={b} className="text-xs">
-                                {b}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <Select value={status} onValueChange={setStatus}>
-                    <SelectTrigger className="flex-[1.2] min-w-[160px] bg-white h-8 text-xs">
-                        <SelectValue placeholder="Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        {STATUS_OPTIONS.map((opt) => (
-                            <SelectItem
-                                key={opt.value}
-                                value={opt.value}
-                                className="text-xs"
-                            >
-                                {opt.label}
-                            </SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
-                <div className="flex items-center gap-1.5 flex-[1.8] min-w-[260px]">
-                    <Input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        className="flex-1 bg-white h-8 text-xs"
-                        title="Dari Tanggal"
-                    />
-                    <span className="text-muted-foreground text-[10px] uppercase font-bold shrink-0">
-                        s/d
-                    </span>
-                    <Input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        className="flex-1 bg-white h-8 text-xs"
-                        title="Sampai Tanggal"
-                    />
-                </div>
+                <Filters
+                    filters={activeFilters}
+                    fields={filterFields}
+                    onChange={setActiveFilters}
+                    size="sm"
+                    allowMultiple={false}
+                    className="w-full flex-1"
+                    i18n={{
+                        addFilter: "Filter",
+                        searchFields: "Cari filter...",
+                    }}
+                />
             </div>
 
             {/* Table */}
@@ -308,6 +386,9 @@ export function AdminReportsTable({
                                 <TableHead>BMS</TableHead>
                                 <TableHead>Estimasi</TableHead>
                                 <TableHead>Realisasi</TableHead>
+                                <TableHead className="w-[130px]">
+                                    PJUM
+                                </TableHead>
                                 <TableHead className="w-[140px]">
                                     Status
                                 </TableHead>
@@ -320,7 +401,7 @@ export function AdminReportsTable({
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={9}
+                                        colSpan={10}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
@@ -329,7 +410,7 @@ export function AdminReportsTable({
                             ) : reports.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={9}
+                                        colSpan={10}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada laporan yang ditemukan
@@ -402,6 +483,18 @@ export function AdminReportsTable({
                                         </TableCell>
                                         <TableCell>
                                             {formatRp(report.totalReal)}
+                                        </TableCell>
+                                        <TableCell>
+                                            <div className="space-y-1">
+                                                {getPjumBadge(report)}
+                                                {report.pjumExportedAt && (
+                                                    <div className="text-[10px] text-muted-foreground">
+                                                        {formatCompactDate(
+                                                            report.pjumExportedAt,
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <StatusBadge

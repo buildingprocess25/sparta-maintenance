@@ -14,6 +14,7 @@ import { submitCompletion } from "@/app/reports/actions/submit-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
 import { approveFinal } from "@/app/reports/actions/approve-final";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -158,8 +159,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                 });
             } else {
                 toast.success("Laporan dikirim!", {
-                    description:
-                        "Status laporan diubah menjadi 'Menunggu Review Penyelesaian'.",
+                    description: `Status laporan diubah menjadi '${getReportStatusLabel("PENDING_REVIEW")}'.`,
                 });
                 setActiveDialog(null);
                 setNotesInput("");
