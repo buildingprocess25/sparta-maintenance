@@ -6,6 +6,8 @@ import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
+import { getGoogleDriveClient } from "@/lib/google-drive/client";
+import { deletePdfSnapshots } from "@/lib/pdf/snapshot-storage";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -183,6 +185,8 @@ export async function cancelAdminPjum(pjumExportId: string) {
                 weekNumber: true,
                 status: true,
                 reportNumbers: true,
+                pjumPdfPath: true,
+                pjumFinalDriveUrl: true,
             },
         });
 
@@ -196,10 +200,12 @@ export async function cancelAdminPjum(pjumExportId: string) {
             };
         }
 
-        if (pjumExport.status === "APPROVED") {
-            return {
-                error: "PJUM yang sudah disetujui tidak dapat dibatalkan",
-            };
+        const deletedDriveFileIds = await deletePjumDriveFiles([
+            pjumExport.pjumFinalDriveUrl,
+        ]);
+
+        if (pjumExport.pjumPdfPath) {
+            await deletePdfSnapshots([pjumExport.pjumPdfPath]);
         }
 
         const updatedReports = await prisma.$transaction(async (tx) => {
@@ -208,7 +214,10 @@ export async function cancelAdminPjum(pjumExportId: string) {
                     reportNumber: { in: pjumExport.reportNumbers },
                     pjumExportedAt: { not: null },
                 },
-                data: { pjumExportedAt: null },
+                data: {
+                    pjumExportedAt: null,
+                    reportFinalDriveUrl: null,
+                },
             });
 
             await tx.pjumExport.delete({ where: { id: pjumExport.id } });
@@ -234,11 +243,12 @@ export async function cancelAdminPjum(pjumExportId: string) {
                 bmsNIK: pjumExport.bmsNIK,
                 weekNumber: pjumExport.weekNumber,
                 updatedReports,
+                deletedDriveFileIds,
             },
             "Cancelled admin PJUM successfully",
         );
 
-        return { success: true, updatedReports };
+        return { success: true, updatedReports, deletedDriveFileIds };
     } catch (error) {
         const durationMs = Math.round(performance.now() - start);
         logger.error(
@@ -248,4 +258,82 @@ export async function cancelAdminPjum(pjumExportId: string) {
         );
         return { error: "Gagal membatalkan PJUM" };
     }
+}
+
+async function deletePjumDriveFiles(
+    urls: Array<string | null | undefined>,
+): Promise<string[]> {
+    const fileIds = [
+        ...new Set(
+            urls
+                .map(extractGoogleDriveFileId)
+                .filter((fileId): fileId is string => Boolean(fileId)),
+        ),
+    ];
+
+    if (fileIds.length === 0) return [];
+
+    const { drive } = getGoogleDriveClient();
+    const deletedFileIds: string[] = [];
+
+    for (const fileId of fileIds) {
+        try {
+            await drive.files.delete({
+                fileId,
+                supportsAllDrives: true,
+            });
+            deletedFileIds.push(fileId);
+        } catch (error) {
+            if (isGoogleDriveNotFoundError(error)) {
+                deletedFileIds.push(fileId);
+                continue;
+            }
+
+            logger.error(
+                { operation: "deletePjumDriveFiles", fileId },
+                "Failed to delete PJUM file from Drive",
+                error,
+            );
+            throw new Error("Gagal menghapus dokumen PJUM dari Google Drive");
+        }
+    }
+
+    return deletedFileIds;
+}
+
+function extractGoogleDriveFileId(value: string | null | undefined) {
+    if (!value) return null;
+
+    const normalized = value.trim();
+
+    const fileViewMatch = normalized.match(
+        /drive\.google\.com\/file\/d\/([^/?#]+)/,
+    );
+    if (fileViewMatch) return decodeURIComponent(fileViewMatch[1]);
+
+    const openMatch = normalized.match(/drive\.google\.com\/open\?id=([^&]+)/);
+    if (openMatch) return decodeURIComponent(openMatch[1]);
+
+    const downloadMatch = normalized.match(
+        /drive\.google\.com\/uc\?id=([^&]+)/,
+    );
+    if (downloadMatch) return decodeURIComponent(downloadMatch[1]);
+
+    return null;
+}
+
+function isGoogleDriveNotFoundError(error: unknown) {
+    if (!error || typeof error !== "object") return false;
+
+    const candidate = error as {
+        code?: number;
+        status?: number;
+        response?: { status?: number };
+    };
+
+    return (
+        candidate.code === 404 ||
+        candidate.status === 404 ||
+        candidate.response?.status === 404
+    );
 }
