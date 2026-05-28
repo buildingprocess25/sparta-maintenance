@@ -2,7 +2,12 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import { parseStartWorkPhotoUrls } from "@/lib/report-start-work-revision";
+import type {
+    MaterialEstimationJson,
+    MaterialStoreJson,
+    ReportItemJson,
+} from "@/types/report";
 
 /**
  * Get reports that BMS can submit completion for.
@@ -64,6 +69,9 @@ export async function getReportForCompletion(
             status: true,
             items: true,
             estimations: true,
+            startSelfieUrl: true,
+            startReceiptUrls: true,
+            startMaterialStores: true,
             completionNotes: true,
             completionAdditionalPhotos: true,
             completionAdditionalNote: true,
@@ -84,6 +92,10 @@ export async function getReportForCompletion(
         ...report,
         items: report.items as unknown as ReportItemJson[],
         estimations: report.estimations as unknown as MaterialEstimationJson[],
+        startSelfieUrls: parseStartWorkPhotoUrls(report.startSelfieUrl),
+        startReceiptUrls: parseStartWorkPhotoUrls(report.startReceiptUrls),
+        startMaterialStores:
+            report.startMaterialStores as unknown as MaterialStoreJson[],
     };
 }
 

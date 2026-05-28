@@ -268,6 +268,17 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             return {
                 globalNotes: draft.globalNotes,
                 selfiePhotos,
+                startWorkSelfiePhotos: await restorePhotosFromIds(
+                    draft.startWorkSelfiePhotoIds ?? [],
+                ),
+                startWorkMaterialStorePhotos: await restorePhotosFromIds(
+                    draft.startWorkMaterialStorePhotoIds ?? [],
+                ),
+                startWorkReceiptPhotos: await restorePhotosFromIds(
+                    draft.startWorkReceiptPhotoIds ?? [],
+                ),
+                startWorkMaterialStores: draft.startWorkMaterialStores ?? [],
+                startWorkSkipPhotos: draft.startWorkSkipPhotos ?? false,
                 additionalDocumentationPhotos,
                 additionalDocumentationNote:
                     draft.additionalDocumentationNote?.trim() || "",
@@ -293,4 +304,24 @@ export function useCompletionAutosave(): UseCompletionAutosave {
         restoreDraft,
         clearDraft,
     };
+}
+
+async function restorePhotosFromIds(ids: string[]): Promise<LocalPhoto[]> {
+    const photos: LocalPhoto[] = [];
+    for (const id of ids) {
+        const remotePhoto = restorePhotoFromId(id);
+        if (remotePhoto) {
+            photos.push(remotePhoto);
+            continue;
+        }
+
+        const file = await idbGet(id);
+        if (file) {
+            photos.push({
+                id,
+                previewUrl: URL.createObjectURL(file),
+            });
+        }
+    }
+    return photos;
 }

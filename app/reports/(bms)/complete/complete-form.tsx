@@ -1,15 +1,29 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+    useCallback,
+    useEffect,
+    useRef,
+    useState,
+    useTransition,
+    type ChangeEvent,
+} from "react";
 import { toast } from "sonner";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, CheckCircle2, Loader2, Store } from "lucide-react";
 
 import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import {
+    Card,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/components/ui/card";
 
 import { ReportSelectDialog } from "./components/report-select-dialog";
 import { CompletionChecklistStep } from "./components/completion-checklist-step";
+import { StartWorkRevisionCard } from "./components/start-work-revision-card";
 import {
     createInitialItemState,
     hasActualPrice,
@@ -20,7 +34,12 @@ import {
 import { submitCompletionWork } from "@/app/reports/actions/submit-completion-work";
 import { fetchReportForCompletion } from "./actions";
 import type { WorkableReport, ReportForCompletion } from "./queries";
-import type { CompletionDraftData, CompletionItemState } from "./types";
+import type {
+    CompletionDraftData,
+    CompletionItemState,
+    LocalPhoto,
+    MaterialStoreEntry,
+} from "./types";
 import { useCompletionAutosave } from "./hooks/use-completion-autosave";
 import { useRouter } from "next/navigation";
 import type {
@@ -34,6 +53,7 @@ import type {
 type CameraTarget =
     | { target: "item"; itemId: string; type: "after" }
     | { target: "additional" }
+    | { target: "startSelfie" | "startStore" | "startReceipt" }
     | null;
 
 interface Props {
@@ -48,6 +68,84 @@ interface Props {
 
 function toRemotePhoto(url: string, idx: number) {
     return { id: `remote-${idx}-${url}`, previewUrl: url };
+}
+
+function genId(): string {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function isTotalEstimationZero(report: NonNullable<ReportForCompletion>) {
+    return (
+        report.estimations.reduce((sum, item) => sum + item.totalPrice, 0) === 0
+    );
+}
+
+function isCompletionItemComplete(state: CompletionItemState): boolean {
+    return (
+        state.afterPhotos.length > 0 &&
+        state.realisasiEntries.length > 0 &&
+        state.realisasiEntries.every(
+            (entry) =>
+                entry.materialName.trim().length > 0 && hasActualPrice(entry),
+        )
+    );
+}
+
+function ReportSummaryCard({
+    report,
+    itemStates,
+}: {
+    report: NonNullable<ReportForCompletion>;
+    itemStates: Map<string, CompletionItemState>;
+}) {
+    const damagedBmsItemIds = report.items
+        .filter(
+            (item) =>
+                (item.condition === "RUSAK" ||
+                    item.preventiveCondition === "NOT_OK") &&
+                item.handler === "BMS",
+        )
+        .map((item) => item.itemId);
+    const totalDamaged = damagedBmsItemIds.length;
+    const totalCompleted = damagedBmsItemIds.filter((id) => {
+        const state = itemStates.get(id);
+        return state ? isCompletionItemComplete(state) : false;
+    }).length;
+
+    return (
+        <Card className="mx-auto w-full max-w-5xl py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
+            <CardHeader className="px-1 md:px-6 flex flex-row items-center justify-between mb-6">
+                <div>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Store className="h-4 w-4 text-primary" />
+                        {report.storeName}
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                        {report.reportNumber} · {report.branchName}
+                    </CardDescription>
+                </div>
+
+                {totalDamaged > 0 && (
+                    <div className="flex items-center gap-1.5 text-sm">
+                        {totalCompleted === totalDamaged ? (
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                        ) : (
+                            <AlertCircle className="h-4 w-4 text-yellow-600" />
+                        )}
+                        <span
+                            className={
+                                totalCompleted === totalDamaged
+                                    ? "text-green-700 font-medium"
+                                    : "text-muted-foreground"
+                            }
+                        >
+                            {totalCompleted}/{totalDamaged} item selesai
+                        </span>
+                    </div>
+                )}
+            </CardHeader>
+        </Card>
+    );
 }
 
 function parseStringArray(raw: unknown): string[] {
@@ -163,9 +261,25 @@ export function CompleteForm({
         useState<Array<{ id: string; previewUrl: string }>>([]);
     const [additionalDocumentationNote, setAdditionalDocumentationNote] =
         useState("");
+    const [startWorkSelfiePhotos, setStartWorkSelfiePhotos] = useState<
+        LocalPhoto[]
+    >([]);
+    const [startWorkMaterialStorePhotos, setStartWorkMaterialStorePhotos] =
+        useState<LocalPhoto[]>([]);
+    const [startWorkReceiptPhotos, setStartWorkReceiptPhotos] = useState<
+        LocalPhoto[]
+    >([]);
+    const [startWorkMaterialStores, setStartWorkMaterialStores] = useState<
+        MaterialStoreEntry[]
+    >([]);
+    const [startWorkSkipPhotos, setStartWorkSkipPhotos] = useState(false);
+    const startWorkStoreGalleryInputRef = useRef<HTMLInputElement>(null);
 
     // ── Camera state ─────────────────────────────────────────────────────────
     const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
+    const [startWorkPreviewUrl, setStartWorkPreviewUrl] = useState<
+        string | null
+    >(null);
 
     // ── Autosave ──────────────────────────────────────────────────────────────
     const reportNumberRef = useRef<string | null>(null);
@@ -179,12 +293,22 @@ export function CompleteForm({
             states: Map<string, CompletionItemState>,
             additionalPhotos: Array<{ id: string; previewUrl: string }>,
             additionalNote: string,
+            startSelfies: LocalPhoto[],
+            startStorePhotos: LocalPhoto[],
+            startReceipts: LocalPhoto[],
+            startStores: MaterialStoreEntry[],
+            startSkipPhotos: boolean,
         ): CompletionDraftData => ({
             version: 2,
             reportNumber: rn,
             savedAt: new Date().toISOString(),
             globalNotes: notes,
             selfiePhotoIds: [],
+            startWorkSelfiePhotoIds: startSelfies.map((p) => p.id),
+            startWorkMaterialStorePhotoIds: startStorePhotos.map((p) => p.id),
+            startWorkReceiptPhotoIds: startReceipts.map((p) => p.id),
+            startWorkMaterialStores: startStores,
+            startWorkSkipPhotos: startSkipPhotos,
             additionalDocumentationPhotoIds: additionalPhotos.map((p) => p.id),
             additionalDocumentationNote: additionalNote,
             itemStates: Object.fromEntries(
@@ -217,6 +341,11 @@ export function CompleteForm({
                     states,
                     additionalDocumentationPhotos,
                     additionalDocumentationNote,
+                    startWorkSelfiePhotos,
+                    startWorkMaterialStorePhotos,
+                    startWorkReceiptPhotos,
+                    startWorkMaterialStores,
+                    startWorkSkipPhotos,
                 ),
             );
         },
@@ -225,8 +354,28 @@ export function CompleteForm({
             buildDraftData,
             additionalDocumentationPhotos,
             additionalDocumentationNote,
+            startWorkSelfiePhotos,
+            startWorkMaterialStorePhotos,
+            startWorkReceiptPhotos,
+            startWorkMaterialStores,
+            startWorkSkipPhotos,
         ],
     );
+
+    useEffect(() => {
+        if (!currentReport) return;
+        triggerAutosave(globalNotes, itemStates);
+    }, [
+        currentReport,
+        globalNotes,
+        itemStates,
+        startWorkSelfiePhotos,
+        startWorkMaterialStorePhotos,
+        startWorkReceiptPhotos,
+        startWorkMaterialStores,
+        startWorkSkipPhotos,
+        triggerAutosave,
+    ]);
 
     // ─── Load a report and restore draft if available ─────────────────────────
     const loadReport = useCallback(
@@ -266,6 +415,42 @@ export function CompleteForm({
                         report.completionAdditionalNote?.trim() ||
                         "",
                 );
+                setStartWorkSelfiePhotos(
+                    draft.startWorkSelfiePhotos.length > 0
+                        ? draft.startWorkSelfiePhotos
+                        : report.startSelfieUrls.map((url, idx) =>
+                              toRemotePhoto(url, idx),
+                          ),
+                );
+                setStartWorkReceiptPhotos(
+                    draft.startWorkReceiptPhotos.length > 0
+                        ? draft.startWorkReceiptPhotos
+                        : report.startReceiptUrls.map((url, idx) =>
+                              toRemotePhoto(url, idx),
+                          ),
+                );
+                const reportStartStorePhotoUrls =
+                    report.startMaterialStores.flatMap(
+                        (store) => store.photoUrls ?? [],
+                    );
+                setStartWorkMaterialStorePhotos(
+                    draft.startWorkMaterialStorePhotos.length > 0
+                        ? draft.startWorkMaterialStorePhotos
+                        : reportStartStorePhotoUrls.map((url, idx) =>
+                              toRemotePhoto(url, idx),
+                          ),
+                );
+                setStartWorkMaterialStores(
+                    draft.startWorkMaterialStores.length > 0
+                        ? draft.startWorkMaterialStores
+                        : report.startMaterialStores.map((store, idx) => ({
+                              id: `db-start-store-${idx}`,
+                              name: store.name,
+                              city: store.city,
+                              photoUrls: store.photoUrls,
+                          })),
+                );
+                setStartWorkSkipPhotos(draft.startWorkSkipPhotos);
 
                 // Merge draft with fresh item states (in case new items were added)
                 const freshStates = buildItemStates(report);
@@ -306,6 +491,33 @@ export function CompleteForm({
                 setAdditionalDocumentationNote(
                     report.completionAdditionalNote?.trim() || "",
                 );
+                setStartWorkSelfiePhotos(
+                    report.startSelfieUrls.map((url, idx) =>
+                        toRemotePhoto(url, idx),
+                    ),
+                );
+                setStartWorkReceiptPhotos(
+                    report.startReceiptUrls.map((url, idx) =>
+                        toRemotePhoto(url, idx),
+                    ),
+                );
+                const startStorePhotoUrls = report.startMaterialStores.flatMap(
+                    (store) => store.photoUrls ?? [],
+                );
+                setStartWorkMaterialStorePhotos(
+                    startStorePhotoUrls.map((url, idx) =>
+                        toRemotePhoto(url, idx),
+                    ),
+                );
+                setStartWorkMaterialStores(
+                    report.startMaterialStores.map((store, idx) => ({
+                        id: `db-start-store-${idx}`,
+                        name: store.name,
+                        city: store.city,
+                        photoUrls: store.photoUrls,
+                    })),
+                );
+                setStartWorkSkipPhotos(false);
             }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -357,10 +569,44 @@ export function CompleteForm({
         setCameraTarget({ target: "additional" });
     }, []);
 
+    const handleOpenStartWorkCamera = useCallback(
+        (target: "startSelfie" | "startStore" | "startReceipt") => {
+            setCameraTarget({ target });
+        },
+        [],
+    );
+
     const handlePhotoCaptured = useCallback(
         async (file: File) => {
             if (!cameraTarget || !currentReport) return;
             setCameraTarget(null);
+
+            if (
+                cameraTarget.target === "startSelfie" ||
+                cameraTarget.target === "startStore" ||
+                cameraTarget.target === "startReceipt"
+            ) {
+                const rn = reportNumberRef.current!;
+                const photo = await autosave.addPhoto(
+                    rn,
+                    file,
+                    cameraTarget.target,
+                );
+                if (cameraTarget.target === "startSelfie") {
+                    setStartWorkSelfiePhotos((prev) => [...prev, photo]);
+                } else if (cameraTarget.target === "startStore") {
+                    setStartWorkMaterialStorePhotos((prev) => [...prev, photo]);
+                } else {
+                    setStartWorkReceiptPhotos((prev) => [...prev, photo]);
+                    setStartWorkMaterialStores((prev) =>
+                        prev.length > 0
+                            ? prev
+                            : [{ id: genId(), name: "", city: "" }],
+                    );
+                }
+                triggerAutosave(globalNotes, itemStates);
+                return;
+            }
 
             if (cameraTarget.target === "additional") {
                 const rn = reportNumberRef.current!;
@@ -379,12 +625,19 @@ export function CompleteForm({
                             itemStates,
                             next,
                             additionalDocumentationNote,
+                            startWorkSelfiePhotos,
+                            startWorkMaterialStorePhotos,
+                            startWorkReceiptPhotos,
+                            startWorkMaterialStores,
+                            startWorkSkipPhotos,
                         ),
                     );
                     return next;
                 });
                 return;
             }
+
+            if (cameraTarget.target !== "item") return;
 
             const { itemId, type } = cameraTarget;
             const rn = reportNumberRef.current!;
@@ -413,6 +666,11 @@ export function CompleteForm({
             globalNotes,
             itemStates,
             additionalDocumentationNote,
+            startWorkSelfiePhotos,
+            startWorkMaterialStorePhotos,
+            startWorkReceiptPhotos,
+            startWorkMaterialStores,
+            startWorkSkipPhotos,
             buildDraftData,
             triggerAutosave,
         ],
@@ -455,6 +713,11 @@ export function CompleteForm({
                     itemStates,
                     photos,
                     additionalDocumentationNote,
+                    startWorkSelfiePhotos,
+                    startWorkMaterialStorePhotos,
+                    startWorkReceiptPhotos,
+                    startWorkMaterialStores,
+                    startWorkSkipPhotos,
                 ),
             );
         },
@@ -464,6 +727,11 @@ export function CompleteForm({
             globalNotes,
             itemStates,
             additionalDocumentationNote,
+            startWorkSelfiePhotos,
+            startWorkMaterialStorePhotos,
+            startWorkReceiptPhotos,
+            startWorkMaterialStores,
+            startWorkSkipPhotos,
         ],
     );
 
@@ -480,6 +748,11 @@ export function CompleteForm({
                     itemStates,
                     additionalDocumentationPhotos,
                     value,
+                    startWorkSelfiePhotos,
+                    startWorkMaterialStorePhotos,
+                    startWorkReceiptPhotos,
+                    startWorkMaterialStores,
+                    startWorkSkipPhotos,
                 ),
             );
         },
@@ -489,7 +762,81 @@ export function CompleteForm({
             globalNotes,
             itemStates,
             additionalDocumentationPhotos,
+            startWorkSelfiePhotos,
+            startWorkMaterialStorePhotos,
+            startWorkReceiptPhotos,
+            startWorkMaterialStores,
+            startWorkSkipPhotos,
         ],
+    );
+
+    const handleOpenStartWorkStoreGallery = useCallback(() => {
+        startWorkStoreGalleryInputRef.current?.click();
+    }, []);
+
+    const handleStartWorkStoreGalleryChange = useCallback(
+        (event: ChangeEvent<HTMLInputElement>) => {
+            const files = Array.from(event.target.files ?? []);
+            const rn = reportNumberRef.current;
+            if (!rn) return;
+
+            files.forEach((file) => {
+                void autosave
+                    .addPhoto(rn, file, "startStore")
+                    .then((photo) =>
+                        setStartWorkMaterialStorePhotos((prev) => [
+                            ...prev,
+                            photo,
+                        ]),
+                    );
+            });
+            event.target.value = "";
+        },
+        [autosave],
+    );
+
+    const handleRemoveStartWorkPhoto = useCallback(
+        (kind: "selfie" | "store" | "receipt", id: string) => {
+            void autosave.removePhoto(id);
+            if (kind === "selfie") {
+                setStartWorkSelfiePhotos((prev) =>
+                    prev.filter((photo) => photo.id !== id),
+                );
+            } else if (kind === "store") {
+                setStartWorkMaterialStorePhotos((prev) =>
+                    prev.filter((photo) => photo.id !== id),
+                );
+            } else {
+                setStartWorkReceiptPhotos((prev) =>
+                    prev.filter((photo) => photo.id !== id),
+                );
+            }
+        },
+        [autosave],
+    );
+
+    const handleAddStartWorkStore = useCallback(() => {
+        setStartWorkMaterialStores((prev) => [
+            ...prev,
+            { id: genId(), name: "", city: "" },
+        ]);
+    }, []);
+
+    const handleRemoveStartWorkStore = useCallback((id: string) => {
+        setStartWorkMaterialStores((prev) =>
+            prev.filter((store) => store.id !== id),
+        );
+    }, []);
+
+    const handleStartWorkStoreChange = useCallback(
+        (id: string, field: "name" | "city", value: string) => {
+            setStartWorkMaterialStores((prev) =>
+                prev.map((store) =>
+                    store.id === id ? { ...store, [field]: value } : store,
+                ),
+            );
+        },
+        [],
     );
 
     // ── Submit ────────────────────────────────────────────────────────────────
@@ -502,6 +849,45 @@ export function CompleteForm({
                     item.preventiveCondition === "NOT_OK") &&
                 item.handler === "BMS",
         );
+        const shouldReviseStartWork =
+            currentReport.status === "REVIEW_REJECTED_REVISION";
+
+        if (shouldReviseStartWork) {
+            if (startWorkSkipPhotos && !isTotalEstimationZero(currentReport)) {
+                toast.error(
+                    "Lewati foto mulai pekerjaan hanya untuk estimasi Rp 0",
+                );
+                return;
+            }
+
+            if (!startWorkSkipPhotos) {
+                if (startWorkSelfiePhotos.length === 0) {
+                    toast.error("Foto selfie mulai pekerjaan wajib diisi");
+                    return;
+                }
+                if (startWorkMaterialStorePhotos.length === 0) {
+                    toast.error(
+                        "Foto toko material mulai pekerjaan wajib diisi",
+                    );
+                    return;
+                }
+                if (startWorkReceiptPhotos.length === 0) {
+                    toast.error("Foto nota/struk mulai pekerjaan wajib diisi");
+                    return;
+                }
+                if (
+                    startWorkMaterialStores.length === 0 ||
+                    startWorkMaterialStores.some(
+                        (store) => !store.name.trim() || !store.city.trim(),
+                    )
+                ) {
+                    toast.error(
+                        "Semua toko material mulai pekerjaan harus memiliki nama dan alamat",
+                    );
+                    return;
+                }
+            }
+        }
 
         // Validate each item before uploading
         for (const item of damagedBmsItems) {
@@ -534,7 +920,11 @@ export function CompleteForm({
                 );
                 return;
             }
-            if (state.realisasiEntries.some((e) => e.price !== null && e.price < 0)) {
+            if (
+                state.realisasiEntries.some(
+                    (e) => e.price !== null && e.price < 0,
+                )
+            ) {
                 toast.error("Harga aktual/real tidak boleh minus", {
                     description: `Item: ${item.itemName}`,
                 });
@@ -567,6 +957,79 @@ export function CompleteForm({
             const completionItems: import("@/app/reports/actions/submit-completion-work").CompletionItemInput[] =
                 [];
             const allCompletionFileIds: string[] = [];
+            const uploadPhotoSet = async (
+                photos: LocalPhoto[],
+                errorMessage: string,
+            ) => {
+                const urls: string[] = [];
+                const fileIds: string[] = [];
+
+                for (const photo of photos) {
+                    if (photo.id.startsWith("remote-") && photo.previewUrl) {
+                        urls.push(photo.previewUrl);
+                        continue;
+                    }
+
+                    const file = await autosave.getPhotoFile(photo.id);
+                    if (!file) {
+                        toast.error(errorMessage, { id: loadingId });
+                        return null;
+                    }
+
+                    const uploadResult = await uploadPhoto(file);
+                    if (!uploadResult) {
+                        toast.error(errorMessage, { id: loadingId });
+                        return null;
+                    }
+
+                    urls.push(uploadResult.url);
+                    fileIds.push(uploadResult.fileId);
+                }
+
+                return { urls, fileIds };
+            };
+
+            const startWorkRevision = shouldReviseStartWork
+                ? await (async () => {
+                      const selfie = await uploadPhotoSet(
+                          startWorkSelfiePhotos,
+                          "Gagal mengunggah foto selfie mulai pekerjaan",
+                      );
+                      if (!selfie) return null;
+
+                      const receipts = await uploadPhotoSet(
+                          startWorkReceiptPhotos,
+                          "Gagal mengunggah foto nota mulai pekerjaan",
+                      );
+                      if (!receipts) return null;
+
+                      const stores = await uploadPhotoSet(
+                          startWorkMaterialStorePhotos,
+                          "Gagal mengunggah foto toko material mulai pekerjaan",
+                      );
+                      if (!stores) return null;
+
+                      return {
+                          selfieUrls: selfie.urls,
+                          selfieFileIds: selfie.fileIds,
+                          receiptUrls: receipts.urls,
+                          receiptFileIds: receipts.fileIds,
+                          materialStores: startWorkMaterialStores.map(
+                              (store, index) => ({
+                                  name: store.name.trim(),
+                                  city: store.city.trim(),
+                                  ...(index === 0 && stores.urls.length > 0
+                                      ? { photoUrls: stores.urls }
+                                      : {}),
+                              }),
+                          ),
+                          materialStorePhotoFileIds: stores.fileIds,
+                          skipPhotos: startWorkSkipPhotos,
+                      };
+                  })()
+                : undefined;
+
+            if (shouldReviseStartWork && !startWorkRevision) return;
 
             for (const item of damagedBmsItems) {
                 const state = itemStates.get(item.itemId);
@@ -658,6 +1121,7 @@ export function CompleteForm({
                 },
                 globalNotes.trim() || undefined,
                 allCompletionFileIds,
+                startWorkRevision ?? undefined,
             );
 
             if (result.error) {
@@ -680,6 +1144,11 @@ export function CompleteForm({
         globalNotes,
         additionalDocumentationPhotos,
         additionalDocumentationNote,
+        startWorkSelfiePhotos,
+        startWorkMaterialStorePhotos,
+        startWorkReceiptPhotos,
+        startWorkMaterialStores,
+        startWorkSkipPhotos,
         autosave,
         uploadPhoto,
         startTransition,
@@ -722,6 +1191,77 @@ export function CompleteForm({
                             storeInfo: `Toko: ${currentReport.storeName}`,
                         }}
                     />
+                    <ReportSummaryCard
+                        report={currentReport}
+                        itemStates={itemStates}
+                    />
+                    {startWorkPreviewUrl && (
+                        <div
+                            className="fixed inset-0 z-100 flex items-center justify-center bg-black/90 p-4"
+                            onClick={() => setStartWorkPreviewUrl(null)}
+                        >
+                            <div
+                                className="relative max-h-[90vh] w-full max-w-4xl"
+                                onClick={(event) => event.stopPropagation()}
+                            >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={startWorkPreviewUrl}
+                                    alt="Preview foto mulai pekerjaan"
+                                    className="max-h-[85vh] h-full w-full rounded-lg object-contain"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setStartWorkPreviewUrl(null)}
+                                    className="absolute -right-3 -top-3 flex h-8 w-8 items-center justify-center rounded-full bg-white text-lg font-bold text-black shadow-lg transition-colors hover:bg-gray-100"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {currentReport.status === "REVIEW_REJECTED_REVISION" && (
+                        <>
+                            <input
+                                ref={startWorkStoreGalleryInputRef}
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={handleStartWorkStoreGalleryChange}
+                            />
+                            <StartWorkRevisionCard
+                                isZeroCost={isTotalEstimationZero(
+                                    currentReport,
+                                )}
+                                skipPhotos={startWorkSkipPhotos}
+                                onSkipPhotosChange={setStartWorkSkipPhotos}
+                                selfiePhotos={startWorkSelfiePhotos}
+                                materialStorePhotos={
+                                    startWorkMaterialStorePhotos
+                                }
+                                receiptPhotos={startWorkReceiptPhotos}
+                                materialStores={startWorkMaterialStores}
+                                onOpenCamera={handleOpenStartWorkCamera}
+                                onOpenStoreGallery={
+                                    handleOpenStartWorkStoreGallery
+                                }
+                                onRemoveSelfie={(id) =>
+                                    handleRemoveStartWorkPhoto("selfie", id)
+                                }
+                                onRemoveStorePhoto={(id) =>
+                                    handleRemoveStartWorkPhoto("store", id)
+                                }
+                                onRemoveReceipt={(id) =>
+                                    handleRemoveStartWorkPhoto("receipt", id)
+                                }
+                                onAddStore={handleAddStartWorkStore}
+                                onRemoveStore={handleRemoveStartWorkStore}
+                                onStoreChange={handleStartWorkStoreChange}
+                                onPreview={setStartWorkPreviewUrl}
+                            />
+                        </>
+                    )}
                     <CompletionChecklistStep
                         report={currentReport}
                         itemStates={itemStates}
