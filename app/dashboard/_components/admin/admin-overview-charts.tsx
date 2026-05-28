@@ -119,12 +119,6 @@ export function AdminTrendChart({ data }: TrendChartProps) {
                                             )}{" "}
                                             laporan
                                         </span>
-                                        <span className="text-muted-foreground">
-                                            Total realisasi
-                                        </span>
-                                        <span className="text-right font-mono font-medium tabular-nums text-foreground">
-                                            {formatTooltipRp(row.realisasi)}
-                                        </span>
                                     </div>
                                 );
                             }}

@@ -72,6 +72,7 @@ export default async function AdminPreventivePage() {
         <AdminDashboardShell
             user={user}
             title="Checklist Preventif"
+            breadcrumbs={[{ label: "Checklist Preventif" }]}
             headerActions={<ExportPreventiveDialog branches={branches} />}
             contentClassName="h-full"
         >

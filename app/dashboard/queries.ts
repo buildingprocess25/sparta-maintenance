@@ -859,6 +859,7 @@ async function getAdminKpiMetric(
         prisma.report.aggregate({
             where: {
                 ...completedWhere,
+                pjumExportedAt: { not: null },
                 totalReal: { not: null },
             },
             _sum: { totalReal: true },
@@ -866,6 +867,7 @@ async function getAdminKpiMetric(
         prisma.report.aggregate({
             where: {
                 ...completedWhere,
+                pjumExportedAt: { not: null },
                 totalReal: { not: null },
             },
             _avg: { totalReal: true },
@@ -926,6 +928,7 @@ async function getAdminBranchPerformance(
             where: {
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: "COMPLETED",
+                pjumExportedAt: { not: null },
                 finishedAt: { gte: ytdStart },
             },
             _count: { _all: true },
@@ -996,6 +999,7 @@ async function getAdminBranchTrend(
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED",
+            pjumExportedAt: { not: null },
             finishedAt: { gte: trendWindow.start },
         },
         _count: { _all: true },

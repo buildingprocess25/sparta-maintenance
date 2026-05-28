@@ -30,6 +30,7 @@ export default async function SettingsPage() {
         <AdminDashboardShell
             user={user}
             title="Pengaturan Sistem"
+            breadcrumbs={[{ label: "Pengaturan Sistem" }]}
             contentClassName="grid gap-6 lg:grid-cols-2"
         >
             {isEnvOverridden && (

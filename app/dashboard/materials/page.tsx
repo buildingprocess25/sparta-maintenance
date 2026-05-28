@@ -21,6 +21,7 @@ export default async function AdminMaterialsPage() {
         <AdminDashboardShell
             user={user}
             title="List Material"
+            breadcrumbs={[{ label: "Material" }]}
             headerActions={<ExportMaterialsDialog branches={branches} />}
             contentClassName="h-full"
         >

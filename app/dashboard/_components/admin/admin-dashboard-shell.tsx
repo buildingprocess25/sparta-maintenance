@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
-import { SiteHeader } from "./admin-site-header";
+import { SiteHeader, type BreadcrumbEntry } from "./admin-site-header";
 
 type AdminDashboardShellProps = {
     user: AuthUser;
@@ -11,6 +11,7 @@ type AdminDashboardShellProps = {
     children: ReactNode;
     headerActions?: ReactNode;
     contentClassName?: string;
+    breadcrumbs?: BreadcrumbEntry[];
 };
 
 export function AdminDashboardShell({
@@ -19,12 +20,15 @@ export function AdminDashboardShell({
     children,
     headerActions,
     contentClassName,
+    breadcrumbs,
 }: AdminDashboardShellProps) {
     return (
         <SidebarProvider>
             <AppSidebar variant="sidebar" user={user} />
             <SidebarInset>
-                <SiteHeader title={title}>{headerActions}</SiteHeader>
+                <SiteHeader title={title} breadcrumbs={breadcrumbs}>
+                    {headerActions}
+                </SiteHeader>
                 <div
                     className={cn(
                         "flex flex-col gap-6 p-4 lg:p-6",

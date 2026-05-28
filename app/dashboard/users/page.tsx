@@ -22,6 +22,7 @@ export default async function AdminUsersPage() {
         <AdminDashboardShell
             user={user}
             title="Management User"
+            breadcrumbs={[{ label: "User" }]}
             headerActions={<ExportUsersDialog branches={branches} />}
             contentClassName="h-full"
         >

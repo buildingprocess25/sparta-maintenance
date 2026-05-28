@@ -458,6 +458,7 @@ export async function AdminNewDashboard({
         <AdminDashboardShell
             user={user}
             title="Dashboard"
+            breadcrumbs={[{ label: "Dashboard" }]}
             contentClassName="md:p-6"
         >
             <DashboardHeader kpi={data.kpi} />

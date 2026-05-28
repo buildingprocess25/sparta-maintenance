@@ -21,6 +21,7 @@ export default async function AdminPjumPage() {
         <AdminDashboardShell
             user={user}
             title="PJUM"
+            breadcrumbs={[{ label: "Dokumen PJUM" }]}
             headerActions={<ExportPjumDialog branches={branches} />}
             contentClassName="h-full"
         >

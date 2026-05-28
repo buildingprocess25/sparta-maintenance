@@ -50,6 +50,7 @@ export default async function RevisiLaporanPage({ searchParams }: Props) {
         <AdminDashboardShell
             user={user}
             title="Revisi Laporan Maintenance"
+            breadcrumbs={[{ label: "Revisi Laporan" }]}
             contentClassName="h-full"
         >
             <RevisiLaporanClient initialQuery={q ?? ""} report={report} />

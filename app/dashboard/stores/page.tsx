@@ -22,6 +22,7 @@ export default async function AdminStoresPage() {
         <AdminDashboardShell
             user={user}
             title="Management Toko"
+            breadcrumbs={[{ label: "Toko" }]}
             headerActions={<ExportStoresDialog branches={branches} />}
             contentClassName="h-full"
         >
