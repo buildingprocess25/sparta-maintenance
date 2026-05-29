@@ -478,7 +478,7 @@ export type AdminTrendDatum = {
     avgRealisasi: number;
 };
 
-export type AdminTrendPeriod = "ytd" | "30d" | "90d" | "12m";
+export type AdminTrendPeriod = string;
 
 export type AdminBranchOption = {
     name: string;
@@ -639,11 +639,36 @@ function getStartOfRecentDays(count: number): Date {
     return d;
 }
 
-function getTrendWindow(period: AdminTrendPeriod): {
+function getTrendWindow(period: string): {
     start: Date;
+    end?: Date;
     buckets: { key: string; label: string }[];
     bucketKey: (date: Date) => string;
 } {
+    if (/^\d{2}-\d{4}$/.test(period)) {
+        const [mStr, yStr] = period.split("-");
+        const month = parseInt(mStr, 10) - 1;
+        const year = parseInt(yStr, 10);
+        
+        const start = new Date(year, month, 1);
+        const nextMonth = new Date(year, month + 1, 1);
+        const days = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        const current = new Date(start);
+        while (current < nextMonth && current <= today) {
+            days.push({ key: getDayKey(current), label: getDayLabel(current) });
+            current.setDate(current.getDate() + 1);
+        }
+        
+        return {
+            start,
+            end: nextMonth,
+            buckets: days,
+            bucketKey: getDayKey,
+        };
+    }
     if (period === "30d") {
         return {
             start: getStartOfRecentDays(30),
@@ -752,14 +777,17 @@ function resolveAdminParentBranch(
 }
 
 async function getAdminStatusDistribution(
-    ytdStart: Date,
+    window: { start: Date; end?: Date },
 ): Promise<AdminStatusDatum[]> {
     const statusRows = await prisma.report.groupBy({
         by: ["status"],
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: { not: "DRAFT" },
-            createdAt: { gte: ytdStart },
+            createdAt: { 
+                gte: window.start,
+                ...(window.end ? { lt: window.end } : {})
+            },
         },
         _count: { _all: true },
     });
@@ -775,12 +803,15 @@ async function getAdminStatusDistribution(
     })).filter((item) => item.count > 0);
 }
 
-async function getAdminPjumSummary(ytdStart: Date): Promise<AdminPjumSummary> {
+async function getAdminPjumSummary(window: { start: Date; end?: Date }): Promise<AdminPjumSummary> {
     const pjumRows = await prisma.pjumExport.groupBy({
         by: ["status"],
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            createdAt: { gte: ytdStart },
+            createdAt: { 
+                gte: window.start,
+                ...(window.end ? { lt: window.end } : {})
+            },
         },
         _count: { _all: true },
     });
@@ -798,19 +829,25 @@ async function getAdminPjumSummary(ytdStart: Date): Promise<AdminPjumSummary> {
 }
 
 async function getAdminKpiMetric(
-    ytdStart: Date,
+    window: { start: Date; end?: Date },
     activeUsers: number,
     pendingPjum: number,
 ): Promise<AdminKpiMetric> {
     const baseWhere = {
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: { not: "DRAFT" as const },
-        createdAt: { gte: ytdStart },
+        createdAt: { 
+            gte: window.start,
+            ...(window.end ? { lt: window.end } : {})
+        },
     };
     const completedWhere = {
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: "COMPLETED" as const,
-        finishedAt: { gte: ytdStart },
+        finishedAt: { 
+            gte: window.start,
+            ...(window.end ? { lt: window.end } : {})
+        },
     };
 
     const [
@@ -910,7 +947,7 @@ function getBranchAccumulator(
 }
 
 async function getAdminBranchPerformance(
-    ytdStart: Date,
+    window: { start: Date; end?: Date },
     hierarchy: AdminBranchHierarchy,
 ): Promise<AdminBranchPerformanceDatum[]> {
     const [totalRows, completedRows] = await Promise.all([
@@ -919,7 +956,10 @@ async function getAdminBranchPerformance(
             where: {
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: { not: "DRAFT" },
-                createdAt: { gte: ytdStart },
+                createdAt: { 
+                    gte: window.start,
+                    ...(window.end ? { lt: window.end } : {})
+                },
             },
             _count: { _all: true },
         }),
@@ -929,7 +969,10 @@ async function getAdminBranchPerformance(
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: "COMPLETED",
                 pjumExportedAt: { not: null },
-                finishedAt: { gte: ytdStart },
+                finishedAt: { 
+                    gte: window.start,
+                    ...(window.end ? { lt: window.end } : {})
+                },
             },
             _count: { _all: true },
             _sum: { totalReal: true },
@@ -1000,7 +1043,10 @@ async function getAdminBranchTrend(
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED",
             pjumExportedAt: { not: null },
-            finishedAt: { gte: trendWindow.start },
+            finishedAt: { 
+                gte: trendWindow.start,
+                ...(trendWindow.end ? { lt: trendWindow.end } : {})
+            },
         },
         _count: { _all: true },
         _sum: { totalReal: true },
@@ -1103,7 +1149,7 @@ async function getAdminStuckReports(): Promise<AdminAttentionReport[]> {
 export async function getAdminCommandCenterData(
     period: AdminTrendPeriod = "ytd",
 ): Promise<AdminCommandCenterData> {
-    const ytdStart = getYtdStart();
+    const trendWindow = getTrendWindow(period);
     const empty = getEmptyAdminCommandCenterData();
 
     try {
@@ -1111,15 +1157,15 @@ export async function getAdminCommandCenterData(
             await Promise.all([
             getAdminVisibleOnlineUserCount(),
             getAdminBranchHierarchy(),
-            getAdminStatusDistribution(ytdStart),
-            getAdminPjumSummary(ytdStart),
+            getAdminStatusDistribution(trendWindow),
+            getAdminPjumSummary(trendWindow),
             getGlobalActivity(8),
         ]);
 
         const [kpi, branches, trends, stuckReports] =
             await Promise.all([
-            getAdminKpiMetric(ytdStart, activeUsers, pjum.pending),
-            getAdminBranchPerformance(ytdStart, hierarchy),
+            getAdminKpiMetric(trendWindow, activeUsers, pjum.pending),
+            getAdminBranchPerformance(trendWindow, hierarchy),
             getAdminBranchTrend(period, hierarchy),
             getAdminStuckReports(),
         ]);

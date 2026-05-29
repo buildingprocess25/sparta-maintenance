@@ -7,6 +7,40 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 
 export type RealisasiPeriod = "ytd" | "30d" | "90d" | "12m";
 
+/**
+ * Parsed period result used internally by the query.
+ * - { mode: "preset" } → uses existing rolling-window logic
+ * - { mode: "month", month, year } → filters a specific calendar month
+ */
+type ParsedPeriod =
+    | { mode: "preset"; period: RealisasiPeriod }
+    | { mode: "month"; month: number; year: number };
+
+/**
+ * Parse a raw period string from the URL.
+ * Accepts: "ytd" | "30d" | "90d" | "12m" | "MM-YYYY"
+ */
+function parsePeriodParam(raw: string): ParsedPeriod {
+    if (
+        raw === "ytd" ||
+        raw === "30d" ||
+        raw === "90d" ||
+        raw === "12m"
+    ) {
+        return { mode: "preset", period: raw as RealisasiPeriod };
+    }
+    // Try MM-YYYY
+    const match = /^(\d{2})-(\d{4})$/.exec(raw);
+    if (match) {
+        const month = parseInt(match[1], 10);
+        const year = parseInt(match[2], 10);
+        if (month >= 1 && month <= 12 && year >= 2000) {
+            return { mode: "month", month, year };
+        }
+    }
+    return { mode: "preset", period: "ytd" };
+}
+
 export type RealisasiKpi = {
     totalRealisasi: number;
     totalEstimasi: number;
@@ -74,13 +108,12 @@ function getPeriodStart(period: RealisasiPeriod): Date {
     return d;
 }
 
-function buildMonthBuckets(start: Date): { key: string; label: string }[] {
+function buildMonthBuckets(start: Date, end: Date = new Date()): { key: string; label: string }[] {
     const buckets: { key: string; label: string }[] = [];
-    const now = new Date();
     const cursor = new Date(start);
     cursor.setDate(1);
 
-    while (cursor <= now) {
+    while (cursor <= end) {
         const m = cursor.getMonth();
         const y = cursor.getFullYear();
         const key = `${y}-${String(m + 1).padStart(2, "0")}`;
@@ -98,7 +131,7 @@ function monthKey(date: Date): string {
 // ─── Main query ───────────────────────────────────────────────────────────────
 
 export async function getRealisasiPageData(
-    period: RealisasiPeriod = "ytd",
+    periodRaw: string = "ytd",
     branchFilter?: string,
 ): Promise<RealisasiPageData> {
     const empty: RealisasiPageData = {
@@ -114,14 +147,32 @@ export async function getRealisasiPageData(
     };
 
     try {
-        const start = getPeriodStart(period);
+        const parsed = parsePeriodParam(periodRaw);
+
+        // Build date range based on parsed period
+        let start: Date;
+        let end: Date | undefined;
+        let bucketEnd = new Date();
+
+        if (parsed.mode === "month") {
+            start = new Date(parsed.year, parsed.month - 1, 1, 0, 0, 0, 0);
+            end = new Date(parsed.year, parsed.month, 1, 0, 0, 0, 0); // exclusive
+        } else {
+            start = getPeriodStart(parsed.period);
+            if (parsed.period === "ytd") {
+                // For YTD, show all 12 months of the year in the chart
+                bucketEnd = new Date(start.getFullYear(), 11, 31);
+            }
+        }
 
         // Base where clause — COMPLETED and PJUM-exported with finishedAt in period
         const baseWhere = {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED" as const,
             pjumExportedAt: { not: null },
-            finishedAt: { gte: start },
+            finishedAt: end
+                ? { gte: start, lt: end }
+                : { gte: start },
             ...(branchFilter && branchFilter !== "all"
                 ? { branchName: branchFilter }
                 : {}),
@@ -141,7 +192,7 @@ export async function getRealisasiPageData(
         if (rows.length === 0) {
             return {
                 ...empty,
-                monthly: buildMonthBuckets(start).map((b) => ({
+                monthly: buildMonthBuckets(start, bucketEnd).map((b) => ({
                     yearMonth: b.key,
                     label: b.label,
                     totalRealisasi: 0,
@@ -218,7 +269,7 @@ export async function getRealisasiPageData(
         };
 
         // ── Build monthly trend ───────────────────────────────────────────
-        const buckets = buildMonthBuckets(start);
+        const buckets = buildMonthBuckets(start, bucketEnd);
         const monthly: RealisasiMonthDatum[] = buckets.map((b) => {
             const acc = monthAcc.get(b.key);
             return {
@@ -261,7 +312,7 @@ export async function getRealisasiPageData(
         return { kpi, monthly, branches };
     } catch (error) {
         logger.error(
-            { operation: "getRealisasiPageData", period, branchFilter },
+            { operation: "getRealisasiPageData", period: periodRaw, branchFilter },
             "Failed to fetch realisasi page data",
             error,
         );

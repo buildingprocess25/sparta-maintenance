@@ -94,8 +94,8 @@ const data = {
                     icon: IconUserCog,
                 },
                 {
-                    title: "User Online",
-                    url: "#",
+                    title: "Aktivitas User",
+                    url: "/dashboard/activity",
                     icon: IconUsers,
                 },
             ],
@@ -130,6 +130,8 @@ const data = {
     ],
 };
 
+const DASHBOARD_PARENT_ROUTES = ["/dashboard/realisasi"];
+
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
     user?: AuthUser;
 };
@@ -157,7 +159,15 @@ export function AppSidebar({
 
     const isItemActive = (url: string) => {
         if (url === "#") return false;
-        if (url === "/dashboard") return pathname === "/dashboard";
+        if (url === "/dashboard") {
+            return (
+                pathname === "/dashboard" ||
+                DASHBOARD_PARENT_ROUTES.some(
+                    (route) =>
+                        pathname === route || pathname.startsWith(`${route}/`),
+                )
+            );
+        }
         return pathname.startsWith(url);
     };
 

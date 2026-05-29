@@ -33,23 +33,19 @@ import {
     getAdminCommandCenterData,
     type AdminAttentionReport,
     type AdminBranchPerformanceDatum,
+    type ActivityItem,
     type AdminKpiMetric,
     type AdminStatusDatum,
-    type AdminTrendPeriod,
 } from "../../queries";
-import { ActivitySectionWide } from "../shared/activity-feed";
 import { AdminTrendChart } from "./admin-overview-charts";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
+import { AdminTrendPeriodFilter } from "./admin-trend-filter";
 
-const PERIOD_OPTIONS: { value: AdminTrendPeriod; label: string }[] = [
-    { value: "ytd", label: "YTD" },
-    { value: "30d", label: "30 Hari" },
-    { value: "90d", label: "90 Hari" },
-    { value: "12m", label: "12 Bulan" },
-];
-
-function normalizePeriod(value?: string): AdminTrendPeriod {
+function normalizePeriod(value?: string): string {
     if (value === "30d" || value === "90d" || value === "12m") {
+        return value;
+    }
+    if (value && /^\d{2}-\d{4}$/.test(value)) {
         return value;
     }
 
@@ -108,7 +104,7 @@ function MetricCard({
     tone,
 }: MetricCardProps) {
     const content = (
-        <Card className="h-40 w-full transition-colors hover:border-primary/40">
+        <Card className="group h-40 w-full transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
             <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                     <div className="space-y-1">
@@ -125,7 +121,17 @@ function MetricCard({
                 </div>
             </CardHeader>
             <CardContent>
-                <p className="text-sm text-muted-foreground">{description}</p>
+                <div className="flex items-end justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                    {href && (
+                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary opacity-80 transition-opacity group-hover:opacity-100">
+                            Detail
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                        </span>
+                    )}
+                </div>
             </CardContent>
         </Card>
     );
@@ -133,7 +139,11 @@ function MetricCard({
     if (!href) return content;
 
     return (
-        <Link href={href} className="block h-full">
+        <Link
+            href={href}
+            className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            aria-label={`Buka detail ${title}`}
+        >
             {content}
         </Link>
     );
@@ -153,7 +163,7 @@ function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
             </div>
             <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline">
-                    <Link href="/activity">
+                    <Link href="/dashboard/activity">
                         <Activity className="h-4 w-4" />
                         Aktivitas
                     </Link>
@@ -219,15 +229,15 @@ function KpiGrid({
                 description="Laporan selesai yang belum masuk rekap PJUM"
                 icon={ListChecks}
                 tone={kpi.unpjumCompletedReports > 0 ? "amber" : "green"}
-                href="/dashboard/pjum"
+                href="/dashboard/reports?status=COMPLETED"
             />
             <MetricCard
                 title="User Aktif"
                 value={formatNumber(kpi.activeUsers)}
-                description="User non-admin yang terlihat online"
+                description="Terlihat aktif 5 menit terakhir"
                 icon={Users}
                 tone="slate"
-                href="/dashboard/users"
+                href="/dashboard/activity/online"
             />
         </div>
     );
@@ -247,15 +257,19 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
                 <Link
                     key={item.status}
                     href={`/dashboard/reports?status=${item.status}`}
-                    className="block h-full w-full"
+                    className="group block h-full w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    aria-label={`Buka laporan status ${item.label}`}
                 >
-                    <div className="flex h-24 w-full flex-col justify-between rounded-lg border bg-card p-3 transition-all hover:border-primary/40 hover:bg-muted/30">
+                    <div className="flex h-24 w-full flex-col justify-between rounded-lg border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-muted/30 hover:shadow-sm">
                         <span className="line-clamp-2 text-xs leading-tight text-muted-foreground">
                             {item.label}
                         </span>
-                        <span className="font-mono text-3xl font-semibold leading-none">
-                            {formatNumber(item.count)}
-                        </span>
+                        <div className="flex items-end justify-between gap-2">
+                            <span className="font-mono text-3xl font-semibold leading-none">
+                                {formatNumber(item.count)}
+                            </span>
+                            <ArrowUpRight className="h-3.5 w-3.5 text-primary opacity-70 transition-opacity group-hover:opacity-100" />
+                        </div>
                     </div>
                 </Link>
             ))}
@@ -268,24 +282,143 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
     );
 }
 
-function TrendPeriodFilter({ period }: { period: AdminTrendPeriod }) {
+const ACTIVITY_LABELS: Record<string, string> = {
+    SUBMITTED: "Laporan diajukan",
+    RESUBMITTED_ESTIMATION: "Revisi estimasi diajukan",
+    RESUBMITTED_WORK: "Revisi pekerjaan diajukan",
+    WORK_STARTED: "Pekerjaan dimulai",
+    COMPLETION_SUBMITTED: "Penyelesaian diajukan",
+    ESTIMATION_APPROVED: "Estimasi disetujui",
+    ESTIMATION_REJECTED_REVISION: "Revisi estimasi",
+    ESTIMATION_REJECTED: "Estimasi ditolak",
+    WORK_APPROVED: "Pekerjaan disetujui BMC",
+    WORK_REJECTED_REVISION: "Revisi pekerjaan",
+    FINAL_APPROVED_BNM: "Final disetujui BNM",
+    FINAL_REJECTED_REVISION_BNM: "Revisi final BNM",
+    ADMIN_REALISASI_REVISED: "Realisasi direvisi admin",
+};
+
+function getActivityBadgeClass(action: string) {
+    if (action.includes("REJECTED")) {
+        return "border-red-200 bg-red-50 text-red-700";
+    }
+    if (action.includes("APPROVED")) {
+        return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    }
+    if (action.includes("REVISION") || action.includes("REVISED")) {
+        return "border-orange-200 bg-orange-50 text-orange-700";
+    }
+    return "border-blue-200 bg-blue-50 text-blue-700";
+}
+
+function formatRelativeDate(date: Date): string {
+    const diffMs = Date.now() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60_000);
+    const diffHour = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHour / 24);
+
+    if (diffMin < 1) return "Baru saja";
+    if (diffMin < 60) return `${diffMin} menit lalu`;
+    if (diffHour < 24) return `${diffHour} jam lalu`;
+    if (diffDay === 1) return "Kemarin";
+    if (diffDay < 7) return `${diffDay} hari lalu`;
+
+    return formatDate(date);
+}
+
+function AdminRecentActivityCard({
+    activities,
+}: {
+    activities: ActivityItem[];
+}) {
     return (
-        <div className="flex flex-wrap gap-2">
-            {PERIOD_OPTIONS.map((option) => (
-                <Button
-                    key={option.value}
-                    asChild
-                    size="sm"
-                    variant={period === option.value ? "default" : "outline"}
-                >
-                    <Link href={`/dashboard?period=${option.value}`}>
-                        {option.label}
-                    </Link>
-                </Button>
-            ))}
-        </div>
+        <Card className="overflow-hidden">
+            <CardHeader>
+                <div className="flex items-center justify-between gap-4">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-primary" />
+                            Aktivitas User Terbaru
+                        </CardTitle>
+                        <CardDescription>
+                            Update operasional terbaru dari seluruh cabang
+                        </CardDescription>
+                    </div>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/dashboard/activity">
+                            Detail
+                            <ArrowUpRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <Table className="text-xs">
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Aktivitas</TableHead>
+                            <TableHead>Laporan</TableHead>
+                            <TableHead>Cabang</TableHead>
+                            <TableHead>Oleh</TableHead>
+                            <TableHead>Waktu</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {activities.length === 0 ? (
+                            <TableRow>
+                                <TableCell
+                                    colSpan={5}
+                                    className="h-24 text-center text-sm text-muted-foreground"
+                                >
+                                    Belum ada aktivitas terbaru untuk
+                                    ditampilkan.
+                                </TableCell>
+                            </TableRow>
+                        ) : (
+                            activities.map((activity) => (
+                                <TableRow key={activity.id}>
+                                    <TableCell>
+                                        <Badge
+                                            variant="outline"
+                                            className={getActivityBadgeClass(
+                                                activity.action,
+                                            )}
+                                        >
+                                            {ACTIVITY_LABELS[activity.action] ??
+                                                activity.action}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Link
+                                            href={`/reports/${activity.reportNumber}`}
+                                            className="font-mono font-medium text-primary hover:underline"
+                                        >
+                                            {activity.reportNumber}
+                                        </Link>
+                                        <p className="text-muted-foreground">
+                                            {activity.report.storeName || "-"}
+                                        </p>
+                                    </TableCell>
+                                    <TableCell>
+                                        {activity.report.branchName}
+                                    </TableCell>
+                                    <TableCell>{activity.actor.name}</TableCell>
+                                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                                        {formatRelativeDate(
+                                            new Date(activity.createdAt),
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
     );
 }
+
+// Removed TrendPeriodFilter definition
 
 function BranchPerformanceTable({
     branches,
@@ -460,6 +593,9 @@ export async function AdminNewDashboard({
             title="Dashboard"
             breadcrumbs={[{ label: "Dashboard" }]}
             contentClassName="md:p-6"
+            headerActions={
+                <AdminTrendPeriodFilter initialPeriod={selectedPeriod} />
+            }
         >
             <DashboardHeader kpi={data.kpi} />
             <KpiGrid kpi={data.kpi} pjum={data.pjum} />
@@ -488,7 +624,6 @@ export async function AdminNewDashboard({
                                 per cabang berdasarkan data cabang dari user
                             </CardDescription>
                         </div>
-                        <TrendPeriodFilter period={selectedPeriod} />
                     </div>
                 </CardHeader>
                 <CardContent>
@@ -504,10 +639,7 @@ export async function AdminNewDashboard({
                 emptyMessage="Tidak ada laporan stuck lebih dari 7 hari."
                 icon={Clock3}
             />
-            <ActivitySectionWide
-                activities={data.recentActivity}
-                emptyMessage="Belum ada aktivitas terbaru untuk ditampilkan."
-            />
+            <AdminRecentActivityCard activities={data.recentActivity} />
         </AdminDashboardShell>
     );
 }

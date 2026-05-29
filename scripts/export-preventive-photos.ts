@@ -14,6 +14,7 @@ import * as XLSX from "xlsx";
 import prisma from "../lib/prisma";
 import { checklistCategories } from "../lib/checklist-data";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "../lib/admin-branch-scope";
+import { getDriveCdnClient } from "../lib/google-drive/cdn-client";
 
 const require = createRequire(import.meta.url);
 const UZIP = require("uzip") as {
@@ -66,6 +67,7 @@ const MISSING_PHOTO_LABEL = "Foto sepertinya sudah dihapus oleh sistem lama.";
 const DATA_START_ROW_INDEX = 3; // zero-based: title, spacer, header, then data
 const DATA_ROW_HEIGHT_PX = 170;
 const QUARTERS = ["q1", "q2", "q3", "q4"] as const;
+const DRIVE_CHECK_CONCURRENCY = 10;
 
 type QuarterKey = (typeof QUARTERS)[number];
 
@@ -226,13 +228,14 @@ function extractPhotoId(url: string | null): string | null {
 function photoFormula(photoId: string | null): XLSX.CellObject {
     if (!photoId) return { t: "s", v: "" };
 
-    return {
-        t: "s",
-        v: "",
-        // IMAGE is stored as a future Excel function. The _xlfn prefix avoids
-        // Excel rewriting it as =@IMAGE(...) on open.
-        f: `_xlfn.IMAGE("${BASE_PHOTO_URL}/${encodeURIComponent(photoId)}")`,
-    };
+    // return {
+    //     t: "s",
+    //     v: "",
+    //     // IMAGE is stored as a future Excel function. The _xlfn prefix avoids
+    //     // Excel rewriting it as =@IMAGE(...) on open.
+    //     f: `_xlfn.IMAGE("${BASE_PHOTO_URL}/${encodeURIComponent(photoId)}")`,
+    // };
+    return textCell(photoId)
 }
 
 function textCell(value: string): XLSX.CellObject {
@@ -353,6 +356,65 @@ function buildExportRows(rows: PreventivePhotoRow[]): ExportRow[] {
     });
 }
 
+async function validatePhotoIds(rows: ExportRow[]): Promise<number> {
+    const allPhotoIds = new Set<string>();
+    for (const row of rows) {
+        for (const q of QUARTERS) {
+            const photoId = row[q].photoId;
+            if (photoId) allPhotoIds.add(photoId);
+        }
+    }
+
+    if (allPhotoIds.size === 0) return 0;
+
+    const { drive } = getDriveCdnClient();
+    const missing = new Set<string>();
+    const ids = Array.from(allPhotoIds);
+
+    // Process in batches with concurrency limit
+    for (let i = 0; i < ids.length; i += DRIVE_CHECK_CONCURRENCY) {
+        const batch = ids.slice(i, i + DRIVE_CHECK_CONCURRENCY);
+        const results = await Promise.allSettled(
+            batch.map((fileId) =>
+                drive.files.get({
+                    fileId,
+                    fields: "id",
+                    supportsAllDrives: true,
+                }),
+            ),
+        );
+
+        for (let j = 0; j < results.length; j++) {
+            const result = results[j];
+            if (
+                result.status === "rejected" &&
+                (result.reason as { code?: number })?.code === 404
+            ) {
+                missing.add(batch[j]);
+            }
+        }
+
+        if (i + DRIVE_CHECK_CONCURRENCY < ids.length) {
+            console.log(
+                `  Validating photos: ${Math.min(i + DRIVE_CHECK_CONCURRENCY, ids.length)}/${ids.length}...`,
+            );
+        }
+    }
+
+    // Nullify missing photo IDs
+    if (missing.size > 0) {
+        for (const row of rows) {
+            for (const q of QUARTERS) {
+                if (row[q].photoId && missing.has(row[q].photoId!)) {
+                    row[q].photoId = null;
+                }
+            }
+        }
+    }
+
+    return missing.size;
+}
+
 function hasQuarterData(quarter: QuarterExport) {
     return Boolean(quarter.conditionLabel || quarter.photoId);
 }
@@ -458,6 +520,13 @@ async function main() {
     const exportRows = buildExportRows(rows).filter((row) =>
         options.filledOnly ? hasAnyQuarterData(row) : true,
     );
+
+    console.log(`Validating ${exportRows.length} stores against Drive...`);
+    const removedCount = await validatePhotoIds(exportRows);
+    if (removedCount > 0) {
+        console.log(`- Removed ${removedCount} missing photo(s) from export`);
+    }
+
     const workbook = buildWorkbook(item, exportRows, options);
 
     fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -479,6 +548,7 @@ async function main() {
     console.log(`Done`);
     console.log(`- Stores exported : ${exportRows.length}`);
     console.log(`- Photo formulas  : ${filledPhotoCount}`);
+    console.log(`- Photos removed  : ${removedCount} (not found in Drive)`);
     console.log(`- Output          : ${outputPath}`);
 }
 

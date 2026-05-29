@@ -2,17 +2,11 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
-import { getRealisasiPageData, type RealisasiPeriod } from "./queries";
+import { getRealisasiPageData } from "./queries";
 import { RealisasiContent } from "./_components/realisasi-content";
+import { RealisasiFilter } from "./_components/realisasi-filter";
 
 export const dynamic = "force-dynamic";
-
-const VALID_PERIODS = new Set<string>(["ytd", "30d", "90d", "12m"]);
-
-function normalizePeriod(value?: string): RealisasiPeriod {
-    if (value && VALID_PERIODS.has(value)) return value as RealisasiPeriod;
-    return "ytd";
-}
 
 type Props = {
     searchParams: Promise<{ period?: string; branch?: string }>;
@@ -24,11 +18,11 @@ export default async function RealisasiPage({ searchParams }: Props) {
     if (user.role !== "ADMIN") redirect("/dashboard");
 
     const params = await searchParams;
-    const period = normalizePeriod(params.period);
+    const periodRaw = params.period ?? "ytd";
     const branchFilter = params.branch ?? "all";
 
     const [data, allBranches] = await Promise.all([
-        getRealisasiPageData(period, branchFilter),
+        getRealisasiPageData(periodRaw, branchFilter),
         fetchAllBranchNames(),
     ]);
 
@@ -40,14 +34,19 @@ export default async function RealisasiPage({ searchParams }: Props) {
                 { label: "Dashboard", href: "/dashboard" },
                 { label: "Realisasi" },
             ]}
+            headerActions={
+                <RealisasiFilter
+                    initialPeriod={periodRaw}
+                    initialBranch={branchFilter}
+                    branches={allBranches}
+                />
+            }
         >
             <RealisasiContent
                 kpi={data.kpi}
                 monthly={data.monthly}
                 branches={data.branches}
-                period={period}
-                branchFilter={branchFilter}
-                allBranches={allBranches}
+                periodRaw={periodRaw}
             />
         </AdminDashboardShell>
     );

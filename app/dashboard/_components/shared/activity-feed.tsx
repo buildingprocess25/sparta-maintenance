@@ -177,11 +177,13 @@ export function ActivityFeed({ activities, emptyMessage }: ActivityFeedProps) {
 interface ActivitySectionProps {
     activities: ActivityItem[];
     emptyMessage?: string;
+    viewAllHref?: string;
 }
 
 export function ActivitySection({
     activities,
     emptyMessage,
+    viewAllHref = "/activity",
 }: ActivitySectionProps) {
     return (
         <div className="space-y-6">
@@ -196,7 +198,7 @@ export function ActivitySection({
                     className="h-auto p-0 text-primary"
                     asChild
                 >
-                    <Link prefetch={false} href="/activity">Lihat Semua</Link>
+                    <Link prefetch={false} href={viewAllHref}>Lihat Semua</Link>
                 </Button>
             </div>
             <ActivityFeed activities={activities} emptyMessage={emptyMessage} />
@@ -211,6 +213,7 @@ export function ActivitySection({
 export function ActivitySectionWide({
     activities,
     emptyMessage,
+    viewAllHref = "/activity",
 }: ActivitySectionProps) {
     return (
         <div className="rounded-xl border shadow-sm overflow-hidden bg-card">
@@ -226,7 +229,7 @@ export function ActivitySectionWide({
                     className="h-auto p-0 text-xs text-primary"
                     asChild
                 >
-                    <Link prefetch={false} href="/activity">Lihat Semua</Link>
+                    <Link prefetch={false} href={viewAllHref}>Lihat Semua</Link>
                 </Button>
             </div>
 
