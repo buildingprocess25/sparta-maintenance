@@ -6,6 +6,7 @@ import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
+import { isReportStatusKey } from "@/lib/report-status";
 
 export type AdminReportFilters = {
     search?: string;
@@ -76,7 +77,11 @@ export async function getAdminReports(
             });
         }
 
-        if (filters.status && filters.status !== "all") {
+        if (
+            filters.status &&
+            filters.status !== "all" &&
+            isReportStatusKey(filters.status)
+        ) {
             where.status = filters.status as Prisma.EnumReportStatusFilter["equals"];
         }
 

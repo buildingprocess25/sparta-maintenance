@@ -16,10 +16,10 @@ import {
 import type { AdminTrendDatum } from "../../queries";
 
 const trendConfig = {
-    completed: { label: "Laporan Selesai", color: "#43acff" },
+    completed: { label: "Laporan Selesai", color: "var(--chart-3)" },
     avgRealisasi: {
         label: "Rata-rata Realisasi",
-        color: "#f59e0b",
+        color: "#f4bb44",
     },
 };
 

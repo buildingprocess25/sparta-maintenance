@@ -176,6 +176,10 @@ model Report {
   @@index([storeCode])
   @@index([createdByNIK, status])
   @@index([storeCode, status])
+  @@index([branchName, status, createdAt])
+  @@index([branchName, status, finishedAt])
+  @@index([branchName, status, updatedAt])
+  @@index([branchName, status, pjumExportedAt])
 }
 
 model ApprovalLog {
@@ -207,6 +211,7 @@ model ActivityLog {
 
   @@index([reportNumber])
   @@index([actorNIK])
+  @@index([createdAt])
 }
 
 model UserPresence {

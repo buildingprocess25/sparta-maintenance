@@ -121,8 +121,8 @@ function MetricCard({
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="flex items-end justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">
+                <div className="flex items-start justify-between gap-3">
+                    <p className="text-xs text-muted-foreground">
                         {description}
                     </p>
                     {href && (
@@ -229,7 +229,7 @@ function KpiGrid({
                 description="Laporan selesai yang belum masuk rekap PJUM"
                 icon={ListChecks}
                 tone={kpi.unpjumCompletedReports > 0 ? "amber" : "green"}
-                href="/dashboard/reports?status=COMPLETED"
+                href="/dashboard/reports?status=COMPLETED&pjumStatus=not_exported"
             />
             <MetricCard
                 title="User Aktif"

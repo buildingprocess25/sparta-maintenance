@@ -85,7 +85,7 @@ const data = {
             items: [
                 {
                     title: "Performa Cabang",
-                    url: "#",
+                    url: "/dashboard/branches",
                     icon: IconBuildingCommunity,
                 },
                 {

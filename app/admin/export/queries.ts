@@ -368,13 +368,25 @@ export async function fetchPjumExportRows(
 
 export async function fetchAllBranchNames(): Promise<string[]> {
     try {
-        const result = await prisma.report.findMany({
-            distinct: ["branchName"],
-            where: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } },
-            select: { branchName: true },
-            orderBy: { branchName: "asc" },
-        });
-        return result.map((r) => r.branchName);
+        const result = await prisma.$queryRaw<{ branchName: string | null }[]>`
+            SELECT DISTINCT "branchNames"[1] AS "branchName"
+            FROM "User"
+            WHERE NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
+              AND "branchNames"[1] IS NOT NULL
+              AND "branchNames"[1] <> ${EXCLUDED_ADMIN_BRANCH_NAME}
+        `;
+
+        return Array.from(
+            new Set(
+                result
+                    .map((row) => row.branchName)
+                    .filter(
+                        (branchName): branchName is string =>
+                            Boolean(branchName) &&
+                            branchName !== EXCLUDED_ADMIN_BRANCH_NAME,
+                    ),
+            ),
+        ).sort((a, b) => a.localeCompare(b, "id-ID"));
     } catch (error) {
         logger.error(
             { operation: "fetchAllBranchNames" },

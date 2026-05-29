@@ -95,12 +95,14 @@ export function AdminReportsTable({
     initialTotalCount,
     branches,
     initialStatus = "all",
+    initialPjumStatus = "all",
 }: {
     initialData: ReportItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
     branches: string[];
     initialStatus?: string;
+    initialPjumStatus?: string;
 }) {
     const [reports, setReports] = useState<ReportItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -116,9 +118,14 @@ export function AdminReportsTable({
     const [search, setSearch] = useState("");
 
     const [activeFilters, setActiveFilters] = useState<Filter<string>[]>(() =>
-        initialStatus === "all"
-            ? []
-            : [createFilter<string>("status", "is", [initialStatus])],
+        [
+            initialStatus === "all"
+                ? null
+                : createFilter<string>("status", "is", [initialStatus]),
+            initialPjumStatus === "all"
+                ? null
+                : createFilter<string>("pjumStatus", "is", [initialPjumStatus]),
+        ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
     const observerTarget = useRef<HTMLDivElement>(null);
