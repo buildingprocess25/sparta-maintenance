@@ -9,7 +9,13 @@ import { isReportStatusKey } from "@/lib/report-status";
 
 export const dynamic = "force-dynamic";
 
-type Props = { searchParams: Promise<{ status?: string; pjumStatus?: string }> };
+type Props = {
+    searchParams: Promise<{
+        status?: string;
+        pjumStatus?: string;
+        branchName?: string;
+    }>;
+};
 
 function normalizeStatus(value?: string) {
     if (!value || value === "all") return undefined;
@@ -29,12 +35,14 @@ export default async function AdminReportsPage({ searchParams }: Props) {
     const params = await searchParams;
     const initialStatus = normalizeStatus(params.status);
     const initialPjumStatus = normalizePjumStatus(params.pjumStatus);
+    const initialBranchName = params.branchName?.trim() || undefined;
 
     const [branches, initialReports] = await Promise.all([
         fetchAllBranchNames(),
         getAdminReports(null, 20, {
             status: initialStatus,
             pjumStatus: initialPjumStatus,
+            branchName: initialBranchName,
         }),
     ]);
 
@@ -53,6 +61,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                 branches={branches}
                 initialStatus={initialStatus ?? "all"}
                 initialPjumStatus={initialPjumStatus ?? "all"}
+                initialBranchName={initialBranchName ?? "all"}
             />
         </AdminDashboardShell>
     );

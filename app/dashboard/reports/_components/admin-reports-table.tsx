@@ -96,6 +96,7 @@ export function AdminReportsTable({
     branches,
     initialStatus = "all",
     initialPjumStatus = "all",
+    initialBranchName = "all",
 }: {
     initialData: ReportItem[];
     initialNextCursor: string | null;
@@ -103,6 +104,7 @@ export function AdminReportsTable({
     branches: string[];
     initialStatus?: string;
     initialPjumStatus?: string;
+    initialBranchName?: string;
 }) {
     const [reports, setReports] = useState<ReportItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -125,6 +127,9 @@ export function AdminReportsTable({
             initialPjumStatus === "all"
                 ? null
                 : createFilter<string>("pjumStatus", "is", [initialPjumStatus]),
+            !initialBranchName || initialBranchName === "all"
+                ? null
+                : createFilter<string>("branchName", "is", [initialBranchName]),
         ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
@@ -192,7 +197,7 @@ export function AdminReportsTable({
 
     const openReportDetail = useCallback(
         (reportNumber: string) => {
-            window.open(`/reports/${reportNumber}`, "_blank", "noopener,noreferrer");
+            window.location.assign(`/dashboard/reports/${reportNumber}`);
         },
         [],
     );

@@ -237,6 +237,7 @@ export async function deleteAdminReport(reportNumber: string) {
         revalidatePath("/dashboard/preventive");
         revalidatePath("/dashboard");
         revalidatePath(`/reports/${reportNumber}`);
+        revalidatePath(`/dashboard/reports/${reportNumber}`);
 
         const durationMs = Math.round(performance.now() - start);
         logger.info(

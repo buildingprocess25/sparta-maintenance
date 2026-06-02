@@ -194,6 +194,8 @@ model ApprovalLog {
   approver      User      @relation(fields: [approverNIK], references: [NIK])
   
   createdAt     DateTime  @default(now())
+
+  @@index([reportNumber])
 }
 
 model ActivityLog {
