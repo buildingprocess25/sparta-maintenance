@@ -39,6 +39,7 @@ export type ReportExportRow = {
 
 export type MaterialExportRow = {
     reportNumber: string;
+    storeCode: string | null;
     storeName: string;
     branchName: string;
     bmsNIK: string;
@@ -211,13 +212,14 @@ export async function fetchMaterialExportRows(
     try {
         const where = buildReportWhere(filter);
         where.status = "COMPLETED";
-        where.reportFinalDriveUrl = { not: null };
+        where.pjumExportedAt = { not: null }; // sudah PJUM
 
         const reports = await prisma.report.findMany({
             where,
             orderBy: [{ createdAt: "asc" }, { reportNumber: "asc" }],
             select: {
                 reportNumber: true,
+                storeCode: true,
                 storeName: true,
                 branchName: true,
                 createdByNIK: true,
@@ -236,6 +238,7 @@ export async function fetchMaterialExportRows(
             for (const item of items) {
                 rows.push({
                     reportNumber: report.reportNumber,
+                    storeCode: report.storeCode || "",
                     storeName: report.storeName,
                     branchName: report.branchName,
                     bmsNIK: report.createdByNIK,

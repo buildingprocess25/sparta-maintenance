@@ -156,7 +156,7 @@ function ReportListCard({
                                             className="h-8 w-8"
                                         >
                                             <Link
-                                                href={`/reports/${report.reportNumber}`}
+                                                href={`/dashboard/reports/${report.reportNumber}`}
                                                 aria-label={`Buka laporan ${report.reportNumber}`}
                                             >
                                                 <ArrowUpRight className="h-4 w-4" />
@@ -405,7 +405,7 @@ export default async function AdminBranchDetailPage({
                                             </TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/reports/${activity.reportNumber}`}
+                                                    href={`/dashboard/reports/${activity.reportNumber}`}
                                                     className="font-mono font-medium text-primary hover:underline"
                                                 >
                                                     {activity.reportNumber}
@@ -428,3 +428,4 @@ export default async function AdminBranchDetailPage({
         </AdminDashboardShell>
     );
 }
+

@@ -12,26 +12,14 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
     Building2,
     CalendarDays,
     CircleDot,
     Loader2,
     ReceiptText,
     Search,
-    Trash2,
 } from "lucide-react";
 import {
-    deleteAdminReport,
     getAdminReports,
     AdminReportFilters,
 } from "../actions";
@@ -113,10 +101,6 @@ export function AdminReportsTable({
     const [totalCount, setTotalCount] = useState(initialTotalCount);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-    const [reportToDelete, setReportToDelete] = useState<ReportItem | null>(
-        null,
-    );
-    const [isDeleting, setIsDeleting] = useState(false);
     const [search, setSearch] = useState("");
 
     const [activeFilters, setActiveFilters] = useState<Filter<string>[]>(() =>
@@ -201,36 +185,6 @@ export function AdminReportsTable({
         },
         [],
     );
-
-    const handleDeleteReport = useCallback(async () => {
-        if (!reportToDelete) return;
-
-        setIsDeleting(true);
-        const toastId = toast.loading("Menghapus laporan...");
-
-        try {
-            const result = await deleteAdminReport(reportToDelete.reportNumber);
-
-            if (result.error) {
-                toast.error(result.error, { id: toastId });
-                return;
-            }
-
-            setReports((prev) =>
-                prev.filter(
-                    (report) =>
-                        report.reportNumber !== reportToDelete.reportNumber,
-                ),
-            );
-            setTotalCount((prev) => Math.max(0, prev - 1));
-            setReportToDelete(null);
-            toast.success("Laporan berhasil dihapus", { id: toastId });
-        } catch {
-            toast.error("Gagal menghapus laporan", { id: toastId });
-        } finally {
-            setIsDeleting(false);
-        }
-    }, [reportToDelete]);
 
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
@@ -404,16 +358,13 @@ export function AdminReportsTable({
                                 <TableHead className="w-[140px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="w-[70px] text-right">
-                                    Aksi
-                                </TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={10}
+                                        colSpan={9}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
@@ -422,7 +373,7 @@ export function AdminReportsTable({
                             ) : reports.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={10}
+                                        colSpan={9}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada laporan yang ditemukan
@@ -513,24 +464,6 @@ export function AdminReportsTable({
                                                 status={report.status}
                                             />
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                            <Button
-                                                type="button"
-                                                size="icon"
-                                                variant="ghost"
-                                                className="h-8 w-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                aria-label={`Hapus laporan ${report.reportNumber}`}
-                                                onClick={(event) => {
-                                                    event.stopPropagation();
-                                                    setReportToDelete(report);
-                                                }}
-                                                onKeyDown={(event) => {
-                                                    event.stopPropagation();
-                                                }}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </TableCell>
                                     </TableRow>
                                 ))
                             )}
@@ -549,46 +482,6 @@ export function AdminReportsTable({
                 </div>
             </div>
 
-            <AlertDialog
-                open={!!reportToDelete}
-                onOpenChange={(open) => {
-                    if (!open && !isDeleting) setReportToDelete(null);
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus laporan?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            Laporan {reportToDelete?.reportNumber} untuk toko{" "}
-                            {reportToDelete?.storeName} akan dihapus beserta log
-                            approval, aktivitas, dan referensi PJUM terkait.
-                            Tindakan ini tidak dapat dibatalkan.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isDeleting}>
-                            Batal
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            variant="destructive"
-                            disabled={isDeleting}
-                            onClick={(event) => {
-                                event.preventDefault();
-                                handleDeleteReport();
-                            }}
-                        >
-                            {isDeleting ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Menghapus...
-                                </>
-                            ) : (
-                                "Hapus"
-                            )}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
         </div>
     );
 }

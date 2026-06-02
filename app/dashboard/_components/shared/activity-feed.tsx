@@ -132,7 +132,7 @@ export function ActivityFeed({ activities, emptyMessage }: ActivityFeedProps) {
                             return (
                                 <li key={item.id}>
                                     <Link prefetch={false}
-                                        href={`/reports/${item.reportNumber}`}
+                                        href={`/dashboard/reports/${item.reportNumber}`}
                                         className="flex items-start gap-3 px-4 md:px-5 py-3 md:py-4 hover:bg-muted/50 transition-colors"
                                     >
                                         {/* Status dot */}
@@ -252,7 +252,7 @@ export function ActivitySectionWide({
                         return (
                             <li key={item.id}>
                                 <Link prefetch={false}
-                                    href={`/reports/${item.reportNumber}`}
+                                    href={`/dashboard/reports/${item.reportNumber}`}
                                     className="flex flex-col md:grid md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-1.5 md:gap-x-4 px-4 py-3 md:py-2.5 hover:bg-muted/40 transition-colors"
                                 >
                                     {/* Left: dot + badge */}
@@ -378,3 +378,4 @@ export function PjumActivitySectionWide({
         </div>
     );
 }
+

@@ -162,7 +162,7 @@ export default function CreateReportForm({
                 }
 
                 toast.success("Laporan berhasil diajukan ulang!");
-                router.push(`/reports/${editMode.reportNumber}`);
+                router.push(`/dashboard/reports/${editMode.reportNumber}`);
                 return;
             }
 
@@ -258,7 +258,7 @@ export default function CreateReportForm({
                 showBackButton={step === 1}
                 backHref={
                     isEditMode && editMode
-                        ? `/reports/${editMode.reportNumber}`
+                        ? `/dashboard/reports/${editMode.reportNumber}`
                         : "/dashboard"
                 }
                 logo={false}
@@ -410,3 +410,4 @@ export default function CreateReportForm({
         </div>
     );
 }
+

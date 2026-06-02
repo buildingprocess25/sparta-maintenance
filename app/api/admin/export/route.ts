@@ -94,6 +94,7 @@ function buildMaterialSheet(
 ): XLSX.WorkSheet {
     const headers = [
         "No. Laporan",
+        "Kode Toko",
         "Nama Toko",
         "Branch",
         "NIK BMS",
@@ -109,6 +110,7 @@ function buildMaterialSheet(
         headers.map((h) => textCell(h)),
         ...rows.map((r) => [
             textCell(r.reportNumber),
+            textCell(r.storeCode),
             textCell(r.storeName),
             textCell(r.branchName),
             textCell(r.bmsNIK),

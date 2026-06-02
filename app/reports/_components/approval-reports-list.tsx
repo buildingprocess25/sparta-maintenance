@@ -573,7 +573,7 @@ export function ApprovalReportsList({
                                                 if (report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath)) {
                                                     window.open(report.reportFinalDriveUrl || report.completedPdfPath || "", "_blank", "noopener,noreferrer");
                                                 } else {
-                                                    router.push(`/reports/${report.reportNumber}`);
+                                                    router.push(`/dashboard/reports/${report.reportNumber}`);
                                                 }
                                             }}
                                         >
@@ -671,7 +671,7 @@ export function ApprovalReportsList({
                                                 if (report.status === "COMPLETED" && (report.reportFinalDriveUrl || report.completedPdfPath)) {
                                                     window.open(report.reportFinalDriveUrl || report.completedPdfPath || "", "_blank", "noopener,noreferrer");
                                                 } else {
-                                                    router.push(`/reports/${report.reportNumber}`);
+                                                    router.push(`/dashboard/reports/${report.reportNumber}`);
                                                 }
                                             }}
                                         >
@@ -734,7 +734,7 @@ export function ApprovalReportsList({
                                                         className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            router.push(`/reports/${report.reportNumber}`);
+                                                            router.push(`/dashboard/reports/${report.reportNumber}`);
                                                         }}
                                                     >
                                                         <ArrowRight className="h-3.5 w-3.5" />
@@ -887,3 +887,4 @@ export function ApprovalReportsList({
         </div>
     );
 }
+

@@ -415,7 +415,7 @@ function mapReportActivity(row: {
         actor: row.actor,
         branchName: row.report.branchName,
         targetLabel: row.reportNumber,
-        targetHref: `/reports/${row.reportNumber}`,
+        targetHref: `/dashboard/reports/${row.reportNumber}`,
         notes: row.notes,
         reportNumber: row.reportNumber,
         storeName: row.report.storeName,
@@ -644,3 +644,4 @@ export async function getAdminActivityEvents(
         throw new Error("Gagal memuat aktivitas user");
     }
 }
+

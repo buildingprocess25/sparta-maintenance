@@ -390,7 +390,7 @@ function AdminRecentActivityCard({
                                     </TableCell>
                                     <TableCell>
                                         <Link
-                                            href={`/reports/${activity.reportNumber}`}
+                                            href={`/dashboard/reports/${activity.reportNumber}`}
                                             className="font-mono font-medium text-primary hover:underline"
                                         >
                                             {activity.reportNumber}
@@ -547,7 +547,7 @@ function AttentionTable({
                                 <TableRow key={report.reportNumber}>
                                     <TableCell>
                                         <Link
-                                            href={`/reports/${report.reportNumber}`}
+                                            href={`/dashboard/reports/${report.reportNumber}`}
                                             className="font-mono text-xs font-medium text-primary hover:underline"
                                         >
                                             {report.reportNumber}
@@ -643,3 +643,4 @@ export async function AdminNewDashboard({
         </AdminDashboardShell>
     );
 }
+

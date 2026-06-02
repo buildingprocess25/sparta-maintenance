@@ -1,6 +1,8 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../../_components/admin/admin-dashboard-shell";
+import { getAdminReportDetail } from "./queries";
+import { ReportDetailWorkbench } from "./_components/report-detail-workbench";
 
 export const dynamic = "force-dynamic";
 
@@ -11,21 +13,52 @@ type Props = {
 export default async function AdminReportDetailPage({ params }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
 
     const { reportNumber } = await params;
+    const report = await getAdminReportDetail(reportNumber);
+    if (!report) notFound();
+
+    if (!canAccessDashboardReport(user, report)) {
+        redirect("/dashboard");
+    }
 
     return (
         <AdminDashboardShell
             user={user}
-            title={reportNumber}
+            title={report.reportNumber}
             breadcrumbs={[
                 { label: "Laporan Maintenance", href: "/dashboard/reports" },
-                { label: reportNumber },
+                { label: report.reportNumber },
             ]}
-            contentClassName="h-full"
+            contentClassName="h-full gap-0 p-0 lg:p-0"
         >
-            <div>ini halaman reportNumber</div>
+            <ReportDetailWorkbench report={report} />
         </AdminDashboardShell>
     );
+}
+
+type DashboardReportUser = NonNullable<Awaited<ReturnType<typeof getAuthUser>>>;
+type DashboardReportDetail = NonNullable<
+    Awaited<ReturnType<typeof getAdminReportDetail>>
+>;
+
+function canAccessDashboardReport(
+    user: DashboardReportUser,
+    report: DashboardReportDetail,
+) {
+    if (user.role === "ADMIN") return true;
+
+    if (user.role === "BMC") {
+        return user.branchNames.includes(report.branchName);
+    }
+
+    if (user.role === "BMS") {
+        return report.submittedBy.nik === user.NIK;
+    }
+
+    if (user.role === "BNM_MANAGER") {
+        return report.status === "APPROVED_BMC" || report.status === "COMPLETED";
+    }
+
+    return false;
 }

@@ -1135,7 +1135,7 @@ export function CompleteForm({
                     id: loadingId,
                     description: "Menunggu review BMC.",
                 });
-                router.push(`/reports/${rn}`);
+                router.push(`/dashboard/reports/${rn}`);
             }
         });
     }, [
@@ -1291,3 +1291,4 @@ export function CompleteForm({
         </>
     );
 }
+

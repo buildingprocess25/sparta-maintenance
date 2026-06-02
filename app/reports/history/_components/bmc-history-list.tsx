@@ -238,7 +238,7 @@ export function BmcHistoryList({
                                             if (isCompleted && driveUrl) {
                                                 window.open(driveUrl, "_blank", "noopener,noreferrer");
                                             } else {
-                                                router.push(`/reports/${item.reportNumber}`);
+                                                router.push(`/dashboard/reports/${item.reportNumber}`);
                                             }
                                         }}
                                     >
@@ -286,7 +286,7 @@ export function BmcHistoryList({
                                                     className="gap-1.5 h-8"
                                                     onClick={(e) => {
                                                         e.stopPropagation();
-                                                        router.push(`/reports/${item.reportNumber}`);
+                                                        router.push(`/dashboard/reports/${item.reportNumber}`);
                                                     }}
                                                 >
                                                     Lihat
@@ -338,7 +338,7 @@ export function BmcHistoryList({
                                                 if (isCompleted && driveUrl) {
                                                     window.open(driveUrl, "_blank", "noopener,noreferrer");
                                                 } else {
-                                                    router.push(`/reports/${item.reportNumber}`);
+                                                    router.push(`/dashboard/reports/${item.reportNumber}`);
                                                 }
                                             }}
                                         >
@@ -390,7 +390,7 @@ export function BmcHistoryList({
                                                         className="h-7 text-xs gap-1.5 px-2.5 text-muted-foreground"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
-                                                            router.push(`/reports/${item.reportNumber}`);
+                                                            router.push(`/dashboard/reports/${item.reportNumber}`);
                                                         }}
                                                     >
                                                         <ArrowRight className="h-3.5 w-3.5" />
@@ -523,3 +523,4 @@ export function BmcHistoryList({
         </div>
     );
 }
+

@@ -447,7 +447,7 @@ export async function BmcApprovalList({
                                                                 </Button>
                                                             </a>
                                                         ) : (
-                                                            <Link prefetch={false} href={`/reports/${report.reportNumber}`}>
+                                                            <Link prefetch={false} href={`/dashboard/reports/${report.reportNumber}`}>
                                                                 <Button size="sm" className="gap-1.5 h-8">
                                                                     {getActionLabel(report.status)}
                                                                     <ArrowRight className="h-3.5 w-3.5" />
@@ -508,7 +508,7 @@ export async function BmcApprovalList({
                                                         </Button>
                                                     </a>
                                                 ) : (
-                                                    <Link prefetch={false} href={`/reports/${report.reportNumber}`}>
+                                                    <Link prefetch={false} href={`/dashboard/reports/${report.reportNumber}`}>
                                                         <Button size="sm" className="gap-1.5 h-8">
                                                             {getActionLabel(report.status)}
                                                             <ArrowRight className="h-3.5 w-3.5" />
@@ -529,3 +529,4 @@ export async function BmcApprovalList({
         </div>
     );
 }
+

@@ -343,7 +343,7 @@ export default function BmsReportsList({
                   ? `/reports/revisi/${report.reportNumber}`
                   : report.status === "REVIEW_REJECTED_REVISION"
                     ? `/reports/complete?report=${report.reportNumber}`
-                    : `/reports/${report.reportNumber}`;
+                    : `/dashboard/reports/${report.reportNumber}`;
         const isCompleted = report.status === "COMPLETED";
         const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
         
@@ -615,7 +615,7 @@ export default function BmsReportsList({
                                                     router.push(
                                                         report.status === "DRAFT"
                                                             ? "/reports/create?restore=1"
-                                                            : `/reports/${report.reportNumber}`
+                                                            : `/dashboard/reports/${report.reportNumber}`
                                                     );
                                                 }
                                             }}
@@ -798,3 +798,4 @@ export default function BmsReportsList({
         </div>
     );
 }
+

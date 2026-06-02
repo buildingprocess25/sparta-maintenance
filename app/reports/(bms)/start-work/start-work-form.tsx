@@ -538,7 +538,7 @@ export function StartWorkForm({
                 description: `Status laporan diubah menjadi '${getReportStatusLabel("IN_PROGRESS")}'.`,
             });
             await autosave.clearDraft(rn);
-            router.push(`/reports/${rn}`);
+            router.push(`/dashboard/reports/${rn}`);
         });
     }, [
         currentReport,
@@ -951,3 +951,4 @@ export function StartWorkForm({
         </>
     );
 }
+
