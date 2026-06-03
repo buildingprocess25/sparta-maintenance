@@ -524,7 +524,7 @@ export type AdminCommandCenterData = {
     recentActivity: ActivityItem[];
 };
 
-type AdminBranchHierarchy = {
+export type AdminBranchHierarchy = {
     options: AdminBranchOption[];
     parentMap: Map<string, string>;
 };
@@ -730,7 +730,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
     };
 }
 
-async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
+export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
     const users = await prisma.user.findMany({
         select: { branchNames: true },
     });
@@ -767,6 +767,11 @@ async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
         options: optionNames.map((name) => ({ name })),
         parentMap,
     };
+}
+
+export async function getAdminBranchOptions(): Promise<AdminBranchOption[]> {
+    const hierarchy = await getAdminBranchHierarchy();
+    return hierarchy.options;
 }
 
 function resolveAdminParentBranch(

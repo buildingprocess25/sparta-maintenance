@@ -1,9 +1,24 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { format } from "date-fns";
+import { id } from "date-fns/locale";
+import {
+    AlertTriangle,
+    ArrowUpRight,
+    Building2,
+    CalendarDays,
+    CircleDot,
+    FileCheck2,
+    FileText,
+    Loader2,
+    Search,
+} from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
     Table,
     TableBody,
@@ -13,85 +28,54 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-    Building2,
-    CalendarDays,
-    CircleDot,
-    ExternalLink,
-    Loader2,
-    RotateCcw,
-    Search,
-} from "lucide-react";
-import {
-    cancelAdminPjum,
-    getAdminPjum,
-    AdminPjumFilters,
-    PjumRow,
-} from "../actions";
-import { toast } from "sonner";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
-import { Badge } from "@/components/ui/badge";
-import {
     Filters,
     type Filter,
     type FilterFieldConfig,
 } from "@/components/reui/filters";
+import { getAdminPjum } from "../actions";
+import type { AdminPjumFilters, PjumRow, PjumSummary } from "../actions";
 import {
     getPjumStatusBadgeClass,
     getPjumStatusLabel,
-    PJUM_STATUS_OPTIONS,
 } from "@/lib/pjum-status";
+import { cn } from "@/lib/utils";
+
+const STALE_PENDING_DAYS = 7;
+
+const PJUM_STATUS_FILTER_OPTIONS = [
+    { value: "PENDING_APPROVAL", label: "Menunggu Review" },
+    { value: "APPROVED", label: "Disetujui" },
+];
 
 function formatDate(date: Date) {
     return format(new Date(date), "dd MMM yyyy", { locale: id });
 }
 
-function buildPjumViewUrl(item: PjumRow) {
-    if (item.pjumFinalDriveUrl) return item.pjumFinalDriveUrl;
-
-    const search = new URLSearchParams({
-        ids: item.reportNumbers.join(","),
-        bmsNIK: item.bmsNIK,
-        from: new Date(item.fromDate).toISOString(),
-        to: new Date(item.toDate).toISOString(),
-        week: String(item.weekNumber),
-    });
-
-    return `/api/reports/pjum-pdf?${search.toString()}`;
+function formatDateTime(date: Date) {
+    return format(new Date(date), "dd MMM yyyy HH:mm", { locale: id });
 }
 
 export function AdminPjumTable({
     initialData,
     initialNextCursor,
     initialTotalCount,
+    initialSummary,
     branches,
 }: {
     initialData: PjumRow[];
     initialNextCursor: string | null;
     initialTotalCount: number;
+    initialSummary: PjumSummary;
     branches: string[];
 }) {
-    const router = useRouter();
     const [pjums, setPjums] = useState<PjumRow[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialNextCursor,
     );
     const [totalCount, setTotalCount] = useState<number>(initialTotalCount);
+    const [summary, setSummary] = useState<PjumSummary>(initialSummary);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
-    const [pjumToCancel, setPjumToCancel] = useState<PjumRow | null>(null);
-    const [isCancelling, setIsCancelling] = useState(false);
-
     const [search, setSearch] = useState("");
     const [activeFilters, setActiveFilters] = useState<Filter<string>[]>([]);
 
@@ -117,7 +101,7 @@ export function AdminPjumTable({
                 type: "select",
                 placeholder: "Pilih status",
                 icon: <CircleDot className="h-3.5 w-3.5" />,
-                options: PJUM_STATUS_OPTIONS,
+                options: PJUM_STATUS_FILTER_OPTIONS,
             },
             {
                 key: "fromDate",
@@ -137,7 +121,8 @@ export function AdminPjumTable({
 
     const getFilterValue = useCallback(
         (key: string) =>
-            activeFilters.find((filter) => filter.field === key)?.values[0] ?? "",
+            activeFilters.find((filter) => filter.field === key)?.values[0] ??
+            "",
         [activeFilters],
     );
 
@@ -167,6 +152,7 @@ export function AdminPjumTable({
                 if (isInitial) {
                     setPjums(res.pjums);
                     setTotalCount(res.totalCount);
+                    setSummary(res.summary);
                 } else {
                     setPjums((prev) => {
                         const existing = new Set(prev.map((item) => item.id));
@@ -194,7 +180,6 @@ export function AdminPjumTable({
         setActiveFilters([]);
     }, []);
 
-    // Initial load when filters change (debounced for text inputs)
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
@@ -207,7 +192,6 @@ export function AdminPjumTable({
         };
     }, [searchValue, branchName, status, fromDate, toDate, loadData]);
 
-    // Intersection Observer for Infinite Scroll
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
@@ -230,109 +214,78 @@ export function AdminPjumTable({
         return () => observer.disconnect();
     }, [nextCursor, isFetchingNextPage, isLoading, loadData]);
 
-    const handleCancelPjum = async () => {
-        if (!pjumToCancel) return;
-
-        setIsCancelling(true);
-        try {
-            const result = await cancelAdminPjum(pjumToCancel.id);
-            if (result.error) {
-                toast.error(result.error);
-                return;
-            }
-
-            setPjums((prev) =>
-                prev.filter((item) => item.id !== pjumToCancel.id),
-            );
-            setTotalCount((prev) => Math.max(0, prev - 1));
-            toast.success(
-                `PJUM dibatalkan. ${result.updatedReports ?? 0} laporan dapat dibuat PJUM ulang.`,
-            );
-            setPjumToCancel(null);
-            router.refresh();
-        } catch {
-            toast.error("Gagal membatalkan PJUM");
-        } finally {
-            setIsCancelling(false);
-        }
-    };
-
     return (
         <div className="space-y-4">
-            {/* Filters */}
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <div className="text-sm text-muted-foreground">
-                    Total{" "}
-                    <span className="text-foreground font-medium">
-                        {totalCount}
-                    </span>{" "}
-                    PJUM
+            <PjumSummaryStrip summary={summary} />
+
+            <div className="space-y-2">
+                <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                    <div className="text-sm text-muted-foreground">
+                        Total{" "}
+                        <span className="font-medium text-foreground">
+                            {totalCount}
+                        </span>{" "}
+                        PJUM sesuai filter
+                    </div>
+                    {hasActiveFilter ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={resetFilters}
+                        >
+                            Reset
+                        </Button>
+                    ) : null}
                 </div>
-                {hasActiveFilter && (
-                    <Button
-                        type="button"
-                        variant="outline"
+                <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
+                    <div className="relative w-full lg:max-w-sm">
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                        <Input
+                            value={search}
+                            onChange={(event) => setSearch(event.target.value)}
+                            placeholder="Cari PJUM, BMS, cabang..."
+                            className="h-8 bg-white pl-8 text-xs"
+                        />
+                    </div>
+                    <Filters
+                        filters={activeFilters}
+                        fields={filterFields}
+                        onChange={setActiveFilters}
                         size="sm"
-                        className="h-8 text-xs"
-                        onClick={resetFilters}
-                    >
-                        Reset Filter
-                    </Button>
-                )}
-            </div>
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
-                <div className="relative w-full lg:max-w-sm">
-                    <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-                    <Input
-                        value={search}
-                        onChange={(event) => setSearch(event.target.value)}
-                        placeholder="Cari BMS, NIK, cabang, no laporan..."
-                        className="h-8 bg-white pl-8 text-xs"
+                        allowMultiple={false}
+                        className="w-full flex-1"
+                        i18n={{
+                            addFilter: "Filter",
+                            searchFields: "Cari filter...",
+                        }}
                     />
                 </div>
-                <Filters
-                    filters={activeFilters}
-                    fields={filterFields}
-                    onChange={setActiveFilters}
-                    size="sm"
-                    allowMultiple={false}
-                    className="w-full flex-1"
-                    i18n={{
-                        addFilter: "Filter",
-                        searchFields: "Cari filter...",
-                    }}
-                />
             </div>
 
-            {/* Table */}
-            <div className="bg-white border rounded-lg overflow-hidden flex flex-col">
+            <div className="rounded-lg border bg-background">
                 <div className="overflow-x-auto">
                     <Table className="text-xs">
                         <TableHeader>
-                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                <TableHead className="min-w-[180px]">
+                            <TableRow className="bg-muted/40 hover:bg-muted/40">
+                                <TableHead className="min-w-[210px]">
                                     Minggu / Periode
                                 </TableHead>
-                                <TableHead className="min-w-[120px]">
+                                <TableHead className="min-w-[130px]">
                                     Cabang
                                 </TableHead>
-                                <TableHead className="min-w-[150px]">
+                                <TableHead className="min-w-[170px]">
                                     BMS
                                 </TableHead>
-                                <TableHead className="w-[120px]">
-                                    Jml Laporan
+                                <TableHead className="w-[110px]">
+                                    Laporan
                                 </TableHead>
-                                <TableHead className="w-[120px]">
+                                <TableHead className="w-[135px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="min-w-[120px]">
-                                    Dibuat Pada
-                                </TableHead>
-                                <TableHead className="w-[140px]">
-                                    Dokumen
-                                </TableHead>
-                                <TableHead className="w-[120px] text-right">
-                                    Aksi
+                                <TableHead className="min-w-[145px]">
+                                    Dibuat
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -340,18 +293,18 @@ export function AdminPjumTable({
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={8}
+                                        colSpan={6}
                                         className="h-32 text-center"
                                     >
                                         <div className="flex items-center justify-center">
-                                            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                                            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                                         </div>
                                     </TableCell>
                                 </TableRow>
                             ) : pjums.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={8}
+                                        colSpan={6}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada data PJUM ditemukan
@@ -359,32 +312,58 @@ export function AdminPjumTable({
                                 </TableRow>
                             ) : (
                                 pjums.map((item) => (
-                                    <TableRow key={item.id}>
+                                    <TableRow
+                                        key={item.id}
+                                        className={cn(
+                                            "align-top",
+                                            item.isStalePending &&
+                                                "bg-amber-50/45",
+                                        )}
+                                    >
                                         <TableCell>
-                                            <div className="font-medium">
+                                            <Link
+                                                href={`/dashboard/pjum/${item.id}`}
+                                                className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
+                                            >
                                                 Minggu {item.weekNumber}
-                                            </div>
-                                            <div className="text-[10px] text-muted-foreground">
+                                                <ArrowUpRight className="h-3 w-3" />
+                                            </Link>
+                                            <div className="mt-1 text-[10px] text-muted-foreground">
                                                 {formatDate(item.fromDate)} -{" "}
                                                 {formatDate(item.toDate)}
                                             </div>
+                                            {item.isStalePending ? (
+                                                <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-800">
+                                                    <AlertTriangle className="h-3 w-3" />
+                                                    Pending terlalu lama
+                                                </div>
+                                            ) : null}
                                         </TableCell>
-                                        <TableCell>{item.branchName}</TableCell>
+                                        <TableCell className="font-medium">
+                                            {item.branchName}
+                                        </TableCell>
                                         <TableCell>
                                             <div className="font-medium">
                                                 {item.bmsName}
                                             </div>
-                                            <div className="text-muted-foreground text-[10px]">
+                                            <div className="text-[10px] text-muted-foreground">
                                                 {item.bmsNIK}
                                             </div>
                                         </TableCell>
                                         <TableCell>
-                                            {item.reportCount}
+                                            <span className="font-semibold">
+                                                {item.reportCount}
+                                            </span>
                                         </TableCell>
                                         <TableCell>
                                             <Badge
                                                 variant="secondary"
-                                                className={`font-normal ${getPjumStatusBadgeClass(item.status)}`}
+                                                className={cn(
+                                                    "font-normal",
+                                                    getPjumStatusBadgeClass(
+                                                        item.status,
+                                                    ),
+                                                )}
                                             >
                                                 {getPjumStatusLabel(
                                                     item.status,
@@ -392,53 +371,7 @@ export function AdminPjumTable({
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            {format(
-                                                new Date(item.createdAt),
-                                                "dd MMM yyyy HH:mm",
-                                                { locale: id },
-                                            )}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Button
-                                                asChild
-                                                type="button"
-                                                size="sm"
-                                                variant="outline"
-                                                className="h-8 gap-1.5 bg-white text-xs"
-                                            >
-                                                <a
-                                                    href={buildPjumViewUrl(item)}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    aria-label={`Lihat PDF PJUM minggu ${item.weekNumber}`}
-                                                >
-                                                    <ExternalLink className="h-3.5 w-3.5" />
-                                                    Lihat PDF
-                                                </a>
-                                            </Button>
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-1.5">
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    className="h-8 gap-1.5 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                                    aria-label={`Batalkan PJUM minggu ${item.weekNumber}`}
-                                                    title={
-                                                        item.status ===
-                                                        "APPROVED"
-                                                            ? "PJUM yang sudah disetujui tidak dapat dibatalkan"
-                                                            : "Batalkan PJUM"
-                                                    }
-                                                    onClick={() =>
-                                                        setPjumToCancel(item)
-                                                    }
-                                                >
-                                                    <RotateCcw className="h-3.5 w-3.5" />
-                                                    Batalkan
-                                                </Button>
-                                            </div>
+                                            {formatDateTime(item.createdAt)}
                                         </TableCell>
                                     </TableRow>
                                 ))
@@ -447,63 +380,85 @@ export function AdminPjumTable({
                     </Table>
                 </div>
 
-                {/* Infinite Scroll Target */}
-                {nextCursor && !isLoading && (
-                    <div
-                        ref={observerTarget}
-                        className="py-4 flex justify-center border-t"
-                    >
-                        {isFetchingNextPage ? (
-                            <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                        ) : (
-                            <div className="h-5" /> // Spacer
-                        )}
-                    </div>
-                )}
+                <div className="flex items-center justify-between border-t px-3 py-2 text-xs text-muted-foreground">
+                    <span>
+                        Menampilkan{" "}
+                        <span className="font-medium text-foreground">
+                            {pjums.length}
+                        </span>{" "}
+                        dari{" "}
+                        <span className="font-medium text-foreground">
+                            {totalCount}
+                        </span>{" "}
+                        PJUM
+                    </span>
+                    {nextCursor && !isLoading ? (
+                        <div ref={observerTarget} className="h-5 min-w-5">
+                            {isFetchingNextPage ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : null}
+                        </div>
+                    ) : null}
+                </div>
             </div>
+        </div>
+    );
+}
 
-            <AlertDialog
-                open={!!pjumToCancel}
-                onOpenChange={(open) => {
-                    if (!open && !isCancelling) setPjumToCancel(null);
-                }}
-            >
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Batalkan PJUM?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            PJUM minggu {pjumToCancel?.weekNumber} untuk{" "}
-                            {pjumToCancel?.bmsName} akan dihapus dari daftar
-                            PJUM. Status PJUM pada{" "}
-                            {pjumToCancel?.reportCount ?? 0} laporan terkait
-                            akan dikosongkan agar laporan tersebut bisa masuk
-                            PJUM ulang.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel disabled={isCancelling}>
-                            Batal
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                            variant="destructive"
-                            disabled={isCancelling}
-                            onClick={(event) => {
-                                event.preventDefault();
-                                handleCancelPjum();
-                            }}
-                        >
-                            {isCancelling ? (
-                                <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Membatalkan...
-                                </>
-                            ) : (
-                                "Batalkan PJUM"
-                            )}
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+function PjumSummaryStrip({ summary }: { summary: PjumSummary }) {
+    const items = [
+        {
+            label: "Total PJUM",
+            value: summary.total,
+            icon: FileText,
+            tone: "text-slate-700",
+        },
+        {
+            label: "Menunggu Review",
+            value: summary.pendingReview,
+            icon: AlertTriangle,
+            tone: "text-amber-700",
+        },
+        {
+            label: "Disetujui",
+            value: summary.approved,
+            icon: FileCheck2,
+            tone: "text-emerald-700",
+        },
+        {
+            label: "Laporan Masuk PJUM",
+            value: summary.reportCount,
+            icon: FileText,
+            tone: "text-sky-700",
+        },
+        {
+            label: `Pending > ${STALE_PENDING_DAYS} hari`,
+            value: summary.stalePending,
+            icon: AlertTriangle,
+            tone: "text-red-700",
+        },
+    ];
+
+    return (
+        <div className="grid gap-2 md:grid-cols-5">
+            {items.map((item) => (
+                <div
+                    key={item.label}
+                    className="flex min-h-20 items-center gap-3 rounded-lg border bg-background px-3 py-2"
+                >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
+                        <item.icon className={cn("h-4 w-4", item.tone)} />
+                    </div>
+                    <div className="min-w-0">
+                        <div className="text-[11px] text-muted-foreground">
+                            {item.label}
+                        </div>
+                        <div className="text-lg font-semibold leading-tight">
+                            {item.value.toLocaleString("id-ID")}
+                        </div>
+                    </div>
+                </div>
+            ))}
         </div>
     );
 }

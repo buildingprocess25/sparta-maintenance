@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
-import { fetchAllBranchNames } from "@/app/admin/export/queries";
+import { getAdminBranchOptions } from "../queries";
 import { getAdminPjum } from "./actions";
 import { AdminPjumTable } from "./_components/admin-pjum-table";
 import { ExportPjumDialog } from "./_components/export-pjum-dialog";
@@ -13,9 +13,11 @@ export default async function AdminPjumPage() {
     if (!user) redirect("/login");
     if (user.role !== "ADMIN") redirect("/dashboard");
 
-    // Fetch initial data
-    const branches = await fetchAllBranchNames();
-    const initialData = await getAdminPjum(null, 20, {});
+    const [branchOptions, initialData] = await Promise.all([
+        getAdminBranchOptions(),
+        getAdminPjum(null, 20, {}),
+    ]);
+    const branches = branchOptions.map((branch) => branch.name);
 
     return (
         <AdminDashboardShell
@@ -29,6 +31,7 @@ export default async function AdminPjumPage() {
                 initialData={initialData.pjums}
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
+                initialSummary={initialData.summary}
                 branches={branches}
             />
         </AdminDashboardShell>

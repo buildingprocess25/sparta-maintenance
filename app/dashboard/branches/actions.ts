@@ -13,6 +13,7 @@ import { logger } from "@/lib/logger";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import type { Prisma } from "@prisma/client";
+import type { AuthUser } from "@/lib/authorization";
 
 export type AdminBranchSummary = {
     totalBranches: number;
@@ -119,12 +120,30 @@ function calculateAgeDays(date: Date): number {
     return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
 }
 
-async function requireAdmin() {
+async function requireBranchMonitor() {
     const user = await getAuthUser();
-    if (!user || user.role !== "ADMIN") {
+    if (
+        !user ||
+        !["ADMIN", "BMC", "BNM_MANAGER"].includes(user.role)
+    ) {
         throw new Error("Unauthorized");
     }
     return user;
+}
+
+async function getVisibleBranchNames(user: AuthUser) {
+    if (user.role === "ADMIN") {
+        return fetchAllBranchNames();
+    }
+
+    return [...new Set(user.branchNames)]
+        .map((branchName) => branchName.trim())
+        .filter(
+            (branchName) =>
+                branchName.length > 0 &&
+                branchName !== EXCLUDED_ADMIN_BRANCH_NAME,
+        )
+        .sort((a, b) => a.localeCompare(b, "id-ID"));
 }
 
 function emptySummary(totalBranches = 0): AdminBranchSummary {
@@ -269,7 +288,7 @@ async function getAdminBranchOverview(
 export async function getAdminBranchesData(
     period = "ytd",
 ): Promise<AdminBranchesData> {
-    await requireAdmin();
+    const user = await requireBranchMonitor();
 
     const correlationId = crypto.randomUUID();
     const start = performance.now();
@@ -278,7 +297,7 @@ export async function getAdminBranchesData(
     const stuckThreshold = getBranchStuckThresholdDate();
 
     try {
-        const branchNames = await fetchAllBranchNames();
+        const branchNames = await getVisibleBranchNames(user);
         if (branchNames.length === 0) {
             return { summary: emptySummary(), branches: [] };
         }
@@ -308,7 +327,8 @@ export async function getAdminBranchesData(
                     "role"::text AS "role",
                     COUNT(*)::int AS "count"
                 FROM "User"
-                WHERE NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
+                WHERE ${branchNames}::text[] && "branchNames"
+                  AND NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
                   AND "branchNames"[1] IS NOT NULL
                   AND "branchNames"[1] <> ${EXCLUDED_ADMIN_BRANCH_NAME}
                 GROUP BY "branchNames"[1], "role"
@@ -519,7 +539,9 @@ export async function getAdminBranchDetail(
     branchName: string,
     period = "ytd",
 ): Promise<AdminBranchDetail | null> {
-    await requireAdmin();
+    const user = await requireBranchMonitor();
+    const visibleBranchNames = await getVisibleBranchNames(user);
+    if (!visibleBranchNames.includes(branchName)) return null;
 
     const branch = await getAdminBranchOverview(branchName, period);
     if (!branch) return null;

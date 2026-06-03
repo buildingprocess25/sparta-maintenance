@@ -20,7 +20,9 @@ function normalizePeriod(value?: string | string[]) {
 export default async function AdminBranchesPage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (!["ADMIN", "BMC", "BNM_MANAGER"].includes(user.role)) {
+        redirect("/dashboard");
+    }
 
     const params = await searchParams;
     const period = normalizePeriod(params.period);

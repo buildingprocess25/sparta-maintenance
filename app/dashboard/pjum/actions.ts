@@ -17,6 +17,16 @@ export type AdminPjumFilters = {
     toDate?: string;
 };
 
+const PJUM_PENDING_STALE_DAYS = 7;
+
+export type PjumSummary = {
+    total: number;
+    pendingReview: number;
+    approved: number;
+    reportCount: number;
+    stalePending: number;
+};
+
 export type PjumRow = {
     id: string;
     weekNumber: number;
@@ -30,6 +40,7 @@ export type PjumRow = {
     status: string;
     pjumFinalDriveUrl: string | null;
     createdAt: Date;
+    isStalePending: boolean;
 };
 
 export async function getAdminPjum(
@@ -46,7 +57,8 @@ export async function getAdminPjum(
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.PjumExportWhereInput = {
+        const staleBefore = getStalePendingCutoff();
+        const baseWhere: Prisma.PjumExportWhereInput = {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         };
 
@@ -60,7 +72,7 @@ export async function getAdminPjum(
             });
             const matchedNIKs = matchingUsers.map(u => u.NIK);
 
-            where.OR = [
+            baseWhere.OR = [
                 { bmsNIK: { contains: search, mode: "insensitive" } },
                 { branchName: { contains: search, mode: "insensitive" } },
                 { reportNumbers: { has: search } },
@@ -69,46 +81,56 @@ export async function getAdminPjum(
         }
 
         if (filters.branchName && filters.branchName !== "all") {
-            where.branchName = filters.branchName;
-        }
-
-        if (filters.status && filters.status !== "all") {
-            where.status = filters.status as Prisma.EnumPjumStatusFilter["equals"];
+            baseWhere.branchName = filters.branchName;
         }
 
         if (filters.fromDate || filters.toDate) {
-            where.createdAt = {};
+            baseWhere.createdAt = {};
             if (filters.fromDate) {
-                where.createdAt.gte = new Date(filters.fromDate);
+                baseWhere.createdAt.gte = new Date(filters.fromDate);
             }
             if (filters.toDate) {
                 const end = new Date(filters.toDate);
                 end.setHours(23, 59, 59, 999);
-                where.createdAt.lte = end;
+                baseWhere.createdAt.lte = end;
             }
         }
 
-        const totalCount = await prisma.pjumExport.count({ where });
+        const where: Prisma.PjumExportWhereInput = { ...baseWhere };
+        if (filters.status && filters.status !== "all") {
+            where.status = filters.status as Prisma.EnumPjumStatusFilter["equals"];
+        }
 
-        const pjumExports = await prisma.pjumExport.findMany({
-            where,
-            take: limit + 1,
-            skip: cursor ? 1 : 0,
-            cursor: cursor ? { id: cursor } : undefined,
-            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            select: {
-                id: true,
-                weekNumber: true,
-                branchName: true,
-                bmsNIK: true,
-                fromDate: true,
-                toDate: true,
-                status: true,
-                reportNumbers: true,
-                pjumFinalDriveUrl: true,
-                createdAt: true,
-            },
-        });
+        const [totalCount, summaryRows, pjumExports] = await Promise.all([
+            prisma.pjumExport.count({ where }),
+            prisma.pjumExport.findMany({
+                where: baseWhere,
+                select: {
+                    status: true,
+                    reportNumbers: true,
+                    createdAt: true,
+                },
+            }),
+            prisma.pjumExport.findMany({
+                where,
+                take: limit + 1,
+                skip: cursor ? 1 : 0,
+                cursor: cursor ? { id: cursor } : undefined,
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                select: {
+                    id: true,
+                    weekNumber: true,
+                    branchName: true,
+                    bmsNIK: true,
+                    fromDate: true,
+                    toDate: true,
+                    status: true,
+                    reportNumbers: true,
+                    pjumFinalDriveUrl: true,
+                    createdAt: true,
+                },
+            }),
+        ]);
 
         let nextCursor: string | null = null;
         if (pjumExports.length > limit) {
@@ -129,6 +151,33 @@ export async function getAdminPjum(
 
         const nameMap = new Map(users.map((u) => [u.NIK, u.name]));
 
+        const summary: PjumSummary = summaryRows.reduce(
+            (acc, row) => {
+                acc.total += 1;
+                acc.reportCount += row.reportNumbers.length;
+
+                if (row.status === "PENDING_APPROVAL") {
+                    acc.pendingReview += 1;
+                    if (row.createdAt < staleBefore) {
+                        acc.stalePending += 1;
+                    }
+                }
+
+                if (row.status === "APPROVED") {
+                    acc.approved += 1;
+                }
+
+                return acc;
+            },
+            {
+                total: 0,
+                pendingReview: 0,
+                approved: 0,
+                reportCount: 0,
+                stalePending: 0,
+            },
+        );
+
         const durationMs = Math.round(performance.now() - start);
         logger.info(
             { operation: "getAdminPjum", correlationId, durationMs, count: pjumExports.length },
@@ -148,12 +197,15 @@ export async function getAdminPjum(
             status: p.status,
             pjumFinalDriveUrl: p.pjumFinalDriveUrl,
             createdAt: p.createdAt,
+            isStalePending:
+                p.status === "PENDING_APPROVAL" && p.createdAt < staleBefore,
         }));
 
         return {
             pjums: rows,
             nextCursor,
             totalCount,
+            summary,
         };
     } catch (error) {
         const durationMs = Math.round(performance.now() - start);
@@ -164,6 +216,12 @@ export async function getAdminPjum(
         );
         throw new Error("Failed to load PJUM");
     }
+}
+
+function getStalePendingCutoff() {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - PJUM_PENDING_STALE_DAYS);
+    return cutoff;
 }
 
 export async function cancelAdminPjum(pjumExportId: string) {
