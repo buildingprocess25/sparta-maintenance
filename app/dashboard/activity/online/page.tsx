@@ -20,10 +20,10 @@ export default async function AdminOnlineUsersPage() {
     return (
         <AdminDashboardShell
             user={user}
-            title="User Online"
+            title="User Aktif"
             breadcrumbs={[
                 { label: "Aktivitas User", href: "/dashboard/activity" },
-                { label: "User Online" },
+                { label: "User Aktif" },
             ]}
             contentClassName="h-full"
         >
@@ -31,6 +31,8 @@ export default async function AdminOnlineUsersPage() {
                 initialData={initialData.users}
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
+                initialOnlineCount={initialData.onlineCount}
+                initialActiveTodayCount={initialData.activeTodayCount}
                 branches={branches}
             />
         </AdminDashboardShell>

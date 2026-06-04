@@ -8,14 +8,31 @@ import { ExportPjumDialog } from "./_components/export-pjum-dialog";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPjumPage() {
+type AdminPjumPageProps = {
+    searchParams?: Promise<{
+        status?: string;
+    }>;
+};
+
+const VALID_INITIAL_PJUM_STATUS = new Set(["PENDING_APPROVAL", "APPROVED"]);
+
+export default async function AdminPjumPage({
+    searchParams,
+}: AdminPjumPageProps) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
     if (user.role !== "ADMIN") redirect("/dashboard");
 
+    const params = await searchParams;
+    const initialStatus =
+        params?.status && VALID_INITIAL_PJUM_STATUS.has(params.status)
+            ? params.status
+            : undefined;
+    const initialFilters = initialStatus ? { status: initialStatus } : {};
+
     const [branchOptions, initialData] = await Promise.all([
         getAdminBranchOptions(),
-        getAdminPjum(null, 20, {}),
+        getAdminPjum(null, 20, initialFilters),
     ]);
     const branches = branchOptions.map((branch) => branch.name);
 
@@ -32,6 +49,7 @@ export default async function AdminPjumPage() {
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
                 initialSummary={initialData.summary}
+                initialFilters={initialFilters}
                 branches={branches}
             />
         </AdminDashboardShell>

@@ -113,6 +113,7 @@ export type RawReportDetailInput = {
     totalReal: number | null;
     createdAt: string;
     updatedAt: string;
+    lastActivityAt: string;
     finishedAt: string | null;
     pjumExportedAt: string | null;
     submittedBy: {

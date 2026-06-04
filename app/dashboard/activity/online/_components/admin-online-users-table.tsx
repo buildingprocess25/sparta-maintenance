@@ -1,7 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Building2, Loader2, Search, UserRound } from "lucide-react";
+import {
+    Building2,
+    CalendarDays,
+    Loader2,
+    Search,
+    UserRound,
+    Wifi,
+} from "lucide-react";
 import { format } from "date-fns";
 import { id } from "date-fns/locale";
 import { toast } from "sonner";
@@ -43,6 +50,8 @@ const ROLE_STYLES: Record<string, string> = {
     ADMIN: "border-slate-200 bg-slate-50 text-slate-700",
 };
 
+type ActivityScope = NonNullable<AdminOnlineUserFilters["scope"]>;
+
 function formatDateTime(date: Date | string) {
     return format(new Date(date), "dd MMM yyyy HH:mm:ss", { locale: id });
 }
@@ -62,19 +71,28 @@ export function AdminOnlineUsersTable({
     initialData,
     initialNextCursor,
     initialTotalCount,
+    initialOnlineCount,
+    initialActiveTodayCount,
     branches,
 }: {
     initialData: AdminOnlineUserRow[];
     initialNextCursor: string | null;
     initialTotalCount: number;
+    initialOnlineCount: number;
+    initialActiveTodayCount: number;
     branches: string[];
 }) {
     const [users, setUsers] = useState(initialData);
     const [nextCursor, setNextCursor] = useState(initialNextCursor);
     const [totalCount, setTotalCount] = useState(initialTotalCount);
+    const [onlineCount, setOnlineCount] = useState(initialOnlineCount);
+    const [activeTodayCount, setActiveTodayCount] = useState(
+        initialActiveTodayCount,
+    );
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [search, setSearch] = useState("");
+    const [scope, setScope] = useState<ActivityScope>("today");
     const [activeFilters, setActiveFilters] = useState<Filter<string>[]>([]);
 
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -118,8 +136,9 @@ export function AdminOnlineUsersTable({
             search: searchValue || undefined,
             branchName: String(getFilterValue("branchName")) || undefined,
             role: String(getFilterValue("role")) || undefined,
+            scope,
         }),
-        [getFilterValue, searchValue],
+        [getFilterValue, scope, searchValue],
     );
     const hasActiveFilter = searchValue.length > 0 || activeFilters.length > 0;
 
@@ -134,6 +153,8 @@ export function AdminOnlineUsersTable({
                 if (isInitial) {
                     setUsers(result.users);
                     setTotalCount(result.totalCount);
+                    setOnlineCount(result.onlineCount);
+                    setActiveTodayCount(result.activeTodayCount);
                 } else {
                     setUsers((prev) => {
                         const existing = new Set(prev.map((user) => user.NIK));
@@ -147,7 +168,7 @@ export function AdminOnlineUsersTable({
                 }
                 setNextCursor(result.nextCursor);
             } catch {
-                toast.error("Gagal memuat user online");
+                toast.error("Gagal memuat aktivitas user");
             } finally {
                 setIsLoading(false);
                 setIsFetchingNextPage(false);
@@ -196,13 +217,58 @@ export function AdminOnlineUsersTable({
 
     return (
         <div className="min-w-0 space-y-4">
+            <div className="grid gap-3 md:grid-cols-2">
+                <button
+                    type="button"
+                    onClick={() => setScope("today")}
+                    className={`rounded-lg border p-3 text-left transition ${
+                        scope === "today"
+                            ? "border-primary bg-primary/5"
+                            : "bg-white hover:bg-muted/40"
+                    }`}
+                >
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CalendarDays className="h-3.5 w-3.5" />
+                        Aktif hari ini
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold">
+                        {activeTodayCount.toLocaleString("id-ID")}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        User yang membuka sistem minimal sekali hari ini.
+                    </p>
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setScope("online")}
+                    className={`rounded-lg border p-3 text-left transition ${
+                        scope === "online"
+                            ? "border-primary bg-primary/5"
+                            : "bg-white hover:bg-muted/40"
+                    }`}
+                >
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Wifi className="h-3.5 w-3.5" />
+                        Online sekarang
+                    </div>
+                    <div className="mt-1 text-2xl font-semibold">
+                        {onlineCount.toLocaleString("id-ID")}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        User yang terlihat aktif dalam 6 menit terakhir.
+                    </p>
+                </button>
+            </div>
+
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 <div className="text-sm text-muted-foreground">
-                    Total{" "}
+                    Menampilkan{" "}
                     <span className="font-medium text-foreground">
                         {totalCount.toLocaleString("id-ID")}
                     </span>{" "}
-                    user online
+                    {scope === "online"
+                        ? "user online sekarang"
+                        : "user aktif hari ini"}
                 </div>
                 {hasActiveFilter && (
                     <Button
@@ -255,6 +321,9 @@ export function AdminOnlineUsersTable({
                                 <TableHead className="min-w-[110px]">
                                     Role
                                 </TableHead>
+                                <TableHead className="min-w-[130px]">
+                                    Status
+                                </TableHead>
                                 <TableHead className="min-w-[220px]">
                                     Cabang
                                 </TableHead>
@@ -270,7 +339,7 @@ export function AdminOnlineUsersTable({
                             {isLoading ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
@@ -279,10 +348,12 @@ export function AdminOnlineUsersTable({
                             ) : users.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={6}
+                                        colSpan={7}
                                         className="h-32 text-center text-sm text-muted-foreground"
                                     >
-                                        Tidak ada user online sesuai filter.
+                                        {scope === "online"
+                                            ? "Tidak ada user online sesuai filter."
+                                            : "Tidak ada user aktif hari ini sesuai filter."}
                                     </TableCell>
                                 </TableRow>
                             ) : (
@@ -312,12 +383,38 @@ export function AdminOnlineUsersTable({
                                                     : user.role}
                                             </Badge>
                                         </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={
+                                                    user.isOnline
+                                                        ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                        : "border-blue-200 bg-blue-50 text-blue-700"
+                                                }
+                                            >
+                                                {user.isOnline
+                                                    ? "Online"
+                                                    : "Aktif hari ini"}
+                                            </Badge>
+                                        </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {user.branchNames.join(", ") || "-"}
                                         </TableCell>
                                         <TableCell>
-                                            <span className="inline-flex items-center gap-1.5 text-emerald-700">
-                                                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                            <span
+                                                className={`inline-flex items-center gap-1.5 ${
+                                                    user.isOnline
+                                                        ? "text-emerald-700"
+                                                        : "text-blue-700"
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`h-2 w-2 rounded-full ${
+                                                        user.isOnline
+                                                            ? "bg-emerald-500"
+                                                            : "bg-blue-500"
+                                                    }`}
+                                                />
                                                 {formatRelativeLastSeen(
                                                     user.lastSeen,
                                                 )}

@@ -2,6 +2,14 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 
+export const ONLINE_THRESHOLD_MS = 6 * 60 * 1000;
+
+export function getTodayPresenceStart() {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return start;
+}
+
 /**
  * Updates the last seen timestamp for a user.
  */
@@ -25,8 +33,7 @@ export async function isUserOnline(userId: string): Promise<boolean> {
     if (!presence) return false;
 
     // 5 minutes interval + 1 minute grace period = 6 minutes threshold
-    const OFFLINE_THRESHOLD_MS = 6 * 60 * 1000;
-    return Date.now() - presence.lastSeen.getTime() < OFFLINE_THRESHOLD_MS;
+    return Date.now() - presence.lastSeen.getTime() < ONLINE_THRESHOLD_MS;
 }
 
 /**
@@ -34,11 +41,22 @@ export async function isUserOnline(userId: string): Promise<boolean> {
  * Also performs lazy cleanup of stale entries.
  */
 export async function getOnlineUsers(): Promise<string[]> {
-    const OFFLINE_THRESHOLD_MS = 6 * 60 * 1000;
-    const cutoff = new Date(Date.now() - OFFLINE_THRESHOLD_MS);
+    const cutoff = new Date(Date.now() - ONLINE_THRESHOLD_MS);
 
     const rows = await prisma.userPresence.findMany({
         where: { lastSeen: { gt: cutoff } },
+        select: { userId: true },
+    });
+
+    return rows.map((row) => row.userId);
+}
+
+/**
+ * Retrieves users who were seen at least once today.
+ */
+export async function getTodayActiveUsers(): Promise<string[]> {
+    const rows = await prisma.userPresence.findMany({
+        where: { lastSeen: { gte: getTodayPresenceStart() } },
         select: { userId: true },
     });
 

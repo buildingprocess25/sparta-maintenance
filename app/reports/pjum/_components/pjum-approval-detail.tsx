@@ -267,7 +267,7 @@ export function PjumApprovalDetail({ detail }: Props) {
                                                     {r.reportNumber}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                                    Selesai:{" "}
+                                                    Selesai final:{" "}
                                                     {r.finishedAt
                                                         ? format(
                                                               new Date(

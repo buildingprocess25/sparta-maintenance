@@ -11,11 +11,92 @@ import { isReportStatusKey } from "@/lib/report-status";
 export type AdminReportFilters = {
     search?: string;
     status?: string;
+    scope?: string;
     branchName?: string;
     fromDate?: string;
     toDate?: string;
     pjumStatus?: string;
 };
+
+const ACTIVE_REPORT_STATUSES = [
+    "PENDING_ESTIMATION",
+    "ESTIMATION_APPROVED",
+    "ESTIMATION_REJECTED_REVISION",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "APPROVED_BMC",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+const REVISION_REPORT_STATUSES = [
+    "ESTIMATION_REJECTED_REVISION",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+const BMC_REVIEW_REPORT_STATUSES = [
+    "PENDING_ESTIMATION",
+    "PENDING_REVIEW",
+] as const;
+
+const REPORT_STATUS_SLA_DAYS: Partial<Record<string, number>> = {
+    PENDING_ESTIMATION: 1,
+    ESTIMATION_APPROVED: 3,
+    ESTIMATION_REJECTED_REVISION: 2,
+    IN_PROGRESS: 7,
+    PENDING_REVIEW: 1,
+    APPROVED_BMC: 1,
+    REVIEW_REJECTED_REVISION: 2,
+};
+
+function buildOverdueWhere(now = new Date()): Prisma.ReportWhereInput {
+    const slaEntries = Object.entries(REPORT_STATUS_SLA_DAYS) as [
+        string,
+        number,
+    ][];
+
+    return {
+        OR: slaEntries.map(([status, days]) => {
+            const threshold = new Date(now);
+            threshold.setDate(threshold.getDate() - days);
+
+            return {
+                status: status as Prisma.EnumReportStatusFilter["equals"],
+                createdAt: { lt: threshold },
+                activities: {
+                    none: {
+                        createdAt: { gte: threshold },
+                    },
+                },
+            };
+        }),
+    };
+}
+
+function calculateAgeDays(date: Date): number {
+    return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
+}
+
+function getReportSlaInfo(status: string, lastActivityAt: Date) {
+    const slaDays = REPORT_STATUS_SLA_DAYS[status] ?? null;
+    if (!slaDays) {
+        return {
+            slaDays,
+            slaAgeDays: calculateAgeDays(lastActivityAt),
+            slaOverdue: false,
+            slaLabel: "Tidak ada SLA",
+        };
+    }
+
+    const slaAgeDays = calculateAgeDays(lastActivityAt);
+    const slaOverdue = slaAgeDays > slaDays;
+
+    return {
+        slaDays,
+        slaAgeDays,
+        slaOverdue,
+        slaLabel: slaOverdue ? "Lewat SLA" : "Aman",
+    };
+}
 
 export async function getAdminReports(
     cursor: string | null,
@@ -77,12 +158,33 @@ export async function getAdminReports(
             });
         }
 
-        if (
-            filters.status &&
-            filters.status !== "all" &&
-            isReportStatusKey(filters.status)
-        ) {
-            where.status = filters.status as Prisma.EnumReportStatusFilter["equals"];
+        if (filters.scope && filters.scope !== "all") {
+            if (filters.scope === "active") {
+                andFilters.push({ status: { in: [...ACTIVE_REPORT_STATUSES] } });
+            }
+            if (filters.scope === "overdue") {
+                andFilters.push(buildOverdueWhere());
+            }
+            if (filters.scope === "review_bmc") {
+                andFilters.push({
+                    status: { in: [...BMC_REVIEW_REPORT_STATUSES] },
+                });
+            }
+            if (filters.scope === "review_bnm") {
+                andFilters.push({ status: "APPROVED_BMC" });
+            }
+            if (filters.scope === "revision") {
+                andFilters.push({ status: { in: [...REVISION_REPORT_STATUSES] } });
+            }
+        }
+
+        if (filters.status && filters.status !== "all") {
+            if (filters.status === "active") {
+                andFilters.push({ status: { in: [...ACTIVE_REPORT_STATUSES] } });
+            } else if (isReportStatusKey(filters.status)) {
+                where.status =
+                    filters.status as Prisma.EnumReportStatusFilter["equals"];
+            }
         }
 
         if (filters.branchName && filters.branchName !== "all") {
@@ -116,13 +218,25 @@ export async function getAdminReports(
         
         // Count total reports for the given filters
         const totalCount = await prisma.report.count({ where });
+        const overdueCount = await prisma.report.count({
+            where: {
+                AND: [where, buildOverdueWhere()],
+            },
+        });
+        const shouldPrioritizeOldestUpdate =
+            filters.scope === "overdue" ||
+            filters.scope === "active" ||
+            filters.status === "active";
 
         const reports = await prisma.report.findMany({
             where,
             take: limit + 1, // Take one extra to determine if there's a next page
             skip: cursor ? 1 : 0,
             cursor: cursor ? { reportNumber: cursor } : undefined,
-            orderBy: [{ updatedAt: "desc" }, { reportNumber: "desc" }],
+            orderBy:
+                shouldPrioritizeOldestUpdate
+                    ? [{ updatedAt: "asc" }, { reportNumber: "desc" }]
+                    : [{ updatedAt: "desc" }, { reportNumber: "desc" }],
             select: {
                 reportNumber: true,
                 createdAt: true,
@@ -142,6 +256,11 @@ export async function getAdminReports(
                         NIK: true,
                     },
                 },
+                activities: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { createdAt: true },
+                },
             },
         });
 
@@ -158,13 +277,24 @@ export async function getAdminReports(
         );
 
         return {
-            reports: reports.map(r => ({
-                ...r,
-                totalEstimation: Number(r.totalEstimation),
-                totalReal: r.totalReal ? Number(r.totalReal) : null,
-            })),
+            reports: reports.map(r => {
+                const { activities, ...report } = r;
+                const lastActivityAt = activities[0]?.createdAt ?? r.createdAt;
+
+                return {
+                    ...report,
+                    lastActivityAt,
+                    totalEstimation: Number(r.totalEstimation),
+                    totalReal: r.totalReal ? Number(r.totalReal) : null,
+                    ...getReportSlaInfo(r.status, lastActivityAt),
+                };
+            }),
             nextCursor,
             totalCount,
+            summary: {
+                totalCount,
+                overdueCount,
+            },
         };
     } catch (error) {
         const durationMs = Math.round(performance.now() - start);

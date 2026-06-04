@@ -4,12 +4,14 @@ import prisma from "@/lib/prisma";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
+import { getTodayPresenceStart, ONLINE_THRESHOLD_MS } from "@/lib/presence";
 import type { Prisma, UserRole } from "@prisma/client";
 
 export type AdminOnlineUserFilters = {
     search?: string;
     branchName?: string;
     role?: string;
+    scope?: "today" | "online";
 };
 
 export type AdminOnlineUserRow = {
@@ -19,15 +21,16 @@ export type AdminOnlineUserRow = {
     role: UserRole;
     branchNames: string[];
     lastSeen: Date;
+    isOnline: boolean;
 };
 
 export type AdminOnlineUsersResult = {
     users: AdminOnlineUserRow[];
     totalCount: number;
+    onlineCount: number;
+    activeTodayCount: number;
     nextCursor: string | null;
 };
-
-const ONLINE_THRESHOLD_MS = 6 * 60 * 1000;
 
 async function requireAdmin() {
     const user = await getAuthUser();
@@ -42,10 +45,19 @@ function normalizeFilterValue(value?: string) {
     return value;
 }
 
+function getPresenceCutoff(scope: AdminOnlineUserFilters["scope"]) {
+    if (scope === "online") {
+        return new Date(Date.now() - ONLINE_THRESHOLD_MS);
+    }
+
+    return getTodayPresenceStart();
+}
+
 function buildOnlineUserWhere(
     filters: AdminOnlineUserFilters,
+    scope: AdminOnlineUserFilters["scope"] = filters.scope ?? "today",
 ): Prisma.UserPresenceWhereInput {
-    const cutoff = new Date(Date.now() - ONLINE_THRESHOLD_MS);
+    const cutoff = getPresenceCutoff(scope);
     const search = filters.search?.trim();
     const branchName = normalizeFilterValue(filters.branchName);
     const role = normalizeFilterValue(filters.role);
@@ -74,7 +86,7 @@ function buildOnlineUserWhere(
     }
 
     return {
-        lastSeen: { gt: cutoff },
+        lastSeen: scope === "online" ? { gt: cutoff } : { gte: cutoff },
         user: { AND: userAnd },
     };
 }
@@ -88,31 +100,38 @@ export async function getAdminOnlineUsers(
 
     const correlationId = crypto.randomUUID();
     const start = performance.now();
-    const where = buildOnlineUserWhere(filters);
+    const scope = filters.scope ?? "today";
+    const where = buildOnlineUserWhere(filters, scope);
+    const onlineWhere = buildOnlineUserWhere(filters, "online");
+    const todayWhere = buildOnlineUserWhere(filters, "today");
+    const onlineCutoff = getPresenceCutoff("online");
 
     try {
-        const [totalCount, rows] = await Promise.all([
-            prisma.userPresence.count({ where }),
-            prisma.userPresence.findMany({
-                where,
-                take: limit + 1,
-                skip: cursor ? 1 : 0,
-                cursor: cursor ? { userId: cursor } : undefined,
-                orderBy: [{ lastSeen: "desc" }, { userId: "asc" }],
-                select: {
-                    lastSeen: true,
-                    user: {
-                        select: {
-                            NIK: true,
-                            name: true,
-                            email: true,
-                            role: true,
-                            branchNames: true,
+        const [totalCount, onlineCount, activeTodayCount, rows] =
+            await Promise.all([
+                prisma.userPresence.count({ where }),
+                prisma.userPresence.count({ where: onlineWhere }),
+                prisma.userPresence.count({ where: todayWhere }),
+                prisma.userPresence.findMany({
+                    where,
+                    take: limit + 1,
+                    skip: cursor ? 1 : 0,
+                    cursor: cursor ? { userId: cursor } : undefined,
+                    orderBy: [{ lastSeen: "desc" }, { userId: "asc" }],
+                    select: {
+                        lastSeen: true,
+                        user: {
+                            select: {
+                                NIK: true,
+                                name: true,
+                                email: true,
+                                role: true,
+                                branchNames: true,
+                            },
                         },
                     },
-                },
-            }),
-        ]);
+                }),
+            ]);
 
         let nextCursor: string | null = null;
         if (rows.length > limit) {
@@ -134,8 +153,11 @@ export async function getAdminOnlineUsers(
             users: rows.map((row) => ({
                 ...row.user,
                 lastSeen: row.lastSeen,
+                isOnline: row.lastSeen > onlineCutoff,
             })),
             totalCount,
+            onlineCount,
+            activeTodayCount,
             nextCursor,
         };
     } catch (error) {
@@ -148,6 +170,6 @@ export async function getAdminOnlineUsers(
             "Failed to fetch admin online users",
             error,
         );
-        throw new Error("Gagal memuat user online");
+        throw new Error("Gagal memuat aktivitas user");
     }
 }

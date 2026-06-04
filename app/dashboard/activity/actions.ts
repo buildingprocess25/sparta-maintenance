@@ -5,7 +5,7 @@ import { getAuthUser } from "@/lib/authorization";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
 import { logger } from "@/lib/logger";
-import { getOnlineUsers } from "@/lib/presence";
+import { getTodayActiveUsers } from "@/lib/presence";
 import type { Prisma, UserRole } from "@prisma/client";
 
 export type AdminActivityModule = "MAINTENANCE" | "PJUM" | "REALISASI";
@@ -472,13 +472,13 @@ async function countReportActivityInWindow(
     });
 }
 
-async function countVisibleOnlineUsers() {
-    const onlineUserIds = await getOnlineUsers();
-    if (onlineUserIds.length === 0) return 0;
+async function countVisibleTodayActiveUsers() {
+    const activeUserIds = await getTodayActiveUsers();
+    if (activeUserIds.length === 0) return 0;
 
     return prisma.user.count({
         where: {
-            NIK: { in: onlineUserIds },
+            NIK: { in: activeUserIds },
             NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
         },
     });
@@ -513,7 +513,7 @@ async function getActivitySummary(
         countReportActivityInWindow(periodWindow),
         countPjumEventsInWindow(todayWindow),
         countPjumEventsInWindow(periodWindow),
-        countVisibleOnlineUsers(),
+        countVisibleTodayActiveUsers(),
         countReportActivityInWindow(todayWindow, revisionRejectFilter),
         countReportActivityInWindow(periodWindow, revisionRejectFilter),
         countReportActivityInWindow(todayWindow, approvalDoneFilter),

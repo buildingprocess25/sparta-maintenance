@@ -155,11 +155,11 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
                                 value={formatDateTime(report.createdAt)}
                             />
                             <SummaryRow
-                                label="Update:"
-                                value={formatDateTime(report.updatedAt)}
+                                label="Update laporan:"
+                                value={formatDateTime(report.lastActivityAt)}
                             />
                             <SummaryRow
-                                label="Selesai:"
+                                label="Selesai final:"
                                 value={
                                     report.finishedAt
                                         ? formatDateTime(report.finishedAt)
@@ -207,7 +207,7 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
                                 muted={!report.pjumExport}
                             />
                             <SummaryRow
-                                label="Export:"
+                                label="Masuk PJUM:"
                                 value={pjumExportLabel}
                                 muted={!report.pjumExportedAt}
                             />

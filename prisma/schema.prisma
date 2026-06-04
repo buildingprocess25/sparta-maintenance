@@ -139,7 +139,7 @@ model Report {
   completionNotes      String?   // notes during completion
   completionAdditionalPhotos Json @default("[]") // additional completion documentation photos
   completionAdditionalNote   String? // one note for additional completion documentation set
-  finishedAt           DateTime? // when report was marked as finished/completed
+  finishedAt           DateTime? // final BNM approval time when report reaches COMPLETED
 
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?

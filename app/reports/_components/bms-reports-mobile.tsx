@@ -165,7 +165,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                                 {report.finishedAt && (
                                     <span className="flex items-center gap-1 text-green-600">
                                         <CalendarDays className="h-3 w-3 shrink-0" />
-                                        Selesai:{" "}
+                                        Selesai final:{" "}
                                         {formatDateShort(report.finishedAt)}
                                     </span>
                                 )}

@@ -15,6 +15,7 @@ const input: RawReportDetailInput = {
     totalReal: null,
     createdAt: "2026-06-02T01:00:00.000Z",
     updatedAt: "2026-06-02T02:00:00.000Z",
+    lastActivityAt: "2026-06-02T02:00:00.000Z",
     finishedAt: null,
     pjumExportedAt: null,
     submittedBy: {

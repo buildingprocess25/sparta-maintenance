@@ -2,13 +2,11 @@ import Link from "next/link";
 import {
     Activity,
     ArrowUpRight,
-    Banknote,
     CheckCircle2,
     CircleDollarSign,
     Clock3,
     FileText,
-    ListChecks,
-    Users,
+    Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,11 +22,17 @@ import {
     Table,
     TableBody,
     TableCell,
+    TableFooter,
     TableHead,
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
 import type { AuthUser } from "@/lib/authorization";
+import {
+    getReportStatusBadgeClass,
+    REPORT_STATUS_LABELS,
+} from "@/lib/report-status";
+import { cn } from "@/lib/utils";
 import {
     getAdminCommandCenterData,
     type AdminAttentionReport,
@@ -78,77 +82,6 @@ function formatDate(date: Date): string {
     });
 }
 
-type MetricCardProps = {
-    title: string;
-    value: string;
-    description: string;
-    icon: React.ElementType;
-    href?: string;
-    tone: "blue" | "green" | "amber" | "red" | "slate";
-};
-
-const metricToneClass: Record<MetricCardProps["tone"], string> = {
-    blue: "bg-blue-50 text-blue-700 border-blue-200",
-    green: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    red: "bg-red-50 text-red-700 border-red-200",
-    slate: "bg-slate-50 text-slate-700 border-slate-200",
-};
-
-function MetricCard({
-    title,
-    value,
-    description,
-    icon: Icon,
-    href,
-    tone,
-}: MetricCardProps) {
-    const content = (
-        <Card className="group h-40 w-full transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-md">
-            <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                    <div className="space-y-1">
-                        <CardDescription>{title}</CardDescription>
-                        <CardTitle className="text-2xl font-semibold">
-                            {value}
-                        </CardTitle>
-                    </div>
-                    <span
-                        className={`rounded-md border p-2 ${metricToneClass[tone]}`}
-                    >
-                        <Icon className="h-4 w-4" />
-                    </span>
-                </div>
-            </CardHeader>
-            <CardContent>
-                <div className="flex items-start justify-between gap-3">
-                    <p className="text-xs text-muted-foreground">
-                        {description}
-                    </p>
-                    {href && (
-                        <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary opacity-80 transition-opacity group-hover:opacity-100">
-                            Detail
-                            <ArrowUpRight className="h-3.5 w-3.5" />
-                        </span>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-
-    if (!href) return content;
-
-    return (
-        <Link
-            href={href}
-            className="block h-full rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            aria-label={`Buka detail ${title}`}
-        >
-            {content}
-        </Link>
-    );
-}
-
 function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
     return (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -190,96 +123,458 @@ function KpiGrid({
     pjum: Awaited<ReturnType<typeof getAdminCommandCenterData>>["pjum"];
 }) {
     return (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <MetricCard
-                title="Total Laporan"
-                value={formatNumber(kpi.totalReports)}
-                description={`${kpi.completedReports} selesai, ${kpi.inProgressReports} sedang berjalan`}
+        <div className="grid gap-4 lg:grid-cols-3">
+            <GroupedKpiCard
+                title="Laporan"
                 icon={FileText}
-                tone="blue"
                 href="/dashboard/reports"
+                value={formatNumber(kpi.totalReports)}
+                helper="Semua laporan non-draft tahun berjalan"
+                rows={[
+                    {
+                        label: "Selesai",
+                        value: formatNumber(kpi.completedReports),
+                        href: "/dashboard/reports?status=COMPLETED",
+                        tone: "green",
+                    },
+                    {
+                        label: "Laporan Aktif",
+                        value: formatNumber(kpi.activeReports),
+                        href: "/dashboard/reports?scope=active",
+                        tone: "blue",
+                    },
+                    {
+                        label: "User aktif hari ini",
+                        value: formatNumber(kpi.activeUsers),
+                        href: "/dashboard/activity/online",
+                        tone: "blue",
+                    },
+                ]}
             />
-            <MetricCard
-                title="Completion Rate"
-                value={`${kpi.completionRate}%`}
-                description="Persentase laporan selesai dari seluruh laporan non-draft"
+            <GroupedKpiCard
+                title="Penyelesaian"
                 icon={CheckCircle2}
-                tone="green"
                 href="/dashboard/reports?status=COMPLETED"
+                value={`${kpi.completionRate}%`}
+                helper="Selesai dibanding seluruh laporan non-draft"
+                progress={kpi.completionRate}
+                rows={[
+                    {
+                        label: "Selesai",
+                        value: formatNumber(kpi.completedReports),
+                        tone: "green",
+                    },
+                    {
+                        label: "Sudah PJUM",
+                        value: formatNumber(
+                            kpi.completedReports - kpi.unpjumCompletedReports,
+                        ),
+                        href: "/dashboard/reports?status=COMPLETED&pjumStatus=exported",
+                        tone: "blue",
+                    },
+                    {
+                        label: "Belum PJUM",
+                        value: formatNumber(kpi.unpjumCompletedReports),
+                        href: "/dashboard/reports?status=COMPLETED&pjumStatus=not_exported",
+                        tone:
+                            kpi.unpjumCompletedReports > 0 ? "amber" : "green",
+                    },
+                ]}
             />
-            <MetricCard
-                title="Total Realisasi"
-                value={formatShortRp(kpi.totalRealisasi)}
-                description={`Rata-rata ${formatRp(kpi.avgRealisasi)} per laporan selesai`}
+            <GroupedKpiCard
+                title="Realisasi & PJUM"
                 icon={CircleDollarSign}
-                tone="slate"
                 href="/dashboard/realisasi"
-            />
-            <MetricCard
-                title="PJUM Tahun Ini"
-                value={formatNumber(pjum.total)}
-                description={`${pjum.pending} pending, ${pjum.approved} approved, ${pjum.rejected} rejected`}
-                icon={Banknote}
-                tone="blue"
-                href="/dashboard/pjum"
-            />
-            <MetricCard
-                title="Completed Belum PJUM"
-                value={formatNumber(kpi.unpjumCompletedReports)}
-                description="Laporan selesai yang belum masuk rekap PJUM"
-                icon={ListChecks}
-                tone={kpi.unpjumCompletedReports > 0 ? "amber" : "green"}
-                href="/dashboard/reports?status=COMPLETED&pjumStatus=not_exported"
-            />
-            <MetricCard
-                title="User Aktif"
-                value={formatNumber(kpi.activeUsers)}
-                description="Terlihat aktif 5 menit terakhir"
-                icon={Users}
-                tone="slate"
-                href="/dashboard/activity/online"
+                value={formatShortRp(kpi.totalRealisasi)}
+                helper={`Rata-rata ${formatRp(kpi.avgRealisasi)} per laporan selesai`}
+                rows={[
+                    {
+                        label: "PJUM tahun ini",
+                        value: formatNumber(pjum.total),
+                        href: "/dashboard/pjum",
+                        tone: "blue",
+                    },
+                    {
+                        label: "PJUM disetujui",
+                        value: formatNumber(pjum.approved),
+                        href: "/dashboard/pjum?status=APPROVED",
+                        tone: "green",
+                    },
+                    {
+                        label: "Review PJUM",
+                        value: formatNumber(pjum.pending),
+                        href: "/dashboard/pjum?status=PENDING_APPROVAL",
+                        tone: pjum.pending > 0 ? "amber" : "slate",
+                    },
+                ]}
             />
         </div>
     );
 }
 
-function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
-    const visibleStatus = status.filter((item) => item.status !== "COMPLETED");
-    const statusColumns = Math.max(visibleStatus.length, 1);
+type GroupedKpiRow = {
+    label: string;
+    value: string;
+    href?: string;
+    tone?: "blue" | "green" | "amber" | "red" | "slate";
+};
+
+const groupedKpiToneClass: Record<
+    NonNullable<GroupedKpiRow["tone"]>,
+    string
+> = {
+    blue: "text-sky-700",
+    green: "text-emerald-700",
+    amber: "text-amber-700",
+    red: "text-red-700",
+    slate: "text-slate-700",
+};
+
+function GroupedKpiCard({
+    title,
+    icon: Icon,
+    value,
+    helper,
+    href,
+    rows,
+    progress,
+}: {
+    title: string;
+    icon: React.ElementType;
+    value: string;
+    helper: string;
+    href: string;
+    rows: GroupedKpiRow[];
+    progress?: number;
+}) {
     return (
-        <div
-            className="grid w-full gap-3"
-            style={{
-                gridTemplateColumns: `repeat(${statusColumns}, minmax(0, 1fr))`,
-            }}
-        >
-            {visibleStatus.map((item) => (
-                <Link
-                    key={item.status}
-                    href={`/dashboard/reports?status=${item.status}`}
-                    className="group block h-full w-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                    aria-label={`Buka laporan status ${item.label}`}
-                >
-                    <div className="flex h-24 w-full flex-col justify-between rounded-lg border bg-card p-3 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:bg-muted/30 hover:shadow-sm">
-                        <span className="line-clamp-2 text-xs leading-tight text-muted-foreground">
-                            {item.label}
-                        </span>
-                        <div className="flex items-end justify-between gap-2">
-                            <span className="font-mono text-3xl font-semibold leading-none">
-                                {formatNumber(item.count)}
-                            </span>
-                            <ArrowUpRight className="h-3.5 w-3.5 text-primary opacity-70 transition-opacity group-hover:opacity-100" />
-                        </div>
+        <section className="flex h-full flex-col rounded-lg border bg-background p-4 shadow-sm">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Icon className="h-4 w-4" />
+                        {title}
                     </div>
-                </Link>
-            ))}
+                    <Link
+                        href={href}
+                        className="mt-2 inline-flex items-center gap-2 text-3xl font-semibold tracking-tight text-foreground underline-offset-4 hover:text-primary hover:underline"
+                    >
+                        {value}
+                        <ArrowUpRight className="h-4 w-4" />
+                    </Link>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {helper}
+                    </p>
+                </div>
+            </div>
+
+            <div className="mt-4 h-2">
+                {typeof progress === "number" ? (
+                    <Progress value={progress} />
+                ) : null}
+            </div>
+
+            <div className="mt-auto grid grid-cols-3 gap-3 border-t pt-4">
+                {rows.map((row) => (
+                    <KpiSubMetric key={row.label} row={row} />
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function KpiSubMetric({ row }: { row: GroupedKpiRow }) {
+    const tone = groupedKpiToneClass[row.tone ?? "slate"];
+    const content = (
+        <div className="min-w-0">
+            <div className="truncate text-xs text-muted-foreground">
+                {row.label}
+            </div>
+            <div
+                className={`mt-1 inline-flex items-center gap-1 text-xl font-semibold leading-none ${tone}`}
+            >
+                {row.value}
+                {row.href ? (
+                    <ArrowUpRight className="h-3 w-3 text-primary" />
+                ) : null}
+            </div>
+        </div>
+    );
+
+    if (!row.href) return content;
+
+    return (
+        <Link href={row.href} className="rounded-md hover:bg-muted/40">
+            {content}
+        </Link>
+    );
+}
+
+const SLA_STATUS_GUIDE = [
+    {
+        status: "PENDING_ESTIMATION",
+        days: 1,
+        note: "BMC harus mulai review estimasi.",
+    },
+    {
+        status: "ESTIMATION_APPROVED",
+        days: 3,
+        note: "BMS mulai kerja setelah estimasi disetujui.",
+    },
+    {
+        status: "ESTIMATION_REJECTED_REVISION",
+        days: 2,
+        note: "BMS memperbaiki estimasi yang dikembalikan.",
+    },
+    {
+        status: "IN_PROGRESS",
+        days: 7,
+        note: "BMS menyelesaikan pekerjaan.",
+    },
+    {
+        status: "PENDING_REVIEW",
+        days: 1,
+        note: "BMC review hasil pekerjaan.",
+    },
+    {
+        status: "APPROVED_BMC",
+        days: 1,
+        note: "BNM melakukan approval final.",
+    },
+    {
+        status: "REVIEW_REJECTED_REVISION",
+        days: 2,
+        note: "BMS memperbaiki hasil pekerjaan.",
+    },
+] as const;
+
+function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
+    const visibleStatus = status.filter((item) => item.slaDays !== null);
+    const totalActive = visibleStatus.reduce(
+        (sum, item) => sum + item.count,
+        0,
+    );
+    const totalOverdue = visibleStatus.reduce(
+        (sum, item) => sum + item.overdueCount,
+        0,
+    );
+    const safeCount = Math.max(totalActive - totalOverdue, 0);
+    const safeRate =
+        totalActive > 0 ? Math.round((safeCount / totalActive) * 100) : 100;
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                <div>
+                    <div className="text-sm text-muted-foreground">
+                        Laporan aktif
+                    </div>
+                    <div className="mt-1 text-3xl font-semibold tracking-tight">
+                        {formatNumber(totalActive)}
+                    </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge
+                        variant="outline"
+                        className={
+                            totalOverdue > 0
+                                ? "border-red-200 bg-red-50 text-red-700"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        }
+                    >
+                        {totalOverdue > 0
+                            ? `${formatNumber(totalOverdue)} lewat SLA`
+                            : "SLA aman"}
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+                {visibleStatus.map((item) => (
+                    <span
+                        key={item.status}
+                        className={getStatusSegmentClass(item.status)}
+                        style={{
+                            width: `${Math.max(
+                                3,
+                                totalActive > 0
+                                    ? (item.count / totalActive) * 100
+                                    : 0,
+                            )}%`,
+                        }}
+                    />
+                ))}
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border">
+                <Table className="text-xs">
+                    <TableHeader className="bg-muted/40">
+                        <TableRow>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="w-24 text-right">
+                                Jumlah
+                            </TableHead>
+                            <TableHead className="w-20 text-right">%</TableHead>
+                            <TableHead className="w-36 text-right">
+                                Kondisi SLA
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {visibleStatus.map((item) => {
+                            const percentage =
+                                totalActive > 0
+                                    ? Math.round(
+                                          (item.count / totalActive) * 100,
+                                      )
+                                    : 0;
+
+                            return (
+                                <TableRow key={item.status}>
+                                    <TableCell>
+                                        <Link
+                                            href={`/dashboard/reports?status=${item.status}`}
+                                            className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
+                                        >
+                                            <span
+                                                className={`h-2.5 w-2.5 rounded-full ${getStatusSegmentClass(
+                                                    item.status,
+                                                )}`}
+                                            />
+                                            {item.label}
+                                            <ArrowUpRight className="h-3 w-3" />
+                                        </Link>
+                                    </TableCell>
+                                    <TableCell className="text-right font-mono font-semibold">
+                                        {formatNumber(item.count)}
+                                    </TableCell>
+                                    <TableCell className="text-right text-muted-foreground">
+                                        {percentage}%
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Badge
+                                            variant="outline"
+                                            className={
+                                                item.overdueCount > 0
+                                                    ? "border-red-200 bg-red-50 text-red-700"
+                                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                            }
+                                        >
+                                            {item.overdueCount > 0
+                                                ? `${formatNumber(item.overdueCount)} lewat batas`
+                                                : `Batas ${item.slaDays} hari`}
+                                        </Badge>
+                                    </TableCell>
+                                </TableRow>
+                            );
+                        })}
+                    </TableBody>
+                    <TableFooter>
+                        <TableRow>
+                            <TableCell>Total</TableCell>
+                            <TableCell className="text-right font-mono font-semibold">
+                                {formatNumber(totalActive)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                                100%
+                            </TableCell>
+                            <TableCell className="text-right">
+                                <Badge
+                                    variant="outline"
+                                    className={
+                                        totalOverdue > 0
+                                            ? "border-red-200 bg-red-50 text-red-700"
+                                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                    }
+                                >
+                                    {totalOverdue > 0
+                                        ? `${formatNumber(totalOverdue)} lewat batas`
+                                        : "SLA aman"}
+                                </Badge>
+                            </TableCell>
+                        </TableRow>
+                    </TableFooter>
+                </Table>
+            </div>
+
             {visibleStatus.length === 0 && (
-                <div className="col-span-full flex min-h-24 items-center rounded-lg border bg-card p-3 text-xs text-muted-foreground">
-                    Belum ada laporan non-draft.
+                <div className="flex min-h-24 items-center rounded-lg border bg-card p-3 text-xs text-muted-foreground">
+                    Belum ada laporan aktif dengan SLA.
                 </div>
             )}
         </div>
     );
+}
+
+function SlaStatusGuide({ status }: { status: AdminStatusDatum[] }) {
+    const statusMap = new Map(status.map((item) => [item.status, item]));
+
+    return (
+        <aside className="rounded-lg border bg-background p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-sm font-semibold">
+                        Batas SLA per status
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Patokan ini membantu user melihat siapa yang perlu
+                        follow up.
+                    </p>
+                </div>
+                <Clock3 className="h-4 w-4 text-primary" />
+            </div>
+
+            <div className="mt-3 space-y-2">
+                {SLA_STATUS_GUIDE.map((guide) => {
+                    const current = statusMap.get(guide.status);
+                    return (
+                        <div
+                            key={guide.status}
+                            className="rounded-md border bg-muted/20 p-2"
+                        >
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex min-w-0 items-center gap-2">
+                                    <span
+                                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${getStatusSegmentClass(
+                                            guide.status,
+                                        )}`}
+                                    />
+                                    <span className="truncate text-xs font-medium">
+                                        {REPORT_STATUS_LABELS[guide.status]}
+                                    </span>
+                                </div>
+                                <Badge
+                                    variant="outline"
+                                    className="shrink-0 bg-background"
+                                >
+                                    {guide.days} hari
+                                </Badge>
+                            </div>
+                            <div className="mt-1 flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+                                <span className="line-clamp-1">
+                                    {guide.note}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </aside>
+    );
+}
+
+function getStatusSegmentClass(status: string) {
+    const map: Record<string, string> = {
+        PENDING_ESTIMATION: "bg-yellow-400",
+        ESTIMATION_APPROVED: "bg-emerald-500",
+        ESTIMATION_REJECTED_REVISION: "bg-orange-500",
+        IN_PROGRESS: "bg-blue-500",
+        PENDING_REVIEW: "bg-violet-500",
+        APPROVED_BMC: "bg-cyan-500",
+        REVIEW_REJECTED_REVISION: "bg-orange-600",
+    };
+
+    return map[status] ?? "bg-slate-400";
 }
 
 const ACTIVITY_LABELS: Record<string, string> = {
@@ -391,9 +686,10 @@ function AdminRecentActivityCard({
                                     <TableCell>
                                         <Link
                                             href={`/dashboard/reports/${activity.reportNumber}`}
-                                            className="font-mono font-medium text-primary hover:underline"
+                                            className="font-mono text-xs font-medium text-primary hover:underline flex items-center gap-1 group"
                                         >
                                             {activity.reportNumber}
+                                            <ArrowUpRight className="h-3 w-3 " />
                                         </Link>
                                         <p className="text-muted-foreground">
                                             {activity.report.storeName || "-"}
@@ -436,7 +732,7 @@ function BranchPerformanceTable({
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/dashboard/reports">
+                        <Link href="/dashboard/branches">
                             Detail
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -459,7 +755,13 @@ function BranchPerformanceTable({
                         {branches.map((branch) => (
                             <TableRow key={branch.branchName}>
                                 <TableCell className="font-medium">
-                                    {branch.branchName}
+                                    <Link
+                                        href={`/dashboard/branches/${branch.branchName}`}
+                                        className="text-primary hover:underline flex items-center gap-1 group"
+                                    >
+                                        {branch.branchName}
+                                        <ArrowUpRight className="h-3 w-3 " />
+                                    </Link>
                                 </TableCell>
                                 <TableCell>
                                     {formatNumber(branch.totalReports)}
@@ -548,9 +850,10 @@ function AttentionTable({
                                     <TableCell>
                                         <Link
                                             href={`/dashboard/reports/${report.reportNumber}`}
-                                            className="font-mono text-xs font-medium text-primary hover:underline"
+                                            className="font-mono text-xs font-medium text-primary hover:underline flex items-center gap-1 group"
                                         >
                                             {report.reportNumber}
+                                            <ArrowUpRight className="h-3 w-3 " />
                                         </Link>
                                         <p className="text-xs text-muted-foreground">
                                             {report.storeName ||
@@ -559,7 +862,15 @@ function AttentionTable({
                                     </TableCell>
                                     <TableCell>{report.branchName}</TableCell>
                                     <TableCell>
-                                        <Badge variant="outline">
+                                        <Badge
+                                            variant="secondary"
+                                            className={cn(
+                                                "h-5 text-[11px]",
+                                                getReportStatusBadgeClass(
+                                                    report.status,
+                                                ),
+                                            )}
+                                        >
                                             {report.statusLabel}
                                         </Badge>
                                     </TableCell>
@@ -600,19 +911,21 @@ export async function AdminNewDashboard({
             <DashboardHeader kpi={data.kpi} />
             <KpiGrid kpi={data.kpi} pjum={data.pjum} />
 
-            <Card>
-                <CardHeader>
+            <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+                <div className="space-y-4">
                     <div>
-                        <CardTitle>Distribusi Status</CardTitle>
-                        <CardDescription>
-                            KPI komposisi status laporan tahun berjalan
-                        </CardDescription>
+                        <h2 className="text-lg font-semibold tracking-tight">
+                            Distribusi Status &amp; SLA
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                            Komposisi laporan aktif dan status yang melewati
+                            batas waktu operasional.
+                        </p>
                     </div>
-                </CardHeader>
-                <CardContent>
                     <StatusDistributionKpis status={data.status} />
-                </CardContent>
-            </Card>
+                </div>
+                <SlaStatusGuide status={data.status} />
+            </section>
 
             <Card>
                 <CardHeader>
@@ -643,4 +956,3 @@ export async function AdminNewDashboard({
         </AdminDashboardShell>
     );
 }
-

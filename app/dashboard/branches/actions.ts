@@ -99,6 +99,11 @@ type CompletedRow = CountRow & {
     _sum: { totalReal: Prisma.Decimal | null };
 };
 
+type BranchActivityRow = {
+    branchName: string;
+    lastActivityAt: Date;
+};
+
 type UserRoleCountRow = {
     branchName: string | null;
     role: string;
@@ -227,7 +232,12 @@ async function getAdminBranchOverview(
             where: {
                 branchName,
                 status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
-                updatedAt: { lt: stuckThreshold },
+                createdAt: { lt: stuckThreshold },
+                activities: {
+                    none: {
+                        createdAt: { gte: stuckThreshold },
+                    },
+                },
             },
         }),
         prisma.report.count({
@@ -237,13 +247,10 @@ async function getAdminBranchOverview(
                 pjumExportedAt: null,
             },
         }),
-        prisma.report.groupBy({
-            by: ["branchName"],
-            where: {
-                branchName,
-                status: { not: "DRAFT" },
-            },
-            _max: { updatedAt: true },
+        prisma.activityLog.findFirst({
+            where: { report: { branchName, status: { not: "DRAFT" } } },
+            orderBy: { createdAt: "desc" },
+            select: { createdAt: true },
         }),
     ]);
 
@@ -281,7 +288,7 @@ async function getAdminBranchOverview(
             completedCount > 0
                 ? Math.round(totalRealisasi / completedCount)
                 : 0,
-        lastActivityAt: lastActivityRows[0]?._max.updatedAt ?? null,
+        lastActivityAt: lastActivityRows?.createdAt ?? null,
     };
 }
 
@@ -366,7 +373,12 @@ export async function getAdminBranchesData(
                 where: {
                     branchName: { in: branchNames },
                     status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
-                    updatedAt: { lt: stuckThreshold },
+                    createdAt: { lt: stuckThreshold },
+                    activities: {
+                        none: {
+                            createdAt: { gte: stuckThreshold },
+                        },
+                    },
                 },
                 _count: { _all: true },
             }),
@@ -379,14 +391,16 @@ export async function getAdminBranchesData(
                 },
                 _count: { _all: true },
             }),
-            prisma.report.groupBy({
-                by: ["branchName"],
-                where: {
-                    branchName: { in: branchNames },
-                    status: { not: "DRAFT" },
-                },
-                _max: { updatedAt: true },
-            }),
+            prisma.$queryRaw<BranchActivityRow[]>`
+                SELECT
+                    r."branchName" AS "branchName",
+                    MAX(a."createdAt") AS "lastActivityAt"
+                FROM "ActivityLog" a
+                INNER JOIN "Report" r ON r."reportNumber" = a."reportNumber"
+                WHERE r."branchName" = ANY(${branchNames}::text[])
+                  AND r."status" <> 'DRAFT'::"ReportStatus"
+                GROUP BY r."branchName"
+            `,
         ]);
 
         const storeMap = mapCountRows(storeRows);
@@ -426,7 +440,7 @@ export async function getAdminBranchesData(
         const activityMap = new Map(
             lastActivityRows.map((row) => [
                 row.branchName,
-                row._max.updatedAt,
+                row.lastActivityAt,
             ]),
         );
 
@@ -522,16 +536,19 @@ function mapReportItem(report: {
     updatedAt: Date;
     finishedAt: Date | null;
     totalReal: Prisma.Decimal | null;
+    activities?: { createdAt: Date }[];
 }): AdminBranchReportItem {
+    const lastActivityAt = report.activities?.[0]?.createdAt ?? report.updatedAt;
+
     return {
         reportNumber: report.reportNumber,
         storeName: report.storeName,
         status: report.status,
         statusLabel: getReportStatusLabel(report.status),
-        updatedAt: report.updatedAt,
+        updatedAt: lastActivityAt,
         finishedAt: report.finishedAt,
         totalReal: report.totalReal === null ? null : Number(report.totalReal),
-        ageDays: calculateAgeDays(report.updatedAt),
+        ageDays: calculateAgeDays(lastActivityAt),
     };
 }
 
@@ -583,7 +600,12 @@ export async function getAdminBranchDetail(
             where: {
                 branchName,
                 status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
-                updatedAt: { lt: stuckThreshold },
+                createdAt: { lt: stuckThreshold },
+                activities: {
+                    none: {
+                        createdAt: { gte: stuckThreshold },
+                    },
+                },
             },
             orderBy: [{ updatedAt: "asc" }],
             take: 8,
@@ -594,6 +616,11 @@ export async function getAdminBranchDetail(
                 updatedAt: true,
                 finishedAt: true,
                 totalReal: true,
+                activities: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { createdAt: true },
+                },
             },
         }),
         prisma.report.findMany({

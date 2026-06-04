@@ -294,7 +294,7 @@ export function AdminActivityTable({
                 <SummaryCard
                     title="User Aktif"
                     value={summary.activeUsers}
-                    description="User yang terlihat online saat ini"
+                    description="User yang aktif hari ini"
                     icon={UserRound}
                     href="/dashboard/activity/online"
                 />

@@ -50,8 +50,6 @@ export async function submitCompletion(reportNumber: string, notes?: string) {
                 where: { reportNumber },
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
-                    // Tanggal selesai diisi saat BMS submit penyelesaian.
-                    finishedAt: new Date(),
                 },
             }),
             prisma.activityLog.create({

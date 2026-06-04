@@ -28,6 +28,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import {
+    createFilter,
     Filters,
     type Filter,
     type FilterFieldConfig,
@@ -60,12 +61,14 @@ export function AdminPjumTable({
     initialNextCursor,
     initialTotalCount,
     initialSummary,
+    initialFilters,
     branches,
 }: {
     initialData: PjumRow[];
     initialNextCursor: string | null;
     initialTotalCount: number;
     initialSummary: PjumSummary;
+    initialFilters?: AdminPjumFilters;
     branches: string[];
 }) {
     const [pjums, setPjums] = useState<PjumRow[]>(initialData);
@@ -77,7 +80,20 @@ export function AdminPjumTable({
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [search, setSearch] = useState("");
-    const [activeFilters, setActiveFilters] = useState<Filter<string>[]>([]);
+    const [activeFilters, setActiveFilters] = useState<Filter<string>[]>(() =>
+        [
+            initialFilters?.status && initialFilters.status !== "all"
+                ? createFilter<string>("status", "is", [
+                      initialFilters.status,
+                  ])
+                : null,
+            initialFilters?.branchName && initialFilters.branchName !== "all"
+                ? createFilter<string>("branchName", "is", [
+                      initialFilters.branchName,
+                  ])
+                : null,
+        ].filter((filter): filter is Filter<string> => filter !== null),
+    );
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);

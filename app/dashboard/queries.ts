@@ -2,7 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
-import { getOnlineUsers } from "@/lib/presence";
+import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { getReportStatusLabel } from "@/lib/report-status";
 
 /**
@@ -453,6 +453,7 @@ export async function getAdminVisibleOnlineUserCount(): Promise<number> {
 export type AdminKpiMetric = {
     totalReports: number;
     completedReports: number;
+    activeReports: number;
     inProgressReports: number;
     pendingReviewReports: number;
     revisionReports: number;
@@ -468,6 +469,8 @@ export type AdminStatusDatum = {
     status: string;
     label: string;
     count: number;
+    slaDays: number | null;
+    overdueCount: number;
 };
 
 export type AdminTrendDatum = {
@@ -563,6 +566,16 @@ const ADMIN_STATUS_ORDER = [
     "ESTIMATION_REJECTED",
     "COMPLETED",
 ];
+
+const ADMIN_STATUS_SLA_DAYS: Partial<Record<string, number>> = {
+    PENDING_ESTIMATION: 1,
+    ESTIMATION_APPROVED: 3,
+    ESTIMATION_REJECTED_REVISION: 2,
+    IN_PROGRESS: 7,
+    PENDING_REVIEW: 1,
+    APPROVED_BMC: 1,
+    REVIEW_REJECTED_REVISION: 2,
+};
 
 function getMonthKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -710,6 +723,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
         kpi: {
             totalReports: 0,
             completedReports: 0,
+            activeReports: 0,
             inProgressReports: 0,
             pendingReviewReports: 0,
             revisionReports: 0,
@@ -769,6 +783,27 @@ export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
     };
 }
 
+export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
+    try {
+        const activeUserIds = await getTodayActiveUsers();
+        if (activeUserIds.length === 0) return 0;
+
+        return await prisma.user.count({
+            where: {
+                NIK: { in: activeUserIds },
+                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+            },
+        });
+    } catch (error) {
+        logger.error(
+            { operation: "getAdminVisibleTodayActiveUserCount" },
+            "Failed",
+            error,
+        );
+        return 0;
+    }
+}
+
 export async function getAdminBranchOptions(): Promise<AdminBranchOption[]> {
     const hierarchy = await getAdminBranchHierarchy();
     return hierarchy.options;
@@ -800,11 +835,45 @@ async function getAdminStatusDistribution(
     const statusCountMap = new Map(
         statusRows.map((r) => [r.status, r._count._all]),
     );
+    const now = new Date();
+    const slaEntries = Object.entries(ADMIN_STATUS_SLA_DAYS) as [
+        string,
+        number,
+    ][];
+    const overdueEntries = await Promise.all(
+        slaEntries.map(async ([status, days]) => {
+            const threshold = new Date(now);
+            threshold.setDate(threshold.getDate() - days);
+            const createdBefore =
+                window.end && window.end < threshold ? window.end : threshold;
+
+            const count = await prisma.report.count({
+                where: {
+                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                    status: status as never,
+                    createdAt: {
+                        gte: window.start,
+                        lt: createdBefore,
+                    },
+                    activities: {
+                        none: {
+                            createdAt: { gte: threshold },
+                        },
+                    },
+                },
+            });
+
+            return [status, count] as const;
+        }),
+    );
+    const overdueCountMap = new Map(overdueEntries);
 
     return ADMIN_STATUS_ORDER.map((statusKey) => ({
         status: statusKey,
         label: ADMIN_STATUS_LABELS[statusKey] ?? statusKey,
         count: statusCountMap.get(statusKey as never) ?? 0,
+        slaDays: ADMIN_STATUS_SLA_DAYS[statusKey] ?? null,
+        overdueCount: overdueCountMap.get(statusKey) ?? 0,
     })).filter((item) => item.count > 0);
 }
 
@@ -919,6 +988,8 @@ async function getAdminKpiMetric(
     return {
         totalReports,
         completedReports,
+        activeReports:
+            inProgressReports + pendingReviewReports + revisionReports,
         inProgressReports,
         pendingReviewReports,
         revisionReports,
@@ -1096,8 +1167,11 @@ function mapAdminAttentionReport(report: {
     status: string;
     createdAt: Date;
     updatedAt: Date;
+    activities: { createdAt: Date }[];
     createdBy: { name: string };
 }): AdminAttentionReport {
+    const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
+
     return {
         reportNumber: report.reportNumber,
         storeName: report.storeName,
@@ -1105,8 +1179,8 @@ function mapAdminAttentionReport(report: {
         status: report.status,
         statusLabel: ADMIN_STATUS_LABELS[report.status] ?? report.status,
         createdAt: report.createdAt,
-        updatedAt: report.updatedAt,
-        ageDays: calculateAgeDays(report.updatedAt),
+        updatedAt: lastActivityAt,
+        ageDays: calculateAgeDays(lastActivityAt),
         ownerName: report.createdBy.name,
     };
 }
@@ -1129,7 +1203,12 @@ async function getAdminStuckReports(): Promise<AdminAttentionReport[]> {
                     "REVIEW_REJECTED_REVISION",
                 ],
             },
-            updatedAt: { lt: threshold },
+            createdAt: { lt: threshold },
+            activities: {
+                none: {
+                    createdAt: { gte: threshold },
+                },
+            },
         },
         orderBy: [{ updatedAt: "asc" }],
         take: 8,
@@ -1141,6 +1220,11 @@ async function getAdminStuckReports(): Promise<AdminAttentionReport[]> {
             createdAt: true,
             updatedAt: true,
             createdBy: { select: { name: true } },
+            activities: {
+                orderBy: { createdAt: "desc" },
+                take: 1,
+                select: { createdAt: true },
+            },
         },
     });
 
@@ -1160,7 +1244,7 @@ export async function getAdminCommandCenterData(
     try {
         const [activeUsers, hierarchy, status, pjum, recentActivity] =
             await Promise.all([
-            getAdminVisibleOnlineUserCount(),
+            getAdminVisibleTodayActiveUserCount(),
             getAdminBranchHierarchy(),
             getAdminStatusDistribution(trendWindow),
             getAdminPjumSummary(trendWindow),

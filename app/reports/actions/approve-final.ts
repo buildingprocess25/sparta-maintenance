@@ -70,6 +70,7 @@ export async function approveFinal(
             decision === "approve"
                 ? "FINAL_APPROVED_BNM"
                 : "FINAL_REJECTED_REVISION_BNM";
+        const decisionAt = new Date();
 
         await prisma.$transaction([
             prisma.report.update({
@@ -77,7 +78,7 @@ export async function approveFinal(
                 data: {
                     status: newStatus,
                     ...(decision === "approve" &&
-                        !report.finishedAt && { finishedAt: new Date() }),
+                        { finishedAt: decisionAt }),
                 },
             }),
             prisma.approvalLog.create({
@@ -86,6 +87,7 @@ export async function approveFinal(
                     approverNIK: user.NIK,
                     status: newStatus,
                     notes: logNote,
+                    createdAt: decisionAt,
                 },
             }),
             prisma.activityLog.create({
@@ -94,6 +96,7 @@ export async function approveFinal(
                     actorNIK: user.NIK,
                     action: activityAction as never,
                     notes: logNote,
+                    createdAt: decisionAt,
                 },
             }),
         ]);

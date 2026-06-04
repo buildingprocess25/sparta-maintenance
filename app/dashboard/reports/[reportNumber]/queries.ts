@@ -92,6 +92,11 @@ export async function getAdminReportDetail(
 
     if (!report) return null;
 
+    const latestActivity =
+        report.activities.length > 0
+            ? report.activities[report.activities.length - 1]
+            : null;
+
     const pjumExport = await prisma.pjumExport.findFirst({
         where: { reportNumbers: { has: report.reportNumber } },
         orderBy: { updatedAt: "desc" },
@@ -118,6 +123,7 @@ export async function getAdminReportDetail(
             report.totalReal === null ? null : toNumber(report.totalReal),
         createdAt: toIso(report.createdAt),
         updatedAt: toIso(report.updatedAt),
+        lastActivityAt: toIso(latestActivity?.createdAt ?? report.createdAt),
         finishedAt: toNullableIso(report.finishedAt),
         pjumExportedAt: toNullableIso(report.pjumExportedAt),
         submittedBy: {
