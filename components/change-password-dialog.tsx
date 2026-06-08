@@ -26,12 +26,24 @@ export interface ChangePasswordDialogProps {
     variant?: "default" | "outline";
     menuTitle?: string;
     iconNode?: React.ReactNode;
+    trigger?: React.ReactNode | null;
+    open?: boolean;
+    onOpenChange?: (open: boolean) => void;
 }
 
-export function ChangePasswordDialog({ variant = "outline", menuTitle = "Ganti Password", iconNode }: ChangePasswordDialogProps) {
-    const [open, setOpen] = useState(false);
+export function ChangePasswordDialog({
+    variant = "outline",
+    menuTitle = "Ganti Password",
+    iconNode,
+    trigger,
+    open,
+    onOpenChange,
+}: ChangePasswordDialogProps) {
+    const [internalOpen, setInternalOpen] = useState(false);
     const [showNewPassword, setShowNewPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const dialogOpen = open ?? internalOpen;
+    const setDialogOpen = onOpenChange ?? setInternalOpen;
 
     const [state, formAction, isPending] = useActionState(
         changePasswordAction,
@@ -39,13 +51,17 @@ export function ChangePasswordDialog({ variant = "outline", menuTitle = "Ganti P
     );
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-                <Button variant={variant} className="w-full justify-start gap-2 h-auto text-left py-2.5">
-                    {iconNode}
-                    <span className="whitespace-normal leading-snug">{menuTitle}</span>
-                </Button>
-            </DialogTrigger>
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            {trigger !== null ? (
+                <DialogTrigger asChild>
+                    {trigger ?? (
+                        <Button variant={variant} className="w-full justify-start gap-2 h-auto text-left py-2.5">
+                            {iconNode}
+                            <span className="whitespace-normal leading-snug">{menuTitle}</span>
+                        </Button>
+                    )}
+                </DialogTrigger>
+            ) : null}
             <DialogContent className="sm:max-w-md" showCloseButton={false}>
                 <DialogHeader>
                     <div className="flex justify-center mb-2 mt-2">
@@ -140,7 +156,7 @@ export function ChangePasswordDialog({ variant = "outline", menuTitle = "Ganti P
                     )}
 
                     <div className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
-                        <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
+                        <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={isPending}>
                             Batal
                         </Button>
                         <Button type="submit" disabled={isPending}>

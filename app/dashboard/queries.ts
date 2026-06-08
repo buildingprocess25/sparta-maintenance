@@ -4,6 +4,7 @@ import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { getReportSlaDays } from "@/lib/app-settings";
 
 /**
  * Fetch report statistics for a BMS user (their own reports, all time).
@@ -191,6 +192,286 @@ export async function getPendingPjumCount(
             error,
         );
         return 0;
+    }
+}
+
+const MANAGER_ACTIVE_REPORT_STATUSES = [
+    "PENDING_ESTIMATION",
+    "ESTIMATION_APPROVED",
+    "ESTIMATION_REJECTED_REVISION",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "APPROVED_BMC",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+export type ManagerDashboardRole = "BMC" | "BNM_MANAGER";
+
+export type ManagerDashboardReport = {
+    reportNumber: string;
+    storeName: string;
+    branchName: string;
+    status: string;
+    statusLabel: string;
+    createdAt: Date;
+    lastActivityAt: Date;
+    ownerName: string;
+    totalEstimation: number;
+    totalReal: number | null;
+    ageDays: number;
+};
+
+export type ManagerDashboardPjum = {
+    id: string;
+    weekNumber: number;
+    branchName: string;
+    bmsNIK: string;
+    bmsName: string;
+    reportCount: number;
+    status: string;
+    createdAt: Date;
+};
+
+export type ManagerDashboardData = {
+    branchNames: string[];
+    kpi: {
+        totalReports: number;
+        activeReports: number;
+        pendingReports: number;
+        completedReports: number;
+        completionRate: number;
+        pendingPjum: number;
+        approvedPjumReportCount: number;
+        totalRealisasi: number;
+    };
+    priorityReports: ManagerDashboardReport[];
+    pendingPjums: ManagerDashboardPjum[];
+    recentActivity: ActivityItem[];
+};
+
+function getManagerPriorityStatuses(role: ManagerDashboardRole) {
+    if (role === "BNM_MANAGER") {
+        return ["APPROVED_BMC"] as const;
+    }
+
+    return ["PENDING_ESTIMATION", "PENDING_REVIEW"] as const;
+}
+
+function normalizeManagerBranchNames(branchNames: string[]) {
+    return branchNames.filter(
+        (branchName) => branchName.trim() !== "",
+    );
+}
+
+function mapManagerReport(report: {
+    reportNumber: string;
+    storeName: string;
+    branchName: string;
+    status: string;
+    createdAt: Date;
+    totalEstimation: unknown;
+    totalReal: unknown | null;
+    createdBy: { name: string };
+    activities: { createdAt: Date }[];
+}): ManagerDashboardReport {
+    const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
+
+    return {
+        reportNumber: report.reportNumber,
+        storeName: report.storeName,
+        branchName: report.branchName,
+        status: report.status,
+        statusLabel: getReportStatusLabel(report.status),
+        createdAt: report.createdAt,
+        lastActivityAt,
+        ownerName: report.createdBy.name,
+        totalEstimation: Number(report.totalEstimation ?? 0),
+        totalReal: report.totalReal === null ? null : Number(report.totalReal),
+        ageDays: calculateAgeDays(lastActivityAt),
+    };
+}
+
+export async function getManagerDashboardData({
+    role,
+    branchNames,
+}: {
+    role: ManagerDashboardRole;
+    branchNames: string[];
+}): Promise<ManagerDashboardData> {
+    const visibleBranches = normalizeManagerBranchNames(branchNames);
+    const empty: ManagerDashboardData = {
+        branchNames: visibleBranches,
+        kpi: {
+            totalReports: 0,
+            activeReports: 0,
+            pendingReports: 0,
+            completedReports: 0,
+            completionRate: 0,
+            pendingPjum: 0,
+            approvedPjumReportCount: 0,
+            totalRealisasi: 0,
+        },
+        priorityReports: [],
+        pendingPjums: [],
+        recentActivity: [],
+    };
+
+    if (visibleBranches.length === 0) return empty;
+
+    const priorityStatuses = getManagerPriorityStatuses(role);
+    const reportBase = {
+        branchName: { in: visibleBranches },
+        status: { not: "DRAFT" as const },
+    };
+    const completedBase = {
+        branchName: { in: visibleBranches },
+        status: "COMPLETED" as const,
+    };
+
+    try {
+        const [
+            totalReports,
+            activeReports,
+            pendingReports,
+            completedReports,
+            pendingPjum,
+            approvedPjumRows,
+            totalRealisasi,
+            priorityRows,
+            pendingPjumRows,
+            recentActivity,
+        ] = await Promise.all([
+            prisma.report.count({ where: reportBase }),
+            prisma.report.count({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: { in: [...MANAGER_ACTIVE_REPORT_STATUSES] },
+                },
+            }),
+            prisma.report.count({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: { in: [...priorityStatuses] },
+                },
+            }),
+            prisma.report.count({ where: completedBase }),
+            prisma.pjumExport.count({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: "PENDING_APPROVAL",
+                },
+            }),
+            prisma.pjumExport.findMany({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: "APPROVED",
+                },
+                select: {
+                    reportNumbers: true,
+                },
+            }),
+            prisma.report.aggregate({
+                where: {
+                    ...completedBase,
+                    totalReal: { not: null },
+                },
+                _sum: { totalReal: true },
+            }),
+            prisma.report.findMany({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: { in: [...priorityStatuses] },
+                },
+                orderBy: [{ updatedAt: "asc" }, { reportNumber: "desc" }],
+                take: 6,
+                select: {
+                    reportNumber: true,
+                    storeName: true,
+                    branchName: true,
+                    status: true,
+                    createdAt: true,
+                    totalEstimation: true,
+                    totalReal: true,
+                    createdBy: { select: { name: true } },
+                    activities: {
+                        orderBy: { createdAt: "desc" },
+                        take: 1,
+                        select: { createdAt: true },
+                    },
+                },
+            }),
+            prisma.pjumExport.findMany({
+                where: {
+                    branchName: { in: visibleBranches },
+                    status: "PENDING_APPROVAL",
+                },
+                orderBy: [{ createdAt: "asc" }, { id: "desc" }],
+                take: 5,
+                select: {
+                    id: true,
+                    weekNumber: true,
+                    branchName: true,
+                    bmsNIK: true,
+                    reportNumbers: true,
+                    status: true,
+                    createdAt: true,
+                },
+            }),
+            getBranchActivity(visibleBranches, 8),
+        ]);
+
+        const pjumBmsNiks = Array.from(
+            new Set(pendingPjumRows.map((pjum) => pjum.bmsNIK)),
+        );
+        const bmsUsers =
+            pjumBmsNiks.length > 0
+                ? await prisma.user.findMany({
+                      where: { NIK: { in: pjumBmsNiks } },
+                      select: { NIK: true, name: true },
+                  })
+                : [];
+        const bmsNameMap = new Map(
+            bmsUsers.map((user) => [user.NIK, user.name]),
+        );
+
+        return {
+            branchNames: visibleBranches,
+            kpi: {
+                totalReports,
+                activeReports,
+                pendingReports,
+                completedReports,
+                completionRate:
+                    totalReports > 0
+                        ? Math.round((completedReports / totalReports) * 100)
+                        : 0,
+                pendingPjum,
+                approvedPjumReportCount: approvedPjumRows.reduce(
+                    (sum, pjum) => sum + pjum.reportNumbers.length,
+                    0,
+                ),
+                totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+            },
+            priorityReports: priorityRows.map(mapManagerReport),
+            pendingPjums: pendingPjumRows.map((pjum) => ({
+                id: pjum.id,
+                weekNumber: pjum.weekNumber,
+                branchName: pjum.branchName,
+                bmsNIK: pjum.bmsNIK,
+                bmsName: bmsNameMap.get(pjum.bmsNIK) ?? pjum.bmsNIK,
+                reportCount: pjum.reportNumbers.length,
+                status: pjum.status,
+                createdAt: pjum.createdAt,
+            })),
+            recentActivity,
+        };
+    } catch (error) {
+        logger.error(
+            { operation: "getManagerDashboardData", role, branchNames },
+            "Failed to fetch manager dashboard data",
+            error,
+        );
+        return empty;
     }
 }
 
@@ -460,6 +741,7 @@ export type AdminKpiMetric = {
     completionRate: number;
     totalRealisasi: number;
     avgRealisasi: number;
+    avgBmsWeeklyRealisasi: number;
     activeUsers: number;
     unpjumCompletedReports: number;
     pendingPjum: number;
@@ -479,6 +761,7 @@ export type AdminTrendDatum = {
     completed: number;
     realisasi: number;
     avgRealisasi: number;
+    avgBmsWeeklyRealisasi: number;
 };
 
 export type AdminTrendPeriod = string;
@@ -566,16 +849,6 @@ const ADMIN_STATUS_ORDER = [
     "ESTIMATION_REJECTED",
     "COMPLETED",
 ];
-
-const ADMIN_STATUS_SLA_DAYS: Partial<Record<string, number>> = {
-    PENDING_ESTIMATION: 1,
-    ESTIMATION_APPROVED: 3,
-    ESTIMATION_REJECTED_REVISION: 2,
-    IN_PROGRESS: 7,
-    PENDING_REVIEW: 1,
-    APPROVED_BMC: 1,
-    REVIEW_REJECTED_REVISION: 2,
-};
 
 function getMonthKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
@@ -718,6 +991,26 @@ function calculateAgeDays(date: Date): number {
     return Math.max(0, Math.floor(diff / 86_400_000));
 }
 
+function getWeekKey(date: Date): string {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diffToMonday);
+    return d.toISOString().slice(0, 10);
+}
+
+function averageMapValues(map: Map<string, number>): number {
+    if (map.size === 0) return 0;
+
+    let total = 0;
+    for (const value of map.values()) {
+        total += value;
+    }
+
+    return Math.round(total / map.size);
+}
+
 function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
     return {
         kpi: {
@@ -730,6 +1023,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
             completionRate: 0,
             totalRealisasi: 0,
             avgRealisasi: 0,
+            avgBmsWeeklyRealisasi: 0,
             activeUsers: 0,
             unpjumCompletedReports: 0,
             pendingPjum: 0,
@@ -818,6 +1112,7 @@ function resolveAdminParentBranch(
 
 async function getAdminStatusDistribution(
     window: { start: Date; end?: Date },
+    slaDaysByStatus: Partial<Record<string, number>>,
 ): Promise<AdminStatusDatum[]> {
     const statusRows = await prisma.report.groupBy({
         by: ["status"],
@@ -836,7 +1131,7 @@ async function getAdminStatusDistribution(
         statusRows.map((r) => [r.status, r._count._all]),
     );
     const now = new Date();
-    const slaEntries = Object.entries(ADMIN_STATUS_SLA_DAYS) as [
+    const slaEntries = Object.entries(slaDaysByStatus) as [
         string,
         number,
     ][];
@@ -872,7 +1167,7 @@ async function getAdminStatusDistribution(
         status: statusKey,
         label: ADMIN_STATUS_LABELS[statusKey] ?? statusKey,
         count: statusCountMap.get(statusKey as never) ?? 0,
-        slaDays: ADMIN_STATUS_SLA_DAYS[statusKey] ?? null,
+        slaDays: slaDaysByStatus[statusKey] ?? null,
         overdueCount: overdueCountMap.get(statusKey) ?? 0,
     })).filter((item) => item.count > 0);
 }
@@ -933,6 +1228,7 @@ async function getAdminKpiMetric(
         unpjumCompletedReports,
         totalRealisasi,
         avgRealisasi,
+        bmsWeeklyRows,
     ] = await Promise.all([
         prisma.report.count({ where: baseWhere }),
         prisma.report.count({ where: completedWhere }),
@@ -983,7 +1279,30 @@ async function getAdminKpiMetric(
             },
             _avg: { totalReal: true },
         }),
+        prisma.report.findMany({
+            where: {
+                ...completedWhere,
+                pjumExportedAt: { not: null },
+                totalReal: { not: null },
+            },
+            select: {
+                createdByNIK: true,
+                finishedAt: true,
+                totalReal: true,
+            },
+        }),
     ]);
+
+    const bmsWeekTotals = new Map<string, number>();
+    for (const row of bmsWeeklyRows) {
+        if (!row.finishedAt) continue;
+
+        const key = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
+        bmsWeekTotals.set(
+            key,
+            (bmsWeekTotals.get(key) ?? 0) + Number(row.totalReal ?? 0),
+        );
+    }
 
     return {
         totalReports,
@@ -999,6 +1318,7 @@ async function getAdminKpiMetric(
                 : 0,
         totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
         avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
+        avgBmsWeeklyRealisasi: averageMapValues(bmsWeekTotals),
         activeUsers,
         unpjumCompletedReports,
         pendingPjum,
@@ -1113,8 +1433,7 @@ async function getAdminBranchTrend(
     hierarchy: AdminBranchHierarchy,
 ): Promise<AdminTrendDatum[]> {
     const trendWindow = getTrendWindow(period);
-    const trendRows = await prisma.report.groupBy({
-        by: ["branchName"],
+    const trendRows = await prisma.report.findMany({
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED",
@@ -1124,8 +1443,12 @@ async function getAdminBranchTrend(
                 ...(trendWindow.end ? { lt: trendWindow.end } : {})
             },
         },
-        _count: { _all: true },
-        _sum: { totalReal: true },
+        select: {
+            branchName: true,
+            totalReal: true,
+            finishedAt: true,
+            createdByNIK: true,
+        },
     });
 
     const trendMap = new Map(
@@ -1137,6 +1460,8 @@ async function getAdminBranchTrend(
                 completed: 0,
                 realisasi: 0,
                 avgRealisasi: 0,
+                avgBmsWeeklyRealisasi: 0,
+                bmsWeekTotals: new Map<string, number>(),
             },
         ]),
     );
@@ -1149,14 +1474,27 @@ async function getAdminBranchTrend(
         const current = trendMap.get(parentBranch);
         if (!current) continue;
 
-        current.completed += row._count._all;
-        current.realisasi += Number(row._sum.totalReal ?? 0);
+        const realisasi = Number(row.totalReal ?? 0);
+        current.completed += 1;
+        current.realisasi += realisasi;
+
+        if (row.finishedAt) {
+            const bmsWeekKey = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
+            current.bmsWeekTotals.set(
+                bmsWeekKey,
+                (current.bmsWeekTotals.get(bmsWeekKey) ?? 0) + realisasi,
+            );
+        }
     }
 
     return Array.from(trendMap.values()).map((row) => ({
-        ...row,
+        label: row.label,
+        branchName: row.branchName,
+        completed: row.completed,
+        realisasi: row.realisasi,
         avgRealisasi:
             row.completed > 0 ? Math.round(row.realisasi / row.completed) : 0,
+        avgBmsWeeklyRealisasi: averageMapValues(row.bmsWeekTotals),
     }));
 }
 
@@ -1185,30 +1523,32 @@ function mapAdminAttentionReport(report: {
     };
 }
 
-async function getAdminStuckReports(): Promise<AdminAttentionReport[]> {
-    const threshold = new Date();
-    threshold.setDate(threshold.getDate() - 7);
+async function getAdminStuckReports(
+    slaDaysByStatus: Partial<Record<string, number>>,
+): Promise<AdminAttentionReport[]> {
+    const now = new Date();
+    const slaEntries = Object.entries(slaDaysByStatus) as [
+        string,
+        number,
+    ][];
 
     const stuckReports = await prisma.report.findMany({
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: {
-                in: [
-                    "PENDING_ESTIMATION",
-                    "ESTIMATION_APPROVED",
-                    "ESTIMATION_REJECTED_REVISION",
-                    "IN_PROGRESS",
-                    "PENDING_REVIEW",
-                    "APPROVED_BMC",
-                    "REVIEW_REJECTED_REVISION",
-                ],
-            },
-            createdAt: { lt: threshold },
-            activities: {
-                none: {
-                    createdAt: { gte: threshold },
-                },
-            },
+            OR: slaEntries.map(([status, days]) => {
+                const threshold = new Date(now);
+                threshold.setDate(threshold.getDate() - days);
+
+                return {
+                    status: status as never,
+                    createdAt: { lt: threshold },
+                    activities: {
+                        none: {
+                            createdAt: { gte: threshold },
+                        },
+                    },
+                };
+            }),
         },
         orderBy: [{ updatedAt: "asc" }],
         take: 8,
@@ -1242,11 +1582,12 @@ export async function getAdminCommandCenterData(
     const empty = getEmptyAdminCommandCenterData();
 
     try {
+        const slaDaysByStatus = await getReportSlaDays();
         const [activeUsers, hierarchy, status, pjum, recentActivity] =
             await Promise.all([
             getAdminVisibleTodayActiveUserCount(),
             getAdminBranchHierarchy(),
-            getAdminStatusDistribution(trendWindow),
+            getAdminStatusDistribution(trendWindow, slaDaysByStatus),
             getAdminPjumSummary(trendWindow),
             getGlobalActivity(8),
         ]);
@@ -1256,7 +1597,7 @@ export async function getAdminCommandCenterData(
             getAdminKpiMetric(trendWindow, activeUsers, pjum.pending),
             getAdminBranchPerformance(trendWindow, hierarchy),
             getAdminBranchTrend(period, hierarchy),
-            getAdminStuckReports(),
+            getAdminStuckReports(slaDaysByStatus),
         ]);
 
         return {

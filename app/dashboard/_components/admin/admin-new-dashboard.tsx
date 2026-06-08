@@ -186,7 +186,7 @@ function KpiGrid({
                 icon={CircleDollarSign}
                 href="/dashboard/realisasi"
                 value={formatShortRp(kpi.totalRealisasi)}
-                helper={`Rata-rata ${formatRp(kpi.avgRealisasi)} per laporan selesai`}
+                helper={`BMS / minggu all cabang ${formatRp(kpi.avgBmsWeeklyRealisasi)}`}
                 rows={[
                     {
                         label: "PJUM tahun ini",
@@ -800,12 +800,16 @@ function AttentionTable({
     description,
     emptyMessage,
     icon: Icon,
+    viewHref = "/dashboard/reports",
+    viewLabel = "Buka",
 }: {
     reports: AdminAttentionReport[];
     title: string;
     description: string;
     emptyMessage: string;
     icon: React.ElementType;
+    viewHref?: string;
+    viewLabel?: string;
 }) {
     return (
         <Card className="overflow-hidden">
@@ -819,8 +823,8 @@ function AttentionTable({
                         <CardDescription>{description}</CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/dashboard/reports">
-                            Buka
+                        <Link href={viewHref}>
+                            {viewLabel}
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
                     </Button>
@@ -931,10 +935,10 @@ export async function AdminNewDashboard({
                 <CardHeader>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
-                            <CardTitle>Laporan Selesai per Cabang</CardTitle>
+                            <CardTitle>Realisasi per Cabang</CardTitle>
                             <CardDescription>
-                                Jumlah laporan selesai dan rata-rata realisasi
-                                per cabang berdasarkan data cabang dari user
+                                Total realisasi dan rata-rata realisasi BMS per
+                                minggu untuk membaca kecukupan uang muka cabang
                             </CardDescription>
                         </div>
                     </div>
@@ -951,6 +955,8 @@ export async function AdminNewDashboard({
                 description="Laporan aktif yang tidak bergerak lebih dari 7 hari"
                 emptyMessage="Tidak ada laporan stuck lebih dari 7 hari."
                 icon={Clock3}
+                viewHref="/dashboard/reports?scope=overdue"
+                viewLabel="Buka SLA"
             />
             <AdminRecentActivityCard activities={data.recentActivity} />
         </AdminDashboardShell>

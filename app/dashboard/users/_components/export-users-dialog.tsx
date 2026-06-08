@@ -125,8 +125,8 @@ export function ExportUsersDialog({ branches }: { branches: string[] }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="gap-2 text-xs h-8">
-                    <Download className="w-4 h-4" />
+                <Button size="sm">
+                    <Download data-icon="inline-start" />
                     Ekspor XLSX
                 </Button>
             </DialogTrigger>

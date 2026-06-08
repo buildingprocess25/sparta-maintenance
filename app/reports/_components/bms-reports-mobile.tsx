@@ -101,7 +101,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                         ? driveUrl
                         : report.status === "DRAFT"
                             ? "/reports/create?restore=1"
-                            : `/dashboard/reports/${report.reportNumber}`;
+                            : `/reports/${report.reportNumber}`;
                 
                 const targetAttrs = isCompleted && driveUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
 

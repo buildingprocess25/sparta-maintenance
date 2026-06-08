@@ -75,7 +75,6 @@ export async function submitCompletionWork(
                 startSelfieUrl: true,
                 startReceiptUrls: true,
                 startMaterialStores: true,
-                uploadthingFileKeys: true,
                 drivePhotoFileIds: true,
             },
         });
@@ -178,12 +177,6 @@ export async function submitCompletionWork(
             }
         }
 
-        // Merge existing file keys with new completion keys (legacy UploadThing)
-        const existingKeys = Array.isArray(report.uploadthingFileKeys)
-            ? (report.uploadthingFileKeys as string[])
-            : [];
-        const mergedKeys = [...existingKeys];
-
         // Merge existing Drive file IDs with new completion file IDs
         const existingFileIds = Array.isArray(report.drivePhotoFileIds)
             ? (report.drivePhotoFileIds as string[])
@@ -221,9 +214,6 @@ export async function submitCompletionWork(
                             []) as unknown as Prisma.InputJsonValue,
                     completionAdditionalNote:
                         additionalDocumentation?.note?.trim() || null,
-                    // Keep existing UploadThing keys (legacy)
-                    uploadthingFileKeys:
-                        mergedKeys as unknown as Prisma.InputJsonValue,
                     // Append new Drive file IDs
                     drivePhotoFileIds:
                         mergedFileIds as unknown as Prisma.InputJsonValue,

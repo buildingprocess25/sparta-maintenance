@@ -165,38 +165,79 @@ function buildPjumSheet(
     return buildSheet(data, headers.length);
 }
 
+type PreventiveExportQuarter = "all" | 1 | 2 | 3 | 4;
+
+function normalizePreventiveQuarter(
+    value: ExportFilter["preventiveQuarter"],
+): PreventiveExportQuarter {
+    if (value === 1 || value === 2 || value === 3 || value === 4) {
+        return value;
+    }
+
+    return "all";
+}
+
+const PREVENTIVE_QUARTER_COLUMNS = {
+    1: {
+        by: "q1By",
+        date: "q1Date",
+        bmsHeader: "TW1 BMS",
+        dateHeader: "TW1 TGL",
+    },
+    2: {
+        by: "q2By",
+        date: "q2Date",
+        bmsHeader: "TW2 BMS",
+        dateHeader: "TW2 TGL",
+    },
+    3: {
+        by: "q3By",
+        date: "q3Date",
+        bmsHeader: "TW3 BMS",
+        dateHeader: "TW3 TGL",
+    },
+    4: {
+        by: "q4By",
+        date: "q4Date",
+        bmsHeader: "TW4 BMS",
+        dateHeader: "TW4 TGL",
+    },
+} as const;
+
 function buildPreventiveSheet(
     rows: Awaited<ReturnType<typeof fetchPreventiveExportRows>>,
+    quarter: PreventiveExportQuarter = "all",
 ): XLSX.WorkSheet {
-    const headers = [
+    const baseHeaders = [
         "Kode Toko",
         "Nama Toko",
         "Branch",
-        "TW1 BMS",
-        "TW1 TGL",
-        "TW2 BMS",
-        "TW2 TGL",
-        "TW3 BMS",
-        "TW3 TGL",
-        "TW4 BMS",
-        "TW4 TGL",
     ];
+    const quarters = quarter === "all" ? [1, 2, 3, 4] as const : [quarter];
+    const quarterHeaders = quarters.flatMap((q) => [
+        PREVENTIVE_QUARTER_COLUMNS[q].bmsHeader,
+        PREVENTIVE_QUARTER_COLUMNS[q].dateHeader,
+    ]);
+    const headers = [...baseHeaders, ...quarterHeaders];
 
     const data: XLSX.CellObject[][] = [
         headers.map((h) => textCell(h)),
-        ...rows.map((r) => [
-            textCell(r.storeCode),
-            textCell(r.storeName),
-            textCell(r.branchName),
-            textCell(r.q1By),
-            dateCell(r.q1Date),
-            textCell(r.q2By),
-            dateCell(r.q2Date),
-            textCell(r.q3By),
-            dateCell(r.q3Date),
-            textCell(r.q4By),
-            dateCell(r.q4Date),
-        ]),
+        ...rows.map((r) => {
+            const quarterCells = quarters.flatMap((q) => {
+                const config = PREVENTIVE_QUARTER_COLUMNS[q];
+                return [
+                    textCell(r[config.by]),
+                    dateCell(r[config.date]),
+                ];
+            });
+
+            return [
+                textCell(r.storeCode),
+                textCell(r.storeName),
+                textCell(r.branchName),
+                ...quarterCells,
+            ];
+        }),
     ];
 
     return buildSheet(data, headers.length);
@@ -247,12 +288,16 @@ export async function POST(request: NextRequest) {
         "Export XLSX started",
     );
 
-    // ─ Auth: ADMIN, or BMC for preventive-only export ───────────────────────
+    // ─ Auth: ADMIN, or scoped dashboard roles for limited exports ───────────
     const user = await getAuthUser();
     if (!user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    if (user.role !== "ADMIN" && user.role !== "BMC") {
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
         logger.warn(
             {
                 operation: "adminExportXlsx",
@@ -260,7 +305,7 @@ export async function POST(request: NextRequest) {
                 userId: user.NIK,
                 role: user.role,
             },
-            "Non-admin attempted export",
+            "Unauthorized role attempted export",
         );
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -283,6 +328,9 @@ export async function POST(request: NextRequest) {
     }
 
     const filter: ExportFilter = body.filter ?? {};
+    const preventiveQuarter = normalizePreventiveQuarter(
+        filter.preventiveQuarter,
+    );
     const requestedSheets = body.sheets ?? [
         "reports",
         "materials",
@@ -294,10 +342,15 @@ export async function POST(request: NextRequest) {
         body.fileName ??
         `sparta-export-${new Date().toISOString().slice(0, 10)}`;
 
-    if (user.role === "BMC") {
-        const isPreventiveOnly =
-            requestedSheets.length === 1 && requestedSheets[0] === "preventive";
-        if (!isPreventiveOnly) {
+    if (user.role === "BMC" || user.role === "BNM_MANAGER") {
+        const isReportsOnly =
+            requestedSheets.length === 1 && requestedSheets[0] === "reports";
+        const isBmcPreventiveOnly =
+            user.role === "BMC" &&
+            requestedSheets.length === 1 &&
+            requestedSheets[0] === "preventive";
+
+        if (!isReportsOnly && !isBmcPreventiveOnly) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -306,22 +359,30 @@ export async function POST(request: NextRequest) {
             : filter.branchName
               ? [filter.branchName]
               : [];
-        if (selectedBranches.length !== 1) {
+
+        if (isBmcPreventiveOnly && selectedBranches.length !== 1) {
             return NextResponse.json(
                 { error: "Pilih satu cabang untuk ekspor preventif" },
                 { status: 400 },
             );
         }
 
-        const selectedBranch = selectedBranches[0];
-        if (!user.branchNames.includes(selectedBranch)) {
+        const requestedBranches =
+            selectedBranches.length > 0
+                ? selectedBranches
+                : user.branchNames.filter((branchName) => branchName.trim());
+
+        const unauthorizedBranch = requestedBranches.find(
+            (branchName) => !user.branchNames.includes(branchName),
+        );
+        if (unauthorizedBranch) {
             return NextResponse.json(
                 { error: "Anda tidak punya akses ke cabang ini" },
                 { status: 403 },
             );
         }
 
-        filter.branchName = [selectedBranch];
+        filter.branchName = requestedBranches;
     }
 
     // ─ Fetch data ────────────────────────────────────────────────────────────
@@ -409,7 +470,7 @@ export async function POST(request: NextRequest) {
                 const wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(
                     wb,
-                    buildPreventiveSheet(preventiveRows),
+                    buildPreventiveSheet(preventiveRows, preventiveQuarter),
                     "Rekap Preventif",
                 );
                 const buf = XLSX.write(wb, {
@@ -464,7 +525,7 @@ export async function POST(request: NextRequest) {
         if (requestedSheets.includes("preventive")) {
             XLSX.utils.book_append_sheet(
                 wb,
-                buildPreventiveSheet(preventiveRows),
+                buildPreventiveSheet(preventiveRows, preventiveQuarter),
                 "Rekap Preventif",
             );
         }

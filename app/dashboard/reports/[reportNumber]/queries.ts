@@ -1,7 +1,6 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
-import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { parseMaterialStores } from "@/lib/report-material-stores";
 import type {
     MaterialEstimationJson,
@@ -21,7 +20,6 @@ export async function getAdminReportDetail(
     const report = await prisma.report.findFirst({
         where: {
             reportNumber,
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         },
         select: {
             reportNumber: true,
@@ -38,9 +36,6 @@ export async function getAdminReportDetail(
             startMaterialStores: true,
             completionAdditionalPhotos: true,
             completionAdditionalNote: true,
-            pendingEstimationPdfPath: true,
-            estimationApprovedPdfPath: true,
-            approvedBmcPdfPath: true,
             completedPdfPath: true,
             reportFinalDriveUrl: true,
             revisedPdfDriveUrl: true,
@@ -139,9 +134,6 @@ export async function getAdminReportDetail(
             report.completionAdditionalPhotos,
         ),
         completionAdditionalNote: report.completionAdditionalNote,
-        pendingEstimationPdfPath: report.pendingEstimationPdfPath,
-        estimationApprovedPdfPath: report.estimationApprovedPdfPath,
-        approvedBmcPdfPath: report.approvedBmcPdfPath,
         completedPdfPath: report.completedPdfPath,
         reportFinalDriveUrl: report.reportFinalDriveUrl,
         revisedPdfDriveUrl: report.revisedPdfDriveUrl,

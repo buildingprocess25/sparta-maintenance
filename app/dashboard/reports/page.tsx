@@ -53,16 +53,32 @@ function normalizeScope(params: Awaited<Props["searchParams"]>) {
 export default async function AdminReportsPage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
+        redirect("/dashboard");
+    }
 
     const params = await searchParams;
     const initialStatus = normalizeStatus(params.status);
     const initialPjumStatus = normalizePjumStatus(params.pjumStatus);
-    const initialBranchName = params.branchName?.trim() || undefined;
+    const scopedBranches =
+        user.role === "ADMIN"
+            ? null
+            : user.branchNames.filter((branchName) => branchName.trim() !== "");
+    const requestedBranchName = params.branchName?.trim() || undefined;
+    const initialBranchName =
+        scopedBranches === null
+            ? requestedBranchName
+            : requestedBranchName && scopedBranches.includes(requestedBranchName)
+              ? requestedBranchName
+              : undefined;
     const initialScope = normalizeScope(params);
 
     const [branches, initialReports] = await Promise.all([
-        fetchAllBranchNames(),
+        scopedBranches === null ? fetchAllBranchNames() : scopedBranches,
         getAdminReports(null, 20, {
             status: initialStatus,
             scope: initialScope,

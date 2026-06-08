@@ -35,18 +35,28 @@ import {
 } from "@/components/reui/filters";
 import { getAdminPjum } from "../actions";
 import type { AdminPjumFilters, PjumRow, PjumSummary } from "../actions";
-import {
-    getPjumStatusBadgeClass,
-    getPjumStatusLabel,
-} from "@/lib/pjum-status";
+import { getPjumStatusBadgeClass, getPjumStatusLabel } from "@/lib/pjum-status";
 import { cn } from "@/lib/utils";
-
-const STALE_PENDING_DAYS = 7;
 
 const PJUM_STATUS_FILTER_OPTIONS = [
     { value: "PENDING_APPROVAL", label: "Menunggu Review" },
     { value: "APPROVED", label: "Disetujui" },
 ];
+const QUICK_FILTERS = [
+    { key: "all", label: "Semua" },
+    { key: "review_bnm", label: "Review BNM" },
+    { key: "approved", label: "Disetujui" },
+] as const;
+
+type QuickFilterKey = (typeof QUICK_FILTERS)[number]["key"];
+
+function resolveInitialQuickFilter(
+    initialStatus?: string,
+): QuickFilterKey {
+    if (initialStatus === "PENDING_APPROVAL") return "review_bnm";
+    if (initialStatus === "APPROVED") return "approved";
+    return "all";
+}
 
 function formatDate(date: Date) {
     return format(new Date(date), "dd MMM yyyy", { locale: id });
@@ -80,12 +90,17 @@ export function AdminPjumTable({
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [search, setSearch] = useState("");
+    const [quickFilter, setQuickFilter] = useState<QuickFilterKey>(() =>
+        resolveInitialQuickFilter(initialFilters?.status),
+    );
     const [activeFilters, setActiveFilters] = useState<Filter<string>[]>(() =>
         [
             initialFilters?.status && initialFilters.status !== "all"
-                ? createFilter<string>("status", "is", [
-                      initialFilters.status,
-                  ])
+                ? resolveInitialQuickFilter(initialFilters.status) !== "all"
+                    ? null
+                    : createFilter<string>("status", "is", [
+                          initialFilters.status,
+                      ])
                 : null,
             initialFilters?.branchName && initialFilters.branchName !== "all"
                 ? createFilter<string>("branchName", "is", [
@@ -148,13 +163,20 @@ export function AdminPjumTable({
     const fromDate = String(getFilterValue("fromDate"));
     const toDate = String(getFilterValue("toDate"));
     const hasActiveFilter = searchValue.length > 0 || activeFilters.length > 0;
+    const quickStatus =
+        quickFilter === "review_bnm"
+            ? "PENDING_APPROVAL"
+            : quickFilter === "approved"
+              ? "APPROVED"
+              : "";
+    const hasAnyActiveFilter = hasActiveFilter || quickFilter !== "all";
 
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
             const filters: AdminPjumFilters = {
                 search: searchValue || undefined,
                 branchName: branchName || undefined,
-                status: status || undefined,
+                status: quickStatus || status || undefined,
                 fromDate: fromDate || undefined,
                 toDate: toDate || undefined,
             };
@@ -188,12 +210,21 @@ export function AdminPjumTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [searchValue, branchName, status, fromDate, toDate],
+        [searchValue, branchName, quickStatus, status, fromDate, toDate],
     );
 
     const resetFilters = useCallback(() => {
         setSearch("");
+        setQuickFilter("all");
         setActiveFilters([]);
+    }, []);
+
+    const applyQuickFilter = useCallback((key: QuickFilterKey) => {
+        setQuickFilter(key);
+        setSearch("");
+        setActiveFilters((current) =>
+            current.filter((filter) => filter.field !== "status"),
+        );
     }, []);
 
     useEffect(() => {
@@ -206,7 +237,29 @@ export function AdminPjumTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [searchValue, branchName, status, fromDate, toDate, loadData]);
+    }, [
+        searchValue,
+        branchName,
+        quickStatus,
+        status,
+        fromDate,
+        toDate,
+        loadData,
+    ]);
+
+    useEffect(() => {
+        const handlePjumCreated = () => {
+            loadData(null, true);
+        };
+
+        window.addEventListener("dashboard-pjum-created", handlePjumCreated);
+        return () => {
+            window.removeEventListener(
+                "dashboard-pjum-created",
+                handlePjumCreated,
+            );
+        };
+    }, [loadData]);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -243,7 +296,7 @@ export function AdminPjumTable({
                         </span>{" "}
                         PJUM sesuai filter
                     </div>
-                    {hasActiveFilter ? (
+                    {hasAnyActiveFilter ? (
                         <Button
                             type="button"
                             variant="outline"
@@ -254,6 +307,23 @@ export function AdminPjumTable({
                             Reset
                         </Button>
                     ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    {QUICK_FILTERS.map((filter) => (
+                        <Button
+                            key={filter.key}
+                            type="button"
+                            variant={
+                                quickFilter === filter.key
+                                    ? "default"
+                                    : "outline"
+                            }
+                            size="xs"
+                            onClick={() => applyQuickFilter(filter.key)}
+                        >
+                            {filter.label}
+                        </Button>
+                    ))}
                 </div>
                 <div className="flex flex-col gap-2 lg:flex-row lg:items-start">
                     <div className="relative w-full lg:max-w-sm">
@@ -422,59 +492,165 @@ export function AdminPjumTable({
 }
 
 function PjumSummaryStrip({ summary }: { summary: PjumSummary }) {
-    const items = [
+    const total = Math.max(summary.total, 0);
+    const pendingPercent =
+        total > 0 ? Math.round((summary.pendingReview / total) * 100) : 0;
+    const approvedPercent =
+        total > 0 ? Math.round((summary.approved / total) * 100) : 0;
+    const stalePercent =
+        total > 0 ? Math.round((summary.stalePending / total) * 100) : 0;
+    const distribution = [
         {
-            label: "Total PJUM",
-            value: summary.total,
-            icon: FileText,
-            tone: "text-slate-700",
+            key: "pending",
+            label: "Menunggu review",
+            value: summary.pendingReview,
+            percent: pendingPercent,
+            className: "bg-amber-400",
+            dotClassName: "bg-amber-400",
         },
+        {
+            key: "approved",
+            label: "Disetujui",
+            value: summary.approved,
+            percent: approvedPercent,
+            className: "bg-emerald-500",
+            dotClassName: "bg-emerald-500",
+        },
+        {
+            key: "stale",
+            label: `Pending > ${summary.pendingStaleDays} hari`,
+            value: summary.stalePending,
+            percent: stalePercent,
+            className: "bg-red-500",
+            dotClassName: "bg-red-500",
+        },
+    ];
+    const secondaryMetrics = [
         {
             label: "Menunggu Review",
             value: summary.pendingReview,
+            helper: `${pendingPercent}% dari total PJUM`,
             icon: AlertTriangle,
             tone: "text-amber-700",
+            bg: "bg-amber-50",
         },
         {
             label: "Disetujui",
             value: summary.approved,
+            helper: `${approvedPercent}% selesai validasi`,
             icon: FileCheck2,
             tone: "text-emerald-700",
+            bg: "bg-emerald-50",
         },
         {
             label: "Laporan Masuk PJUM",
             value: summary.reportCount,
+            helper: "Total laporan masuk PJUM",
             icon: FileText,
             tone: "text-sky-700",
+            bg: "bg-sky-50",
         },
         {
-            label: `Pending > ${STALE_PENDING_DAYS} hari`,
+            label: "Pending Terlalu Lama",
             value: summary.stalePending,
+            helper: `Melewati ${summary.pendingStaleDays} hari`,
             icon: AlertTriangle,
             tone: "text-red-700",
+            bg: "bg-red-50",
         },
     ];
 
     return (
-        <div className="grid gap-2 md:grid-cols-5">
-            {items.map((item) => (
-                <div
-                    key={item.label}
-                    className="flex min-h-20 items-center gap-3 rounded-lg border bg-background px-3 py-2"
-                >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-muted">
-                        <item.icon className={cn("h-4 w-4", item.tone)} />
-                    </div>
-                    <div className="min-w-0">
-                        <div className="text-[11px] text-muted-foreground">
-                            {item.label}
+        <section className="rounded-lg border bg-white px-4 py-4 shadow-sm">
+            <div className="grid gap-4 lg:grid-cols-[minmax(260px,0.95fr)_minmax(0,1.6fr)] lg:items-stretch">
+                <div className="flex min-h-[142px] flex-col justify-between">
+                    <div className="flex items-start justify-between gap-3">
+                        <div>
+                            <div className="text-sm text-muted-foreground">
+                                Total PJUM
+                            </div>
+                            <div className="mt-1 text-4xl font-semibold tracking-tight text-slate-800">
+                                {summary.total.toLocaleString("id-ID")}
+                            </div>
                         </div>
-                        <div className="text-lg font-semibold leading-tight">
-                            {item.value.toLocaleString("id-ID")}
+                        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-slate-100 text-slate-700">
+                            <FileText className="h-4 w-4" />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3">
+                        <div className="flex h-2 overflow-hidden rounded-full bg-slate-100">
+                            {distribution.map((item) =>
+                                item.value > 0 ? (
+                                    <div
+                                        key={item.key}
+                                        className={item.className}
+                                        style={{
+                                            width: `${Math.max(item.percent, 5)}%`,
+                                        }}
+                                    />
+                                ) : null,
+                            )}
+                        </div>
+                        <div className="grid grid-cols-1 gap-2 text-[11px] text-muted-foreground sm:grid-cols-3">
+                            {distribution.map((item) => (
+                                <div key={item.key} className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                        <span
+                                            className={cn(
+                                                "h-2 w-2 rounded-full",
+                                                item.dotClassName,
+                                            )}
+                                        />
+                                        <span className="truncate">
+                                            {item.label}
+                                        </span>
+                                    </div>
+                                    <div className="mt-1 font-medium text-slate-700">
+                                        {item.value.toLocaleString("id-ID")}{" "}
+                                        <span className="text-muted-foreground">
+                                            ({item.percent}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
-            ))}
-        </div>
+
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    {secondaryMetrics.map((item) => (
+                        <div
+                            key={item.label}
+                            className="flex min-h-[92px] flex-col justify-between rounded-md border bg-background px-3 py-2.5"
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                    <div className="truncate text-[11px] text-muted-foreground">
+                                        {item.label}
+                                    </div>
+                                    <div className="mt-1 text-2xl font-semibold leading-none tracking-tight">
+                                        {item.value.toLocaleString("id-ID")}
+                                    </div>
+                                </div>
+                                <div
+                                    className={cn(
+                                        "flex h-8 w-8 shrink-0 items-center justify-center rounded-md",
+                                        item.bg,
+                                    )}
+                                >
+                                    <item.icon
+                                        className={cn("h-4 w-4", item.tone)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="text-[10px] text-muted-foreground">
+                                {item.helper}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
     );
 }

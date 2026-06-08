@@ -207,7 +207,6 @@ Photos are uploaded to Google Drive CDN and proxied through `/api/photos/[fileId
 - `ApprovalLog`: Audit trail for approvals/rejections
 - `ActivityLog`: Audit trail for all report actions
 - `PjumExport`: Weekly PJUM documents with approval workflow
-- `PjumBankAccount`: Bank account data for PJUM
 - `AppSetting`: System settings (e.g., maintenance mode toggle)
 
 **Important:** Use JSONB for Report.items and Report.estimations rather than creating separate relational tables.

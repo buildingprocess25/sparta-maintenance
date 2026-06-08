@@ -5,32 +5,28 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { toggleMaintenanceMode } from "../actions";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-} from "@/components/ui/card";
-import { IconAlertTriangle, IconSettings } from "@tabler/icons-react";
+import { AlertTriangle, Save, Settings } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function MaintenanceToggle({
     initialEnabled,
 }: {
     initialEnabled: boolean;
 }) {
+    const [savedEnabled, setSavedEnabled] = useState(initialEnabled);
     const [enabled, setEnabled] = useState(initialEnabled);
     const [isPending, startTransition] = useTransition();
+    const hasChanges = enabled !== savedEnabled;
 
-    const handleToggle = (checked: boolean) => {
-        setEnabled(checked);
+    const handleSave = () => {
         startTransition(async () => {
-            const result = await toggleMaintenanceMode(checked);
+            const result = await toggleMaintenanceMode(enabled);
             if (!result.success) {
-                setEnabled(!checked); // revert
                 toast.error(result.error);
             } else {
+                setSavedEnabled(enabled);
                 toast.success(
-                    checked
+                    enabled
                         ? "Maintenance mode diaktifkan"
                         : "Maintenance mode dimatikan",
                 );
@@ -39,64 +35,81 @@ export function MaintenanceToggle({
     };
 
     return (
-        <div className="grid gap-6 max-w-4xl">
-            <Card className="border shadow-sm">
-                <CardHeader>
-                    <div className="flex items-center gap-2 text-primary mb-1">
-                        <IconSettings className="h-5 w-5" />
-                        <span className="text-xs font-bold uppercase tracking-wider">
+        <section className="mx-auto max-w-5xl overflow-hidden rounded-md border bg-background">
+            <div className="flex flex-col gap-3 border-b px-4 py-3 md:flex-row md:items-start md:justify-between">
+                <div className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+                        <Settings className="h-4 w-4" />
+                    </span>
+                    <div>
+                        <h2 className="text-sm font-semibold">
                             Maintenance Mode
-                        </span>
+                        </h2>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                            Kontrol akses aplikasi untuk pemeliharaan rutin atau
+                            pembaruan database.
+                        </p>
                     </div>
-                    <CardDescription>
-                        Kontrol akses aplikasi untuk pemeliharaan rutin atau
-                        pembaruan database.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-lg border bg-muted/30">
-                        <div className="space-y-0.5">
-                            <Label
-                                htmlFor="maintenance-mode"
-                                className="text-base font-medium"
-                            >
-                                Status Aplikasi
-                            </Label>
-                            <p className="text-sm text-muted-foreground">
-                                {enabled
-                                    ? "Mode Maintenance AKTIF. Hanya admin yang dapat mengakses sistem."
-                                    : "Mode Maintenance NONAKTIF. Sistem dapat diakses oleh semua user."}
-                            </p>
-                        </div>
-                        <div className="flex items-center gap-3 self-start sm:self-center">
-                            <span
-                                className={`text-[10px] font-black px-2 py-0.5 rounded border ${enabled ? "bg-amber-500/10 border-amber-500/50 text-amber-600" : "bg-muted border-border text-muted-foreground"}`}
-                            >
-                                {enabled ? "ON" : "OFF"}
-                            </span>
-                            <Switch
-                                id="maintenance-mode"
-                                checked={enabled}
-                                onCheckedChange={handleToggle}
-                                disabled={isPending}
-                            />
-                        </div>
-                    </div>
+                </div>
+                <div className="flex shrink-0 justify-start md:justify-end">
+                    <Button
+                        type="button"
+                        size="sm"
+                        className="h-8 text-xs"
+                        disabled={isPending || !hasChanges}
+                        onClick={handleSave}
+                    >
+                        <Save data-icon="inline-start" />
+                        Simpan Sistem
+                    </Button>
+                </div>
+            </div>
 
-                    <div className="flex items-start gap-3 p-3 rounded-lg border border-primary/10 bg-primary/5">
-                        <IconAlertTriangle className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                        <div className="text-xs text-muted-foreground leading-relaxed">
-                            <p className="font-semibold text-primary/80 mb-0.5">
-                                Informasi Penting:
-                            </p>
-                            Saat mode ini aktif, semua pengguna (BMS, BMC, BnM
-                            Manager) akan dialihkan ke halaman maintenance.
-                            Admin tetap dapat mengakses dashboard untuk
-                            melakukan perbaikan atau pemantauan data.
+            <div className="divide-y">
+                <div className="grid gap-3 px-4 py-3 md:grid-cols-[220px_minmax(0,1fr)_140px] md:items-center">
+                    <div>
+                        <Label
+                            htmlFor="maintenance-mode"
+                            className="text-xs font-semibold"
+                        >
+                            Status Aplikasi
+                        </Label>
+                        <div
+                            className={`mt-1 inline-flex h-5 items-center rounded-full border px-2 text-[10px] font-semibold ${enabled ? "border-amber-200 bg-amber-50 text-amber-700" : "border-slate-200 bg-slate-50 text-slate-600"}`}
+                        >
+                            {enabled ? "AKTIF" : "NONAKTIF"}
                         </div>
                     </div>
-                </CardContent>
-            </Card>
-        </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                        {enabled
+                            ? "Hanya ADMIN yang dapat mengakses sistem. User lain diarahkan ke halaman maintenance."
+                            : "Sistem dapat diakses oleh semua role sesuai hak akses masing-masing."}
+                    </p>
+                    <div className="flex items-center justify-start gap-2 md:justify-end">
+                        <span className="text-xs text-muted-foreground">
+                            {enabled ? "ON" : "OFF"}
+                        </span>
+                        <Switch
+                            id="maintenance-mode"
+                            checked={enabled}
+                            onCheckedChange={setEnabled}
+                            disabled={isPending}
+                        />
+                    </div>
+                </div>
+
+                <div className="grid gap-3 bg-primary/5 px-4 py-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-primary">
+                        <AlertTriangle className="h-4 w-4" />
+                        Dampak ke User
+                    </div>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                        Saat aktif, BMS, BMC, dan BnM Manager tidak bisa masuk
+                        ke aplikasi. Admin tetap dapat mengakses dashboard untuk
+                        perbaikan atau pemantauan data.
+                    </p>
+                </div>
+            </div>
+        </section>
     );
 }

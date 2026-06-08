@@ -116,15 +116,15 @@ async function applyConfiguredSharing(
     fileName: string,
 ): Promise<void> {
     if (DRIVE_CDN_SHARE_MODE === "private") {
-        logger.info(
-            {
-                operation: "uploadPhotoToDriveCdn.setPermission",
-                fileId,
-                fileName,
-                shareMode: DRIVE_CDN_SHARE_MODE,
-            },
-            "Skipping Drive sharing permission; photos are served through the app proxy",
-        );
+        // logger.info(
+        //     {
+        //         operation: "uploadPhotoToDriveCdn.setPermission",
+        //         fileId,
+        //         fileName,
+        //         shareMode: DRIVE_CDN_SHARE_MODE,
+        //     },
+        //     "Skipping Drive sharing permission; photos are served through the app proxy",
+        // );
         return;
     }
 

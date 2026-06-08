@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
 import { isReportStatusKey } from "@/lib/report-status";
+import { getReportSlaDays } from "@/lib/app-settings";
 
 export type AdminReportFilters = {
     search?: string;
@@ -38,18 +39,11 @@ const BMC_REVIEW_REPORT_STATUSES = [
     "PENDING_REVIEW",
 ] as const;
 
-const REPORT_STATUS_SLA_DAYS: Partial<Record<string, number>> = {
-    PENDING_ESTIMATION: 1,
-    ESTIMATION_APPROVED: 3,
-    ESTIMATION_REJECTED_REVISION: 2,
-    IN_PROGRESS: 7,
-    PENDING_REVIEW: 1,
-    APPROVED_BMC: 1,
-    REVIEW_REJECTED_REVISION: 2,
-};
-
-function buildOverdueWhere(now = new Date()): Prisma.ReportWhereInput {
-    const slaEntries = Object.entries(REPORT_STATUS_SLA_DAYS) as [
+function buildOverdueWhere(
+    slaDaysByStatus: Partial<Record<string, number>>,
+    now = new Date(),
+): Prisma.ReportWhereInput {
+    const slaEntries = Object.entries(slaDaysByStatus) as [
         string,
         number,
     ][];
@@ -76,8 +70,12 @@ function calculateAgeDays(date: Date): number {
     return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
 }
 
-function getReportSlaInfo(status: string, lastActivityAt: Date) {
-    const slaDays = REPORT_STATUS_SLA_DAYS[status] ?? null;
+function getReportSlaInfo(
+    status: string,
+    lastActivityAt: Date,
+    slaDaysByStatus: Partial<Record<string, number>>,
+) {
+    const slaDays = slaDaysByStatus[status] ?? null;
     if (!slaDays) {
         return {
             slaDays,
@@ -108,13 +106,29 @@ export async function getAdminReports(
 
     try {
         const user = await getAuthUser();
-        if (!user || user.role !== "ADMIN") {
+        if (!user) {
             throw new Error("Unauthorized");
         }
 
-        const where: Prisma.ReportWhereInput = {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        };
+        const scopedBranchNames =
+            user.role === "ADMIN"
+                ? null
+                : user.role === "BMC" || user.role === "BNM_MANAGER"
+                  ? user.branchNames.filter(
+                        (branchName) => branchName.trim() !== "",
+                    )
+                  : undefined;
+
+        if (scopedBranchNames === undefined) {
+            throw new Error("Unauthorized");
+        }
+
+        const slaDaysByStatus = await getReportSlaDays();
+
+        const where: Prisma.ReportWhereInput =
+            scopedBranchNames === null
+                ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
+                : { branchName: { in: scopedBranchNames } };
 
         const andFilters: Prisma.ReportWhereInput[] = [];
 
@@ -163,7 +177,7 @@ export async function getAdminReports(
                 andFilters.push({ status: { in: [...ACTIVE_REPORT_STATUSES] } });
             }
             if (filters.scope === "overdue") {
-                andFilters.push(buildOverdueWhere());
+                andFilters.push(buildOverdueWhere(slaDaysByStatus));
             }
             if (filters.scope === "review_bmc") {
                 andFilters.push({
@@ -188,7 +202,14 @@ export async function getAdminReports(
         }
 
         if (filters.branchName && filters.branchName !== "all") {
-            where.branchName = filters.branchName;
+            if (
+                scopedBranchNames === null ||
+                scopedBranchNames.includes(filters.branchName)
+            ) {
+                where.branchName = filters.branchName;
+            } else {
+                where.branchName = { in: [] };
+            }
         }
 
         if (filters.fromDate || filters.toDate) {
@@ -220,7 +241,7 @@ export async function getAdminReports(
         const totalCount = await prisma.report.count({ where });
         const overdueCount = await prisma.report.count({
             where: {
-                AND: [where, buildOverdueWhere()],
+                AND: [where, buildOverdueWhere(slaDaysByStatus)],
             },
         });
         const shouldPrioritizeOldestUpdate =
@@ -286,7 +307,11 @@ export async function getAdminReports(
                     lastActivityAt,
                     totalEstimation: Number(r.totalEstimation),
                     totalReal: r.totalReal ? Number(r.totalReal) : null,
-                    ...getReportSlaInfo(r.status, lastActivityAt),
+                    ...getReportSlaInfo(
+                        r.status,
+                        lastActivityAt,
+                        slaDaysByStatus,
+                    ),
                 };
             }),
             nextCursor,
@@ -313,7 +338,12 @@ export async function deleteAdminReport(reportNumber: string) {
 
     try {
         const user = await getAuthUser();
-        if (!user || user.role !== "ADMIN") {
+        if (
+            !user ||
+            (user.role !== "ADMIN" &&
+                user.role !== "BMC" &&
+                user.role !== "BNM_MANAGER")
+        ) {
             throw new Error("Unauthorized");
         }
 
@@ -330,8 +360,20 @@ export async function deleteAdminReport(reportNumber: string) {
             return { error: "Laporan tidak ditemukan" };
         }
 
-        if (report.branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
-            return { error: "Laporan HEAD OFFICE tidak dapat dihapus dari dashboard admin" };
+        if (
+            user.role !== "ADMIN" &&
+            !user.branchNames.includes(report.branchName)
+        ) {
+            return { error: "Laporan ini bukan dari cabang Anda" };
+        }
+
+        if (
+            user.role === "ADMIN" &&
+            report.branchName === EXCLUDED_ADMIN_BRANCH_NAME
+        ) {
+            return {
+                error: "Laporan HEAD OFFICE tidak dapat dihapus dari dashboard admin",
+            };
         }
 
         await prisma.$transaction(async (tx) => {

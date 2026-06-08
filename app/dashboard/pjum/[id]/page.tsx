@@ -33,10 +33,11 @@ import {
     getReportStatusLabel,
 } from "@/lib/report-status";
 import { cn } from "@/lib/utils";
+import { getPjumPolicySettings } from "@/lib/app-settings";
+import { PjumApprovalButton } from "./_components/pjum-approval-button";
+import { PjumCancelButton } from "./_components/pjum-cancel-button";
 
 export const dynamic = "force-dynamic";
-
-const PJUM_PENDING_STALE_DAYS = 7;
 
 type Props = {
     params: Promise<{ id: string }>;
@@ -45,14 +46,38 @@ type Props = {
 export default async function AdminPjumDetailPage({ params }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
+        redirect("/dashboard");
+    }
 
     const { id } = await params;
     const detail = await getPjumDetail(id);
     if (!detail) notFound();
+    if (
+        user.role !== "ADMIN" &&
+        !user.branchNames
+            .filter((branchName) => branchName.trim() !== "")
+            .includes(detail.pjum.branchName)
+    ) {
+        notFound();
+    }
 
-    const pjumUrl = buildPjumViewUrl(detail.pjum);
-    const isStalePending = isPjumStalePending(detail.pjum);
+    const pjumPolicy = await getPjumPolicySettings();
+    const pjumUrl =
+        detail.pjum.status === "PENDING_APPROVAL"
+            ? null
+            : buildPjumViewUrl(detail.pjum);
+    const isStalePending = isPjumStalePending(
+        detail.pjum,
+        pjumPolicy.pendingStaleDays,
+    );
+    const canCancelPjum =
+        user.role === "ADMIN" ||
+        (user.role === "BMC" && user.branchNames.includes(detail.pjum.branchName));
 
     return (
         <AdminDashboardShell
@@ -98,16 +123,33 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" className="gap-1.5 text-xs">
-                            <a
-                                href={pjumUrl}
-                                target="_blank"
-                                rel="noreferrer"
+                        {pjumUrl ? (
+                            <Button
+                                asChild
+                                size="sm"
+                                className="gap-1.5 text-xs"
                             >
-                                <FileText className="h-3.5 w-3.5" />
-                                Lihat PDF PJUM
-                            </a>
-                        </Button>
+                                <a
+                                    href={pjumUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Lihat PDF PJUM
+                                </a>
+                            </Button>
+                        ) : null}
+                        <PjumApprovalButton
+                            pjumExportId={detail.pjum.id}
+                            status={detail.pjum.status}
+                            viewerRole={user.role}
+                        />
+                        {canCancelPjum ? (
+                            <PjumCancelButton
+                                pjumExportId={detail.pjum.id}
+                                reportCount={detail.reports.length}
+                            />
+                        ) : null}
                     </div>
                 </div>
 
@@ -406,11 +448,11 @@ function buildPjumViewUrl(pjum: PjumDetail["pjum"]) {
     return `/api/reports/pjum-pdf?${search.toString()}`;
 }
 
-function isPjumStalePending(pjum: PjumDetail["pjum"]) {
+function isPjumStalePending(pjum: PjumDetail["pjum"], staleDays: number) {
     if (pjum.status !== "PENDING_APPROVAL") return false;
 
     const cutoff = new Date();
-    cutoff.setDate(cutoff.getDate() - PJUM_PENDING_STALE_DAYS);
+    cutoff.setDate(cutoff.getDate() - staleDays);
     return pjum.createdAt < cutoff;
 }
 

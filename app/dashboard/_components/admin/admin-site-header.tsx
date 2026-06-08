@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
@@ -10,6 +10,8 @@ import {
     BreadcrumbPage,
     BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import type { AuthUser } from "@/lib/authorization";
+import { SiteHeaderActions } from "./admin-site-header-actions";
 
 export type BreadcrumbEntry = {
     label: string;
@@ -20,10 +22,12 @@ export function SiteHeader({
     title = "Dashboard",
     breadcrumbs,
     children,
+    user,
 }: {
     title?: string;
     breadcrumbs?: BreadcrumbEntry[];
-    children?: React.ReactNode;
+    children?: ReactNode;
+    user: AuthUser;
 }) {
     return (
         <header className="sticky top-0 z-50 flex h-15 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
@@ -70,9 +74,7 @@ export function SiteHeader({
                         <h1 className="text-base font-medium">{title}</h1>
                     )}
                 </div>
-                {children && (
-                    <div className="flex items-center gap-2">{children}</div>
-                )}
+                <SiteHeaderActions user={user}>{children}</SiteHeaderActions>
             </div>
         </header>
     );

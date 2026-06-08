@@ -37,9 +37,9 @@ export function ExportPreventiveDialog({
 
     // Filters for export
     const [storeQuery, setStoreQuery] = useState("");
-    const [selectedBranch, setSelectedBranch] =
-        useState<string>(defaultBranch);
+    const [selectedBranch, setSelectedBranch] = useState<string>(defaultBranch);
     const [year, setYear] = useState<number>(currentYear);
+    const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
 
     const handleExport = async () => {
         if (!selectedBranch) {
@@ -48,7 +48,9 @@ export function ExportPreventiveDialog({
         }
 
         setIsLoading(true);
-        const toastId = toast.loading("Menyiapkan file ekspor Checklist Preventif...");
+        const toastId = toast.loading(
+            "Menyiapkan file ekspor Checklist Preventif...",
+        );
 
         try {
             const res = await fetch("/api/admin/export", {
@@ -62,6 +64,10 @@ export function ExportPreventiveDialog({
                                 ? undefined
                                 : [selectedBranch],
                         year: year,
+                        preventiveQuarter:
+                            selectedQuarter === "all"
+                                ? "all"
+                                : Number(selectedQuarter),
                     },
                     sheets: ["preventive"], // Only export preventive sheet
                 }),
@@ -76,7 +82,11 @@ export function ExportPreventiveDialog({
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `Rekap_Preventif_${selectedBranch === "all" ? "Semua_Cabang" : selectedBranch}_Tahun_${year}.xlsx`;
+            const quarterName =
+                selectedQuarter === "all"
+                    ? "Semua_Triwulan"
+                    : `TW${selectedQuarter}`;
+            a.download = `Rekap_Preventif_${selectedBranch === "all" ? "Semua_Cabang" : selectedBranch}_Tahun_${year}_${quarterName}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -100,8 +110,8 @@ export function ExportPreventiveDialog({
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="gap-2 text-xs">
-                    <Download className="w-4 h-4" />
+                <Button size="sm">
+                    <Download data-icon="inline-start" />
                     Ekspor XLSX
                 </Button>
             </DialogTrigger>
@@ -151,6 +161,34 @@ export function ExportPreventiveDialog({
                                         {y}
                                     </SelectItem>
                                 ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Triwulan</Label>
+                        <Select
+                            value={selectedQuarter}
+                            onValueChange={setSelectedQuarter}
+                        >
+                            <SelectTrigger className="w-full text-sm h-10">
+                                <SelectValue placeholder="Pilih Triwulan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">
+                                    Semua Triwulan
+                                </SelectItem>
+                                <SelectItem value="1">
+                                    Triwulan 1 - Jan-Mar
+                                </SelectItem>
+                                <SelectItem value="2">
+                                    Triwulan 2 - Apr-Jun
+                                </SelectItem>
+                                <SelectItem value="3">
+                                    Triwulan 3 - Jul-Sep
+                                </SelectItem>
+                                <SelectItem value="4">
+                                    Triwulan 4 - Okt-Des
+                                </SelectItem>
                             </SelectContent>
                         </Select>
                     </div>

@@ -1,8 +1,8 @@
 import { AlertTriangle, Trash2 } from "lucide-react";
 
-import { getReportStatusLabel } from "@/lib/report-status";
-import { getPjumStatusLabel } from "@/lib/pjum-status";
 import { Button } from "@/components/ui/button";
+import { getPjumStatusLabel } from "@/lib/pjum-status";
+import { getReportStatusLabel } from "@/lib/report-status";
 import type { ReportDetailModel } from "../_lib/detail-data";
 import { InfoPill } from "./shared-ui";
 

@@ -472,20 +472,6 @@ async function generatePjumAddendumPages(
             submissionDate: pjumExport.createdAt.toISOString(),
             totalExpenditure,
         },
-        pjumExport.pumBankAccountNo
-            ? {
-                  bmsName: bmsUser.name,
-                  bmsNIK: bmsUser.NIK,
-                  bankAccountNo: pjumExport.pumBankAccountNo ?? "",
-                  bankAccountName: pjumExport.pumBankAccountName ?? "",
-                  bankName: pjumExport.pumBankName ?? "",
-                  pumWeekNumber:
-                      pjumExport.pumWeekNumber ?? pjumExport.weekNumber,
-                  pumMonth: pjumExport.pumMonth ?? monthName,
-                  pumYear: pjumExport.pumYear ?? year,
-                  branchName: pjumExport.branchName,
-              }
-            : undefined,
     );
 
     const { PDFDocument } = await import("pdf-lib");

@@ -115,9 +115,9 @@ function getPjumBadge(report: ReportItem) {
         return (
             <Badge
                 variant="outline"
-                className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                className="h-5 border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700"
             >
-                Sudah PJUM
+                PJUM
             </Badge>
         );
     }
@@ -126,7 +126,7 @@ function getPjumBadge(report: ReportItem) {
         return (
             <Badge
                 variant="outline"
-                className="border-amber-200 bg-amber-50 text-amber-700"
+                className="h-5 border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
             >
                 Belum PJUM
             </Badge>
@@ -134,42 +134,30 @@ function getPjumBadge(report: ReportItem) {
     }
 
     return (
-        <Badge
-            variant="outline"
-            className="border-slate-200 bg-slate-50 text-slate-600"
-        >
-            Belum eligible
-        </Badge>
+        <span className="text-xs text-muted-foreground">-</span>
     );
 }
 
 function getSlaBadge(report: ReportItem) {
     if (!report.slaDays) {
-        return (
-            <Badge
-                variant="outline"
-                className="border-slate-200 bg-slate-50 text-slate-600"
-            >
-                Tidak ada SLA
-            </Badge>
-        );
+        return <span className="text-xs text-muted-foreground">-</span>;
     }
 
     return (
-        <div className="space-y-1">
+        <div className="flex items-center gap-1.5">
             <Badge
                 variant="outline"
                 className={
                     report.slaOverdue
-                        ? "border-red-200 bg-red-50 text-red-700"
-                        : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        ? "h-5 border-red-200 bg-red-50 px-1.5 text-[10px] font-medium text-red-700"
+                        : "h-5 border-emerald-200 bg-emerald-50 px-1.5 text-[10px] font-medium text-emerald-700"
                 }
             >
                 {report.slaOverdue ? "Lewat SLA" : "Aman"}
             </Badge>
-            <div className="text-[10px] text-muted-foreground">
+            <span className="text-[10px] text-muted-foreground">
                 {report.slaAgeDays}/{report.slaDays} hari
-            </div>
+            </span>
         </div>
     );
 }
@@ -490,38 +478,43 @@ export function AdminReportsTable({
             </div>
 
             {/* Table */}
-            <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
+            <div className="overflow-hidden rounded-md border bg-white">
                 <div className="overflow-x-auto">
-                    <Table className="text-xs [&_td]:py-2 [&_th]:py-2">
-                        <TableHeader className="bg-slate-50">
+                    <Table className="text-[11px] [&_td]:py-2 [&_th]:h-8 [&_th]:py-1.5">
+                        <TableHeader className="bg-slate-50/80">
                             <TableRow>
+                                <TableHead className="w-[120px] min-w-[120px]">
+                                    Laporan
+                                </TableHead>
                                 <TableHead className="w-[120px]">
-                                    Update Laporan
+                                    Update
                                 </TableHead>
-                                <TableHead className="min-w-[100px]">
-                                    No. Laporan
-                                </TableHead>
-                                <TableHead className="min-w-[150px]">
+                                <TableHead className="min-w-[200px]">
                                     Toko
                                 </TableHead>
-                                <TableHead>Cabang</TableHead>
-                                <TableHead>BMS</TableHead>
-                                <TableHead>Estimasi</TableHead>
-                                <TableHead>Realisasi</TableHead>
-                                <TableHead className="w-[130px]">
-                                    PJUM
+                                <TableHead className="min-w-[120px]">
+                                    Cabang
                                 </TableHead>
-                                <TableHead className="w-[140px]">
+                                <TableHead className="min-w-[150px]">
+                                    BMS
+                                </TableHead>
+                                <TableHead className="min-w-[150px]">
+                                    Biaya
+                                </TableHead>
+                                <TableHead className="min-w-[130px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="w-[125px]">SLA</TableHead>
+                                <TableHead className="min-w-[110px]">
+                                    PJUM
+                                </TableHead>
+                                <TableHead className="w-[130px]">SLA</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={10}
+                                        colSpan={9}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-6 h-6 animate-spin mx-auto text-muted-foreground" />
@@ -530,7 +523,7 @@ export function AdminReportsTable({
                             ) : reports.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={10}
+                                        colSpan={9}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada laporan yang ditemukan
@@ -542,25 +535,11 @@ export function AdminReportsTable({
                                         key={report.reportNumber}
                                         className={
                                             report.slaOverdue
-                                                ? "bg-red-50/35"
-                                                : ""
+                                                ? "bg-red-50/40 hover:bg-red-50/70"
+                                                : "hover:bg-slate-50/70"
                                         }
                                     >
-                                        <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
-                                            {format(
-                                                new Date(report.lastActivityAt),
-                                                "dd MMM yyyy",
-                                                { locale: id },
-                                            )}
-                                            <div className="text-[10px]">
-                                                {format(
-                                                    new Date(report.lastActivityAt),
-                                                    "HH:mm",
-                                                    { locale: id },
-                                                )}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
+                                        <TableCell className="whitespace-nowrap align-middle">
                                             <Link
                                                 href={`/dashboard/reports/${report.reportNumber}`}
                                                 className="inline-flex items-center gap-1 font-mono font-medium text-primary underline-offset-4 hover:underline"
@@ -569,51 +548,83 @@ export function AdminReportsTable({
                                                 <ArrowUpRight className="h-3 w-3" />
                                             </Link>
                                         </TableCell>
-                                        <TableCell>
-                                            <div className="font-medium text-xs">
-                                                {report.storeName}
-                                            </div>
-                                            {report.storeCode && (
-                                                <div className="text-xs text-muted-foreground">
-                                                    {report.storeCode}
-                                                </div>
+                                        <TableCell className="whitespace-nowrap align-middle text-muted-foreground">
+                                            {format(
+                                                new Date(
+                                                    report.lastActivityAt,
+                                                ),
+                                                "dd MMM yyyy",
+                                                { locale: id },
                                             )}
-                                        </TableCell>
-                                        <TableCell>
-                                            {report.branchName}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="text-xs">
-                                                {report.createdBy.name}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {report.createdByNIK}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatRp(report.totalEstimation)}
-                                        </TableCell>
-                                        <TableCell>
-                                            {formatRp(report.totalReal)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <div className="space-y-1">
-                                                {getPjumBadge(report)}
-                                                {report.pjumExportedAt && (
-                                                    <div className="text-[10px] text-muted-foreground">
-                                                        {formatCompactDate(
-                                                            report.pjumExportedAt,
-                                                        )}
-                                                    </div>
+                                            <div className="text-[10px]">
+                                                {format(
+                                                    new Date(
+                                                        report.lastActivityAt,
+                                                    ),
+                                                    "HH:mm",
+                                                    { locale: id },
                                                 )}
                                             </div>
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[260px] truncate text-[11px] font-medium">
+                                                {report.storeName}
+                                            </div>
+                                            <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                                {report.storeCode ? (
+                                                    <span className="font-mono">
+                                                        {report.storeCode}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[140px] truncate text-[11px] font-medium">
+                                                {report.branchName || "-"}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[180px] truncate text-[11px]">
+                                                {report.createdBy.name}
+                                            </div>
+                                            <div className="font-mono text-[10px] text-muted-foreground">
+                                                {report.createdByNIK}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="grid grid-cols-[50px_minmax(0,1fr)] gap-x-2 gap-y-0.5">
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    Estimasi
+                                                </span>
+                                                <span className="text-right font-medium tabular-nums">
+                                                    {formatRp(
+                                                        report.totalEstimation,
+                                                    )}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground">
+                                                    Realisasi
+                                                </span>
+                                                <span className="text-right font-medium tabular-nums">
+                                                    {formatRp(report.totalReal)}
+                                                </span>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
                                             <StatusBadge
                                                 status={report.status}
                                             />
                                         </TableCell>
-                                        <TableCell>
+                                        <TableCell className="align-middle">
+                                            {getPjumBadge(report)}
+                                            {report.pjumExportedAt ? (
+                                                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                                    {formatCompactDate(
+                                                        report.pjumExportedAt,
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </TableCell>
+                                        <TableCell className="align-middle">
                                             {getSlaBadge(report)}
                                         </TableCell>
                                     </TableRow>

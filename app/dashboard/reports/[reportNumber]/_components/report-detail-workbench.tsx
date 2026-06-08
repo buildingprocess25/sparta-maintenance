@@ -90,7 +90,7 @@ export function ReportDetailWorkbench({ report }: Props) {
                                 className="h-8 flex-none px-3 text-xs"
                             >
                                 <Package data-icon="inline-start" />
-                                Pekerjaan & Biaya
+                                Pekerjaan & Biaya BMS
                                 <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100">
                                     {report.summary.workItemCount}
                                 </Badge>

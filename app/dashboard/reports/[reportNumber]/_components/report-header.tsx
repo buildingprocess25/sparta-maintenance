@@ -1,12 +1,19 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { AlertTriangle, Check, FileCheck, ReceiptText } from "lucide-react";
+import {
+    AlertTriangle,
+    Check,
+    FileCheck,
+    Handshake,
+    ReceiptText,
+} from "lucide-react";
 
 import {
     getReportStatusBadgeClass,
     getReportStatusLabel,
 } from "@/lib/report-status";
 import { getPjumStatusLabel } from "@/lib/pjum-status";
+import { isRekananZeroCost } from "@/lib/report-utils";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +31,10 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
     const statusLabel = getReportStatusLabel(report.status);
     const issueCountLabel = `${report.summary.issueCount} item`;
     const isIssueFollowUp = isIssueFollowUpStatus(report.status);
+    const isRekananWithoutBmsCost = isRekananZeroCost(
+        report.items,
+        report.estimations,
+    );
     const finalDocuments = getFinalDriveDocuments(report);
     const pjumStatusLabel = report.pjumExport
         ? getPjumStatusLabel(report.pjumExport.status)
@@ -56,6 +67,16 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
                         >
                             {statusLabel}
                         </Badge>
+                        {isRekananWithoutBmsCost ? (
+                            <Badge
+                                variant="outline"
+                                className="h-6 border-cyan-200 bg-cyan-50 text-cyan-700 hover:bg-cyan-50"
+                                title="Semua item rusak ditangani rekanan dan tidak ada biaya BMS."
+                            >
+                                <Handshake data-icon="inline-start" />
+                                Rekanan tanpa biaya BMS
+                            </Badge>
+                        ) : null}
                         {report.summary.issueCount > 0 ? (
                             <Badge
                                 variant={
@@ -80,7 +101,7 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
                         )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                         {finalDocuments.map((document) => (
                             <Button
                                 key={document.key}

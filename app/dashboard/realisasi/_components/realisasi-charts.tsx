@@ -32,7 +32,10 @@ function formatTooltipRp(value: number): string {
 
 const monthlyConfig = {
     totalRealisasi: { label: "Total Realisasi", color: "var(--chart-3)" },
-    avgPerReport: { label: "Rata-rata / Laporan", color: "#F4BB44" },
+    avgBmsWeeklyRealisasi: {
+        label: "BMS / Minggu",
+        color: "#F4BB44",
+    },
 };
 
 export function RealisasiMonthlyChart({
@@ -75,7 +78,7 @@ export function RealisasiMonthlyChart({
                 <ChartTooltip
                     content={
                         <ChartTooltipContent
-                            className="min-w-64 gap-2 p-3"
+                            className="min-w-72 gap-2 p-3"
                             labelFormatter={(_label, payload) => {
                                 const row = payload?.[0]?.payload as
                                     | RealisasiMonthDatum
@@ -93,12 +96,12 @@ export function RealisasiMonthlyChart({
                             }}
                             formatter={(value, name, item) => {
                                 const label =
-                                    name === "avgPerReport"
-                                        ? "Rata-rata / laporan"
+                                    name === "avgBmsWeeklyRealisasi"
+                                        ? "Rata-rata BMS / minggu"
                                         : "Total realisasi";
                                 const color = item?.color ?? "var(--primary)";
                                 return (
-                                    <div className="flex w-56 items-center gap-2">
+                                    <div className="flex w-72 items-center gap-2">
                                         <div
                                             className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
                                             style={{ backgroundColor: color }}
@@ -124,10 +127,10 @@ export function RealisasiMonthlyChart({
                     radius={[4, 4, 0, 0]}
                 />
                 <Line
-                    dataKey="avgPerReport"
+                    dataKey="avgBmsWeeklyRealisasi"
                     yAxisId="right"
                     type="monotone"
-                    stroke="var(--color-avgPerReport)"
+                    stroke="var(--color-avgBmsWeeklyRealisasi)"
                     strokeWidth={2}
                     dot={false}
                 />

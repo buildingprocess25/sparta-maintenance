@@ -98,16 +98,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        logger.info(
-            {
-                operation: "POST /api/photos/upload",
-                userId: session.userId,
-                fileName,
-                fileId: uploadResult.fileId,
-                url: uploadResult.url,
-            },
-            "Photo uploaded to Drive CDN successfully",
-        );
+        // logger.info(
+        //     {
+        //         operation: "POST /api/photos/upload",
+        //         userId: session.userId,
+        //         fileName,
+        //         fileId: uploadResult.fileId,
+        //         url: uploadResult.url,
+        //     },
+        //     "Photo uploaded to Drive CDN successfully",
+        // );
 
         return NextResponse.json({
             url: uploadResult.url,

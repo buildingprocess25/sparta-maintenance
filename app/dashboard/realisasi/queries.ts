@@ -2,6 +2,10 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import {
+    DEFAULT_PJUM_POLICY_SETTINGS,
+    getPjumPolicySettings,
+} from "@/lib/app-settings";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,9 +48,10 @@ function parsePeriodParam(raw: string): ParsedPeriod {
 export type RealisasiKpi = {
     totalRealisasi: number;
     totalEstimasi: number;
-    avgPerReport: number;
+    avgBmsWeeklyRealisasi: number;
     efficiencyPercent: number;
     completedCount: number;
+    weeklyAdvanceAmount: number;
 };
 
 export type RealisasiMonthDatum = {
@@ -54,7 +59,7 @@ export type RealisasiMonthDatum = {
     label: string;
     totalRealisasi: number;
     count: number;
-    avgPerReport: number;
+    avgBmsWeeklyRealisasi: number;
 };
 
 export type RealisasiBranchDatum = {
@@ -65,6 +70,9 @@ export type RealisasiBranchDatum = {
     selisih: number;
     efficiencyPercent: number;
     avgRealisasi: number;
+    avgBmsWeeklyRealisasi: number;
+    advanceUsagePercent: number;
+    advanceDelta: number;
 };
 
 export type RealisasiPageData = {
@@ -128,6 +136,26 @@ function monthKey(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
+function weekKey(date: Date): string {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diffToMonday);
+    return d.toISOString().slice(0, 10);
+}
+
+function averageMapValues(map?: Map<string, number>): number {
+    if (!map || map.size === 0) return 0;
+
+    let total = 0;
+    for (const value of map.values()) {
+        total += value;
+    }
+
+    return Math.round(total / map.size);
+}
+
 // ─── Main query ───────────────────────────────────────────────────────────────
 
 export async function getRealisasiPageData(
@@ -138,9 +166,11 @@ export async function getRealisasiPageData(
         kpi: {
             totalRealisasi: 0,
             totalEstimasi: 0,
-            avgPerReport: 0,
+            avgBmsWeeklyRealisasi: 0,
             efficiencyPercent: 0,
             completedCount: 0,
+            weeklyAdvanceAmount:
+                DEFAULT_PJUM_POLICY_SETTINGS.weeklyAdvanceAmount,
         },
         monthly: [],
         branches: [],
@@ -165,6 +195,8 @@ export async function getRealisasiPageData(
             }
         }
 
+        const pjumPolicy = await getPjumPolicySettings();
+
         // Base where clause — COMPLETED and PJUM-exported with finishedAt in period
         const baseWhere = {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
@@ -186,18 +218,23 @@ export async function getRealisasiPageData(
                 totalEstimation: true,
                 totalReal: true,
                 finishedAt: true,
+                createdByNIK: true,
             },
         });
 
         if (rows.length === 0) {
             return {
                 ...empty,
+                kpi: {
+                    ...empty.kpi,
+                    weeklyAdvanceAmount: pjumPolicy.weeklyAdvanceAmount,
+                },
                 monthly: buildMonthBuckets(start, bucketEnd).map((b) => ({
                     yearMonth: b.key,
                     label: b.label,
                     totalRealisasi: 0,
                     count: 0,
-                    avgPerReport: 0,
+                    avgBmsWeeklyRealisasi: 0,
                 })),
             };
         }
@@ -212,12 +249,22 @@ export async function getRealisasiPageData(
         // ── Accumulate per branch ─────────────────────────────────────────
         const branchAcc = new Map<
             string,
-            { count: number; totalEst: number; totalReal: number }
+            {
+                count: number;
+                totalEst: number;
+                totalReal: number;
+                bmsWeekTotals: Map<string, number>;
+            }
         >();
+        const globalBmsWeekTotals = new Map<string, number>();
+        const monthBmsWeekTotals = new Map<string, Map<string, number>>();
 
         for (const row of rows) {
             const real = Number(row.totalReal ?? 0);
             const est = Number(row.totalEstimation ?? 0);
+            const bmsWeekKey = row.finishedAt
+                ? `${row.createdByNIK}:${weekKey(row.finishedAt)}`
+                : null;
 
             sumRealisasi += real;
             sumEstimasi += est;
@@ -232,6 +279,16 @@ export async function getRealisasiPageData(
                 } else {
                     monthAcc.set(mk, { total: real, count: 1 });
                 }
+
+                if (bmsWeekKey) {
+                    const monthWeeks =
+                        monthBmsWeekTotals.get(mk) ?? new Map<string, number>();
+                    monthWeeks.set(
+                        bmsWeekKey,
+                        (monthWeeks.get(bmsWeekKey) ?? 0) + real,
+                    );
+                    monthBmsWeekTotals.set(mk, monthWeeks);
+                }
             }
 
             // Branch aggregation
@@ -240,19 +297,34 @@ export async function getRealisasiPageData(
                 brCur.count += 1;
                 brCur.totalEst += est;
                 brCur.totalReal += real;
+                if (bmsWeekKey) {
+                    brCur.bmsWeekTotals.set(
+                        bmsWeekKey,
+                        (brCur.bmsWeekTotals.get(bmsWeekKey) ?? 0) + real,
+                    );
+                }
             } else {
+                const bmsWeekTotals = new Map<string, number>();
+                if (bmsWeekKey) bmsWeekTotals.set(bmsWeekKey, real);
                 branchAcc.set(row.branchName, {
                     count: 1,
                     totalEst: est,
                     totalReal: real,
+                    bmsWeekTotals,
                 });
+            }
+
+            if (bmsWeekKey) {
+                globalBmsWeekTotals.set(
+                    bmsWeekKey,
+                    (globalBmsWeekTotals.get(bmsWeekKey) ?? 0) + real,
+                );
             }
         }
 
         // ── Build KPI ─────────────────────────────────────────────────────
         const completedCount = rows.length;
-        const avgPerReport =
-            completedCount > 0 ? Math.round(sumRealisasi / completedCount) : 0;
+        const avgBmsWeeklyRealisasi = averageMapValues(globalBmsWeekTotals);
         const efficiencyPercent =
             sumEstimasi > 0
                 ? Math.round(
@@ -263,9 +335,10 @@ export async function getRealisasiPageData(
         const kpi: RealisasiKpi = {
             totalRealisasi: sumRealisasi,
             totalEstimasi: sumEstimasi,
-            avgPerReport,
+            avgBmsWeeklyRealisasi,
             efficiencyPercent,
             completedCount,
+            weeklyAdvanceAmount: pjumPolicy.weeklyAdvanceAmount,
         };
 
         // ── Build monthly trend ───────────────────────────────────────────
@@ -277,10 +350,9 @@ export async function getRealisasiPageData(
                 label: b.label,
                 totalRealisasi: acc?.total ?? 0,
                 count: acc?.count ?? 0,
-                avgPerReport:
-                    acc && acc.count > 0
-                        ? Math.round(acc.total / acc.count)
-                        : 0,
+                avgBmsWeeklyRealisasi: averageMapValues(
+                    monthBmsWeekTotals.get(b.key),
+                ),
             };
         });
 
@@ -294,6 +366,9 @@ export async function getRealisasiPageData(
                     acc.totalEst > 0
                         ? Math.round((selisih / acc.totalEst) * 100)
                         : 0;
+                const avgBmsWeeklyRealisasi = averageMapValues(
+                    acc.bmsWeekTotals,
+                );
                 return {
                     branchName,
                     completedCount: acc.count,
@@ -305,6 +380,18 @@ export async function getRealisasiPageData(
                         acc.count > 0
                             ? Math.round(acc.totalReal / acc.count)
                             : 0,
+                    avgBmsWeeklyRealisasi,
+                    advanceUsagePercent:
+                        pjumPolicy.weeklyAdvanceAmount > 0
+                            ? Math.round(
+                                  (avgBmsWeeklyRealisasi /
+                                      pjumPolicy.weeklyAdvanceAmount) *
+                                      100,
+                              )
+                            : 0,
+                    advanceDelta:
+                        pjumPolicy.weeklyAdvanceAmount -
+                        avgBmsWeeklyRealisasi,
                 };
             })
             .sort((a, b) => b.totalRealisasi - a.totalRealisasi);

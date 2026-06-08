@@ -1,7 +1,5 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { getAdminBranchOptions } from "../queries";
 import { getAdminPreventive, getReportYears } from "./actions";
@@ -13,12 +11,17 @@ export const dynamic = "force-dynamic";
 export default async function AdminPreventivePage() {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
+        redirect("/dashboard");
+    }
 
     const isAdmin = user.role === "ADMIN";
     const currentYear = new Date().getFullYear();
     const defaultBranch = "all";
-    const bmcBranchLabel = user.branchNames.join(" & ") || "—";
 
     const [branchOptions, years, initialData] = await Promise.all([
         isAdmin ? getAdminBranchOptions() : Promise.resolve([]),
@@ -32,47 +35,19 @@ export default async function AdminPreventivePage() {
         ? branchOptions.map((branch) => branch.name)
         : user.branchNames;
 
-    if (!isAdmin) {
-        return (
-            <div className="min-h-screen flex flex-col bg-muted/20">
-                <Header
-                    variant="dashboard"
-                    title="Checklist Preventif"
-                    description="Monitoring preventive area cabang"
-                    showBackButton
-                    backHref="/dashboard"
-                    logo={false}
-                />
-
-                <main className="flex-1">
-                    <div className="min-h-[calc(100vh-16rem)]">
-                        <AdminPreventiveTable
-                            initialData={initialData}
-                            branches={branches}
-                            availableYears={years}
-                            defaultBranch={defaultBranch}
-                            lockedBranchLabel={bmcBranchLabel}
-                            actions={
-                                <ExportPreventiveDialog
-                                    branches={branches}
-                                    allowAllBranches={false}
-                                />
-                            }
-                        />
-                    </div>
-                </main>
-
-                <Footer />
-            </div>
-        );
-    }
-
     return (
         <AdminDashboardShell
             user={user}
             title="Checklist Preventif"
             breadcrumbs={[{ label: "Checklist Preventif" }]}
-            headerActions={<ExportPreventiveDialog branches={branches} />}
+            headerActions={
+                user.role === "ADMIN" || user.role === "BMC" ? (
+                    <ExportPreventiveDialog
+                        branches={branches}
+                        allowAllBranches={isAdmin}
+                    />
+                ) : null
+            }
             contentClassName="h-full gap-0 p-0 lg:p-0"
         >
             <AdminPreventiveTable
@@ -80,6 +55,7 @@ export default async function AdminPreventivePage() {
                 branches={branches}
                 availableYears={years}
                 defaultBranch={defaultBranch}
+                showBranchControls={isAdmin}
             />
         </AdminDashboardShell>
     );

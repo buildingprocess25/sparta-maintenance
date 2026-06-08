@@ -10,14 +10,11 @@ import {
 
 const checkpointFieldMap: Record<
     ReportPdfCheckpoint,
-    | "pendingEstimationPdfPath"
-    | "estimationApprovedPdfPath"
-    | "approvedBmcPdfPath"
-    | "completedPdfPath"
+    "completedPdfPath"
 > = {
-    PENDING_ESTIMATION: "pendingEstimationPdfPath",
-    ESTIMATION_APPROVED: "estimationApprovedPdfPath",
-    APPROVED_BMC: "approvedBmcPdfPath",
+    PENDING_ESTIMATION: "completedPdfPath",
+    ESTIMATION_APPROVED: "completedPdfPath",
+    APPROVED_BMC: "completedPdfPath",
     COMPLETED: "completedPdfPath",
 };
 

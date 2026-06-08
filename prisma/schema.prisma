@@ -144,15 +144,8 @@ model Report {
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?
 
-  // PDF snapshot paths in Google Drive (stored as Drive file paths)
-  pendingEstimationPdfPath  String?
-  estimationApprovedPdfPath String?
-  approvedBmcPdfPath        String?
+  // Final workflow PDF snapshot path in Google Drive (stored as Drive URL/path)
   completedPdfPath          String?
-
-  // UploadThing file keys — for cleanup when report status changes to COMPLETED.
-  // Stores all file keys from checklist photos, selfie, receipt, and completion photos.
-  uploadthingFileKeys       Json      @default("[]")
 
   // Google Drive CDN file IDs — for new photos uploaded after Google Drive CDN feature.
   // Stores all Drive file IDs for photos uploaded via the new CDN flow.
@@ -247,14 +240,6 @@ model PjumExport {
   approvedByNIK   String?
   approvedAt      DateTime?
 
-  // PUM data (filled by BnM Manager on approval)
-  pumBankAccountNo    String?
-  pumBankAccountName  String?
-  pumBankName         String?
-  pumWeekNumber       Int?
-  pumMonth            String?
-  pumYear             Int?
-
   // Rejection notes
   rejectionNotes  String?
 
@@ -268,23 +253,6 @@ model PjumExport {
   @@index([status])
   @@index([branchName])
   @@index([createdByNIK])
-}
-
-model PjumBankAccount {
-  id              String   @id @default(uuid())
-  bmsNIK          String
-  bankAccountNo   String
-  bankAccountName String
-  bankName        String
-
-  addedByNIK      String   // BnM Manager who added this
-
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  @@unique([bmsNIK, bankAccountNo])
-  @@index([bmsNIK])
-  @@index([addedByNIK])
 }
 
 model AppSetting {

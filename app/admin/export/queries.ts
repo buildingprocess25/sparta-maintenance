@@ -3,7 +3,8 @@ import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { Prisma } from "@prisma/client";
-import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
+import type { MaterialEstimationJson } from "@/types/report";
+import { getAdminBranchHierarchy } from "@/app/dashboard/queries";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -16,6 +17,7 @@ export type ExportFilter = {
     search?: string;
     searchQuery?: string;
     year?: number;
+    preventiveQuarter?: "all" | 1 | 2 | 3 | 4;
 };
 
 // ─── Sheet 1: Report rows ─────────────────────────────────────────────────────
@@ -85,6 +87,13 @@ export type PreventiveExportRow = {
 };
 
 // (MaterialEstimationJson imported from @/types/report — used directly below)
+
+type PreventiveExportReportRow = {
+    storeCode: string | null;
+    createdAt: Date;
+    createdByNIK: string;
+    createdByName: string | null;
+};
 
 // ─── Helper: build Report where clause ───────────────────────────────────────
 
@@ -402,26 +411,91 @@ export async function fetchAllBranchNames(): Promise<string[]> {
 
 // ─── Query: Sheet 4 — Checklist Preventif ────────────────────────────────────
 
+function normalizePreventiveQuarter(
+    value: ExportFilter["preventiveQuarter"],
+): "all" | 1 | 2 | 3 | 4 {
+    if (value === 1 || value === 2 || value === 3 || value === 4) {
+        return value;
+    }
+
+    return "all";
+}
+
+function getPreventiveExportWindow(
+    year: number,
+    quarter: "all" | 1 | 2 | 3 | 4,
+) {
+    if (quarter === "all") {
+        return {
+            start: new Date(year, 0, 1),
+            endExclusive: new Date(year + 1, 0, 1),
+        };
+    }
+
+    const startMonth = (quarter - 1) * 3;
+    return {
+        start: new Date(year, startMonth, 1),
+        endExclusive: new Date(year, startMonth + 3, 1),
+    };
+}
+
+function getQuarterKeyFromDate(date: Date): "q1" | "q2" | "q3" | "q4" {
+    const month = date.getMonth();
+    if (month <= 2) return "q1";
+    if (month <= 5) return "q2";
+    if (month <= 8) return "q3";
+    return "q4";
+}
+
+function normalizeBranchFilter(branchName: ExportFilter["branchName"]) {
+    if (!branchName || branchName === "all") return null;
+
+    const branches = Array.isArray(branchName) ? branchName : [branchName];
+    const filtered = branches.filter(
+        (branch) =>
+            branch &&
+            branch !== "all" &&
+            branch !== EXCLUDED_ADMIN_BRANCH_NAME,
+    );
+
+    return filtered.length > 0 ? filtered : null;
+}
+
+async function resolvePreventiveBranchFilter(
+    branchName: ExportFilter["branchName"],
+) {
+    const selectedBranches = normalizeBranchFilter(branchName);
+    if (!selectedBranches) return null;
+
+    const hierarchy = await getAdminBranchHierarchy();
+    const resolved = new Set(selectedBranches);
+
+    for (const [branch, parent] of hierarchy.parentMap.entries()) {
+        if (selectedBranches.includes(parent)) {
+            resolved.add(branch);
+        }
+    }
+
+    resolved.delete(EXCLUDED_ADMIN_BRANCH_NAME);
+    return Array.from(resolved);
+}
+
 export async function fetchPreventiveExportRows(
     filter: ExportFilter,
 ): Promise<PreventiveExportRow[]> {
     try {
         const year = filter.year || new Date().getFullYear();
+        const quarter = normalizePreventiveQuarter(filter.preventiveQuarter);
+        const { start, endExclusive } = getPreventiveExportWindow(year, quarter);
+        const selectedBranchNames = await resolvePreventiveBranchFilter(
+            filter.branchName,
+        );
 
         const whereStore: Prisma.StoreWhereInput = {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         };
-        if (filter.branchName && filter.branchName !== "all") {
-            if (Array.isArray(filter.branchName)) {
-                if (
-                    filter.branchName.length > 0 &&
-                    filter.branchName[0] !== "all"
-                ) {
-                    whereStore.branchName = { in: filter.branchName };
-                }
-            } else {
-                whereStore.branchName = filter.branchName;
-            }
+        if (selectedBranchNames) {
+            whereStore.branchName = { in: selectedBranchNames };
         }
 
         if (filter.searchQuery) {
@@ -442,46 +516,62 @@ export async function fetchPreventiveExportRows(
         });
 
         const storeCodes = stores.map((s) => s.code);
-        const yearStart = new Date(year, 0, 1);
-        const yearEnd = new Date(year + 1, 0, 1);
-        const reportWhere: Prisma.ReportWhereInput = {
-            storeCode: { in: storeCodes },
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: { not: "DRAFT" },
-            createdAt: {
-                gte: yearStart,
-                lt: yearEnd,
-            },
-        };
 
-        if (filter.branchName && filter.branchName !== "all") {
-            if (Array.isArray(filter.branchName)) {
-                if (
-                    filter.branchName.length > 0 &&
-                    filter.branchName[0] !== "all"
-                ) {
-                    reportWhere.branchName = { in: filter.branchName };
-                }
-            } else {
-                reportWhere.branchName = filter.branchName;
-            }
+        if (storeCodes.length === 0) {
+            return [];
         }
 
-        const reports = await prisma.report.findMany({
-            where: reportWhere,
-            select: {
-                storeCode: true,
-                createdAt: true,
-                items: true,
-                createdByNIK: true,
-                createdBy: { select: { name: true } },
-            },
-        });
+        const reportPredicates: Prisma.Sql[] = [
+            Prisma.sql`r."status" = 'COMPLETED'::"ReportStatus"`,
+            Prisma.sql`r."createdAt" >= ${start}`,
+            Prisma.sql`r."createdAt" < ${endExclusive}`,
+        ];
+
+        if (filter.searchQuery) {
+            reportPredicates.push(
+                Prisma.sql`r."storeCode" IN (${Prisma.join(storeCodes)})`,
+            );
+        }
+
+        if (selectedBranchNames) {
+            reportPredicates.push(
+                Prisma.sql`r."branchName" IN (${Prisma.join(selectedBranchNames)})`,
+            );
+        } else {
+            reportPredicates.push(
+                Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`,
+            );
+        }
+
+        const reports: PreventiveExportReportRow[] = await prisma.$queryRaw`
+            SELECT
+                r."storeCode",
+                r."createdAt",
+                r."createdByNIK",
+                u."name" AS "createdByName"
+            FROM "Report" r
+            LEFT JOIN "User" u ON u."NIK" = r."createdByNIK"
+            WHERE ${Prisma.join(reportPredicates, " AND ")}
+              AND EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(r."items") AS item
+                WHERE item->>'itemId' LIKE 'I%'
+                   OR item->>'preventiveCondition' IS NOT NULL
+              )
+            ORDER BY r."createdAt" DESC
+        `;
+
+        const reportsByStore = new Map<string, PreventiveExportReportRow[]>();
+        for (const report of reports) {
+            if (!report.storeCode) continue;
+
+            const current = reportsByStore.get(report.storeCode) ?? [];
+            current.push(report);
+            reportsByStore.set(report.storeCode, current);
+        }
 
         const rows: PreventiveExportRow[] = stores.map((store) => {
-            const storeReports = reports.filter(
-                (r) => r.storeCode === store.code,
-            );
+            const storeReports = reportsByStore.get(store.code) ?? [];
 
             const quarterInfo: Record<
                 "q1" | "q2" | "q3" | "q4",
@@ -495,13 +585,13 @@ export async function fetchPreventiveExportRows(
 
             const updateQuarter = (
                 key: "q1" | "q2" | "q3" | "q4",
-                report: (typeof reports)[number],
+                report: PreventiveExportReportRow,
             ) => {
                 const existing = quarterInfo[key];
                 if (!existing || report.createdAt > existing.doneAt) {
                     quarterInfo[key] = {
                         doneAt: report.createdAt,
-                        bmsName: report.createdBy?.name ?? "",
+                        bmsName: report.createdByName ?? "",
                         bmsNIK: report.createdByNIK ?? "",
                     };
                 }
@@ -521,23 +611,9 @@ export async function fetchPreventiveExportRows(
             };
 
             for (const report of storeReports) {
-                const items = report.items as unknown as ReportItemJson[];
-                if (items && Array.isArray(items)) {
-                    const hasCategoryI = items.some(
-                        (item) =>
-                            item.itemId && String(item.itemId).startsWith("I"),
-                    );
-                    if (hasCategoryI) {
-                        const month = new Date(report.createdAt).getMonth();
-                        if (month >= 0 && month <= 2)
-                            updateQuarter("q1", report);
-                        else if (month >= 3 && month <= 5)
-                            updateQuarter("q2", report);
-                        else if (month >= 6 && month <= 8)
-                            updateQuarter("q3", report);
-                        else if (month >= 9 && month <= 11)
-                            updateQuarter("q4", report);
-                    }
+                const quarterKey = getQuarterKeyFromDate(report.createdAt);
+                if (quarter === "all" || quarterKey === `q${quarter}`) {
+                    updateQuarter(quarterKey, report);
                 }
             }
 

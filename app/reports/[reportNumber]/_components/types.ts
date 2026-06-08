@@ -29,11 +29,7 @@ export type ReportData = {
     startMaterialStores: MaterialStoreJson[];
     completionAdditionalPhotos: string[];
     completionAdditionalNote: string | null;
-    // PDF snapshot Drive URLs (stored in legacy *PdfPath fields).
-    // May be a Drive URL (new records) or a path string (old records).
-    pendingEstimationPdfPath: string | null;
-    estimationApprovedPdfPath: string | null;
-    approvedBmcPdfPath: string | null;
+    // Final PDF snapshot Drive URL/path.
     completedPdfPath: string | null;
 };
 

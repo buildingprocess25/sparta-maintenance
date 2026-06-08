@@ -13,6 +13,8 @@
 # testing
 /coverage
 
+/MAGANG
+
 # next.js
 /.next/
 /out/

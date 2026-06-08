@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../../_components/admin/admin-dashboard-shell";
 import { getAdminReportDetail } from "./queries";
+import { ReportApprovalActions } from "./_components/report-approval-actions";
 import { ReportDetailWorkbench } from "./_components/report-detail-workbench";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +31,15 @@ export default async function AdminReportDetailPage({ params }: Props) {
                 { label: "Laporan Maintenance", href: "/dashboard/reports" },
                 { label: report.reportNumber },
             ]}
+            headerActions={
+                hasReportApprovalAction(user.role, report.status) ? (
+                    <ReportApprovalActions
+                        reportNumber={report.reportNumber}
+                        status={report.status}
+                        viewerRole={user.role}
+                    />
+                ) : undefined
+            }
             contentClassName="h-full gap-0 p-0 lg:p-0"
         >
             <ReportDetailWorkbench report={report} />
@@ -57,8 +67,17 @@ function canAccessDashboardReport(
     }
 
     if (user.role === "BNM_MANAGER") {
-        return report.status === "APPROVED_BMC" || report.status === "COMPLETED";
+        return user.branchNames.includes(report.branchName);
     }
 
     return false;
+}
+
+function hasReportApprovalAction(role: string, status: string) {
+    return (
+        (role === "BMC" &&
+            (status === "PENDING_ESTIMATION" ||
+                status === "PENDING_REVIEW")) ||
+        (role === "BNM_MANAGER" && status === "APPROVED_BMC")
+    );
 }

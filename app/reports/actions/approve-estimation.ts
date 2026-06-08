@@ -112,7 +112,10 @@ export async function reviewEstimation(
         ]);
 
         revalidatePath(`/reports/${reportNumber}`);
+        revalidatePath(`/dashboard/reports/${reportNumber}`);
         revalidatePath("/reports");
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard");
 
         logger.info(
             {

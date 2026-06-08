@@ -26,7 +26,7 @@ export function AdminDashboardShell({
         <SidebarProvider>
             <AppSidebar variant="sidebar" user={user} />
             <SidebarInset className="min-w-0 max-w-full">
-                <SiteHeader title={title} breadcrumbs={breadcrumbs}>
+                <SiteHeader title={title} breadcrumbs={breadcrumbs} user={user}>
                     {headerActions}
                 </SiteHeader>
                 <div

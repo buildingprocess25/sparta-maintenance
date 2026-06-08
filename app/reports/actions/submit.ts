@@ -108,11 +108,6 @@ export async function submitReport(data: DraftData) {
               })
             : null;
 
-        // Extract file keys and IDs from checklist items
-        const uploadthingFileKeys = checklistItems
-            .map((item) => item.photoKey)
-            .filter(Boolean) as string[];
-
         // Extract Google Drive CDN file IDs from checklist items
         const drivePhotoFileIds = checklistItems
             .map((item) => item.photoKey) // photoKey now contains Drive file ID
@@ -132,7 +127,6 @@ export async function submitReport(data: DraftData) {
                     createdByNIK: user.NIK,
                     items: itemsJson,
                     estimations: estimationsJson,
-                    uploadthingFileKeys: [] as unknown as Prisma.InputJsonValue, // No longer using UploadThing
                     drivePhotoFileIds:
                         drivePhotoFileIds as unknown as Prisma.InputJsonValue,
                 },

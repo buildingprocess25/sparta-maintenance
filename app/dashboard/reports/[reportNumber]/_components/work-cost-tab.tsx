@@ -29,7 +29,11 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import type { DetailPhoto, ReportDetailModel, WorkItem } from "../_lib/detail-data";
+import type {
+    DetailPhoto,
+    ReportDetailModel,
+    WorkItem,
+} from "../_lib/detail-data";
 import {
     ConditionBadge,
     EmptyState,
@@ -320,11 +324,8 @@ function ReceiptCompareDialog({
             }}
         >
             <DialogContent className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl xl:max-w-7xl">
-                <DialogHeader className="border-b px-4 py-3">
+                <DialogHeader className="border-b px-4 py-5">
                     <DialogTitle>Bandingkan dengan Nota</DialogTitle>
-                    <DialogDescription>
-                        Foto nota di kiri, tabel realisasi pekerjaan di kanan.
-                    </DialogDescription>
                 </DialogHeader>
                 <div className="grid max-h-[calc(100vh-10rem)] min-h-[520px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                     <section className="flex min-h-0 flex-col border-b bg-muted/20 lg:border-b-0 lg:border-r">

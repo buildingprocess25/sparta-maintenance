@@ -43,7 +43,6 @@ export async function startWorkWithPhotos(
             select: {
                 createdByNIK: true,
                 status: true,
-                uploadthingFileKeys: true,
                 drivePhotoFileIds: true,
             },
         });
@@ -115,12 +114,6 @@ export async function startWorkWithPhotos(
                 ? validSelfieUrls[0]
                 : JSON.stringify(validSelfieUrls);
 
-        // Collect all UploadThing file keys for future cleanup (legacy)
-        const existingKeys = Array.isArray(report.uploadthingFileKeys)
-            ? (report.uploadthingFileKeys as string[])
-            : [];
-        const newKeys = [...existingKeys];
-
         // Collect all Google Drive CDN file IDs for future cleanup
         const existingFileIds = Array.isArray(report.drivePhotoFileIds)
             ? (report.drivePhotoFileIds as string[])
@@ -144,9 +137,6 @@ export async function startWorkWithPhotos(
                         validReceiptUrls as unknown as Prisma.InputJsonValue,
                     startMaterialStores:
                         validMaterialStores as unknown as Prisma.InputJsonValue,
-                    // Keep existing UploadThing keys (legacy)
-                    uploadthingFileKeys:
-                        newKeys as unknown as Prisma.InputJsonValue,
                     // Append new Drive file IDs
                     drivePhotoFileIds:
                         newFileIds as unknown as Prisma.InputJsonValue,

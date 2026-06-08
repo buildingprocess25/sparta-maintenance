@@ -231,14 +231,14 @@ export function AdminPreventiveTable({
     branches,
     availableYears,
     defaultBranch,
-    lockedBranchLabel,
+    showBranchControls = true,
     actions,
 }: {
     initialData: AdminPreventiveResult;
     branches: string[];
     availableYears: number[];
     defaultBranch: string;
-    lockedBranchLabel?: string;
+    showBranchControls?: boolean;
     actions?: ReactNode;
 }) {
     const currentYear = new Date().getFullYear();
@@ -416,7 +416,7 @@ export function AdminPreventiveTable({
     const hasMoreHistoryRows =
         visibleHistoryCount < filteredHistoryRows.length;
     const lowestBranch = branchSummaries[0];
-    const showLowestBranchMetric = branchName === "all";
+    const showLowestBranchMetric = showBranchControls && branchName === "all";
 
     const lastPendingRowRef = useCallback(
         (node: HTMLTableRowElement) => {
@@ -496,13 +496,7 @@ export function AdminPreventiveTable({
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
-                            {lockedBranchLabel ? (
-                                <div className="flex h-9 w-full items-center rounded-md border border-input bg-background px-3 text-sm text-foreground sm:w-[240px]">
-                                    <span className="truncate">
-                                        {lockedBranchLabel}
-                                    </span>
-                                </div>
-                            ) : (
+                            {showBranchControls ? (
                                 <Select
                                     value={branchName}
                                     onValueChange={setBranchName}
@@ -524,7 +518,7 @@ export function AdminPreventiveTable({
                                         ))}
                                     </SelectContent>
                                 </Select>
-                            )}
+                            ) : null}
                             <Select
                                 value={quarter.toString()}
                                 onValueChange={(value) =>
@@ -639,7 +633,7 @@ export function AdminPreventiveTable({
                             >
                                 <TabsTrigger value="quarter" className="h-8 flex-none px-3 text-xs">
                                     <ClipboardCheck data-icon="inline-start" />
-                                    Triwulan Dipilih
+                                    Sudah Checklist
                                     <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                                         {summary?.completed ?? 0}
                                     </Badge>
@@ -655,13 +649,15 @@ export function AdminPreventiveTable({
                                     <BarChart3 data-icon="inline-start" />
                                     Matriks Tahunan
                                 </TabsTrigger>
-                                <TabsTrigger value="branches" className="h-8 flex-none px-3 text-xs">
-                                    <Store data-icon="inline-start" />
-                                    Cabang
-                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-                                        {branchSummaries.length}
-                                    </Badge>
-                                </TabsTrigger>
+                                {showBranchControls ? (
+                                    <TabsTrigger value="branches" className="h-8 flex-none px-3 text-xs">
+                                        <Store data-icon="inline-start" />
+                                        Cabang
+                                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                            {branchSummaries.length}
+                                        </Badge>
+                                    </TabsTrigger>
+                                ) : null}
                                 <TabsTrigger value="history" className="h-8 flex-none px-3 text-xs">
                                     <Activity data-icon="inline-start" />
                                     Riwayat
@@ -952,68 +948,70 @@ export function AdminPreventiveTable({
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="branches" className="mt-0">
-                        <div className="overflow-hidden rounded-lg border bg-background">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-muted/50">
-                                        <TableHead className="min-w-[180px] text-[11px]">Cabang</TableHead>
-                                        <TableHead className="min-w-[100px] text-[11px]">Target</TableHead>
-                                        <TableHead className="min-w-[100px] text-[11px]">Selesai</TableHead>
-                                        <TableHead className="min-w-[100px] text-[11px]">Belum</TableHead>
-                                        <TableHead className="min-w-[220px] text-[11px]">Coverage</TableHead>
-                                        <TableHead className="min-w-[140px] text-[11px]">Terakhir</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {branchSummaries.length === 0 ? (
-                                        <TableRow>
-                                            <TableCell colSpan={6}>
-                                                <EmptyTable
-                                                    icon={Store}
-                                                    title="Tidak ada cabang"
-                                                    description="Filter belum menghasilkan ringkasan cabang."
-                                                />
-                                            </TableCell>
+                    {showBranchControls ? (
+                        <TabsContent value="branches" className="mt-0">
+                            <div className="overflow-hidden rounded-lg border bg-background">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/50">
+                                            <TableHead className="min-w-[180px] text-[11px]">Cabang</TableHead>
+                                            <TableHead className="min-w-[100px] text-[11px]">Target</TableHead>
+                                            <TableHead className="min-w-[100px] text-[11px]">Selesai</TableHead>
+                                            <TableHead className="min-w-[100px] text-[11px]">Belum</TableHead>
+                                            <TableHead className="min-w-[220px] text-[11px]">Coverage</TableHead>
+                                            <TableHead className="min-w-[140px] text-[11px]">Terakhir</TableHead>
                                         </TableRow>
-                                    ) : (
-                                        branchSummaries.map((branch) => (
-                                            <TableRow key={branch.branchName}>
-                                                <TableCell className="text-xs font-medium">
-                                                    {branch.branchName}
-                                                </TableCell>
-                                                <TableCell className="text-xs">{branch.totalStores}</TableCell>
-                                                <TableCell className="text-xs text-emerald-700">
-                                                    {branch.completed}
-                                                </TableCell>
-                                                <TableCell className="text-xs text-red-700">
-                                                    {branch.pending}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="h-2 w-36 overflow-hidden rounded-full bg-muted">
-                                                            <div
-                                                                className="h-full rounded-full bg-emerald-500"
-                                                                style={{
-                                                                    width: `${branch.completionRate}%`,
-                                                                }}
-                                                            />
-                                                        </div>
-                                                        <span className="text-xs font-medium">
-                                                            {branch.completionRate}%
-                                                        </span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="text-xs">
-                                                    {formatDate(branch.lastDoneAt)}
+                                    </TableHeader>
+                                    <TableBody>
+                                        {branchSummaries.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6}>
+                                                    <EmptyTable
+                                                        icon={Store}
+                                                        title="Tidak ada cabang"
+                                                        description="Filter belum menghasilkan ringkasan cabang."
+                                                    />
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    )}
-                                </TableBody>
-                            </Table>
-                        </div>
-                    </TabsContent>
+                                        ) : (
+                                            branchSummaries.map((branch) => (
+                                                <TableRow key={branch.branchName}>
+                                                    <TableCell className="text-xs font-medium">
+                                                        {branch.branchName}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">{branch.totalStores}</TableCell>
+                                                    <TableCell className="text-xs text-emerald-700">
+                                                        {branch.completed}
+                                                    </TableCell>
+                                                    <TableCell className="text-xs text-red-700">
+                                                        {branch.pending}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-2 w-36 overflow-hidden rounded-full bg-muted">
+                                                                <div
+                                                                    className="h-full rounded-full bg-emerald-500"
+                                                                    style={{
+                                                                        width: `${branch.completionRate}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                            <span className="text-xs font-medium">
+                                                                {branch.completionRate}%
+                                                            </span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="text-xs">
+                                                        {formatDate(branch.lastDoneAt)}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </TabsContent>
+                    ) : null}
 
                     <TabsContent value="history" className="mt-0">
                         <div className="overflow-hidden rounded-lg border bg-background">

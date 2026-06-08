@@ -67,13 +67,6 @@ export type PjumExportDetail = {
     pjumFinalDriveUrl: string | null;
 };
 
-export type BankAccountOption = {
-    id: string;
-    bankAccountNo: string;
-    bankAccountName: string;
-    bankName: string;
-};
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Queries
 // ─────────────────────────────────────────────────────────────────────────────
@@ -300,50 +293,12 @@ export async function getPjumExportDetail(
     }
 }
 
-/**
- * Get saved bank accounts for a BMS (for auto-fill).
- */
-export async function getBmsBankAccounts(
-    bmsNIK: string,
-): Promise<{ data: BankAccountOption[]; error: string | null }> {
-    try {
-        await requireRole("BNM_MANAGER");
-
-        const accounts = await prisma.pjumBankAccount.findMany({
-            where: { bmsNIK },
-            select: {
-                id: true,
-                bankAccountNo: true,
-                bankAccountName: true,
-                bankName: true,
-            },
-            orderBy: { updatedAt: "desc" },
-        });
-
-        return { data: accounts, error: null };
-    } catch (error) {
-        logger.error(
-            { operation: "getBmsBankAccounts", bmsNIK },
-            "Failed",
-            error,
-        );
-        return { data: [], error: "Gagal memuat data rekening" };
-    }
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Mutations
 // ─────────────────────────────────────────────────────────────────────────────
 
 const approveSchema = z.object({
     pjumExportId: z.string().uuid(),
-    bankAccountNo: z.string().optional(),
-    bankAccountName: z.string().optional(),
-    bankName: z.string().optional(),
-    // PUM fields now optional (PUM feature disabled per business request)
-    pumWeekNumber: z.number().int().min(1).max(5).optional(),
-    pumMonth: z.string().optional(),
-    pumYear: z.number().int().min(2024).max(2099).optional(),
 });
 
 /**
@@ -352,12 +307,6 @@ const approveSchema = z.object({
  */
 export async function approvePjumExport(input: {
     pjumExportId: string;
-    bankAccountNo?: string;
-    bankAccountName?: string;
-    bankName?: string;
-    pumWeekNumber?: number;
-    pumMonth?: string;
-    pumYear?: number;
 }): Promise<{ error: string | null }> {
     const startTime = Date.now();
     try {
@@ -393,12 +342,9 @@ export async function approvePjumExport(input: {
         ]);
 
         const bmsName = bmsUser?.name ?? pjumExport.bmsNIK;
-        const bankAccountNo = validated.bankAccountNo?.trim() || null;
-        const bankAccountName = validated.bankAccountName?.trim() || null;
-        const bankName = validated.bankName?.trim() || null;
         const approvedAtDate = new Date();
 
-        // Keep PJUM form page in final package even when PUM is disabled.
+        // Keep PJUM form page in final package.
         const reports = await prisma.report.findMany({
             where: { reportNumber: { in: pjumExport.reportNumbers } },
             select: {
@@ -410,9 +356,6 @@ export async function approvePjumExport(input: {
                 createdByNIK: true,
                 createdBy: { select: { name: true } },
                 completedPdfPath: true,
-                pendingEstimationPdfPath: true,
-                estimationApprovedPdfPath: true,
-                approvedBmcPdfPath: true,
             },
         });
 
@@ -432,7 +375,7 @@ export async function approvePjumExport(input: {
             totalExpenditure,
         };
 
-        // Generate final PDF package (PUM form is temporarily disabled)
+        // Generate final PDF package.
         const result = await generatePjumPackagePdf({
             reportNumbers: pjumExport.reportNumbers,
             bmsNIK: pjumExport.bmsNIK,
@@ -520,21 +463,12 @@ export async function approvePjumExport(input: {
                 approvedAt: approvedAtDate,
                 pjumFinalDriveUrl:
                     uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
-                pumBankAccountNo: bankAccountNo,
-                pumBankAccountName: bankAccountName,
-                pumBankName: bankName,
-                pumWeekNumber: validated.pumWeekNumber,
-                pumMonth: validated.pumMonth,
-                pumYear: validated.pumYear,
             },
         });
 
         const snapshotPathsToDelete = [
             pjumExport.pjumPdfPath,
             ...reports.flatMap((report) => [
-                report.pendingEstimationPdfPath,
-                report.estimationApprovedPdfPath,
-                report.approvedBmcPdfPath,
                 isGoogleDriveUrl(report.completedPdfPath)
                     ? null
                     : report.completedPdfPath,
@@ -546,9 +480,6 @@ export async function approvePjumExport(input: {
         await prisma.report.updateMany({
             where: { reportNumber: { in: pjumExport.reportNumbers } },
             data: {
-                pendingEstimationPdfPath: null,
-                estimationApprovedPdfPath: null,
-                approvedBmcPdfPath: null,
                 completedPdfPath: null,
             },
         });
@@ -559,30 +490,6 @@ export async function approvePjumExport(input: {
                 pjumPdfPath: null,
             },
         });
-
-        // Save bank account for future auto-fill
-        if (bankAccountNo && bankAccountName && bankName) {
-            await prisma.pjumBankAccount.upsert({
-                where: {
-                    bmsNIK_bankAccountNo: {
-                        bmsNIK: pjumExport.bmsNIK,
-                        bankAccountNo,
-                    },
-                },
-                create: {
-                    bmsNIK: pjumExport.bmsNIK,
-                    bankAccountNo,
-                    bankAccountName,
-                    bankName,
-                    addedByNIK: user.NIK,
-                },
-                update: {
-                    bankAccountName,
-                    bankName,
-                    addedByNIK: user.NIK,
-                },
-            });
-        }
 
         // Send email to Branch Admin (fire-and-forget)
         sendPjumNotification({
@@ -611,6 +518,11 @@ export async function approvePjumExport(input: {
         );
 
         revalidatePath("/reports/pjum");
+        revalidatePath(`/reports/pjum/${pjumExport.id}`);
+        revalidatePath("/dashboard/pjum");
+        revalidatePath(`/dashboard/pjum/${pjumExport.id}`);
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard");
         return { error: null };
     } catch (error) {
         logger.error(

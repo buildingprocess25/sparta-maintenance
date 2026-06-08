@@ -143,11 +143,7 @@ async function getVisibleBranchNames(user: AuthUser) {
 
     return [...new Set(user.branchNames)]
         .map((branchName) => branchName.trim())
-        .filter(
-            (branchName) =>
-                branchName.length > 0 &&
-                branchName !== EXCLUDED_ADMIN_BRANCH_NAME,
-        )
+        .filter((branchName) => branchName.length > 0)
         .sort((a, b) => a.localeCompare(b, "id-ID"));
 }
 
@@ -175,7 +171,6 @@ async function getAdminBranchOverview(
         SELECT COUNT(*)::int AS "count"
         FROM "User"
         WHERE "branchNames"[1] = ${branchName}
-          AND NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
     `;
 
     if ((officialBranchRows[0]?.count ?? 0) === 0) {
@@ -202,7 +197,6 @@ async function getAdminBranchOverview(
                 COUNT(*)::int AS "count"
             FROM "User"
             WHERE "branchNames"[1] = ${branchName}
-              AND NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
             GROUP BY "branchNames"[1], "role"
         `,
         prisma.report.count({

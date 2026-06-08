@@ -89,7 +89,9 @@ export function ExportReportsDialog({ branches }: { branches: string[] }) {
             setOpen(false); // Close dialog on success
         } catch (error: unknown) {
             toast.error(
-                error instanceof Error ? error.message : "Gagal mengekspor data",
+                error instanceof Error
+                    ? error.message
+                    : "Gagal mengekspor data",
                 { id: toastId },
             );
         } finally {
@@ -100,8 +102,8 @@ export function ExportReportsDialog({ branches }: { branches: string[] }) {
     return (
         <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-                <Button className="gap-2 text-xs">
-                    <Download className="w-4 h-4" />
+                <Button size="sm">
+                    <Download data-icon="inline-start" />
                     Ekspor XLSX
                 </Button>
             </DialogTrigger>

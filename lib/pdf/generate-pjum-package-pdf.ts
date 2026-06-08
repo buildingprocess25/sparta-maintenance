@@ -8,7 +8,6 @@ import { generateReportPdf } from "@/lib/pdf/generate-report-pdf";
 import {
     generatePjumFormPdf,
     type PjumFormData,
-    type PumFormData,
 } from "@/lib/pdf/generate-pjum-form-pdf";
 import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
@@ -43,11 +42,6 @@ export async function generatePjumPackagePdf(params: {
     };
     /** When provided, a PJUM-only form page is inserted after the recap */
     pjumData?: PjumFormData;
-    /** When provided, the PJUM+PUM form page is inserted after the recap */
-    pumData?: {
-        pjum: PjumFormData;
-        pum: PumFormData;
-    };
     /** BnM approver data (used when generating package during approval flow) */
     approver?: {
         NIK: string;
@@ -230,37 +224,30 @@ export async function generatePjumPackagePdf(params: {
     const pjumPages = await merged.copyPages(pjumDoc, pjumDoc.getPageIndices());
     pjumPages.forEach((p) => merged.addPage(p));
 
-    // 2. Build and insert form PDF if PJUM/PUM form data is available
+    // 2. Build and insert PJUM form PDF if form data is available
     let formBuffer: Buffer | null = null;
-    if (params.pumData) {
-        formBuffer = await generatePjumFormPdf(
-            params.pumData.pjum,
-            params.pumData.pum,
-        );
-    } else {
-        const fallbackPjumData =
-            params.pjumData ??
-            (params.requireExported && canIncludeFallbackPjumForm
-                ? {
-                      weekNumber: params.weekNumber,
-                      monthName: new Date(
-                          params.from || reports[0].createdAt.toISOString(),
-                      ).toLocaleString("id-ID", { month: "long" }),
-                      year: new Date(
-                          params.from || reports[0].createdAt.toISOString(),
-                      ).getFullYear(),
-                      bmsName: bmsUser?.name ?? params.bmsNIK,
-                      submissionDate: exportCreatedAt ?? exportedAt,
-                      totalExpenditure: recapRows.reduce(
-                          (sum, row) => sum + row.totalRealisasi,
-                          0,
-                      ),
-                  }
-                : null);
+    const fallbackPjumData =
+        params.pjumData ??
+        (params.requireExported && canIncludeFallbackPjumForm
+            ? {
+                  weekNumber: params.weekNumber,
+                  monthName: new Date(
+                      params.from || reports[0].createdAt.toISOString(),
+                  ).toLocaleString("id-ID", { month: "long" }),
+                  year: new Date(
+                      params.from || reports[0].createdAt.toISOString(),
+                  ).getFullYear(),
+                  bmsName: bmsUser?.name ?? params.bmsNIK,
+                  submissionDate: exportCreatedAt ?? exportedAt,
+                  totalExpenditure: recapRows.reduce(
+                      (sum, row) => sum + row.totalRealisasi,
+                      0,
+                  ),
+              }
+            : null);
 
-        if (fallbackPjumData) {
-            formBuffer = await generatePjumFormPdf(fallbackPjumData);
-        }
+    if (fallbackPjumData) {
+        formBuffer = await generatePjumFormPdf(fallbackPjumData);
     }
 
     if (formBuffer) {

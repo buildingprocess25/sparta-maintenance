@@ -1,5 +1,5 @@
 // TODO: Hapus atau nonaktifkan route ini di production.
-// Ini hanya untuk keperluan testing dan preview layout form PJUM & PUM.
+// Ini hanya untuk keperluan testing dan preview layout form PJUM.
 
 import { NextResponse } from "next/server";
 import { generatePjumFormPdf } from "@/lib/pdf/generate-pjum-form-pdf";
@@ -23,20 +23,7 @@ export async function GET() {
             difference: 250000,
         };
 
-        // Mock data for PUM
-        const mockPumData = {
-            bmsName: "Budi Santoso",
-            bmsNIK: "BMS-12345",
-            bankAccountNo: "1234567890",
-            bankAccountName: "Budi Santoso",
-            bankName: "BCA",
-            pumWeekNumber: 2,
-            pumMonth: "Maret",
-            pumYear: 2026,
-            branchName: "Branch Jakarta",
-        };
-
-        const pdfBuffer = await generatePjumFormPdf(mockPjumData, mockPumData);
+        const pdfBuffer = await generatePjumFormPdf(mockPjumData);
 
         // Return the buffer as a PDF response
         return new NextResponse(pdfBuffer as unknown as BodyInit, {

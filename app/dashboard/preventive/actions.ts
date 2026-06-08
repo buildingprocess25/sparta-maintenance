@@ -220,7 +220,12 @@ export async function getAdminPreventive(
 
     try {
         const user = await getAuthUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        if (
+            !user ||
+            (user.role !== "ADMIN" &&
+                user.role !== "BMC" &&
+                user.role !== "BNM_MANAGER")
+        ) {
             throw new Error("Unauthorized");
         }
 
@@ -245,7 +250,7 @@ export async function getAdminPreventive(
         }
 
         if (filters.branchName && filters.branchName !== "all") {
-            if (user.role === "BMC" && !user.branchNames.includes(filters.branchName)) {
+            if (user.role !== "ADMIN" && !user.branchNames.includes(filters.branchName)) {
                 throw new Error("Unauthorized branch access");
             }
             where.branchName = selectedAdminBranchNames

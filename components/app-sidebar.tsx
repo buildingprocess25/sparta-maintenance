@@ -18,7 +18,6 @@ import {
 import {
     IconDashboard,
     IconReport,
-    IconListDetails,
     IconFileDescription,
     IconUsers,
     IconBuildingStore,
@@ -35,11 +34,16 @@ import { usePathname } from "next/navigation";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ChevronRight, LogOut } from "lucide-react";
+import { IconChevronRight, IconKey, IconLogout } from "@tabler/icons-react";
 import { logoutAction } from "@/app/dashboard/action";
+import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 const data = {
     user: {
@@ -72,11 +76,6 @@ const data = {
                     title: "Dokumen PJUM",
                     url: "/dashboard/pjum",
                     icon: IconFileDescription,
-                },
-                {
-                    title: "Material",
-                    url: "/dashboard/materials",
-                    icon: IconListDetails,
                 },
             ],
         },
@@ -143,6 +142,8 @@ export function AppSidebar({
 }: AppSidebarProps) {
     const { isMobile } = useSidebar();
     const [isPending, startTransition] = React.useTransition();
+    const [isChangePasswordOpen, setIsChangePasswordOpen] =
+        React.useState(false);
     const displayUser = authUser
         ? {
               name: authUser.name,
@@ -169,6 +170,28 @@ export function AppSidebar({
             );
         }
         return pathname.startsWith(url);
+    };
+
+    const shouldShowItem = (title: string) => {
+        if (!authUser) return true;
+
+        if (authUser.role === "ADMIN") {
+            return title !== "Performa BMS";
+        }
+
+        if (authUser.role === "BMC" || authUser.role === "BNM_MANAGER") {
+            return [
+                "Laporan Maintenance",
+                "Checklist Preventif",
+                "Dokumen PJUM",
+            ].includes(title);
+        }
+
+        return false;
+    };
+
+    const shouldShowSecondaryItem = () => {
+        return authUser?.role === "ADMIN";
     };
 
     return (
@@ -247,14 +270,61 @@ export function AppSidebar({
                     </SidebarMenu>
                 </SidebarGroup>
 
-                {data.navGroups.map((group) => (
-                    <SidebarGroup key={group.title}>
-                        <SidebarGroupLabel className="text-white/70">
-                            {group.title}
-                        </SidebarGroupLabel>
+                {data.navGroups.map((group) => {
+                    const visibleItems = group.items.filter((item) =>
+                        shouldShowItem(item.title),
+                    );
+                    if (visibleItems.length === 0) return null;
+
+                    return (
+                        <SidebarGroup key={group.title}>
+                            <SidebarGroupLabel className="text-white/70">
+                                {group.title}
+                            </SidebarGroupLabel>
+                            <SidebarGroupContent>
+                                <SidebarMenu>
+                                    {visibleItems.map((item) => (
+                                        <SidebarMenuItem key={item.title}>
+                                            <SidebarMenuButton
+                                                asChild
+                                                tooltip={item.title}
+                                                className="hover:bg-white/10"
+                                                isActive={isItemActive(item.url)}
+                                            >
+                                                <Link
+                                                    href={item.url}
+                                                    target={
+                                                        item.url.startsWith(
+                                                            "http",
+                                                        )
+                                                            ? "_blank"
+                                                            : undefined
+                                                    }
+                                                    rel={
+                                                        item.url.startsWith(
+                                                            "http",
+                                                        )
+                                                            ? "noopener noreferrer"
+                                                            : undefined
+                                                    }
+                                                >
+                                                    <item.icon />
+                                                    <span>{item.title}</span>
+                                                </Link>
+                                            </SidebarMenuButton>
+                                        </SidebarMenuItem>
+                                    ))}
+                                </SidebarMenu>
+                            </SidebarGroupContent>
+                        </SidebarGroup>
+                    );
+                })}
+
+                {data.navSecondary.some(shouldShowSecondaryItem) ? (
+                    <SidebarGroup className="mt-auto">
                         <SidebarGroupContent>
                             <SidebarMenu>
-                                {group.items.map((item) => (
+                                {data.navSecondary.map((item) => (
                                     <SidebarMenuItem key={item.title}>
                                         <SidebarMenuButton
                                             asChild
@@ -284,95 +354,89 @@ export function AppSidebar({
                             </SidebarMenu>
                         </SidebarGroupContent>
                     </SidebarGroup>
-                ))}
-
-                <SidebarGroup className="mt-auto">
-                    <SidebarGroupContent>
-                        <SidebarMenu>
-                            {data.navSecondary.map((item) => (
-                                <SidebarMenuItem key={item.title}>
-                                    <SidebarMenuButton
-                                        asChild
-                                        tooltip={item.title}
-                                        className="hover:bg-white/10"
-                                        isActive={isItemActive(item.url)}
-                                    >
-                                        <Link
-                                            href={item.url}
-                                            target={
-                                                item.url.startsWith("http")
-                                                    ? "_blank"
-                                                    : undefined
-                                            }
-                                            rel={
-                                                item.url.startsWith("http")
-                                                    ? "noopener noreferrer"
-                                                    : undefined
-                                            }
-                                        >
-                                            <item.icon />
-                                            <span>{item.title}</span>
-                                        </Link>
-                                    </SidebarMenuButton>
-                                </SidebarMenuItem>
-                            ))}
-                        </SidebarMenu>
-                    </SidebarGroupContent>
-                </SidebarGroup>
+                ) : null}
             </SidebarContent>
 
-            <SidebarFooter>
+            <SidebarFooter className="relative z-10">
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <SidebarMenuButton
+                                    id="admin-sidebar-profile-trigger"
                                     size="lg"
-                                    className="hover:bg-white/10 transition-colors"
+                                    className="group/profile-trigger bg-background/30 shadow-[0_12px_28px_-24px_var(--sidebar-foreground)] ring-1 ring-sidebar-border/60 backdrop-blur transition-all hover:bg-sidebar-accent/70 hover:shadow-[0_14px_34px_-24px_var(--primary)] group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center"
                                     disabled={isPending}
                                 >
-                                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/20 font-semibold text-white">
-                                        {displayUser.initials}
-                                    </div>
-                                    <div className="grid flex-1 text-left text-sm leading-tight text-white">
-                                        <span className="truncate font-bold">
+                                    <Avatar>
+                                        <AvatarFallback className="bg-sidebar-accent text-sidebar-accent-foreground">
+                                            {displayUser.initials}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <span className="grid flex-1 text-left text-sm leading-tight text-white group-data-[collapsible=icon]:hidden">
+                                        <span className="truncate font-medium">
                                             {displayUser.name}
                                         </span>
                                         {displayUser.email && (
-                                            <span className="truncate text-xs opacity-80">
+                                            <span className="truncate text-xs text-white/70">
                                                 {displayUser.email}
                                             </span>
                                         )}
-                                    </div>
-                                    <ChevronRight className="h-4 w-4" />
+                                    </span>
+                                    <IconChevronRight className="ml-auto size-4 transition-transform group-data-[state=open]/profile-trigger:rotate-90 group-data-[collapsible=icon]:hidden" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
-                                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
                                 side={isMobile ? "top" : "right"}
                                 align="end"
+                                className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
                                 sideOffset={4}
                             >
-                                <DropdownMenuItem
-                                    onClick={() => {
-                                        startTransition(async () => {
-                                            await logoutAction();
-                                        });
-                                    }}
-                                    variant="destructive"
-                                    disabled={isPending}
-                                >
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    <span>
-                                        {isPending
-                                            ? "Logging out..."
-                                            : "Logout"}
+                                <DropdownMenuLabel>
+                                    <span className="block truncate font-medium text-foreground">
+                                        {displayUser.name}
                                     </span>
-                                </DropdownMenuItem>
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                        {displayUser.email}
+                                    </span>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem
+                                        onSelect={(event) => {
+                                            event.preventDefault();
+                                            setIsChangePasswordOpen(true);
+                                        }}
+                                    >
+                                        <IconKey />
+                                        Ganti Password
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => {
+                                            startTransition(async () => {
+                                                await logoutAction();
+                                            });
+                                        }}
+                                        variant="destructive"
+                                        disabled={isPending}
+                                    >
+                                        <IconLogout />
+                                        <span>
+                                            {isPending
+                                                ? "Logging out..."
+                                                : "Logout"}
+                                        </span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuGroup>
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </SidebarMenuItem>
                 </SidebarMenu>
+                <ChangePasswordDialog
+                    open={isChangePasswordOpen}
+                    onOpenChange={setIsChangePasswordOpen}
+                    trigger={null}
+                />
             </SidebarFooter>
         </Sidebar>
     );

@@ -8,11 +8,9 @@
 ![Render](https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=white)
 ![License](https://img.shields.io/badge/License-Proprietary-red)
 
-**SPARTA Maintenance** adalah aplikasi internal untuk pelaporan, approval, realisasi, arsip PDF, dan pertanggungjawaban uang muka maintenance toko.
+**SPARTA Maintenance** adalah aplikasi internal untuk pelaporan maintenance toko, approval berjenjang, checklist preventif, realisasi biaya, arsip PDF, dan PJUM.
 
-Aplikasi ini dipakai oleh tim BMS, BMC, BnM Manager, Branch Admin, dan Admin untuk mengelola laporan kerusakan toko dari estimasi awal sampai pekerjaan selesai, final approval, arsip dokumen, dan PJUM.
-
----
+Project ini sedang memakai pola dashboard baru untuk `ADMIN`, `BMC`, dan `BNM_MANAGER`. Role `BMS` tetap memakai workflow operasional lama untuk membuat, menjalankan, dan menyelesaikan laporan.
 
 ## Tech Stack
 
@@ -22,52 +20,56 @@ Aplikasi ini dipakai oleh tim BMS, BMC, BnM Manager, Branch Admin, dan Admin unt
 | Language | TypeScript 5 |
 | UI | Tailwind CSS 4, shadcn/ui, Radix/Base UI, lucide-react, Tabler Icons, Recharts |
 | Database | PostgreSQL |
-| ORM | Prisma 7 (`@prisma/client`, adapter Neon/PG tersedia) |
+| ORM | Prisma 7 |
 | Auth | Session cookie JWT dengan `jose`, password hash `bcryptjs` |
-| Upload foto | UploadThing dan Google Drive CDN/proxy |
+| Upload dan foto | Google Drive CDN/proxy, UploadThing handler legacy |
 | Arsip dokumen | Google Drive API |
 | PDF | `@react-pdf/renderer`, `pdf-lib` |
 | Email | Nodemailer + Gmail OAuth2 |
 | Deploy | Docker standalone Next.js, Render Blueprint |
-| PWA | Web manifest, service worker, offline page |
-
----
-
-## Fitur Utama
-
-- **Role-based dashboard** untuk BMS, BMC, BnM Manager, dan Admin.
-- **Alur laporan maintenance BMS** dari draft, submit estimasi, approval BMC, mulai pekerjaan, penyelesaian, review BMC, sampai final approval BnM.
-- **Checklist kondisi toko** dengan status item, foto, catatan, estimasi material, dan realisasi biaya.
-- **Draft dan autosave** pada form laporan dan penyelesaian pekerjaan.
-- **PJUM** untuk rekap pertanggungjawaban uang muka mingguan, approval BnM, data PUM, dan arsip final.
-- **PDF report dan PJUM** dengan snapshot/arsip Google Drive.
-- **Manajemen data master** user, toko, material, laporan, preventive checklist, dan PJUM di dashboard Admin.
-- **Manajemen cabang oleh BMC** untuk user BMS/Branch Admin dan toko di cabang terkait.
-- **Notifikasi email** untuk submit laporan dan approval PJUM.
-- **Presence tracking** untuk menghitung user aktif/online.
-- **Maintenance mode** via env hard override atau toggle Admin.
-- **Cron cleanup** untuk laporan pending lama dan workflow cleanup foto approved.
-- **Backup database** ke Google Drive melalui script dan GitHub Actions.
-
----
 
 ## Role dan Akses
 
-| Role | Penggunaan utama |
+| Role | Akses utama |
 | --- | --- |
-| `BMS` | Membuat laporan, mengisi checklist/estimasi, mulai pekerjaan, submit penyelesaian, melihat status laporannya. |
-| `BMC` | Review estimasi dan penyelesaian laporan cabang, membuat PJUM, melihat arsip Drive, mengelola BMS/Branch Admin/toko cabang. |
-| `BNM_MANAGER` | Final approval laporan setelah disetujui BMC, approval/reject PJUM, melihat laporan/PJUM di branch yang ditangani. |
-| `BRANCH_ADMIN` | Role data cabang yang dapat dikelola/import, tetapi saat ini tidak termasuk whitelist login aplikasi utama. |
-| `ADMIN` | Dashboard admin, rekap laporan/material/PJUM/preventive, manajemen user/toko, export, settings, arsip, intervensi revisi laporan. |
+| `BMS` | Membuat laporan, mengisi checklist dan estimasi, mulai kerja, submit penyelesaian, melihat detail laporan miliknya di `/reports/[reportNumber]`. |
+| `BMC` | Memantau dashboard cabang, review estimasi dan penyelesaian, melihat checklist preventif, melihat/membatalkan PJUM sesuai cabang, melihat performa cabang. |
+| `BNM_MANAGER` | Memantau dashboard cabang, final approval laporan, approval PJUM, melihat laporan/PJUM/performa cabang sesuai branch scope. |
+| `ADMIN` | Dashboard global, laporan, PJUM, preventive, cabang, realisasi, user, toko, activity, settings, arsip, dan intervensi revisi laporan. |
+| `BRANCH_ADMIN` | Ada di data model, tetapi tidak termasuk role login aplikasi utama saat ini. |
 
-Catatan login: `app/login/action.ts` hanya mengizinkan `BMS`, `BMC`, `BNM_MANAGER`, dan `ADMIN`.
+Catatan penting:
 
----
+- Login utama hanya mengizinkan `BMS`, `BMC`, `BNM_MANAGER`, dan `ADMIN`.
+- `HEAD OFFICE` adalah cabang development/testing. Data ini disembunyikan dari tampilan global `ADMIN`, tetapi user non-admin yang memang scoped ke `HEAD OFFICE` tetap harus melihat data miliknya.
+- Menu `Material` dan `Performa BMS` tidak ditampilkan di sidebar admin versi sekarang.
+
+## Route Utama
+
+| Route | Role | Fungsi |
+| --- | --- | --- |
+| `/dashboard` | `ADMIN`, `BMC`, `BNM_MANAGER`, `BMS` | Dashboard sesuai role. `BMC` dan `BNM_MANAGER` memakai dashboard shell baru. |
+| `/dashboard/reports` | `ADMIN`, `BMC`, `BNM_MANAGER` | Tabel laporan maintenance dengan filter status, SLA, branch, PJUM, dan infinite scroll. |
+| `/dashboard/reports/[reportNumber]` | `ADMIN`, `BMC`, `BNM_MANAGER` | Detail dashboard laporan: checklist compact, pekerjaan dan biaya, dokumentasi, riwayat, aksi. |
+| `/reports/[reportNumber]` | `BMS` | Detail laporan operasional untuk BMS. Non-BMS diarahkan ke route dashboard detail. |
+| `/reports/(bms)/create` | `BMS` | Buat laporan dan checklist. |
+| `/reports/(bms)/start-work` | `BMS` | Mulai pekerjaan, selfie, nota, dan toko material. |
+| `/reports/(bms)/complete` | `BMS` | Submit penyelesaian dan realisasi. |
+| `/dashboard/pjum` | `ADMIN`, `BMC`, `BNM_MANAGER` | List PJUM, filter, validasi pending terlalu lama. |
+| `/dashboard/pjum/[id]` | `ADMIN`, `BMC`, `BNM_MANAGER` | Detail PJUM dan link PDF final. |
+| `/dashboard/preventive` | `ADMIN`, `BMC` | Coverage checklist preventif per triwulan. Hanya laporan preventif status `COMPLETED` yang dihitung. |
+| `/dashboard/branches` | `ADMIN`, `BMC`, `BNM_MANAGER` | Performa cabang, scoped sesuai role. |
+| `/dashboard/branches/[branchName]` | `ADMIN`, `BMC`, `BNM_MANAGER` | Detail cabang. |
+| `/dashboard/realisasi` | `ADMIN` | Analisis realisasi, termasuk rata-rata realisasi per BMS per minggu per cabang. |
+| `/dashboard/users` | `ADMIN` | Master user. |
+| `/dashboard/stores` | `ADMIN` | Master toko. |
+| `/dashboard/activity` | `ADMIN` | Aktivitas user dan laporan. |
+| `/dashboard/activity/online` | `ADMIN` | User online 5 menit terakhir dan user aktif hari ini. |
+| `/dashboard/settings` | `ADMIN` | Maintenance mode, SLA laporan, dan policy PJUM. |
 
 ## Alur Laporan
 
-Status laporan mengikuti enum `ReportStatus` di Prisma:
+Status laporan mengikuti enum `ReportStatus`:
 
 ```text
 DRAFT
@@ -79,22 +81,26 @@ DRAFT
   -> COMPLETED
 ```
 
-Jalur revisi/penolakan:
+Status revisi atau penolakan:
 
-- `ESTIMATION_REJECTED_REVISION`: estimasi dikembalikan ke BMS untuk revisi.
+- `ESTIMATION_REJECTED_REVISION`: estimasi dikembalikan ke BMS.
 - `ESTIMATION_REJECTED`: estimasi ditolak permanen.
-- `REVIEW_REJECTED_REVISION`: hasil pekerjaan dikembalikan ke BMS untuk revisi.
+- `REVIEW_REJECTED_REVISION`: hasil pekerjaan dikembalikan ke BMS.
 
-Jika laporan memakai handler `REKANAN`, approval estimasi BMC dapat langsung memindahkan laporan ke `APPROVED_BMC` untuk final approval BnM.
+Semantik timestamp laporan:
 
----
+- `Report.createdAt`: waktu laporan dibuat.
+- `Report.updatedAt`: update row Prisma. Untuk UI "update terakhir laporan", gunakan aktivitas terbaru yang berhubungan dengan laporan jika tersedia.
+- `ActivityLog.createdAt`: sumber utama riwayat aktivitas laporan.
+- `Report.finishedAt`: waktu final approval BNM ketika status menjadi `COMPLETED`.
+- `Report.pjumExportedAt`: waktu laporan sudah masuk/export PJUM.
 
 ## Alur PJUM
 
-1. BMC memilih laporan yang memenuhi syarat dan membuat dokumen PJUM mingguan.
-2. PJUM masuk status `PENDING_APPROVAL`.
-3. BnM Manager melakukan approval atau rejection.
-4. Jika approved, data PUM diisi dan PDF final PJUM serta PDF final report diarsipkan ke Google Drive.
+1. BMC membuat PJUM dari laporan yang sudah memenuhi syarat.
+2. PJUM masuk `PENDING_APPROVAL`.
+3. BNM Manager menyetujui atau menolak.
+4. Saat approved, PDF final PJUM dan PDF final report dapat diarsipkan ke Google Drive.
 
 Status PJUM:
 
@@ -102,18 +108,52 @@ Status PJUM:
 - `APPROVED`
 - `REJECTED`
 
----
+Dashboard PJUM versi sekarang fokus pada list, detail, PDF final, dan pending yang terlalu lama. Kolom dokumen dan aksi inline tidak dipakai; dokumen dilihat dari detail PJUM.
 
-## Prasyarat
+## Checklist Preventif
 
-- Node.js 22 direkomendasikan, mengikuti Dockerfile `node:22-bookworm-slim`.
-- npm.
-- PostgreSQL.
-- Akun Google/OAuth client untuk Gmail dan Google Drive.
-- UploadThing token jika memakai endpoint UploadThing.
-- Akses Google Drive folder untuk arsip PDF dan Drive CDN foto.
+Checklist preventif dipakai untuk memastikan toko melakukan checklist per triwulan.
 
----
+Aturan saat ini:
+
+- Coverage hanya menghitung report preventif dengan status `COMPLETED`.
+- Report preventif yang belum selesai tidak dihitung.
+- Filter default adalah semua cabang.
+- Export preventive memakai query yang dioptimalkan dan menyediakan pilihan triwulan, termasuk semua triwulan.
+
+## Realisasi dan Uang Muka
+
+BMS diberi uang muka mingguan. Analisis realisasi dipakai untuk membaca apakah uang muka mingguan cukup, kurang, atau berlebih.
+
+Metrik yang dipakai:
+
+- Total realisasi laporan selesai.
+- Tren realisasi bulanan.
+- Rata-rata realisasi per BMS per minggu per cabang.
+- Data cabang tetap ditampilkan sebagai agregat cabang, bukan tabel terpisah per BMS.
+
+## Database
+
+Model utama:
+
+- `User`: akun, role, branch scope, password, presence.
+- `Store`: toko dan cabang.
+- `Report`: laporan maintenance, checklist JSON, estimasi, realisasi, status, timestamp, foto, PDF final.
+- `ApprovalLog`: catatan keputusan approval.
+- `ActivityLog`: timeline aktivitas laporan.
+- `PjumExport`: dokumen PJUM, status approval, report numbers, PDF final.
+- `UserPresence`: online dan aktif hari ini.
+- `AppSetting`: maintenance mode, SLA laporan, policy PJUM.
+- `GoogleDriveFolderCache`: cache folder Drive.
+
+Schema ada di [prisma/schema.prisma](prisma/schema.prisma).
+
+Index penting yang sudah ada antara lain:
+
+- Report branch/status/date untuk dashboard reports, detail report, preventive, dan PJUM.
+- Store branch/code.
+- ActivityLog report/actor/createdAt.
+- PjumExport status/branch/createdAt sesuai kebutuhan dashboard.
 
 ## Setup Lokal
 
@@ -121,122 +161,50 @@ Status PJUM:
 git clone <repository-url>
 cd sparta-maintenance
 npm install
+npm run db:generate
+npm run dev
 ```
 
-Buat file `.env` di root project, lalu isi minimal:
+Minimal `.env`:
 
 ```env
-# Database
 DATABASE_URL="postgresql://..."
 DIRECT_URL="postgresql://..."
-
-# Session
 SESSION_SECRET="secret-minimal-32-karakter"
-
-# URL aplikasi
 APP_BASE_URL="http://localhost:3000"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 
-# Google OAuth untuk Gmail dan arsip PDF Drive
 GMAIL_USER="your-email@gmail.com"
 GOOGLE_CLIENT_ID="xxx.apps.googleusercontent.com"
 GOOGLE_CLIENT_SECRET="xxx"
 GOOGLE_REFRESH_TOKEN="xxx"
 GOOGLE_DRIVE_ROOT_FOLDER_ID="folder-id-arsip"
 
-# Google Drive CDN/proxy untuk foto
 DRIVE_CDN_CLIENT_ID="xxx.apps.googleusercontent.com"
 DRIVE_CDN_CLIENT_SECRET="xxx"
 DRIVE_CDN_REFRESH_TOKEN="xxx"
 DRIVE_CDN_ROOT_FOLDER_ID="folder-id-foto"
 DRIVE_CDN_SHARE_MODE="private"
 
-# UploadThing
 UPLOADTHING_TOKEN="xxx"
-
-# Cron dan cleanup
 CRON_SECRET="secret-cron"
 CLEANUP_PENDING_EXPIRY_DAYS="14"
-
-# Maintenance dan logging
 MAINTENANCE_MODE="false"
-REQUEST_LOG_ENABLED="true"
-REQUEST_LOG_SAMPLE_RATE="0.15"
-REQUEST_LOG_SLOW_MS="1200"
-
-# Opsional development
-DEV_EMAIL_RECIPIENT="dev@example.com"
-DEV_PJUM_REVISE_SECRET="dev-only-secret"
 ```
 
-Generate Prisma Client:
-
-```bash
-npm run db:generate
-```
-
-Jalankan migrasi sesuai workflow database yang dipakai project:
+Migrasi production/staging:
 
 ```bash
 npx prisma migrate deploy
 ```
 
-Untuk data awal development:
+Untuk development migration baru:
 
 ```bash
-npm run db:seed
+npx prisma migrate dev --name <migration_name>
 ```
 
-Buat user manual via CLI:
-
-```bash
-npm run create-user
-```
-
-Jalankan dev server:
-
-```bash
-npm run dev
-```
-
-Buka `http://localhost:3000`.
-
----
-
-## Google OAuth dan Drive
-
-Project memakai Google OAuth untuk tiga kebutuhan:
-
-- Gmail OAuth2 untuk kirim email.
-- Google Drive arsip PDF laporan/PJUM.
-- Google Drive CDN/proxy untuk foto.
-
-Aktifkan API berikut di Google Cloud Console:
-
-- Gmail API.
-- Google Drive API.
-
-Untuk membuat refresh token:
-
-```bash
-npm run auth:google
-```
-
-Script akan membuka flow OAuth lokal dengan redirect:
-
-```text
-http://127.0.0.1:3005/oauth2/callback
-```
-
-Setelah token didapat, isi `GOOGLE_REFRESH_TOKEN`. Jika Drive CDN memakai OAuth client atau folder berbeda, isi juga `DRIVE_CDN_REFRESH_TOKEN` dan variabel `DRIVE_CDN_*`.
-
-Validasi Drive utama:
-
-```bash
-npm run test:gdrive
-```
-
----
+Jangan gunakan `prisma db push` untuk schema yang terhubung ke database bersama/production.
 
 ## Script npm
 
@@ -252,170 +220,94 @@ npm run test:gdrive
 | `npm run create-user` | Membuat user lewat CLI. |
 | `npm run auth:google` | Membuat Google OAuth refresh token. |
 | `npm run test:gdrive` | Validasi koneksi Google Drive. |
-| `npm run backup:db` | Backup database ke lokal/Drive. |
-| `npm run cleanup:pending` | Cleanup laporan pending sesuai expiry. |
+| `npm run backup:db` | Backup database. |
+| `npm run cleanup:pending` | Cleanup laporan pending lama. |
 | `npm run cleanup-photos` | Dry-run arsip foto PJUM approved. |
 | `npm run cleanup-photos:execute` | Eksekusi arsip foto PJUM approved. |
 | `npm run cleanup-photos-v2` | Dry-run cleanup foto PJUM approved versi baru. |
 | `npm run cleanup-photos-v2:execute` | Eksekusi cleanup foto PJUM approved versi baru. |
-| `npm run import:stores` | Import data toko. |
+| `npm run import:stores` | Import toko. |
 | `npm run prune:stores` | Prune toko berdasarkan branch. |
 | `npm run fix:store-branch` | Koreksi branch toko dari file XLSX. |
-
----
+| `npm run export:preventive-photos` | Export foto preventive. |
 
 ## Endpoint Penting
 
 | Endpoint | Fungsi |
 | --- | --- |
 | `GET /api/health` | Health check untuk Render. |
-| `GET /api/reports/[reportNumber]/pdf` | Stream PDF laporan maintenance. |
-| `GET /api/reports/pjum-pdf` | Stream PDF paket PJUM. |
-| `GET /api/drive/report-archive` | Redirect BMC ke folder arsip report Drive. |
-| `GET /api/drive/pjum-archive` | Redirect BMC ke folder arsip PJUM Drive. |
-| `GET /api/cron/cleanup-pending-reports` | Cron cleanup, butuh `Authorization: Bearer <CRON_SECRET>`. |
-| `GET/POST /api/uploadthing` | UploadThing file router. |
+| `GET /api/auth/session` | Cek session. |
+| `GET/POST /api/presence` | Presence user. |
+| `GET /api/reports/[reportNumber]/pdf` | Stream PDF laporan. |
+| `GET /api/reports/pjum-pdf` | Stream PDF PJUM. |
+| `GET /api/drive/report-archive` | Redirect folder arsip report Drive. |
+| `GET /api/drive/pjum-archive` | Redirect folder arsip PJUM Drive. |
+| `POST /api/photos/upload` | Upload foto ke Drive CDN. |
 | `GET /api/photos/[fileId]` | Proxy foto dari Drive CDN. |
+| `GET /api/cron/cleanup-pending-reports` | Cleanup pending reports, butuh `Authorization: Bearer <CRON_SECRET>`. |
+| `GET/POST /api/uploadthing` | UploadThing handler legacy. |
 
-Endpoint preview PDF hanya aktif di non-production:
-
-- `GET /api/preview-pdf`
-- `GET /api/preview-pjum`
-- `GET /api/reports/preview-pdf`
-
----
+Endpoint preview/debug hanya untuk non-production atau development.
 
 ## Struktur Project
 
 ```text
-sparta-maintenance/
-├── app/                         # Next.js App Router
-│   ├── api/                     # API routes: health, auth, PDF, photos, cron, Drive
-│   ├── dashboard/               # Dashboard role-based dan admin backoffice
-│   ├── reports/                 # Laporan BMS/BMC/BNM dan PJUM
-│   │   ├── (bms)/create         # Form laporan BMS
-│   │   ├── (bms)/start-work     # Mulai pengerjaan
-│   │   ├── (bms)/complete       # Penyelesaian pekerjaan
-│   │   ├── pjum                 # PJUM create/approval/detail
-│   │   └── [reportNumber]       # Detail laporan
-│   ├── bmc/database             # Manajemen user/toko cabang oleh BMC
-│   ├── admin/                   # Halaman admin legacy/khusus
-│   ├── login                    # Login
-│   ├── change-password          # Ganti password wajib/manual
-│   ├── forgot-password          # Request reset password
-│   ├── reset-password           # Reset password token
-│   └── maintenance              # Halaman maintenance mode
-├── components/                  # Shared UI, sidebar, layout, session/presence helpers
-├── hooks/                       # Hooks global
-├── lib/                         # Domain logic, auth, Prisma, PDF, Google Drive, email, storage
-│   ├── email/                   # Mailer dan template email
-│   ├── google-drive/            # Client Drive, CDN client, archive helpers
-│   ├── jobs/                    # Job cleanup pending reports
-│   ├── pdf/                     # Generator dan snapshot PDF
-│   └── storage/                 # URL/proxy/upload foto
-├── prisma/                      # Schema, migrations, seed
-├── public/                      # Assets, icons, service worker, offline page
-├── scripts/                     # Utility CLI/import/backup/cleanup
-└── types/                       # Shared TypeScript types
+app/
+  dashboard/                 Dashboard baru role ADMIN/BMC/BNM_MANAGER
+    _components/admin/       AdminDashboardShell dan komponen dashboard admin
+    _components/manager-*    Dashboard BMC/BNM scoped cabang
+    reports/                 List dan detail laporan dashboard
+    pjum/                    List dan detail PJUM dashboard
+    preventive/              Coverage checklist preventif
+    branches/                Performa cabang dan detail cabang
+    realisasi/               Analisis realisasi admin
+    settings/                Maintenance, SLA, policy PJUM
+  reports/                   Workflow operasional BMS dan approval lama
+components/                  Shared UI, sidebar, dialog, layout
+lib/                         Auth, Prisma, domain helper, PDF, Drive, email, settings
+prisma/                      Schema, migrations, seed
+scripts/                     Utility CLI, import, backup, cleanup
+types/                       Shared TypeScript types
 ```
-
----
-
-## Database
-
-Model utama:
-
-- `User`: data akun, role, branch scope, password hash, presence.
-- `Store`: data toko dan branch.
-- `Report`: laporan maintenance, checklist JSON, estimasi, realisasi, foto, status, PDF paths, arsip Drive.
-- `ApprovalLog`: catatan approval/rejection laporan.
-- `ActivityLog`: timeline aktivitas laporan.
-- `PjumExport`: dokumen PJUM, status approval, data PUM, PDF final.
-- `PjumBankAccount`: rekening PUM per BMS.
-- `GoogleDriveFolderCache`: cache folder Drive.
-- `AppSetting`: setting sistem seperti maintenance toggle.
-- `UserPresence`: last seen user.
-
-Schema ada di [prisma/schema.prisma](prisma/schema.prisma).
-
----
 
 ## Maintenance Mode
 
 Maintenance mode punya dua sumber:
 
-1. `MAINTENANCE_MODE=true` sebagai hard override dari environment.
-2. Toggle Admin yang disimpan melalui `AppSetting`.
+1. `MAINTENANCE_MODE=true` dari environment sebagai hard override.
+2. Toggle dashboard settings yang disimpan di `AppSetting`.
 
 Saat aktif:
 
 - User non-admin diarahkan ke `/maintenance`.
-- Endpoint `/api/*` mengembalikan `503`, kecuali `/api/health`.
+- Endpoint `/api/*` mengembalikan `503`, kecuali endpoint yang dikecualikan seperti health check.
 - `ADMIN` tetap dapat masuk untuk mengelola sistem.
-
----
 
 ## Deploy
 
-Project siap deploy sebagai Docker standalone Next.js.
-
-Build image:
+Project memakai Docker standalone Next.js.
 
 ```bash
 docker build -t sparta-maintenance .
-```
-
-Run container:
-
-```bash
 docker run --env-file .env -p 3000:3000 sparta-maintenance
 ```
 
-Render Blueprint tersedia di [render.yaml](render.yaml). Health check memakai:
+Render Blueprint tersedia di [render.yaml](render.yaml). Health check:
 
 ```text
 /api/health
 ```
 
----
-
-## Backup dan Cleanup
-
-Backup database:
-
-```bash
-npm run backup:db
-```
-
-GitHub Actions yang tersedia:
-
-- `.github/workflows/backup-db.yml`
-- `.github/workflows/cleanup-approved-photos.yml`
-
----
-
-## Dokumentasi Aktif
-
-Dokumentasi yang dipertahankan di repo:
-
-- [README.md](README.md): onboarding dan referensi operasional project.
-- [AI_CONTEXT.md](AI_CONTEXT.md): konteks kerja untuk AI/developer.
-- [AI_RULES.md](AI_RULES.md): aturan kerja AI/developer.
-
-Folder dokumentasi lama seperti `.docs/`, `docs/`, dan spesifikasi Kiro sudah tidak menjadi sumber rujukan aktif.
-
----
-
 ## Catatan Developer
 
 - Middleware/proxy route protection ada di [proxy.ts](proxy.ts).
 - Auth helper server-side ada di [lib/authorization.ts](lib/authorization.ts).
-- Session cookie berlaku 8 jam, dikelola di [lib/session.ts](lib/session.ts).
-- Prisma datasource membaca `DIRECT_URL` lalu fallback ke `DATABASE_URL` melalui [prisma.config.ts](prisma.config.ts).
-- Preview PDF dan endpoint dev tertentu dinonaktifkan di production.
-- `next.config.ts` memakai `output: "standalone"` untuk Docker/Render.
-
----
+- Branch exclusion global ada di [lib/admin-branch-scope.ts](lib/admin-branch-scope.ts).
+- Global label status laporan ada di [lib/report-status.ts](lib/report-status.ts).
+- Global label status PJUM ada di [lib/pjum-status.ts](lib/pjum-status.ts).
+- App settings, SLA laporan, dan policy PJUM ada di [lib/app-settings.ts](lib/app-settings.ts).
+- Session cookie dikelola di [lib/session.ts](lib/session.ts).
+- Prisma datasource membaca konfigurasi dari [prisma.config.ts](prisma.config.ts).
 
 ## License
 

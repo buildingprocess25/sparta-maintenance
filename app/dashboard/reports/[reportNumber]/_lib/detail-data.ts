@@ -127,9 +127,6 @@ export type RawReportDetailInput = {
     startMaterialStores: MaterialStoreJson[];
     completionAdditionalPhotos: string[];
     completionAdditionalNote: string | null;
-    pendingEstimationPdfPath: string | null;
-    estimationApprovedPdfPath: string | null;
-    approvedBmcPdfPath: string | null;
     completedPdfPath: string | null;
     reportFinalDriveUrl: string | null;
     revisedPdfDriveUrl: string | null;
@@ -471,21 +468,6 @@ function buildDocuments(input: RawReportDetailInput): ReportDocument[] {
         makeDocument("PDF revisi", input.revisedPdfDriveUrl, "warning"),
         makeDocument("Folder revisi", input.revisedPdfFolderUrl, "warning"),
         makeDocument("Snapshot selesai", input.completedPdfPath, "default"),
-        makeDocument(
-            "Snapshot review BNM",
-            input.approvedBmcPdfPath,
-            "default",
-        ),
-        makeDocument(
-            "Snapshot estimasi disetujui",
-            input.estimationApprovedPdfPath,
-            "default",
-        ),
-        makeDocument(
-            "Snapshot estimasi",
-            input.pendingEstimationPdfPath,
-            "default",
-        ),
         makeDocument(
             "PJUM final",
             input.pjumExport?.pjumFinalDriveUrl,

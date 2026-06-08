@@ -16,9 +16,9 @@ import {
 import type { AdminTrendDatum } from "../../queries";
 
 const trendConfig = {
-    completed: { label: "Laporan Selesai", color: "var(--chart-3)" },
-    avgRealisasi: {
-        label: "Rata-rata Realisasi",
+    realisasi: { label: "Total Realisasi", color: "var(--chart-3)" },
+    avgBmsWeeklyRealisasi: {
+        label: "BMS / Minggu",
         color: "#f4bb44",
     },
 };
@@ -88,18 +88,17 @@ export function AdminTrendChart({ data }: TrendChartProps) {
                                             {row?.branchName ?? label}
                                         </div>
                                         <div className="text-xs text-muted-foreground">
-                                            Ringkasan laporan selesai per cabang
+                                            Ringkasan realisasi biaya per cabang
                                         </div>
                                     </div>
                                 );
                             }}
                             formatter={(value, name, item) => {
-                                const row = item.payload as AdminTrendDatum;
-                                if (name === "avgRealisasi") {
+                                if (name === "avgBmsWeeklyRealisasi") {
                                     return (
                                         <div className="grid w-64 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
                                             <span className="text-muted-foreground">
-                                                Rata-rata realisasi
+                                                Rata-rata BMS / minggu
                                             </span>
                                             <span className="text-right font-mono font-medium tabular-nums text-foreground">
                                                 {formatTooltipRp(Number(value))}
@@ -111,13 +110,10 @@ export function AdminTrendChart({ data }: TrendChartProps) {
                                 return (
                                     <div className="grid w-64 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1">
                                         <span className="text-muted-foreground">
-                                            Laporan selesai
+                                            Total realisasi
                                         </span>
                                         <span className="text-right font-mono font-medium tabular-nums text-foreground">
-                                            {Number(value).toLocaleString(
-                                                "id-ID",
-                                            )}{" "}
-                                            laporan
+                                            {formatTooltipRp(Number(value))}
                                         </span>
                                     </div>
                                 );
@@ -126,16 +122,16 @@ export function AdminTrendChart({ data }: TrendChartProps) {
                     }
                 />
                 <Bar
-                    dataKey="completed"
+                    dataKey="realisasi"
                     yAxisId="left"
-                    fill="var(--color-completed)"
+                    fill="var(--color-realisasi)"
                     radius={[4, 4, 0, 0]}
                 />
                 <Line
-                    dataKey="avgRealisasi"
+                    dataKey="avgBmsWeeklyRealisasi"
                     yAxisId="right"
                     type="monotone"
-                    stroke="var(--color-avgRealisasi)"
+                    stroke="var(--color-avgBmsWeeklyRealisasi)"
                     strokeWidth={2}
                     dot={false}
                 />
