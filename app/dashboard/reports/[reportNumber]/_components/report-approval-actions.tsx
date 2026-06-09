@@ -117,7 +117,10 @@ export function ReportApprovalActions({
 
     return (
         <>
-            <div className="flex flex-wrap items-center justify-end gap-2">
+            <div
+                data-tour="approval-decision-actions"
+                className="flex flex-wrap items-center justify-end gap-2"
+            >
                 {approvalConfig.actions.map((action) => {
                     const Icon = action.icon;
                     const isApprovalBlocked =

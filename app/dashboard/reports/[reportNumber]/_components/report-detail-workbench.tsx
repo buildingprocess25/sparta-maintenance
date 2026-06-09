@@ -28,6 +28,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { DetailPhoto, ReportDetailModel } from "../_lib/detail-data";
 import { ActionsTab } from "./actions-tab";
+import { ApprovalReviewTour } from "./approval-review-tour";
 import { ChecklistTab } from "./checklist-tab";
 import { DocumentationTab } from "./documentation-tab";
 import { HistoryTab } from "./history-tab";
@@ -217,7 +218,10 @@ export function ReportDetailWorkbench({
             />
 
             {approvalContext ? (
-                <section className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-5xl rounded-lg border bg-background/95 p-3 shadow-2xl backdrop-blur supports-backdrop-filter:bg-background/90 lg:inset-x-6">
+                <section
+                    data-tour="approval-review-bar"
+                    className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-5xl rounded-lg border bg-background/95 p-3 shadow-2xl backdrop-blur supports-backdrop-filter:bg-background/90 lg:inset-x-6"
+                >
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                         <div className="min-w-0">
                             <p className="text-sm font-semibold">
@@ -241,6 +245,14 @@ export function ReportDetailWorkbench({
                         />
                     </div>
                 </section>
+            ) : null}
+
+            {approvalContext ? (
+                <ApprovalReviewTour
+                    enabled={reviewGate.enabled}
+                    status={approvalContext.status}
+                    viewerRole={approvalContext.viewerRole}
+                />
             ) : null}
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>

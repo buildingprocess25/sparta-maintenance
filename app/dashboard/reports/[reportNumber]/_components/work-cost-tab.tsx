@@ -201,6 +201,7 @@ function QuickActionsSection({
     return (
         <section
             data-review-required={needsReview ? "true" : undefined}
+            data-tour="approval-compare-nota"
             className="w-full rounded-lg border bg-background px-3 py-2 sm:w-[320px]"
         >
             <div className="flex h-full flex-col justify-between gap-2">
@@ -682,18 +683,20 @@ function WorkItemPanel({
             <div className="grid gap-3 border-t bg-muted/10 px-3 py-3 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
                 <WorkNotes item={item} />
                 <div className="grid gap-2">
-                    <PhotoStrip
-                        title="Foto"
-                        titleAccessory={
-                            needsPhotoReview ? (
-                                <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
-                                    Perlu dicek
-                                </Badge>
-                            ) : null
-                        }
-                        photos={photos}
-                        onPhotoClick={onPhotoClick}
-                    />
+                    <div data-tour="approval-work-photos">
+                        <PhotoStrip
+                            title="Foto"
+                            titleAccessory={
+                                needsPhotoReview ? (
+                                    <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                        Perlu dicek
+                                    </Badge>
+                                ) : null
+                            }
+                            photos={photos}
+                            onPhotoClick={onPhotoClick}
+                        />
+                    </div>
                 </div>
             </div>
         </section>
