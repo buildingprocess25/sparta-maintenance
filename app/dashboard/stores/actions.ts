@@ -29,12 +29,21 @@ export async function getAdminStores(
     const start = performance.now();
 
     const user = await getAuthUser();
-    if (!user || user.role !== "ADMIN") throw new Error("Unauthorized");
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
 
     try {
-        const where: Prisma.StoreWhereInput = {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        };
+        const where: Prisma.StoreWhereInput =
+            user.role === "ADMIN"
+                ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
+                : {
+                      branchName: {
+                          in: user.branchNames
+                              .map((branchName) => branchName.trim())
+                              .filter((branchName) => branchName.length > 0),
+                      },
+                  };
 
         if (filters.search) {
             where.OR = [
@@ -44,7 +53,15 @@ export async function getAdminStores(
         }
 
         if (filters.branchName && filters.branchName !== "all") {
-            where.branchName = filters.branchName;
+            const scopedBranches = user.branchNames
+                .map((branchName) => branchName.trim())
+                .filter((branchName) => branchName.length > 0);
+
+            if (user.role === "ADMIN" || scopedBranches.includes(filters.branchName)) {
+                where.branchName = filters.branchName;
+            } else {
+                where.branchName = "__NO_BRANCH_SCOPE__";
+            }
         }
 
         const totalCount = await prisma.store.count({ where });
@@ -98,15 +115,29 @@ export async function exportAdminStores(filters: ExportStoreFilters) {
     const start = performance.now();
 
     const authUser = await getAuthUser();
-    if (!authUser || authUser.role !== "ADMIN") throw new Error("Unauthorized");
+    if (!authUser || (authUser.role !== "ADMIN" && authUser.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
 
     try {
-        const where: Prisma.StoreWhereInput = {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        };
+        const scopedBranches = authUser.branchNames
+            .map((branchName) => branchName.trim())
+            .filter((branchName) => branchName.length > 0);
+
+        const where: Prisma.StoreWhereInput =
+            authUser.role === "ADMIN"
+                ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
+                : { branchName: { in: scopedBranches } };
 
         if (filters.selectedBranches && filters.selectedBranches.length > 0) {
-            where.branchName = { in: filters.selectedBranches };
+            where.branchName =
+                authUser.role === "ADMIN"
+                    ? { in: filters.selectedBranches }
+                    : {
+                          in: filters.selectedBranches.filter((branchName) =>
+                              scopedBranches.includes(branchName),
+                          ),
+                      };
         }
 
         const stores = await prisma.store.findMany({
@@ -184,7 +215,7 @@ export async function adminImportStoresWithBranch(formData: FormData) {
     };
 
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireRole(["ADMIN", "BMC"]);
         const headersList = await headers();
 
         // CSRF validation
@@ -224,13 +255,17 @@ export async function adminImportStoresWithBranch(formData: FormData) {
                     .filter((c): c is string => Boolean(c)),
             ),
         ];
-        const existing = new Set(
+        const scopedBranches = admin.branchNames
+            .map((branchName) => branchName.trim())
+            .filter((branchName) => branchName.length > 0);
+
+        const existing = new Map(
             (
                 await prisma.store.findMany({
                     where: { code: { in: codesInFile } },
-                    select: { code: true },
+                    select: { code: true, branchName: true },
                 })
-            ).map((s) => s.code),
+            ).map((store) => [store.code, store]),
         );
 
         for (let i = 0; i < rows.length; i++) {
@@ -250,8 +285,36 @@ export async function adminImportStoresWithBranch(formData: FormData) {
                 continue;
             }
 
+            if (
+                admin.role !== "ADMIN" &&
+                !scopedBranches.includes(branchName)
+            ) {
+                result.skipped++;
+                if (result.errors.length < MAX_IMPORT_ERRORS) {
+                    result.errors.push(
+                        `Baris ${rowNum} (${code}): Cabang berada di luar scope akses Anda`,
+                    );
+                }
+                continue;
+            }
+
             try {
-                const isExisting = existing.has(code);
+                const existingStore = existing.get(code);
+                if (
+                    admin.role !== "ADMIN" &&
+                    existingStore &&
+                    !scopedBranches.includes(existingStore.branchName)
+                ) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${code}): Toko existing berada di luar scope akses Anda`,
+                        );
+                    }
+                    continue;
+                }
+
+                const isExisting = Boolean(existingStore);
                 await prisma.store.upsert({
                     where: { code },
                     update: { name, branchName, isActive: true },
@@ -261,7 +324,7 @@ export async function adminImportStoresWithBranch(formData: FormData) {
                     result.updated++;
                 } else {
                     result.created++;
-                    existing.add(code);
+                    existing.set(code, { code, branchName });
                 }
             } catch {
                 result.failed++;

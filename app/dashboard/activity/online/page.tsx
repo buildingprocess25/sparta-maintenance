@@ -10,10 +10,16 @@ export const dynamic = "force-dynamic";
 export default async function AdminOnlineUsersPage() {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
 
     const [branches, initialData] = await Promise.all([
-        fetchAllBranchNames(),
+        user.role === "ADMIN"
+            ? fetchAllBranchNames()
+            : Promise.resolve(
+                  user.branchNames
+                      .map((branchName) => branchName.trim())
+                      .filter((branchName) => branchName.length > 0),
+              ),
         getAdminOnlineUsers(null, 20, {}),
     ]);
 

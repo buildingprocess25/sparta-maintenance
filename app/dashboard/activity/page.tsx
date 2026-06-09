@@ -21,13 +21,19 @@ function normalizePeriod(value?: string | string[]) {
 export default async function AdminActivityPage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
 
     const params = await searchParams;
     const period = normalizePeriod(params.period);
 
     const [branches, initialData] = await Promise.all([
-        fetchAllBranchNames(),
+        user.role === "ADMIN"
+            ? fetchAllBranchNames()
+            : Promise.resolve(
+                  user.branchNames
+                      .map((branchName) => branchName.trim())
+                      .filter((branchName) => branchName.length > 0),
+              ),
         getAdminActivityEvents(0, 20, period, {}),
     ]);
 

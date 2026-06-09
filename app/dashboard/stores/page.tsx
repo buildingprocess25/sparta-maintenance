@@ -11,10 +11,16 @@ export const dynamic = "force-dynamic";
 export default async function AdminStoresPage() {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN") redirect("/dashboard");
+    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
 
     const [branches, initialData] = await Promise.all([
-        fetchAllBranchNames(),
+        user.role === "ADMIN"
+            ? fetchAllBranchNames()
+            : Promise.resolve(
+                  user.branchNames
+                      .map((branchName) => branchName.trim())
+                      .filter((branchName) => branchName.length > 0),
+              ),
         getAdminStores(null, 20, {}),
     ]);
 
@@ -31,6 +37,7 @@ export default async function AdminStoresPage() {
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
                 branches={branches}
+                canManage
             />
         </AdminDashboardShell>
     );

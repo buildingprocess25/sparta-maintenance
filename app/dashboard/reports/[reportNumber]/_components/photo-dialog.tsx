@@ -8,6 +8,7 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { LoadingImage } from "@/components/ui/loading-image";
 import type { DetailPhoto } from "../_lib/detail-data";
 import { ConditionBadge } from "./shared-ui";
 
@@ -29,14 +30,14 @@ export function PhotoDialog({
                 </DialogHeader>
                 {photo ? (
                     <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_280px]">
-                        <div className="flex min-h-[360px] items-center justify-center bg-black p-2">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                                src={photo.url}
-                                alt={photo.label}
-                                className="max-h-[75vh] max-w-full object-contain"
-                            />
-                        </div>
+                        <LoadingImage
+                            wrapperClassName="flex min-h-[360px] items-center justify-center bg-black p-2"
+                            loadingLabel="Memuat foto laporan..."
+                            errorLabel="Foto laporan gagal dimuat"
+                            src={photo.url}
+                            alt={photo.label}
+                            className="max-h-[75vh] max-w-full object-contain"
+                        />
                         <aside className="flex flex-col gap-3 border-l p-4 text-sm">
                             <div>
                                 <p className="text-xs text-muted-foreground">

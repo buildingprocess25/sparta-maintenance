@@ -23,52 +23,71 @@ export async function getAdminUsers(
     const start = performance.now();
 
     const user = await getAuthUser();
-    if (!user || user.role !== "ADMIN") throw new Error("Unauthorized");
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
 
     try {
-        const where: Prisma.UserWhereInput = {
-            // Always exclude ADMIN role from this view
-            role: { not: UserRole.ADMIN },
-            NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
-        };
+        const andClauses: Prisma.UserWhereInput[] = [
+            { role: { not: UserRole.ADMIN } },
+        ];
+
+        if (user.role === "ADMIN") {
+            andClauses.push({
+                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+            });
+        } else {
+            const branchNames = user.branchNames
+                .map((branchName) => branchName.trim())
+                .filter((branchName) => branchName.length > 0);
+
+            if (branchNames.length === 0) {
+                andClauses.push({ NIK: "__NO_BRANCH_SCOPE__" });
+            } else {
+                andClauses.push({ branchNames: { hasSome: branchNames } });
+            }
+        }
 
         if (filters.search) {
-            where.AND = [
-                { role: { not: UserRole.ADMIN } },
-                { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } },
-                {
-                    OR: [
-                        { name: { contains: filters.search, mode: "insensitive" } },
-                        { NIK: { contains: filters.search, mode: "insensitive" } },
-                        { email: { contains: filters.search, mode: "insensitive" } },
-                    ],
-                },
-            ];
-            // Remove top-level role filter since AND handles it
-            delete where.role;
+            andClauses.push({
+                OR: [
+                    {
+                        name: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        NIK: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                    {
+                        email: {
+                            contains: filters.search,
+                            mode: "insensitive",
+                        },
+                    },
+                ],
+            });
         }
 
         if (filters.role && filters.role !== "all") {
-            const roleFilter: Prisma.UserWhereInput = {
-                role: filters.role as UserRole,
-            };
-            if (where.AND) {
-                (where.AND as Prisma.UserWhereInput[]).push(roleFilter);
-            } else {
-                where.role = filters.role as UserRole;
-            }
+            andClauses.push({ role: filters.role as UserRole });
         }
 
         if (filters.branchName && filters.branchName !== "all") {
-            const branchFilter: Prisma.UserWhereInput = {
-                branchNames: { has: filters.branchName },
-            };
-            if (where.AND) {
-                (where.AND as Prisma.UserWhereInput[]).push(branchFilter);
-            } else {
-                where.branchNames = { has: filters.branchName };
+            if (
+                user.role !== "ADMIN" &&
+                !user.branchNames.includes(filters.branchName)
+            ) {
+                andClauses.push({ NIK: "__NO_BRANCH_SCOPE__" });
             }
+            andClauses.push({ branchNames: { has: filters.branchName } });
         }
+
+        const where: Prisma.UserWhereInput = { AND: andClauses };
 
         const totalCount = await prisma.user.count({ where });
 
@@ -123,24 +142,50 @@ export async function exportAdminUsers(filters: ExportUserFilters) {
     const start = performance.now();
 
     const authUser = await getAuthUser();
-    if (!authUser || authUser.role !== "ADMIN") throw new Error("Unauthorized");
+    if (!authUser || (authUser.role !== "ADMIN" && authUser.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
 
     try {
         const andClauses: Prisma.UserWhereInput[] = [
             { role: { not: UserRole.ADMIN } },
-            { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } },
         ];
+
+        const scopedBranches = authUser.branchNames
+            .map((branchName) => branchName.trim())
+            .filter((branchName) => branchName.length > 0);
+
+        if (authUser.role === "ADMIN") {
+            andClauses.push({
+                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+            });
+        } else if (scopedBranches.length === 0) {
+            andClauses.push({ NIK: "__NO_BRANCH_SCOPE__" });
+        } else {
+            andClauses.push({ branchNames: { hasSome: scopedBranches } });
+        }
 
         if (filters.role && filters.role !== "all") {
             andClauses.push({ role: filters.role as UserRole });
         }
 
         if (filters.selectedBranches && filters.selectedBranches.length > 0) {
-            andClauses.push({
-                OR: filters.selectedBranches.map((b) => ({
-                    branchNames: { has: b },
-                })),
-            });
+            const selectedBranches =
+                authUser.role === "ADMIN"
+                    ? filters.selectedBranches
+                    : filters.selectedBranches.filter((branchName) =>
+                          scopedBranches.includes(branchName),
+                      );
+
+            if (selectedBranches.length === 0) {
+                andClauses.push({ NIK: "__NO_BRANCH_SCOPE__" });
+            } else {
+                andClauses.push({
+                    OR: selectedBranches.map((b) => ({
+                        branchNames: { has: b },
+                    })),
+                });
+            }
         }
 
         const users = await prisma.user.findMany({

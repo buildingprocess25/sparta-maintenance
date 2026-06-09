@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { approveFinal } from "@/app/reports/actions/approve-final";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
 import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
+import { useReportApprovalReviewGate } from "./report-approval-review-gate";
 
 type ApprovalDecision = "approve" | "reject_revision" | "reject";
 type ApprovalType = "estimation" | "completion" | "final";
@@ -64,6 +65,7 @@ export function ReportApprovalActions({
     const [notes, setNotes] = useState("");
     const [isPending, startTransition] = useTransition();
     const config = getApprovalConfig(viewerRole, status);
+    const reviewGate = useReportApprovalReviewGate();
 
     if (!config) return null;
     const approvalConfig = config;
@@ -118,6 +120,10 @@ export function ReportApprovalActions({
             <div className="flex flex-wrap items-center justify-end gap-2">
                 {approvalConfig.actions.map((action) => {
                     const Icon = action.icon;
+                    const isApprovalBlocked =
+                        action.decision === "approve" &&
+                        reviewGate.enabled &&
+                        !reviewGate.isReviewComplete;
 
                     return (
                         <Button
@@ -125,6 +131,12 @@ export function ReportApprovalActions({
                             type="button"
                             size="sm"
                             variant={action.variant}
+                            disabled={isApprovalBlocked}
+                            title={
+                                isApprovalBlocked
+                                    ? reviewGate.missingReviewText
+                                    : undefined
+                            }
                             onClick={() => setSelectedAction(action)}
                         >
                             <Icon data-icon="inline-start" />

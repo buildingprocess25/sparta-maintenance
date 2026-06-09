@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
-import { getAuthUser } from "@/lib/authorization";
+import { getAuthUser, type AuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { getTodayPresenceStart, ONLINE_THRESHOLD_MS } from "@/lib/presence";
 import type { Prisma, UserRole } from "@prisma/client";
@@ -32,12 +32,35 @@ export type AdminOnlineUsersResult = {
     nextCursor: string | null;
 };
 
-async function requireAdmin() {
+async function requireOnlineUserViewer() {
     const user = await getAuthUser();
-    if (!user || user.role !== "ADMIN") {
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
         throw new Error("Unauthorized");
     }
     return user;
+}
+
+function getScopedBranchNames(user: AuthUser) {
+    return user.branchNames
+        .map((branchName) => branchName.trim())
+        .filter((branchName) => branchName.length > 0);
+}
+
+function getUserScopeFilters(user: AuthUser): Prisma.UserWhereInput[] {
+    if (user.role === "ADMIN") {
+        return [{ NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } }];
+    }
+
+    const branchNames = getScopedBranchNames(user);
+    if (branchNames.length === 0) {
+        return [{ NIK: "__NO_BRANCH_SCOPE__" }];
+    }
+
+    return [{ branchNames: { hasSome: branchNames } }];
+}
+
+function canAccessBranchFilter(user: AuthUser, branchName: string) {
+    return user.role === "ADMIN" || user.branchNames.includes(branchName);
 }
 
 function normalizeFilterValue(value?: string) {
@@ -55,6 +78,7 @@ function getPresenceCutoff(scope: AdminOnlineUserFilters["scope"]) {
 
 function buildOnlineUserWhere(
     filters: AdminOnlineUserFilters,
+    user: AuthUser,
     scope: AdminOnlineUserFilters["scope"] = filters.scope ?? "today",
 ): Prisma.UserPresenceWhereInput {
     const cutoff = getPresenceCutoff(scope);
@@ -62,9 +86,7 @@ function buildOnlineUserWhere(
     const branchName = normalizeFilterValue(filters.branchName);
     const role = normalizeFilterValue(filters.role);
 
-    const userAnd: Prisma.UserWhereInput[] = [
-        { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } },
-    ];
+    const userAnd: Prisma.UserWhereInput[] = [...getUserScopeFilters(user)];
 
     if (search) {
         userAnd.push({
@@ -78,7 +100,13 @@ function buildOnlineUserWhere(
     }
 
     if (branchName) {
-        userAnd.push({ branchNames: { has: branchName } });
+        userAnd.push({
+            branchNames: {
+                has: canAccessBranchFilter(user, branchName)
+                    ? branchName
+                    : "__NO_BRANCH_SCOPE__",
+            },
+        });
     }
 
     if (role) {
@@ -96,14 +124,14 @@ export async function getAdminOnlineUsers(
     limit = 20,
     filters: AdminOnlineUserFilters = {},
 ): Promise<AdminOnlineUsersResult> {
-    await requireAdmin();
+    const viewer = await requireOnlineUserViewer();
 
     const correlationId = crypto.randomUUID();
     const start = performance.now();
     const scope = filters.scope ?? "today";
-    const where = buildOnlineUserWhere(filters, scope);
-    const onlineWhere = buildOnlineUserWhere(filters, "online");
-    const todayWhere = buildOnlineUserWhere(filters, "today");
+    const where = buildOnlineUserWhere(filters, viewer, scope);
+    const onlineWhere = buildOnlineUserWhere(filters, viewer, "online");
+    const todayWhere = buildOnlineUserWhere(filters, viewer, "today");
     const onlineCutoff = getPresenceCutoff("online");
 
     try {

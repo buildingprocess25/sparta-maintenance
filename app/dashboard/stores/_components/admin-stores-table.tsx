@@ -107,11 +107,13 @@ export function AdminStoresTable({
     initialNextCursor,
     initialTotalCount,
     branches,
+    canManage = true,
 }: {
     initialData: StoreItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
     branches: string[];
+    canManage?: boolean;
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -245,11 +247,12 @@ export function AdminStoresTable({
                     </SelectContent>
                 </Select>
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 ml-auto">
-                    <ImportStoresDialog branches={branches} />
-                    <AdminStoreFormDialog allBranchNames={branches} />
-                </div>
+                {canManage ? (
+                    <div className="flex items-center gap-2 ml-auto">
+                        <ImportStoresDialog branches={branches} />
+                        <AdminStoreFormDialog allBranchNames={branches} />
+                    </div>
+                ) : null}
             </div>
 
             {/* Table */}
@@ -270,16 +273,18 @@ export function AdminStoresTable({
                                 <TableHead className="w-[80px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="w-[80px] text-center">
-                                    Aksi
-                                </TableHead>
+                                {canManage ? (
+                                    <TableHead className="w-[80px] text-center">
+                                        Aksi
+                                    </TableHead>
+                                ) : null}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={5}
+                                        colSpan={canManage ? 5 : 4}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
@@ -288,7 +293,7 @@ export function AdminStoresTable({
                             ) : stores.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={5}
+                                        colSpan={canManage ? 5 : 4}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada toko yang ditemukan
@@ -318,27 +323,33 @@ export function AdminStoresTable({
                                                     : "Nonaktif"}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-center">
-                                            <div className="flex items-center justify-center gap-1">
-                                                <AdminStoreFormDialog
-                                                    allBranchNames={branches}
-                                                    editStore={store}
-                                                    trigger={
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    }
-                                                />
-                                                <DeleteStoreDialog
-                                                    store={store}
-                                                    onDeleted={handleDeleted}
-                                                />
-                                            </div>
-                                        </TableCell>
+                                        {canManage ? (
+                                            <TableCell className="text-center">
+                                                <div className="flex items-center justify-center gap-1">
+                                                    <AdminStoreFormDialog
+                                                        allBranchNames={
+                                                            branches
+                                                        }
+                                                        editStore={store}
+                                                        trigger={
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        }
+                                                    />
+                                                    <DeleteStoreDialog
+                                                        store={store}
+                                                        onDeleted={
+                                                            handleDeleted
+                                                        }
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        ) : null}
                                     </TableRow>
                                 ))
                             )}

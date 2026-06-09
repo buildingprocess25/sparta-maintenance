@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { adminImportUsers, type ImportResult } from "../actions";
 
-function generateAdminUserTemplate() {
+function generateAdminUserTemplate(allowAdminRole: boolean) {
     const headers = ["NIK", "Nama", "Email", "Role", "Branch"];
     const exampleData = [
         ["12345678", "Budi Santoso", "budi@email.com", "BMS", "Jakarta Pusat"],
@@ -36,7 +36,6 @@ function generateAdminUserTemplate() {
             "BRANCH_ADMIN",
             "Bandung",
         ],
-        ["11111111", "Admin Pusat", "admin@email.com", "ADMIN", ""],
         [
             "22222222",
             "Manajer BnM",
@@ -45,6 +44,16 @@ function generateAdminUserTemplate() {
             "Surabaya",
         ],
     ];
+
+    if (allowAdminRole) {
+        exampleData.push([
+            "11111111",
+            "Admin Pusat",
+            "admin@email.com",
+            "ADMIN",
+            "",
+        ]);
+    }
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
     ws["!cols"] = [
@@ -60,7 +69,11 @@ function generateAdminUserTemplate() {
     XLSX.writeFile(wb, "template_import_user_admin.xlsx");
 }
 
-export function AdminImportUserDialog() {
+export function AdminImportUserDialog({
+    allowAdminRole = true,
+}: {
+    allowAdminRole?: boolean;
+}) {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -196,17 +209,23 @@ export function AdminImportUserDialog() {
                                     </strong>
                                     . Role yang valid:{" "}
                                     <strong>
-                                        BMS, BMC, BNM_MANAGER, BRANCH_ADMIN,
-                                        ADMIN
+                                        BMS, BMC, BNM_MANAGER, BRANCH_ADMIN
+                                        {allowAdminRole ? ", ADMIN" : ""}
                                     </strong>
-                                    . Kolom Branch dikosongkan untuk role ADMIN.
+                                    {allowAdminRole
+                                        ? ". Kolom Branch dikosongkan untuk role ADMIN."
+                                        : "."}
                                 </p>
                                 <Button
                                     type="button"
                                     size="sm"
                                     variant="outline"
                                     className="gap-1.5"
-                                    onClick={generateAdminUserTemplate}
+                                    onClick={() =>
+                                        generateAdminUserTemplate(
+                                            allowAdminRole,
+                                        )
+                                    }
                                 >
                                     <Download className="h-3.5 w-3.5" />
                                     Unduh Template

@@ -1,11 +1,12 @@
 "use client";
 
-import type { ComponentType, SVGProps } from "react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingImage } from "@/components/ui/loading-image";
 import {
     Empty,
     EmptyDescription,
@@ -69,16 +70,27 @@ export function ConditionBadge({
 
 export function PhotoStrip({
     title,
+    titleAccessory,
     photos,
     onPhotoClick,
 }: {
     title?: string;
+    titleAccessory?: ReactNode;
     photos: DetailPhoto[];
     onPhotoClick: (photo: DetailPhoto) => void;
 }) {
     return (
         <div className="flex flex-col gap-2">
-            {title ? <p className="text-xs font-semibold">{title}</p> : null}
+            {title || titleAccessory ? (
+                <div className="flex items-center gap-2">
+                    {title ? (
+                        <p className="text-xs font-semibold">{title}</p>
+                    ) : (
+                        <span />
+                    )}
+                    {titleAccessory}
+                </div>
+            ) : null}
             {photos.length === 0 ? (
                 <div className="flex min-h-16 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground">
                     Tidak ada foto
@@ -92,8 +104,8 @@ export function PhotoStrip({
                             className="relative size-16 overflow-hidden rounded-md border bg-muted"
                             onClick={() => onPhotoClick(photo)}
                         >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
+                            <LoadingImage
+                                wrapperClassName="size-full"
                                 src={photo.url}
                                 alt={photo.label}
                                 className="size-full object-cover"
@@ -221,4 +233,3 @@ export function EmptyState({
         </Empty>
     );
 }
-

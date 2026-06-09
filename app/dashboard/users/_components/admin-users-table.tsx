@@ -131,11 +131,15 @@ export function AdminUsersTable({
     initialNextCursor,
     initialTotalCount,
     branches,
+    canManage = true,
+    allowAdminRole = true,
 }: {
     initialData: UserItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
     branches: string[];
+    canManage?: boolean;
+    allowAdminRole?: boolean;
 }) {
     const [users, setUsers] = useState<UserItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -286,11 +290,17 @@ export function AdminUsersTable({
                     </SelectContent>
                 </Select>
 
-                {/* Action buttons */}
-                <div className="flex items-center gap-2 ml-auto">
-                    <AdminImportUserDialog />
-                    <AdminUserFormDialog allBranchNames={branches} />
-                </div>
+                {canManage ? (
+                    <div className="flex items-center gap-2 ml-auto">
+                        <AdminImportUserDialog
+                            allowAdminRole={allowAdminRole}
+                        />
+                        <AdminUserFormDialog
+                            allBranchNames={branches}
+                            allowAdminRole={allowAdminRole}
+                        />
+                    </div>
+                ) : null}
             </div>
 
             {/* Table */}
@@ -312,16 +322,18 @@ export function AdminUsersTable({
                                 <TableHead className="w-[110px]">
                                     Role
                                 </TableHead>
-                                <TableHead className="w-[80px] text-center">
-                                    Aksi
-                                </TableHead>
+                                {canManage ? (
+                                    <TableHead className="w-[80px] text-center">
+                                        Aksi
+                                    </TableHead>
+                                ) : null}
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={6}
+                                        colSpan={canManage ? 6 : 5}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
@@ -330,7 +342,7 @@ export function AdminUsersTable({
                             ) : users.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={6}
+                                        colSpan={canManage ? 6 : 5}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada user yang ditemukan
@@ -364,27 +376,36 @@ export function AdminUsersTable({
                                                 {ROLE_LABELS[user.role] ?? user.role}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex items-center justify-end gap-1">
-                                                <AdminUserFormDialog
-                                                    allBranchNames={branches}
-                                                    editUser={user}
-                                                    trigger={
-                                                        <Button
-                                                            size="icon"
-                                                            variant="ghost"
-                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                        >
-                                                            <Pencil className="h-3.5 w-3.5" />
-                                                        </Button>
-                                                    }
-                                                />
-                                                <DeleteUserDialog
-                                                    user={user}
-                                                    onDeleted={handleDeleted}
-                                                />
-                                            </div>
-                                        </TableCell>
+                                        {canManage ? (
+                                            <TableCell className="text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <AdminUserFormDialog
+                                                        allBranchNames={
+                                                            branches
+                                                        }
+                                                        editUser={user}
+                                                        allowAdminRole={
+                                                            allowAdminRole
+                                                        }
+                                                        trigger={
+                                                            <Button
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                            </Button>
+                                                        }
+                                                    />
+                                                    <DeleteUserDialog
+                                                        user={user}
+                                                        onDeleted={
+                                                            handleDeleted
+                                                        }
+                                                    />
+                                                </div>
+                                            </TableCell>
+                                        ) : null}
                                     </TableRow>
                                 ))
                             )}

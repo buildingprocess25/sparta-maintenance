@@ -48,12 +48,14 @@ type Props = {
     allBranchNames: string[];
     editUser?: UserRow;
     trigger?: React.ReactNode;
+    allowAdminRole?: boolean;
 };
 
 export function AdminUserFormDialog({
     allBranchNames,
     editUser,
     trigger,
+    allowAdminRole = true,
 }: Props) {
     const isEdit = !!editUser;
     const [open, setOpen] = useState(false);
@@ -66,6 +68,10 @@ export function AdminUserFormDialog({
     const [branchInput, setBranchInput] = useState(
         editUser?.branchNames.join(", ") ?? "",
     );
+
+    const roleOptions = allowAdminRole
+        ? ROLE_OPTIONS
+        : ROLE_OPTIONS.filter((option) => option.value !== "ADMIN");
 
     const needsBranch = !ROLES_WITHOUT_BRANCH.includes(role);
 
@@ -220,7 +226,7 @@ export function AdminUserFormDialog({
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {ROLE_OPTIONS.map((r) => (
+                                    {roleOptions.map((r) => (
                                         <SelectItem
                                             key={r.value}
                                             value={r.value}

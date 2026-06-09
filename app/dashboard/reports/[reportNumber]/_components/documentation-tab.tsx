@@ -1,14 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo } from "react";
-import { FileCheck, ImageIcon, ReceiptText } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { LoadingImage } from "@/components/ui/loading-image";
 import type { DetailPhoto, ReportDetailModel } from "../_lib/detail-data";
 import { ConditionBadge, EmptyState } from "./shared-ui";
-import { getFinalDriveDocuments } from "./report-detail-utils";
 
 export function DocumentationTab({
     report,
@@ -56,8 +54,8 @@ export function DocumentationTab({
                                     onClick={() => onPhotoClick(photo)}
                                 >
                                     <div className="relative aspect-square overflow-hidden rounded bg-muted">
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
+                                        <LoadingImage
+                                            wrapperClassName="size-full"
                                             src={photo.url}
                                             alt={photo.label}
                                             className="size-full object-cover transition-transform group-hover:scale-105"

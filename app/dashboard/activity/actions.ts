@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { getAuthUser } from "@/lib/authorization";
+import { getAuthUser, type AuthUser } from "@/lib/authorization";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
 import { logger } from "@/lib/logger";
@@ -123,17 +123,54 @@ function normalizeFilterValue(value?: string) {
     return value;
 }
 
-async function requireAdmin() {
+async function requireActivityViewer() {
     const user = await getAuthUser();
-    if (!user || user.role !== "ADMIN") {
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
         throw new Error("Unauthorized");
     }
     return user;
 }
 
+function getScopedBranchNames(user: AuthUser) {
+    return user.branchNames
+        .map((branchName) => branchName.trim())
+        .filter((branchName) => branchName.length > 0);
+}
+
+function getReportScopeFilters(user: AuthUser): Prisma.ReportWhereInput[] {
+    if (user.role === "ADMIN") {
+        return [{ NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }];
+    }
+
+    const branchNames = getScopedBranchNames(user);
+    if (branchNames.length === 0) {
+        return [{ branchName: "__NO_BRANCH_SCOPE__" }];
+    }
+
+    return [{ branchName: { in: branchNames } }];
+}
+
+function getPjumScopeFilter(user: AuthUser): Prisma.PjumExportWhereInput {
+    if (user.role === "ADMIN") {
+        return { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } };
+    }
+
+    const branchNames = getScopedBranchNames(user);
+    if (branchNames.length === 0) {
+        return { branchName: "__NO_BRANCH_SCOPE__" };
+    }
+
+    return { branchName: { in: branchNames } };
+}
+
+function canAccessBranchFilter(user: AuthUser, branchName: string) {
+    return user.role === "ADMIN" || user.branchNames.includes(branchName);
+}
+
 function buildReportActivityWhere(
     period: string | undefined,
     filters: AdminActivityFilters,
+    user: AuthUser,
 ): Prisma.ActivityLogWhereInput | null {
     const branchName = normalizeFilterValue(filters.branchName);
     const role = normalizeFilterValue(filters.role);
@@ -146,10 +183,10 @@ function buildReportActivityWhere(
 
     const where: Prisma.ActivityLogWhereInput = {
         createdAt: buildDateFilter(period),
-        report: {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        },
     };
+    const reportFilters: Prisma.ReportWhereInput[] = [
+        ...getReportScopeFilters(user),
+    ];
 
     if (moduleFilter === "REALISASI") {
         where.action = "ADMIN_REALISASI_REVISED";
@@ -161,12 +198,12 @@ function buildReportActivityWhere(
         where.action = action as Prisma.EnumActivityActionFilter["equals"];
     }
 
-    const reportFilters: Prisma.ReportWhereInput[] = [
-        { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } },
-    ];
-
     if (branchName) {
-        reportFilters.push({ branchName });
+        reportFilters.push({
+            branchName: canAccessBranchFilter(user, branchName)
+                ? branchName
+                : "__NO_BRANCH_SCOPE__",
+        });
     }
 
     if (search) {
@@ -203,9 +240,7 @@ function buildReportActivityWhere(
         ];
     }
 
-    if (reportFilters.length > 1) {
-        where.report = { AND: reportFilters };
-    }
+    where.report = { AND: reportFilters };
 
     if (role) {
         where.actor = { role: role as UserRole };
@@ -217,6 +252,7 @@ function buildReportActivityWhere(
 function buildPjumWhere(
     period: string | undefined,
     filters: AdminActivityFilters,
+    user: AuthUser,
 ): Prisma.PjumExportWhereInput | null {
     const branchName = normalizeFilterValue(filters.branchName);
     const role = normalizeFilterValue(filters.role);
@@ -230,11 +266,13 @@ function buildPjumWhere(
         return null;
     }
 
-    const where: Prisma.PjumExportWhereInput = {
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-    };
+    const where: Prisma.PjumExportWhereInput = getPjumScopeFilter(user);
 
-    if (branchName) where.branchName = branchName;
+    if (branchName) {
+        where.branchName = canAccessBranchFilter(user, branchName)
+            ? branchName
+            : "__NO_BRANCH_SCOPE__";
+    }
 
     if (action === "PJUM_CREATED") {
         where.createdAt = dateFilter;
@@ -432,11 +470,12 @@ async function countPjumEvents(
     return events.length;
 }
 
-async function countPjumEventsInWindow(window: { start: Date; end?: Date }) {
+async function countPjumEventsInWindow(
+    window: { start: Date; end?: Date },
+    user: AuthUser,
+) {
     const dateFilter = buildWindowDateFilter(window);
-    const baseWhere = {
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-    };
+    const baseWhere = getPjumScopeFilter(user);
 
     const [created, approved] = await Promise.all([
         prisma.pjumExport.count({
@@ -459,33 +498,43 @@ async function countPjumEventsInWindow(window: { start: Date; end?: Date }) {
 
 async function countReportActivityInWindow(
     window: { start: Date; end?: Date },
+    user: AuthUser,
     actionFilter?: Prisma.EnumActivityActionFilter,
 ) {
     return prisma.activityLog.count({
         where: {
             createdAt: buildWindowDateFilter(window),
             ...(actionFilter ? { action: actionFilter } : {}),
-            report: {
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            },
+            report: { AND: getReportScopeFilters(user) },
         },
     });
 }
 
-async function countVisibleTodayActiveUsers() {
+async function countVisibleTodayActiveUsers(user: AuthUser) {
     const activeUserIds = await getTodayActiveUsers();
     if (activeUserIds.length === 0) return 0;
 
     return prisma.user.count({
         where: {
             NIK: { in: activeUserIds },
-            NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+            ...(user.role === "ADMIN"
+                ? {
+                      NOT: {
+                          branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME },
+                      },
+                  }
+                : {
+                      branchNames: {
+                          hasSome: getScopedBranchNames(user),
+                      },
+                  }),
         },
     });
 }
 
 async function getActivitySummary(
     period: string | undefined,
+    user: AuthUser,
 ): Promise<AdminActivitySummary> {
     const periodWindow = getActivityPeriodWindow(period);
     const todayWindow = getTodayWindow();
@@ -509,25 +558,25 @@ async function getActivitySummary(
         pjumApprovalDoneToday,
         pjumApprovalDonePeriod,
     ] = await Promise.all([
-        countReportActivityInWindow(todayWindow),
-        countReportActivityInWindow(periodWindow),
-        countPjumEventsInWindow(todayWindow),
-        countPjumEventsInWindow(periodWindow),
-        countVisibleTodayActiveUsers(),
-        countReportActivityInWindow(todayWindow, revisionRejectFilter),
-        countReportActivityInWindow(periodWindow, revisionRejectFilter),
-        countReportActivityInWindow(todayWindow, approvalDoneFilter),
-        countReportActivityInWindow(periodWindow, approvalDoneFilter),
+        countReportActivityInWindow(todayWindow, user),
+        countReportActivityInWindow(periodWindow, user),
+        countPjumEventsInWindow(todayWindow, user),
+        countPjumEventsInWindow(periodWindow, user),
+        countVisibleTodayActiveUsers(user),
+        countReportActivityInWindow(todayWindow, user, revisionRejectFilter),
+        countReportActivityInWindow(periodWindow, user, revisionRejectFilter),
+        countReportActivityInWindow(todayWindow, user, approvalDoneFilter),
+        countReportActivityInWindow(periodWindow, user, approvalDoneFilter),
         prisma.pjumExport.count({
             where: {
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                ...getPjumScopeFilter(user),
                 status: "APPROVED",
                 approvedAt: buildWindowDateFilter(todayWindow),
             },
         }),
         prisma.pjumExport.count({
             where: {
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                ...getPjumScopeFilter(user),
                 status: "APPROVED",
                 approvedAt: buildWindowDateFilter(periodWindow),
             },
@@ -551,12 +600,12 @@ export async function getAdminActivityEvents(
     period?: string,
     filters: AdminActivityFilters = {},
 ): Promise<AdminActivityResult> {
-    await requireAdmin();
+    const viewer = await requireActivityViewer();
 
     const correlationId = crypto.randomUUID();
     const start = performance.now();
-    const reportWhere = buildReportActivityWhere(period, filters);
-    const pjumWhere = buildPjumWhere(period, filters);
+    const reportWhere = buildReportActivityWhere(period, filters, viewer);
+    const pjumWhere = buildPjumWhere(period, filters, viewer);
     const take = offset + limit;
 
     try {
@@ -613,7 +662,7 @@ export async function getAdminActivityEvents(
 
         const totalCount = reportCount + pjumCount;
         const page = events.slice(offset, offset + limit);
-        const summary = await getActivitySummary(period);
+        const summary = await getActivitySummary(period, viewer);
 
         logger.info(
             {

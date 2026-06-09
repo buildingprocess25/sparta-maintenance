@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { Bell, KeyRound, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/dashboard/action";
@@ -40,8 +41,10 @@ export function SiteHeaderActions({
 }) {
     const [isPending, startTransition] = useTransition();
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const pathname = usePathname();
     const initials = getInitials(user.name, user.email);
     const hasHeaderActions = Boolean(children);
+    const isDashboardHome = pathname === "/dashboard";
 
     return (
         <>
@@ -53,84 +56,108 @@ export function SiteHeaderActions({
                         </div>
                         <Separator
                             orientation="vertical"
-                            className="h-4 self-auto!"
+                            className={
+                                isDashboardHome
+                                    ? "h-4 self-auto!"
+                                    : "hidden h-4 self-auto! md:block"
+                            }
                         />
                     </>
                 ) : null}
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            className="rounded-full"
-                            aria-label="Notifikasi"
-                        >
-                            <Bell />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-56">
-                        <DropdownMenuLabel>Notifikasi</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem disabled>
-                                Sedang dalam pengembangan
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div
+                    className={
+                        isDashboardHome
+                            ? "flex items-center gap-3"
+                            : "hidden items-center gap-3 md:flex"
+                    }
+                >
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    className="rounded-full"
+                                    aria-label="Notifikasi"
+                                >
+                                    <Bell />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="end"
+                                className="min-w-56"
+                            >
+                                <DropdownMenuLabel>
+                                    Notifikasi
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem disabled>
+                                        Sedang dalam pengembangan
+                                    </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
 
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon-sm"
-                            className="rounded-full"
-                            disabled={isPending}
-                            aria-label="Menu profil"
-                        >
-                            <Avatar>
-                                <AvatarFallback>{initials}</AvatarFallback>
-                            </Avatar>
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="min-w-56">
-                        <DropdownMenuLabel>
-                            <span className="block truncate font-medium text-foreground">
-                                {user.name}
-                            </span>
-                            <span className="block truncate text-xs text-muted-foreground">
-                                {user.email}
-                            </span>
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuGroup>
-                            <DropdownMenuItem
-                                onSelect={(event) => {
-                                    event.preventDefault();
-                                    setIsChangePasswordOpen(true);
-                                }}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon-sm"
+                                    className="rounded-full"
+                                    disabled={isPending}
+                                    aria-label="Menu profil"
+                                >
+                                    <Avatar>
+                                        <AvatarFallback>
+                                            {initials}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                                align="end"
+                                className="min-w-56"
                             >
-                                <KeyRound />
-                                Ganti Password
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                variant="destructive"
-                                disabled={isPending}
-                                onClick={() => {
-                                    startTransition(async () => {
-                                        await logoutAction();
-                                    });
-                                }}
-                            >
-                                <LogOut />
-                                {isPending ? "Logging out..." : "Logout"}
-                            </DropdownMenuItem>
-                        </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                                <DropdownMenuLabel>
+                                    <span className="block truncate font-medium text-foreground">
+                                        {user.name}
+                                    </span>
+                                    <span className="block truncate text-xs text-muted-foreground">
+                                        {user.email}
+                                    </span>
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuGroup>
+                                    <DropdownMenuItem
+                                        onSelect={(event) => {
+                                            event.preventDefault();
+                                            setIsChangePasswordOpen(true);
+                                        }}
+                                    >
+                                        <KeyRound />
+                                        Ganti Password
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        variant="destructive"
+                                        disabled={isPending}
+                                        onClick={() => {
+                                            startTransition(async () => {
+                                                await logoutAction();
+                                            });
+                                        }}
+                                    >
+                                        <LogOut />
+                                        {isPending
+                                            ? "Logging out..."
+                                            : "Logout"}
+                                    </DropdownMenuItem>
+                                </DropdownMenuGroup>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                </div>
             </div>
             <ChangePasswordDialog
                 open={isChangePasswordOpen}

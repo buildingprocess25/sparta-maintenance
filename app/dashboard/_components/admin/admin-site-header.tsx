@@ -4,6 +4,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import {
     Breadcrumb,
+    BreadcrumbEllipsis,
     BreadcrumbItem,
     BreadcrumbLink,
     BreadcrumbList,
@@ -40,7 +41,30 @@ export function SiteHeader({
                     />
                     {breadcrumbs && breadcrumbs.length > 0 ? (
                         <Breadcrumb>
-                            <BreadcrumbList>
+                            {breadcrumbs.length > 1 ? (
+                                <BreadcrumbList className="md:hidden">
+                                    <BreadcrumbItem>
+                                        <BreadcrumbEllipsis />
+                                    </BreadcrumbItem>
+                                    <BreadcrumbSeparator />
+                                    <BreadcrumbItem>
+                                        <BreadcrumbPage>
+                                            {
+                                                breadcrumbs[
+                                                    breadcrumbs.length - 1
+                                                ].label
+                                            }
+                                        </BreadcrumbPage>
+                                    </BreadcrumbItem>
+                                </BreadcrumbList>
+                            ) : null}
+                            <BreadcrumbList
+                                className={
+                                    breadcrumbs.length > 1
+                                        ? "hidden md:flex"
+                                        : undefined
+                                }
+                            >
                                 {breadcrumbs.map((crumb, index) => {
                                     const isLast =
                                         index === breadcrumbs.length - 1;

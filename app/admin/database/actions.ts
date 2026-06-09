@@ -3,13 +3,64 @@
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
-import { requireRole, validateCSRF } from "@/lib/authorization";
+import {
+    type AuthUser,
+    requireRole,
+    validateCSRF,
+} from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
+
+const MASTER_DATA_ROLES = ["ADMIN", "BMC"] as const;
+
+function isGlobalAdmin(user: AuthUser) {
+    return user.role === "ADMIN";
+}
+
+async function requireMasterDataManager() {
+    return requireRole([...MASTER_DATA_ROLES]);
+}
+
+function getScopedBranches(user: AuthUser) {
+    return user.branchNames
+        .map((branchName) => branchName.trim())
+        .filter((branchName) => branchName.length > 0);
+}
+
+function isBranchInScope(user: AuthUser, branchName: string) {
+    if (isGlobalAdmin(user)) return true;
+    return getScopedBranches(user).includes(branchName.trim());
+}
+
+function areBranchesInScope(user: AuthUser, branchNames: string[]) {
+    if (isGlobalAdmin(user)) return true;
+
+    const scopedBranches = new Set(getScopedBranches(user));
+    const normalizedBranches = branchNames
+        .map((branchName) => branchName.trim())
+        .filter((branchName) => branchName.length > 0);
+
+    return (
+        normalizedBranches.length > 0 &&
+        normalizedBranches.every((branchName) => scopedBranches.has(branchName))
+    );
+}
+
+function normalizeBranchNames(branchNames: string[]) {
+    return branchNames
+        .map((branchName) => branchName.trim())
+        .filter((branchName) => branchName.length > 0);
+}
+
+function revalidateMasterDataPaths() {
+    revalidatePath("/admin/database");
+    revalidatePath("/dashboard/users");
+    revalidatePath("/dashboard/stores");
+}
 
 function getAdminErrorDetail(error: unknown): string {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -62,12 +113,24 @@ type AdminUserPayload = {
 export async function adminCreateUser(payload: AdminUserPayload) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
         if (!(ALL_ROLES as readonly string[]).includes(payload.role)) {
             return { error: "Role tidak valid" };
+        }
+
+        const branchNames = normalizeBranchNames(payload.branchNames);
+
+        if (!isGlobalAdmin(admin) && payload.role === "ADMIN") {
+            return { error: "Role ADMIN hanya dapat dibuat oleh ADMIN" };
+        }
+
+        if (!areBranchesInScope(admin, branchNames)) {
+            return {
+                error: "Cabang user berada di luar scope akses Anda",
+            };
         }
 
         await prisma.user.create({
@@ -76,11 +139,11 @@ export async function adminCreateUser(payload: AdminUserPayload) {
                 email: payload.email,
                 name: payload.name,
                 role: payload.role,
-                branchNames: payload.branchNames,
+                branchNames,
             },
         });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminCreateUser",
@@ -110,7 +173,7 @@ export async function adminUpdateUser(
 ) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
@@ -118,8 +181,23 @@ export async function adminUpdateUser(
             return { error: "Role tidak valid" };
         }
 
-        const existing = await prisma.user.findUnique({ where: { NIK } });
+        const existing = await prisma.user.findUnique({
+            where: { NIK },
+            select: { role: true, branchNames: true },
+        });
         if (!existing) return { error: "User tidak ditemukan" };
+
+        const branchNames = normalizeBranchNames(payload.branchNames);
+
+        if (
+            !isGlobalAdmin(admin) &&
+            (existing.role === "ADMIN" ||
+                payload.role === "ADMIN" ||
+                !areBranchesInScope(admin, existing.branchNames) ||
+                !areBranchesInScope(admin, branchNames))
+        ) {
+            return { error: "User berada di luar scope akses Anda" };
+        }
 
         await prisma.user.update({
             where: { NIK },
@@ -127,11 +205,11 @@ export async function adminUpdateUser(
                 email: payload.email,
                 name: payload.name,
                 role: payload.role,
-                branchNames: payload.branchNames,
+                branchNames,
             },
         });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminUpdateUser",
@@ -158,13 +236,13 @@ export async function adminUpdateUser(
 export async function adminDeleteUser(NIK: string) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
         const existing = await prisma.user.findUnique({
             where: { NIK },
-            select: { role: true, name: true },
+            select: { role: true, name: true, branchNames: true },
         });
         if (!existing) return { error: "User tidak ditemukan" };
 
@@ -173,9 +251,17 @@ export async function adminDeleteUser(NIK: string) {
             return { error: "Anda tidak bisa menghapus akun sendiri" };
         }
 
+        if (
+            !isGlobalAdmin(admin) &&
+            (existing.role === "ADMIN" ||
+                !areBranchesInScope(admin, existing.branchNames))
+        ) {
+            return { error: "User berada di luar scope akses Anda" };
+        }
+
         await prisma.user.delete({ where: { NIK } });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminDeleteUser",
@@ -212,20 +298,25 @@ type AdminStorePayload = {
 export async function adminCreateStore(payload: AdminStorePayload) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
+
+        const branchName = payload.branchName.trim();
+        if (!isBranchInScope(admin, branchName)) {
+            return { error: "Cabang toko berada di luar scope akses Anda" };
+        }
 
         await prisma.store.create({
             data: {
                 code: payload.code,
                 name: payload.name,
-                branchName: payload.branchName,
+                branchName,
                 isActive: payload.isActive ?? true,
             },
         });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminCreateStore",
@@ -255,23 +346,32 @@ export async function adminUpdateStore(
 ) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
         const existing = await prisma.store.findUnique({ where: { code } });
         if (!existing) return { error: "Toko tidak ditemukan" };
 
+        const branchName = payload.branchName.trim();
+        if (
+            !isGlobalAdmin(admin) &&
+            (!isBranchInScope(admin, existing.branchName) ||
+                !isBranchInScope(admin, branchName))
+        ) {
+            return { error: "Toko berada di luar scope akses Anda" };
+        }
+
         await prisma.store.update({
             where: { code },
             data: {
                 name: payload.name,
-                branchName: payload.branchName,
+                branchName,
                 isActive: payload.isActive ?? true,
             },
         });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminUpdateStore",
@@ -298,12 +398,16 @@ export async function adminUpdateStore(
 export async function adminDeleteStore(code: string) {
     const startTime = Date.now();
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
         const existing = await prisma.store.findUnique({ where: { code } });
         if (!existing) return { error: "Toko tidak ditemukan" };
+
+        if (!isBranchInScope(admin, existing.branchName)) {
+            return { error: "Toko berada di luar scope akses Anda" };
+        }
 
         // Cannot delete stores that have reports attached
         const reportCount = await prisma.report.count({
@@ -317,7 +421,7 @@ export async function adminDeleteStore(code: string) {
 
         await prisma.store.delete({ where: { code } });
 
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
         logger.info(
             {
                 operation: "adminDeleteStore",
@@ -403,7 +507,7 @@ export async function adminImportStores(formData: FormData) {
     };
 
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
@@ -429,6 +533,13 @@ export async function adminImportStores(formData: FormData) {
             };
         }
 
+        if (!isBranchInScope(admin, branchName)) {
+            return {
+                ...result,
+                errors: ["Branch berada di luar scope akses Anda"],
+            };
+        }
+
         const buffer = await file.arrayBuffer();
         const { rows, error } = parseXlsxFromBuffer(buffer, [
             "Kode Toko",
@@ -451,13 +562,13 @@ export async function adminImportStores(formData: FormData) {
             ),
         );
 
-        const existingStoreCodes = new Set(
+        const existingStores = new Map(
             (
                 await prisma.store.findMany({
                     where: { code: { in: codesInFile } },
-                    select: { code: true },
+                    select: { code: true, branchName: true },
                 })
-            ).map((store) => store.code),
+            ).map((store) => [store.code, store]),
         );
 
         for (let i = 0; i < rows.length; i++) {
@@ -477,7 +588,21 @@ export async function adminImportStores(formData: FormData) {
             }
 
             try {
-                const isExisting = existingStoreCodes.has(code);
+                const existingStore = existingStores.get(code);
+                if (
+                    existingStore &&
+                    !isBranchInScope(admin, existingStore.branchName)
+                ) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${code}): Toko berada di luar scope akses Anda`,
+                        );
+                    }
+                    continue;
+                }
+
+                const isExisting = Boolean(existingStore);
 
                 await prisma.store.upsert({
                     where: { code },
@@ -489,7 +614,7 @@ export async function adminImportStores(formData: FormData) {
                     result.updated++;
                 } else {
                     result.created++;
-                    existingStoreCodes.add(code);
+                    existingStores.set(code, { code, branchName });
                 }
             } catch (error) {
                 result.failed++;
@@ -502,7 +627,7 @@ export async function adminImportStores(formData: FormData) {
         }
 
         result.success = true;
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
 
         logger.info(
             {
@@ -547,7 +672,7 @@ export async function adminImportUsers(formData: FormData) {
     };
 
     try {
-        const admin = await requireRole("ADMIN");
+        const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
 
@@ -597,13 +722,13 @@ export async function adminImportUsers(formData: FormData) {
             ),
         );
 
-        const existingUserNIKs = new Set(
+        const existingUsers = new Map(
             (
                 await prisma.user.findMany({
                     where: { NIK: { in: niksInFile } },
-                    select: { NIK: true },
+                    select: { NIK: true, role: true, branchNames: true },
                 })
-            ).map((u) => u.NIK),
+            ).map((user) => [user.NIK, user]),
         );
 
         for (let i = 0; i < rows.length; i++) {
@@ -641,8 +766,37 @@ export async function adminImportUsers(formData: FormData) {
                 continue;
             }
 
+            if (
+                !isGlobalAdmin(admin) &&
+                (role === "ADMIN" || !areBranchesInScope(admin, branchNames))
+            ) {
+                result.skipped++;
+                if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                    result.errors.push(
+                        `Baris ${rowNum} (${nik}): User berada di luar scope akses Anda`,
+                    );
+                }
+                continue;
+            }
+
             try {
-                const isExisting = existingUserNIKs.has(nik);
+                const existingUser = existingUsers.get(nik);
+                if (
+                    existingUser &&
+                    !isGlobalAdmin(admin) &&
+                    (existingUser.role === "ADMIN" ||
+                        !areBranchesInScope(admin, existingUser.branchNames))
+                ) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${nik}): User existing berada di luar scope akses Anda`,
+                        );
+                    }
+                    continue;
+                }
+
+                const isExisting = Boolean(existingUser);
 
                 await prisma.user.upsert({
                     where: { NIK: nik },
@@ -665,7 +819,11 @@ export async function adminImportUsers(formData: FormData) {
                     result.updated++;
                 } else {
                     result.created++;
-                    existingUserNIKs.add(nik);
+                    existingUsers.set(nik, {
+                        NIK: nik,
+                        role: role as AllowedRole,
+                        branchNames,
+                    });
                 }
             } catch (error) {
                 result.failed++;
@@ -678,7 +836,7 @@ export async function adminImportUsers(formData: FormData) {
         }
 
         result.success = true;
-        revalidatePath("/admin/database");
+        revalidateMasterDataPaths();
 
         logger.info(
             {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     AlertTriangle,
@@ -32,15 +32,35 @@ import { ChecklistTab } from "./checklist-tab";
 import { DocumentationTab } from "./documentation-tab";
 import { HistoryTab } from "./history-tab";
 import { PhotoDialog } from "./photo-dialog";
+import { ReportApprovalActions } from "./report-approval-actions";
 import { ReportHeader } from "./report-header";
 import { WorkCostTab } from "./work-cost-tab";
+import { useReportApprovalReviewGate } from "./report-approval-review-gate";
 
 type Props = {
     report: ReportDetailModel;
+    viewerRole: string;
+    approvalContext: {
+        reportNumber: string;
+        status: string;
+        viewerRole: string;
+    } | null;
 };
 
-export function ReportDetailWorkbench({ report }: Props) {
+export function ReportDetailWorkbench({
+    report,
+    viewerRole,
+    approvalContext,
+}: Props) {
     const router = useRouter();
+    const reviewGate = useReportApprovalReviewGate();
+    const canDeleteReport = viewerRole === "ADMIN";
+    const didAutoFocusReview = useRef(false);
+    const [activeTab, setActiveTab] = useState(
+        reviewGate.enabled && !reviewGate.isReviewComplete
+            ? "work"
+            : "checklist",
+    );
     const [selectedPhoto, setSelectedPhoto] = useState<DetailPhoto | null>(
         null,
     );
@@ -64,9 +84,36 @@ export function ReportDetailWorkbench({ report }: Props) {
         });
     }
 
+    useEffect(() => {
+        if (
+            didAutoFocusReview.current ||
+            !reviewGate.enabled ||
+            reviewGate.isReviewComplete
+        ) {
+            return;
+        }
+
+        didAutoFocusReview.current = true;
+
+        window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+                document
+                    .querySelector<HTMLElement>("[data-review-required='true']")
+                    ?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                    });
+            });
+        });
+    }, [reviewGate.enabled, reviewGate.isReviewComplete]);
+
     return (
         <div className="min-h-full bg-muted/30">
-            <Tabs defaultValue="checklist" className="gap-0">
+            <Tabs
+                value={activeTab}
+                onValueChange={setActiveTab}
+                className="gap-0"
+            >
                 <ReportHeader report={report} />
 
                 <div className="sticky top-15 z-40 border-b bg-background/95 px-3 pt-2 backdrop-blur transition-[top] supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-4">
@@ -112,18 +159,20 @@ export function ReportDetailWorkbench({ report }: Props) {
                                 <History data-icon="inline-start" />
                                 Riwayat Aktivitas
                             </TabsTrigger>
-                            <TabsTrigger
-                                value="actions"
-                                className="h-8 flex-none px-3 text-xs"
-                            >
-                                <AlertTriangle data-icon="inline-start" />
-                                Aksi
-                            </TabsTrigger>
+                            {canDeleteReport ? (
+                                <TabsTrigger
+                                    value="actions"
+                                    className="h-8 flex-none px-3 text-xs"
+                                >
+                                    <AlertTriangle data-icon="inline-start" />
+                                    Aksi
+                                </TabsTrigger>
+                            ) : null}
                         </TabsList>
                     </div>
                 </div>
 
-                <main className="w-full max-w-none p-3 lg:p-4">
+                <main className="w-full max-w-none p-3 pb-48 md:pb-32 lg:p-4 lg:pb-32">
                     <TabsContent value="checklist" className="mt-0">
                         <ChecklistTab
                             report={report}
@@ -149,12 +198,14 @@ export function ReportDetailWorkbench({ report }: Props) {
                         <HistoryTab report={report} />
                     </TabsContent>
 
-                    <TabsContent value="actions" className="mt-0">
-                        <ActionsTab
-                            report={report}
-                            onDeleteClick={() => setDeleteOpen(true)}
-                        />
-                    </TabsContent>
+                    {canDeleteReport ? (
+                        <TabsContent value="actions" className="mt-0">
+                            <ActionsTab
+                                report={report}
+                                onDeleteClick={() => setDeleteOpen(true)}
+                            />
+                        </TabsContent>
+                    ) : null}
                 </main>
             </Tabs>
 
@@ -164,6 +215,33 @@ export function ReportDetailWorkbench({ report }: Props) {
                     if (!open) setSelectedPhoto(null);
                 }}
             />
+
+            {approvalContext ? (
+                <section className="fixed inset-x-3 bottom-3 z-50 mx-auto max-w-5xl rounded-lg border bg-background/95 p-3 shadow-2xl backdrop-blur supports-backdrop-filter:bg-background/90 lg:inset-x-6">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold">
+                                Keputusan approval laporan
+                            </p>
+                            {reviewGate.enabled &&
+                            !reviewGate.isReviewComplete ? (
+                                <p className="mt-1 text-xs text-amber-700">
+                                    {reviewGate.missingReviewText}
+                                </p>
+                            ) : (
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    Periksa data sebelum menentukan keputusan.
+                                </p>
+                            )}
+                        </div>
+                        <ReportApprovalActions
+                            reportNumber={approvalContext.reportNumber}
+                            status={approvalContext.status}
+                            viewerRole={approvalContext.viewerRole}
+                        />
+                    </div>
+                </section>
+            ) : null}
 
             <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
                 <AlertDialogContent>

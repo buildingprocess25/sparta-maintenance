@@ -3,6 +3,7 @@
 import { useMemo, useState, type PointerEvent, type WheelEvent } from "react";
 import {
     ArrowRightLeft,
+    ImageIcon,
     Package,
     ReceiptText,
     RotateCcw,
@@ -14,10 +15,10 @@ import {
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LoadingImage } from "@/components/ui/loading-image";
 import {
     Dialog,
     DialogContent,
-    DialogDescription,
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
@@ -37,14 +38,11 @@ import type {
 import {
     ConditionBadge,
     EmptyState,
-    MiniMoney,
     PhotoStrip,
-    TotalBlock,
     WorkNotes,
 } from "./shared-ui";
 import {
     formatCurrency,
-    formatDelta,
     formatHandler,
     formatMoneyCell,
     getRealizationComparisonRows,
@@ -54,6 +52,7 @@ import {
     type RealizationComparisonRow,
     type ReportMaterialStoreRow,
 } from "./report-detail-utils";
+import { useReportApprovalReviewGate } from "./report-approval-review-gate";
 
 export function WorkCostTab({
     report,
@@ -63,12 +62,20 @@ export function WorkCostTab({
     onPhotoClick: (photo: DetailPhoto) => void;
 }) {
     const [compareOpen, setCompareOpen] = useState(false);
+    const reviewGate = useReportApprovalReviewGate();
     const canCompareWithReceipt = isAfterInProgressStatus(report.status);
     const materialStores = useMemo(
         () => getReportMaterialStores(report),
         [report],
     );
     const receiptPhotos = useMemo(() => getReceiptPhotos(report), [report]);
+    const completionAdditionalPhotos = useMemo(
+        () =>
+            report.photos.filter(
+                (photo) => photo.source === "Dokumentasi tambahan",
+            ),
+        [report.photos],
+    );
     const realizationRows = useMemo(
         () => getRealizationComparisonRows(report),
         [report],
@@ -90,7 +97,9 @@ export function WorkCostTab({
 
     return (
         <div className="flex flex-col gap-3">
-            {canCompareWithReceipt || materialStores.length > 0 ? (
+            {canCompareWithReceipt ||
+            materialStores.length > 0 ||
+            completionAdditionalPhotos.length > 0 ? (
                 <WorkCostToolsSection
                     canCompareWithReceipt={canCompareWithReceipt}
                     receiptCount={receiptPhotos.length}
@@ -98,7 +107,13 @@ export function WorkCostTab({
                         realizationRows.filter((row) => !row.isDiscount).length
                     }
                     stores={materialStores}
-                    onCompareClick={() => setCompareOpen(true)}
+                    completionAdditionalPhotos={completionAdditionalPhotos}
+                    completionAdditionalNote={report.completionAdditionalNote}
+                    onPhotoClick={onPhotoClick}
+                    onCompareClick={() => {
+                        reviewGate.markReceiptComparisonOpened();
+                        setCompareOpen(true);
+                    }}
                 />
             ) : null}
 
@@ -106,40 +121,12 @@ export function WorkCostTab({
                 <WorkItemPanel
                     key={item.itemId}
                     item={item}
-                    onPhotoClick={onPhotoClick}
+                    onPhotoClick={(photo) => {
+                        reviewGate.markPhotoOpened(photo.id);
+                        onPhotoClick(photo);
+                    }}
                 />
             ))}
-
-            <section className="sticky bottom-2 rounded-lg border bg-primary px-4 py-3 text-background">
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                    <p className="text-sm font-semibold">Total laporan ini</p>
-                    <div className="grid gap-3 text-sm sm:grid-cols-3">
-                        <TotalBlock
-                            label="Grand estimasi"
-                            value={formatCurrency(report.totals.estimation)}
-                        />
-                        <TotalBlock
-                            label="Grand realisasi"
-                            value={
-                                report.totalReal === null
-                                    ? ""
-                                    : formatCurrency(report.totalReal)
-                            }
-                        />
-                        <TotalBlock
-                            label="Total selisih"
-                            value={
-                                report.totalReal === null
-                                    ? ""
-                                    : formatDelta(
-                                          report.totalReal -
-                                              report.totals.estimation,
-                                      )
-                            }
-                        />
-                    </div>
-                </div>
-            </section>
 
             <ReceiptCompareDialog
                 open={compareOpen}
@@ -157,25 +144,44 @@ function WorkCostToolsSection({
     receiptCount,
     realizationRowCount,
     stores,
+    completionAdditionalPhotos,
+    completionAdditionalNote,
+    onPhotoClick,
     onCompareClick,
 }: {
     canCompareWithReceipt: boolean;
     receiptCount: number;
     realizationRowCount: number;
     stores: ReportMaterialStoreRow[];
+    completionAdditionalPhotos: DetailPhoto[];
+    completionAdditionalNote: string | null;
+    onPhotoClick: (photo: DetailPhoto) => void;
     onCompareClick: () => void;
 }) {
+    const reviewGate = useReportApprovalReviewGate();
+
     return (
         <div className="flex flex-wrap items-stretch gap-3">
             {canCompareWithReceipt ? (
                 <QuickActionsSection
                     receiptCount={receiptCount}
                     realizationRowCount={realizationRowCount}
+                    needsReview={
+                        reviewGate.enabled &&
+                        !reviewGate.hasOpenedReceiptComparison
+                    }
                     onCompareClick={onCompareClick}
                 />
             ) : null}
             {stores.length > 0 ? (
                 <MaterialStoresSection stores={stores} />
+            ) : null}
+            {completionAdditionalPhotos.length > 0 ? (
+                <CompletionDocumentationSection
+                    photos={completionAdditionalPhotos}
+                    note={completionAdditionalNote}
+                    onPhotoClick={onPhotoClick}
+                />
             ) : null}
         </div>
     );
@@ -184,17 +190,29 @@ function WorkCostToolsSection({
 function QuickActionsSection({
     receiptCount,
     realizationRowCount,
+    needsReview,
     onCompareClick,
 }: {
     receiptCount: number;
     realizationRowCount: number;
+    needsReview: boolean;
     onCompareClick: () => void;
 }) {
     return (
-        <section className="w-full rounded-lg border bg-background px-3 py-2 sm:w-[320px]">
+        <section
+            data-review-required={needsReview ? "true" : undefined}
+            className="w-full rounded-lg border bg-background px-3 py-2 sm:w-[320px]"
+        >
             <div className="flex h-full flex-col justify-between gap-2">
                 <div className="min-w-0">
-                    <h2 className="text-sm font-semibold">Aksi Cepat</h2>
+                    <div className="flex items-center justify-between gap-2">
+                        <h2 className="text-sm font-semibold">Aksi Cepat</h2>
+                        {needsReview ? (
+                            <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                Perlu dicek
+                            </Badge>
+                        ) : null}
+                    </div>
                     <p className="text-xs text-muted-foreground">
                         {receiptCount} foto nota, {realizationRowCount} baris
                         realisasi.
@@ -237,6 +255,38 @@ function MaterialStoresSection({
                         </div>
                     </div>
                 ))}
+            </div>
+        </section>
+    );
+}
+
+function CompletionDocumentationSection({
+    photos,
+    note,
+    onPhotoClick,
+}: {
+    photos: DetailPhoto[];
+    note: string | null;
+    onPhotoClick: (photo: DetailPhoto) => void;
+}) {
+    return (
+        <section className="w-full overflow-hidden rounded-lg border bg-background sm:w-[360px]">
+            <div className="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2">
+                <div className="flex min-w-0 items-center gap-2">
+                    <ImageIcon className="size-4 text-muted-foreground" />
+                    <h2 className="truncate text-sm font-semibold">
+                        Dokumentasi tambahan
+                    </h2>
+                </div>
+                <Badge variant="secondary">{photos.length} foto</Badge>
+            </div>
+            <div className="flex flex-col gap-2 p-2">
+                <PhotoStrip photos={photos} onPhotoClick={onPhotoClick} />
+                {note ? (
+                    <p className="rounded-md border bg-muted/20 px-2 py-1.5 text-xs text-muted-foreground">
+                        {note}
+                    </p>
+                ) : null}
             </div>
         </section>
     );
@@ -409,11 +459,13 @@ function ReceiptCompareDialog({
                                     </div>
                                 ) : null}
                                 {activePhoto ? (
-                                    // eslint-disable-next-line @next/next/no-img-element
-                                    <img
+                                    <LoadingImage
+                                        wrapperClassName="flex size-full items-center justify-center bg-transparent"
+                                        loadingLabel="Memuat foto nota..."
+                                        errorLabel="Foto nota gagal dimuat"
                                         src={activePhoto.url}
                                         alt={activePhoto.label}
-                                        className="max-h-full max-w-full object-contain will-change-transform"
+                                        className="size-full object-contain will-change-transform"
                                         draggable={false}
                                         style={{
                                             transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
@@ -444,11 +496,11 @@ function ReceiptCompareDialog({
                                                 resetImageView();
                                             }}
                                         >
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img
+                                            <LoadingImage
+                                                wrapperClassName="size-full"
                                                 src={photo.url}
                                                 alt={photo.label}
-                                                className="size-full object-cover"
+                                                className="size-full object-contain"
                                             />
                                         </button>
                                     ))}
@@ -563,8 +615,22 @@ function WorkItemPanel({
     item: WorkItem;
     onPhotoClick: (photo: DetailPhoto) => void;
 }) {
+    const reviewGate = useReportApprovalReviewGate();
+    const photos = [
+        ...item.beforePhotos,
+        ...item.afterPhotos,
+        ...item.receiptPhotos,
+    ];
+    const needsPhotoReview =
+        reviewGate.enabled &&
+        photos.length > 0 &&
+        photos.some((photo) => !reviewGate.isPhotoOpened(photo.id));
+
     return (
-        <section className="overflow-hidden rounded-lg border bg-background">
+        <section
+            data-review-required={needsPhotoReview ? "true" : undefined}
+            className="overflow-hidden rounded-lg border bg-background"
+        >
             <div className="flex flex-col gap-2 border-b bg-muted/30 px-3 py-2 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Badge variant="outline" className="font-mono">
@@ -582,27 +648,6 @@ function WorkItemPanel({
                             Handler {formatHandler(item.handler)}
                         </Badge>
                     ) : null}
-                </div>
-                <div className="grid gap-2 text-xs sm:grid-cols-3">
-                    <MiniMoney
-                        label="Est"
-                        value={item.estimationTotal}
-                        hasValue={item.estimations.length > 0}
-                    />
-                    <MiniMoney
-                        label="Real"
-                        value={item.realisasiTotal}
-                        hasValue={item.realisasiItems.length > 0}
-                    />
-                    <MiniMoney
-                        label="Selisih"
-                        value={item.delta}
-                        delta
-                        hasValue={
-                            item.estimations.length > 0 &&
-                            item.realisasiItems.length > 0
-                        }
-                    />
                 </div>
             </div>
 
@@ -639,11 +684,14 @@ function WorkItemPanel({
                 <div className="grid gap-2">
                     <PhotoStrip
                         title="Foto"
-                        photos={[
-                            ...item.beforePhotos,
-                            ...item.afterPhotos,
-                            ...item.receiptPhotos,
-                        ]}
+                        titleAccessory={
+                            needsPhotoReview ? (
+                                <Badge className="border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50">
+                                    Perlu dicek
+                                </Badge>
+                            ) : null
+                        }
+                        photos={photos}
                         onPhotoClick={onPhotoClick}
                     />
                 </div>

@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../../_components/admin/admin-dashboard-shell";
 import { getAdminReportDetail } from "./queries";
-import { ReportApprovalActions } from "./_components/report-approval-actions";
+import { ReportApprovalReviewGateProvider } from "./_components/report-approval-review-gate";
 import { ReportDetailWorkbench } from "./_components/report-detail-workbench";
 
 export const dynamic = "force-dynamic";
@@ -23,27 +23,48 @@ export default async function AdminReportDetailPage({ params }: Props) {
         redirect("/dashboard");
     }
 
+    const requiresWorkReview = requiresWorkReviewBeforeApproval(
+        user.role,
+        report.status,
+    ) && report.workItems.length > 0;
+    const requiredWorkPhotoIds = report.workItems.flatMap((item) => [
+        ...item.beforePhotos.map((photo) => photo.id),
+        ...item.afterPhotos.map((photo) => photo.id),
+        ...item.receiptPhotos.map((photo) => photo.id),
+    ]);
+
     return (
-        <AdminDashboardShell
-            user={user}
-            title={report.reportNumber}
-            breadcrumbs={[
-                { label: "Laporan Maintenance", href: "/dashboard/reports" },
-                { label: report.reportNumber },
-            ]}
-            headerActions={
-                hasReportApprovalAction(user.role, report.status) ? (
-                    <ReportApprovalActions
-                        reportNumber={report.reportNumber}
-                        status={report.status}
-                        viewerRole={user.role}
-                    />
-                ) : undefined
-            }
-            contentClassName="h-full gap-0 p-0 lg:p-0"
+        <ReportApprovalReviewGateProvider
+            enabled={requiresWorkReview}
+            requiredPhotoIds={requiredWorkPhotoIds}
         >
-            <ReportDetailWorkbench report={report} />
-        </AdminDashboardShell>
+            <AdminDashboardShell
+                user={user}
+                title={report.reportNumber}
+                breadcrumbs={[
+                    {
+                        label: "Laporan Maintenance",
+                        href: "/dashboard/reports",
+                    },
+                    { label: report.reportNumber },
+                ]}
+                contentClassName="h-full gap-0 p-0 lg:p-0"
+            >
+                <ReportDetailWorkbench
+                    report={report}
+                    viewerRole={user.role}
+                    approvalContext={
+                        hasReportApprovalAction(user.role, report.status)
+                            ? {
+                                  reportNumber: report.reportNumber,
+                                  status: report.status,
+                                  viewerRole: user.role,
+                              }
+                            : null
+                    }
+                />
+            </AdminDashboardShell>
+        </ReportApprovalReviewGateProvider>
     );
 }
 
@@ -78,6 +99,13 @@ function hasReportApprovalAction(role: string, status: string) {
         (role === "BMC" &&
             (status === "PENDING_ESTIMATION" ||
                 status === "PENDING_REVIEW")) ||
+        (role === "BNM_MANAGER" && status === "APPROVED_BMC")
+    );
+}
+
+function requiresWorkReviewBeforeApproval(role: string, status: string) {
+    return (
+        (role === "BMC" && status === "PENDING_REVIEW") ||
         (role === "BNM_MANAGER" && status === "APPROVED_BMC")
     );
 }

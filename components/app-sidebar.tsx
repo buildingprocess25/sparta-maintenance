@@ -89,7 +89,7 @@ const data = {
                 },
                 {
                     title: "Performa BMS",
-                    url: "#",
+                    url: "/dashboard/bms-performance",
                     icon: IconUserCog,
                 },
                 {
@@ -180,11 +180,18 @@ export function AppSidebar({
         }
 
         if (authUser.role === "BMC" || authUser.role === "BNM_MANAGER") {
-            return [
+            const baseItems = [
                 "Laporan Maintenance",
                 "Checklist Preventif",
                 "Dokumen PJUM",
-            ].includes(title);
+                "Performa BMS",
+            ];
+
+            if (authUser.role === "BMC") {
+                baseItems.push("Aktivitas User", "User", "Toko");
+            }
+
+            return baseItems.includes(title);
         }
 
         return false;
@@ -289,7 +296,9 @@ export function AppSidebar({
                                                 asChild
                                                 tooltip={item.title}
                                                 className="hover:bg-white/10"
-                                                isActive={isItemActive(item.url)}
+                                                isActive={isItemActive(
+                                                    item.url,
+                                                )}
                                             >
                                                 <Link
                                                     href={item.url}
@@ -365,7 +374,7 @@ export function AppSidebar({
                                 <SidebarMenuButton
                                     id="admin-sidebar-profile-trigger"
                                     size="lg"
-                                    className="group/profile-trigger bg-background/30 shadow-[0_12px_28px_-24px_var(--sidebar-foreground)] ring-1 ring-sidebar-border/60 backdrop-blur transition-all hover:bg-sidebar-accent/70 hover:shadow-[0_14px_34px_-24px_var(--primary)] group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center"
+                                    className="group/profile-trigger shadow-[0_12px_28px_-24px_var(--sidebar-foreground)] ring-sidebar-border/60 backdrop-blur transition-all hover:bg-sidebar-accent/70 hover:shadow-[0_14px_34px_-24px_var(--primary)] group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:justify-center"
                                     disabled={isPending}
                                 >
                                     <Avatar>
