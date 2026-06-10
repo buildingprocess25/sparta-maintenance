@@ -34,7 +34,12 @@ export type AdminOnlineUsersResult = {
 
 async function requireOnlineUserViewer() {
     const user = await getAuthUser();
-    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+    if (
+        !user ||
+        (user.role !== "ADMIN" &&
+            user.role !== "BMC" &&
+            user.role !== "BNM_MANAGER")
+    ) {
         throw new Error("Unauthorized");
     }
     return user;

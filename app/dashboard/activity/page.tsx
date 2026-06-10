@@ -21,7 +21,13 @@ function normalizePeriod(value?: string | string[]) {
 export default async function AdminActivityPage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
+        redirect("/dashboard");
+    }
 
     const params = await searchParams;
     const period = normalizePeriod(params.period);

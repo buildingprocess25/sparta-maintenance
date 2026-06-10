@@ -187,8 +187,15 @@ export function AppSidebar({
                 "Performa BMS",
             ];
 
+            if (
+                authUser.role === "BMC" ||
+                authUser.role === "BNM_MANAGER"
+            ) {
+                baseItems.push("Aktivitas User");
+            }
+
             if (authUser.role === "BMC") {
-                baseItems.push("Aktivitas User", "User", "Toko");
+                baseItems.push("User", "Toko");
             }
 
             return baseItems.includes(title);

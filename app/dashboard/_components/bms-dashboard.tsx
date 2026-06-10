@@ -112,6 +112,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
                     {/* Activity Feed — wide layout */}
                     <ActivitySectionWide
                         activities={activities}
+                        viewerRole={user.role}
                         emptyMessage="Laporan dan aktivitas terbaru Anda akan muncul di sini."
                     />
                 </div>

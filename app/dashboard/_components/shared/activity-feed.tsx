@@ -214,7 +214,8 @@ export function ActivitySectionWide({
     activities,
     emptyMessage,
     viewAllHref = "/activity",
-}: ActivitySectionProps) {
+    viewerRole,
+}: ActivitySectionProps & { viewerRole?: string }) {
     return (
         <div className="rounded-xl border shadow-sm overflow-hidden bg-card">
             {/* Header */}
@@ -252,7 +253,7 @@ export function ActivitySectionWide({
                         return (
                             <li key={item.id}>
                                 <Link prefetch={false}
-                                    href={`/dashboard/reports/${item.reportNumber}`}
+                                    href={viewerRole === "BMS" ? `/reports/${item.reportNumber}` : `/dashboard/reports/${item.reportNumber}`}
                                     className="flex flex-col md:grid md:grid-cols-[auto_1fr_auto] items-start md:items-center gap-1.5 md:gap-x-4 px-4 py-3 md:py-2.5 hover:bg-muted/40 transition-colors"
                                 >
                                     {/* Left: dot + badge */}

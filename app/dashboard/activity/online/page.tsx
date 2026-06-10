@@ -10,7 +10,13 @@ export const dynamic = "force-dynamic";
 export default async function AdminOnlineUsersPage() {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
+    if (
+        user.role !== "ADMIN" &&
+        user.role !== "BMC" &&
+        user.role !== "BNM_MANAGER"
+    ) {
+        redirect("/dashboard");
+    }
 
     const [branches, initialData] = await Promise.all([
         user.role === "ADMIN"
