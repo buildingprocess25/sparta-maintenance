@@ -66,6 +66,11 @@ export function ReportDetailWorkbench({
         null,
     );
     const [deleteOpen, setDeleteOpen] = useState(false);
+
+    function handlePhotoSelect(photo: DetailPhoto) {
+        reviewGate.markPhotoOpened(photo.id);
+        setSelectedPhoto(photo);
+    }
     const [isDeleting, startDeleteTransition] = useTransition();
 
     function handleDelete() {
@@ -177,21 +182,21 @@ export function ReportDetailWorkbench({
                     <TabsContent value="checklist" className="mt-0">
                         <ChecklistTab
                             report={report}
-                            onPhotoClick={setSelectedPhoto}
+                            onPhotoClick={handlePhotoSelect}
                         />
                     </TabsContent>
 
                     <TabsContent value="work" className="mt-0">
                         <WorkCostTab
                             report={report}
-                            onPhotoClick={setSelectedPhoto}
+                            onPhotoClick={handlePhotoSelect}
                         />
                     </TabsContent>
 
                     <TabsContent value="docs" className="mt-0">
                         <DocumentationTab
                             report={report}
-                            onPhotoClick={setSelectedPhoto}
+                            onPhotoClick={handlePhotoSelect}
                         />
                     </TabsContent>
 
@@ -212,6 +217,8 @@ export function ReportDetailWorkbench({
 
             <PhotoDialog
                 photo={selectedPhoto}
+                photos={report.photos}
+                onPhotoChange={handlePhotoSelect}
                 onOpenChange={(open) => {
                     if (!open) setSelectedPhoto(null);
                 }}

@@ -104,6 +104,20 @@ export function ApprovalReviewTour({
         return () => window.clearInterval(interval);
     }, [enabled, storageKey]);
 
+    useEffect(() => {
+        if (!run) {
+            document.body.style.removeProperty("overflow");
+            return;
+        }
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [run]);
+
     function handleEvent(data: EventData) {
         if (data.status !== STATUS.FINISHED && data.status !== STATUS.SKIPPED) {
             return;
@@ -124,8 +138,10 @@ export function ApprovalReviewTour({
             scrollToFirstStep={false}
             steps={steps}
             options={{
+                blockTargetInteraction: true,
                 buttons: ["skip", "back", "primary"],
                 closeButtonAction: "skip",
+                overlayClickAction: false,
                 overlayColor: "rgb(15 23 42 / 0.45)",
                 primaryColor: "hsl(var(--primary))",
                 spotlightPadding: 8,
@@ -261,3 +277,4 @@ function getVisibleCheckboxChecked() {
         null
     );
 }
+

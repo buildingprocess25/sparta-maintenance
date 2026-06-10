@@ -746,7 +746,7 @@ function BranchPerformanceTable({
                             <TableHead>Cabang</TableHead>
                             <TableHead>Total</TableHead>
                             <TableHead>Open</TableHead>
-                            <TableHead>Selesai</TableHead>
+                            <TableHead>Selesai PJUM</TableHead>
                             <TableHead>Rate</TableHead>
                             <TableHead>Realisasi</TableHead>
                         </TableRow>
@@ -773,7 +773,7 @@ function BranchPerformanceTable({
                                     {formatNumber(branch.completedReports)}
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex min-w-24 items-center gap-2">
+                                    <div className="flex min-w-50 items-center gap-2">
                                         <Progress
                                             value={branch.completionRate}
                                         />

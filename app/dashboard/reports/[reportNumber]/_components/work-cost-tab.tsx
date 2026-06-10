@@ -316,6 +316,11 @@ function ReceiptCompareDialog({
         startX: number;
         startY: number;
     } | null>(null);
+    const [pinch, setPinch] = useState<{
+        pointers: Map<number, { x: number; y: number }>;
+        initialDistance: number;
+        initialZoom: number;
+    } | null>(null);
     const activePhoto =
         photos.find((photo) => photo.id === activePhotoId) ?? photos[0] ?? null;
 
@@ -323,6 +328,7 @@ function ReceiptCompareDialog({
         setZoom(1);
         setPan({ x: 0, y: 0 });
         setDrag(null);
+        setPinch(null);
     }
 
     function updateZoom(nextZoom: number) {
@@ -339,20 +345,72 @@ function ReceiptCompareDialog({
         updateZoom(zoom + (event.deltaY < 0 ? 0.2 : -0.2));
     }
 
+    function getDistance(
+        p1: { x: number; y: number },
+        p2: { x: number; y: number },
+    ) {
+        return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+    }
+
     function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
-        if (!activePhoto || zoom <= 1) return;
+        if (!activePhoto) return;
+
         event.currentTarget.setPointerCapture(event.pointerId);
-        setDrag({
-            pointerId: event.pointerId,
-            originX: event.clientX,
-            originY: event.clientY,
-            startX: pan.x,
-            startY: pan.y,
+
+        const newPinch = pinch
+            ? { ...pinch, pointers: new Map(pinch.pointers) }
+            : {
+                  pointers: new Map<number, { x: number; y: number }>(),
+                  initialDistance: 0,
+                  initialZoom: zoom,
+              };
+        newPinch.pointers.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
         });
+
+        if (newPinch.pointers.size === 2) {
+            const points = Array.from(newPinch.pointers.values());
+            newPinch.initialDistance = getDistance(points[0], points[1]);
+            newPinch.initialZoom = zoom;
+            setDrag(null);
+        } else if (newPinch.pointers.size === 1 && zoom > 1) {
+            setDrag({
+                pointerId: event.pointerId,
+                originX: event.clientX,
+                originY: event.clientY,
+                startX: pan.x,
+                startY: pan.y,
+            });
+        }
+
+        setPinch(newPinch);
     }
 
     function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+        if (!activePhoto) return;
+
+        if (pinch && pinch.pointers.size >= 2 && pinch.pointers.has(event.pointerId)) {
+            const newPinch = { ...pinch, pointers: new Map(pinch.pointers) };
+            newPinch.pointers.set(event.pointerId, {
+                x: event.clientX,
+                y: event.clientY,
+            });
+
+            const points = Array.from(newPinch.pointers.values()).slice(0, 2);
+            const currentDistance = getDistance(points[0], points[1]);
+
+            if (newPinch.initialDistance > 0) {
+                const scale = currentDistance / newPinch.initialDistance;
+                updateZoom(newPinch.initialZoom * scale);
+            }
+
+            setPinch(newPinch);
+            return;
+        }
+
         if (!drag || drag.pointerId !== event.pointerId || zoom <= 1) return;
+
         setPan({
             x: drag.startX + event.clientX - drag.originX,
             y: drag.startY + event.clientY - drag.originY,
@@ -363,7 +421,21 @@ function ReceiptCompareDialog({
         if (event.currentTarget.hasPointerCapture(event.pointerId)) {
             event.currentTarget.releasePointerCapture(event.pointerId);
         }
-        setDrag(null);
+
+        if (pinch && pinch.pointers.has(event.pointerId)) {
+            const newPinch = { ...pinch, pointers: new Map(pinch.pointers) };
+            newPinch.pointers.delete(event.pointerId);
+
+            if (newPinch.pointers.size < 2) {
+                newPinch.initialDistance = 0;
+            }
+
+            setPinch(newPinch);
+        }
+
+        if (drag && drag.pointerId === event.pointerId) {
+            setDrag(null);
+        }
     }
 
     return (
@@ -374,11 +446,11 @@ function ReceiptCompareDialog({
                 onOpenChange(nextOpen);
             }}
         >
-            <DialogContent className="max-w-[calc(100%-2rem)] gap-0 overflow-hidden p-0 sm:max-w-6xl xl:max-w-7xl">
+            <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-[calc(100%-2rem)] gap-0 overflow-y-auto p-0 sm:max-w-6xl md:overflow-hidden xl:max-w-7xl">
                 <DialogHeader className="border-b px-4 py-5">
                     <DialogTitle>Bandingkan dengan Nota</DialogTitle>
                 </DialogHeader>
-                <div className="grid max-h-[calc(100vh-10rem)] min-h-[520px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                <div className="grid max-h-[calc(100dvh-8rem)] min-h-0 lg:max-h-[calc(100vh-10rem)] lg:min-h-[520px] lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
                     <section className="flex min-h-0 flex-col border-b bg-muted/20 lg:border-b-0 lg:border-r">
                         <div className="flex items-center justify-between gap-2 border-b px-3 py-2">
                             <div className="flex items-center gap-2">
@@ -794,3 +866,4 @@ function CostTable({
         </div>
     );
 }
+

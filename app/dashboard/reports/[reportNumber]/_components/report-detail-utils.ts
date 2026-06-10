@@ -29,7 +29,7 @@ export function matchesChecklistFilter(row: ChecklistRow, filter: ChecklistFilte
 }
 
 export function getFinalDriveDocuments(report: ReportDetailModel) {
-    const reportFinalUrl = report.reportFinalDriveUrl?.trim();
+    const reportFinalUrl = report.reportFinalDriveUrl?.trim() || report.completedPdfPath?.trim();
     const pjumFinalUrl = report.pjumExport?.pjumFinalDriveUrl?.trim();
     const documents: Array<{
         key: "report" | "pjum";
