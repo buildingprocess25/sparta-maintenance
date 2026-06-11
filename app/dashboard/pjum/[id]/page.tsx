@@ -1,8 +1,6 @@
 import Link from "next/link";
 import type { ElementType } from "react";
 import { notFound, redirect } from "next/navigation";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import {
     AlertTriangle,
     ArrowUpRight,
@@ -75,9 +73,7 @@ export default async function AdminPjumDetailPage({ params }: Props) {
         detail.pjum,
         pjumPolicy.pendingStaleDays,
     );
-    const canCancelPjum =
-        user.role === "ADMIN" ||
-        (user.role === "BMC" && user.branchNames.includes(detail.pjum.branchName));
+    const canCancelPjum = user.role === "ADMIN";
 
     return (
         <AdminDashboardShell

@@ -661,10 +661,7 @@ export async function cancelAdminPjum(pjumExportId: string) {
 
     try {
         const user = await getAuthUser();
-        if (
-            !user ||
-            (user.role !== "ADMIN" && user.role !== "BMC")
-        ) {
+        if (!user || user.role !== "ADMIN") {
             throw new Error("Unauthorized");
         }
 
@@ -687,14 +684,6 @@ export async function cancelAdminPjum(pjumExportId: string) {
         }
 
         if (
-            user.role !== "ADMIN" &&
-            !user.branchNames.includes(pjumExport.branchName)
-        ) {
-            return { error: "PJUM ini bukan dari cabang Anda" };
-        }
-
-        if (
-            user.role === "ADMIN" &&
             pjumExport.branchName === EXCLUDED_ADMIN_BRANCH_NAME
         ) {
             return {
