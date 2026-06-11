@@ -458,14 +458,24 @@ function isPjumStalePending(pjum: PjumDetail["pjum"], staleDays: number) {
 
 function formatDate(date: Date | string | null) {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy", { locale: localeId });
+    return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+    }).format(new Date(date));
 }
 
 function formatDateTime(date: Date | string | null) {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy HH:mm", {
-        locale: localeId,
-    });
+    return new Intl.DateTimeFormat("id-ID", {
+        timeZone: "Asia/Jakarta",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(new Date(date));
 }
 
 function formatRp(value: number | null) {

@@ -935,10 +935,13 @@ export async function AdminNewDashboard({
                 <CardHeader>
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div>
-                            <CardTitle>Realisasi per Cabang</CardTitle>
+                            <CardTitle>
+                                Realisasi per Cabang (Sudah PJUM)
+                            </CardTitle>
                             <CardDescription>
-                                Total realisasi dan rata-rata realisasi BMS per
-                                minggu untuk membaca kecukupan uang muka cabang
+                                Total realisasi yang sudah PJUM dan rata-rata
+                                realisasi BMS per minggu untuk membaca kecukupan
+                                uang muka cabang
                             </CardDescription>
                         </div>
                     </div>
