@@ -41,6 +41,7 @@ export async function getUsersByBranches(
 
     const where: Prisma.UserWhereInput = {
         branchNames: { hasSome: branchNames },
+        deletedAt: null,
     };
 
     if (input?.role && input.role !== "all") {

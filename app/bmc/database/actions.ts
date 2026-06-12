@@ -79,7 +79,38 @@ export async function createUser(payload: UserPayload) {
             return { error: "Role tidak valid. Hanya BMS atau Branch Admin." };
         }
 
-        await prisma.user.create({ data: payload });
+        const existingDeletedUser = await prisma.user.findUnique({
+            where: { NIK: payload.NIK },
+            select: { deletedAt: true, branchNames: true, role: true },
+        });
+
+        if (existingDeletedUser) {
+            if (!existingDeletedUser.deletedAt) {
+                return { error: "NIK sudah terdaftar" };
+            }
+
+            if (
+                !existingDeletedUser.branchNames.some((branchName) =>
+                    user.branchNames.includes(branchName),
+                )
+            ) {
+                return { error: "User ini bukan dari cabang Anda" };
+            }
+
+            await prisma.user.update({
+                where: { NIK: payload.NIK },
+                data: {
+                    ...payload,
+                    deletedAt: null,
+                    deletedByNIK: null,
+                    passwordHash: null,
+                    mustChangePassword: true,
+                },
+            });
+        } else {
+            await prisma.user.create({ data: payload });
+        }
+
 
         revalidatePath("/bmc/database");
         logger.info(
@@ -131,9 +162,10 @@ export async function updateUser(
         // Ensure target user is in BMC's branches
         const existingUser = await prisma.user.findUnique({
             where: { NIK },
-            select: { branchNames: true },
+            select: { branchNames: true, deletedAt: true },
         });
         if (!existingUser) return { error: "User tidak ditemukan" };
+        if (existingUser.deletedAt) return { error: "User sudah dihapus" };
         if (
             !existingUser.branchNames.some((b) => user.branchNames.includes(b))
         ) {
@@ -175,9 +207,10 @@ export async function deleteUser(NIK: string) {
 
         const existingUser = await prisma.user.findUnique({
             where: { NIK },
-            select: { branchNames: true, role: true },
+            select: { branchNames: true, role: true, deletedAt: true },
         });
         if (!existingUser) return { error: "User tidak ditemukan" };
+        if (existingUser.deletedAt) return { error: "User sudah dihapus" };
         if (!["BMS", "BRANCH_ADMIN"].includes(existingUser.role)) {
             return { error: "Tidak bisa menghapus user dengan role ini" };
         }
@@ -187,7 +220,18 @@ export async function deleteUser(NIK: string) {
             return { error: "User ini bukan dari cabang Anda" };
         }
 
-        await prisma.user.delete({ where: { NIK } });
+        await prisma.$transaction([
+            prisma.userPresence.deleteMany({ where: { userId: NIK } }),
+            prisma.user.update({
+                where: { NIK },
+                data: {
+                    deletedAt: new Date(),
+                    deletedByNIK: user.NIK,
+                    passwordHash: null,
+                    mustChangePassword: true,
+                },
+            }),
+        ]);
 
         revalidatePath("/bmc/database");
         logger.info(
@@ -602,13 +646,13 @@ export async function importUsers(formData: FormData) {
             ),
         );
 
-        const existingUserNIKs = new Set(
+        const existingUsers = new Map(
             (
                 await prisma.user.findMany({
                     where: { NIK: { in: niksInFile } },
-                    select: { NIK: true },
+                    select: { NIK: true, deletedAt: true },
                 })
-            ).map((existingUser) => existingUser.NIK),
+            ).map((existingUser) => [existingUser.NIK, existingUser]),
         );
 
         for (let i = 0; i < rows.length; i++) {
@@ -640,7 +684,18 @@ export async function importUsers(formData: FormData) {
             }
 
             try {
-                const isExisting = existingUserNIKs.has(nik);
+                const existingUser = existingUsers.get(nik);
+                if (existingUser?.deletedAt) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${nik}): User sudah dihapus dan tidak bisa diupdate melalui import`,
+                        );
+                    }
+                    continue;
+                }
+
+                const isExisting = Boolean(existingUser);
 
                 await prisma.user.upsert({
                     where: { NIK: nik },
@@ -663,7 +718,7 @@ export async function importUsers(formData: FormData) {
                     result.updated++;
                 } else {
                     result.created++;
-                    existingUserNIKs.add(nik);
+                    existingUsers.set(nik, { NIK: nik, deletedAt: null });
                 }
             } catch (error) {
                 result.failed++;

@@ -133,15 +133,47 @@ export async function adminCreateUser(payload: AdminUserPayload) {
             };
         }
 
-        await prisma.user.create({
-            data: {
-                NIK: payload.NIK,
-                email: payload.email,
-                name: payload.name,
-                role: payload.role,
-                branchNames,
-            },
+        const existingDeletedUser = await prisma.user.findUnique({
+            where: { NIK: payload.NIK },
+            select: { deletedAt: true, branchNames: true, role: true },
         });
+
+        if (existingDeletedUser) {
+            if (!existingDeletedUser.deletedAt) {
+                return { error: "NIK sudah terdaftar" };
+            }
+
+            if (
+                !isGlobalAdmin(admin) &&
+                !areBranchesInScope(admin, existingDeletedUser.branchNames)
+            ) {
+                return { error: "User berada di luar scope akses Anda" };
+            }
+
+            await prisma.user.update({
+                where: { NIK: payload.NIK },
+                data: {
+                    email: payload.email,
+                    name: payload.name,
+                    role: payload.role,
+                    branchNames,
+                    deletedAt: null,
+                    deletedByNIK: null,
+                    mustChangePassword: true,
+                    passwordHash: null,
+                },
+            });
+        } else {
+            await prisma.user.create({
+                data: {
+                    NIK: payload.NIK,
+                    email: payload.email,
+                    name: payload.name,
+                    role: payload.role,
+                    branchNames,
+                },
+            });
+        }
 
         revalidateMasterDataPaths();
         logger.info(
@@ -183,9 +215,10 @@ export async function adminUpdateUser(
 
         const existing = await prisma.user.findUnique({
             where: { NIK },
-            select: { role: true, branchNames: true },
+            select: { role: true, branchNames: true, deletedAt: true },
         });
         if (!existing) return { error: "User tidak ditemukan" };
+        if (existing.deletedAt) return { error: "User sudah dihapus" };
 
         const branchNames = normalizeBranchNames(payload.branchNames);
 
@@ -242,9 +275,15 @@ export async function adminDeleteUser(NIK: string) {
 
         const existing = await prisma.user.findUnique({
             where: { NIK },
-            select: { role: true, name: true, branchNames: true },
+            select: {
+                role: true,
+                name: true,
+                branchNames: true,
+                deletedAt: true,
+            },
         });
         if (!existing) return { error: "User tidak ditemukan" };
+        if (existing.deletedAt) return { error: "User sudah dihapus" };
 
         // Prevent self-deletion
         if (NIK === admin.NIK) {
@@ -259,7 +298,18 @@ export async function adminDeleteUser(NIK: string) {
             return { error: "User berada di luar scope akses Anda" };
         }
 
-        await prisma.user.delete({ where: { NIK } });
+        await prisma.$transaction([
+            prisma.userPresence.deleteMany({ where: { userId: NIK } }),
+            prisma.user.update({
+                where: { NIK },
+                data: {
+                    deletedAt: new Date(),
+                    deletedByNIK: admin.NIK,
+                    passwordHash: null,
+                    mustChangePassword: true,
+                },
+            }),
+        ]);
 
         revalidateMasterDataPaths();
         logger.info(
@@ -726,7 +776,12 @@ export async function adminImportUsers(formData: FormData) {
             (
                 await prisma.user.findMany({
                     where: { NIK: { in: niksInFile } },
-                    select: { NIK: true, role: true, branchNames: true },
+                    select: {
+                        NIK: true,
+                        role: true,
+                        branchNames: true,
+                        deletedAt: true,
+                    },
                 })
             ).map((user) => [user.NIK, user]),
         );
@@ -781,6 +836,16 @@ export async function adminImportUsers(formData: FormData) {
 
             try {
                 const existingUser = existingUsers.get(nik);
+                if (existingUser?.deletedAt) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${nik}): User sudah dihapus dan tidak bisa diupdate melalui import`,
+                        );
+                    }
+                    continue;
+                }
+
                 if (
                     existingUser &&
                     !isGlobalAdmin(admin) &&
@@ -823,6 +888,7 @@ export async function adminImportUsers(formData: FormData) {
                         NIK: nik,
                         role: role as AllowedRole,
                         branchNames,
+                        deletedAt: null,
                     });
                 }
             } catch (error) {

@@ -56,10 +56,11 @@ export async function changePasswordAction(
                 NIK: true,
                 role: true,
                 mustChangePassword: true,
+                deletedAt: true,
             },
         });
 
-        if (!user) {
+        if (!user || user.deletedAt) {
             redirect("/login?logout=1");
         }
 

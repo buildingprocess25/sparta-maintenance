@@ -171,6 +171,7 @@ async function getAdminBranchOverview(
         SELECT COUNT(*)::int AS "count"
         FROM "User"
         WHERE "branchNames"[1] = ${branchName}
+          AND "deletedAt" IS NULL
     `;
 
     if ((officialBranchRows[0]?.count ?? 0) === 0) {
@@ -197,6 +198,7 @@ async function getAdminBranchOverview(
                 COUNT(*)::int AS "count"
             FROM "User"
             WHERE "branchNames"[1] = ${branchName}
+              AND "deletedAt" IS NULL
             GROUP BY "branchNames"[1], "role"
         `,
         prisma.report.count({
@@ -329,6 +331,7 @@ export async function getAdminBranchesData(
                     COUNT(*)::int AS "count"
                 FROM "User"
                 WHERE ${branchNames}::text[] && "branchNames"
+                  AND "deletedAt" IS NULL
                   AND NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
                   AND "branchNames"[1] IS NOT NULL
                   AND "branchNames"[1] <> ${EXCLUDED_ADMIN_BRANCH_NAME}

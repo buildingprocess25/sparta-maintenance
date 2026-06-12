@@ -33,6 +33,7 @@ import { exportAdminUsers } from "../actions";
 
 const ROLE_OPTIONS = [
     { value: "all", label: "Semua Role" },
+    { value: "ADMIN", label: "Admin" },
     { value: "BMS", label: "BMS" },
     { value: "BMC", label: "BMC" },
     { value: "BNM_MANAGER", label: "BnM Manager" },
@@ -40,18 +41,28 @@ const ROLE_OPTIONS = [
 ];
 
 const ROLE_LABELS: Record<string, string> = {
+    ADMIN: "Admin",
     BMS: "BMS",
     BMC: "BMC",
     BNM_MANAGER: "BnM Manager",
     BRANCH_ADMIN: "Branch Admin",
 };
 
-export function ExportUsersDialog({ branches }: { branches: string[] }) {
+export function ExportUsersDialog({
+    branches,
+    allowAdminRole = true,
+}: {
+    branches: string[];
+    allowAdminRole?: boolean;
+}) {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [role, setRole] = useState("all");
+    const roleOptions = allowAdminRole
+        ? ROLE_OPTIONS
+        : ROLE_OPTIONS.filter((option) => option.value !== "ADMIN");
 
     function toggleBranch(branch: string, checked: boolean) {
         setSelectedBranches((prev) =>
@@ -187,7 +198,7 @@ export function ExportUsersDialog({ branches }: { branches: string[] }) {
                                 <SelectValue placeholder="Semua Role" />
                             </SelectTrigger>
                             <SelectContent>
-                                {ROLE_OPTIONS.map((opt) => (
+                                {roleOptions.map((opt) => (
                                     <SelectItem
                                         key={opt.value}
                                         value={opt.value}

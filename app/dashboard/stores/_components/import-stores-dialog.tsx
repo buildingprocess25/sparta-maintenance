@@ -25,12 +25,27 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { adminImportStoresWithBranch, type ImportResult } from "../actions";
 
-function generateStoreTemplate() {
+function getTemplateBranches(branches: string[]) {
+    return branches.length > 0
+        ? branches
+        : ["Jakarta Pusat", "Bandung", "Surabaya"];
+}
+
+function generateStoreTemplate(branches: string[]) {
     const headers = ["Kode Toko", "Nama Toko", "Cabang"];
+    const templateBranches = getTemplateBranches(branches);
     const exampleData = [
-        ["CKOL", "Toko Contoh Kolon", "Jakarta Pusat"],
-        ["BDGX", "Toko Contoh Bandung", "Bandung"],
-        ["SBYY", "Toko Contoh Surabaya", "Surabaya"],
+        ["CKOL", "Toko Contoh Kolon", templateBranches[0] ?? ""],
+        [
+            "BDGX",
+            "Toko Contoh Bandung",
+            templateBranches[1] ?? templateBranches[0] ?? "",
+        ],
+        [
+            "SBYY",
+            "Toko Contoh Surabaya",
+            templateBranches[2] ?? templateBranches[0] ?? "",
+        ],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
@@ -130,9 +145,6 @@ export function ImportStoresDialog({ branches }: { branches: string[] }) {
         });
     }
 
-    // Suppress unused variable warning — branches passed for future use / consistency
-    void branches;
-
     return (
         <Dialog
             open={open}
@@ -176,7 +188,9 @@ export function ImportStoresDialog({ branches }: { branches: string[] }) {
                                     size="sm"
                                     variant="outline"
                                     className="gap-1.5"
-                                    onClick={generateStoreTemplate}
+                                    onClick={() =>
+                                        generateStoreTemplate(branches)
+                                    }
                                 >
                                     <Download className="h-3.5 w-3.5" />
                                     Unduh Template

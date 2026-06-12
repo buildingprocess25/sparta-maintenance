@@ -46,10 +46,11 @@ export async function getAuthUser(): Promise<AuthUser | null> {
                 role: true,
                 branchNames: true,
                 mustChangePassword: true,
+                deletedAt: true,
             },
         });
 
-        if (!user) return null;
+        if (!user || user.deletedAt) return null;
 
         return user as AuthUser;
     } catch (error) {

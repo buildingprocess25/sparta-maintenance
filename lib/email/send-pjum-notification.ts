@@ -35,6 +35,7 @@ export async function sendPjumNotification(params: {
         where: {
             role: "BRANCH_ADMIN" as const,
             branchNames: { has: params.branchName },
+            deletedAt: null,
         },
         select: { email: true, name: true },
     });

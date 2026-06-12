@@ -91,7 +91,10 @@ function buildOnlineUserWhere(
     const branchName = normalizeFilterValue(filters.branchName);
     const role = normalizeFilterValue(filters.role);
 
-    const userAnd: Prisma.UserWhereInput[] = [...getUserScopeFilters(user)];
+    const userAnd: Prisma.UserWhereInput[] = [
+        { deletedAt: null },
+        ...getUserScopeFilters(user),
+    ];
 
     if (search) {
         userAnd.push({

@@ -522,6 +522,7 @@ async function countVisibleTodayActiveUsers(user: AuthUser) {
     return prisma.user.count({
         where: {
             NIK: { in: activeUserIds },
+            deletedAt: null,
             ...(user.role === "ADMIN"
                 ? {
                       NOT: {

@@ -37,7 +37,7 @@ function resolvePagination(input?: PaginationInput) {
 export async function getAllUsers(input?: AdminUserFilterInput) {
     const { page, limit, skip } = resolvePagination(input);
 
-    const where: Prisma.UserWhereInput = {};
+    const where: Prisma.UserWhereInput = { deletedAt: null };
 
     if (input?.role && input.role !== "all") {
         where.role = input.role as UserRole;

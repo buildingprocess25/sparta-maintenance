@@ -25,23 +25,39 @@ import { toast } from "sonner";
 import * as XLSX from "xlsx";
 import { adminImportUsers, type ImportResult } from "../actions";
 
-function generateAdminUserTemplate(allowAdminRole: boolean) {
+function getTemplateBranches(branchNames: string[]) {
+    return branchNames.length > 0
+        ? branchNames
+        : ["Jakarta Pusat", "Bandung", "Surabaya"];
+}
+
+function generateAdminUserTemplate(
+    allowAdminRole: boolean,
+    branchNames: string[],
+) {
     const headers = ["NIK", "Nama", "Email", "Role", "Branch"];
+    const templateBranches = getTemplateBranches(branchNames);
     const exampleData = [
-        ["12345678", "Budi Santoso", "budi@email.com", "BMS", "Jakarta Pusat"],
+        [
+            "12345678",
+            "Budi Santoso",
+            "budi@email.com",
+            "BMS",
+            templateBranches[0] ?? "",
+        ],
         [
             "87654321",
             "Siti Rahayu",
             "siti@email.com",
             "BRANCH_ADMIN",
-            "Bandung",
+            templateBranches[1] ?? templateBranches[0] ?? "",
         ],
         [
             "22222222",
             "Manajer BnM",
             "bnm@email.com",
             "BNM_MANAGER",
-            "Surabaya",
+            templateBranches[2] ?? templateBranches[0] ?? "",
         ],
     ];
 
@@ -71,8 +87,10 @@ function generateAdminUserTemplate(allowAdminRole: boolean) {
 
 export function AdminImportUserDialog({
     allowAdminRole = true,
+    branchNames = [],
 }: {
     allowAdminRole?: boolean;
+    branchNames?: string[];
 }) {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
@@ -224,6 +242,7 @@ export function AdminImportUserDialog({
                                     onClick={() =>
                                         generateAdminUserTemplate(
                                             allowAdminRole,
+                                            branchNames,
                                         )
                                     }
                                 >

@@ -84,11 +84,15 @@ model User {
   branchNames        String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
   passwordHash       String?       // null = legacy user, login pakai branch name
   mustChangePassword Boolean       @default(true) // true = paksa ganti password saat login
+  deletedAt          DateTime?
+  deletedByNIK       String?
   
   reports       Report[]      @relation("CreatedReports")
   approvals     ApprovalLog[]
   activities    ActivityLog[]
   presence      UserPresence?
+
+  @@index([deletedAt])
 }
 
 model GoogleDriveFolderCache {

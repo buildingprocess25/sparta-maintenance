@@ -28,15 +28,15 @@ export async function getAdminUsers(
     }
 
     try {
-        const andClauses: Prisma.UserWhereInput[] = [
-            { role: { not: UserRole.ADMIN } },
-        ];
+        const andClauses: Prisma.UserWhereInput[] = [{ deletedAt: null }];
 
         if (user.role === "ADMIN") {
             andClauses.push({
                 NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
             });
         } else {
+            andClauses.push({ role: { not: UserRole.ADMIN } });
+
             const branchNames = user.branchNames
                 .map((branchName) => branchName.trim())
                 .filter((branchName) => branchName.length > 0);
@@ -147,9 +147,7 @@ export async function exportAdminUsers(filters: ExportUserFilters) {
     }
 
     try {
-        const andClauses: Prisma.UserWhereInput[] = [
-            { role: { not: UserRole.ADMIN } },
-        ];
+        const andClauses: Prisma.UserWhereInput[] = [{ deletedAt: null }];
 
         const scopedBranches = authUser.branchNames
             .map((branchName) => branchName.trim())
@@ -160,8 +158,10 @@ export async function exportAdminUsers(filters: ExportUserFilters) {
                 NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
             });
         } else if (scopedBranches.length === 0) {
+            andClauses.push({ role: { not: UserRole.ADMIN } });
             andClauses.push({ NIK: "__NO_BRANCH_SCOPE__" });
         } else {
+            andClauses.push({ role: { not: UserRole.ADMIN } });
             andClauses.push({ branchNames: { hasSome: scopedBranches } });
         }
 

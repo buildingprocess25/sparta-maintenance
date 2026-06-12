@@ -384,6 +384,7 @@ export async function fetchAllBranchNames(): Promise<string[]> {
             SELECT DISTINCT "branchNames"[1] AS "branchName"
             FROM "User"
             WHERE NOT (${EXCLUDED_ADMIN_BRANCH_NAME} = ANY("branchNames"))
+              AND "deletedAt" IS NULL
               AND "branchNames"[1] IS NOT NULL
               AND "branchNames"[1] <> ${EXCLUDED_ADMIN_BRANCH_NAME}
         `;

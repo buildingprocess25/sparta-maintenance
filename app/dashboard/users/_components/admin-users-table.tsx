@@ -40,6 +40,7 @@ import { adminDeleteUser } from "@/app/admin/database/actions";
 type UserItem = Awaited<ReturnType<typeof getAdminUsers>>["users"][0];
 
 const ROLE_LABELS: Record<string, string> = {
+    ADMIN: "Admin",
     BMS: "BMS",
     BMC: "BMC",
     BNM_MANAGER: "BnM Manager",
@@ -47,6 +48,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const ROLE_STYLES: Record<string, string> = {
+    ADMIN: "bg-slate-100 text-slate-800 border-slate-300 hover:bg-slate-100",
     BMS: "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50",
     BMC: "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-50",
     BNM_MANAGER: "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-50",
@@ -55,6 +57,7 @@ const ROLE_STYLES: Record<string, string> = {
 
 const ROLE_FILTER_OPTIONS = [
     { value: "all", label: "Semua Role" },
+    { value: "ADMIN", label: "Admin" },
     { value: "BMS", label: "BMS" },
     { value: "BMC", label: "BMC" },
     { value: "BNM_MANAGER", label: "BnM Manager" },
@@ -76,7 +79,7 @@ function DeleteUserDialog({
             const result = await adminDeleteUser(user.NIK);
             if ("error" in result && result.error) {
                 toast.error("Gagal menghapus user", {
-                    description: result.error,
+                    description: result.detail ?? result.error,
                 });
                 return;
             }
@@ -153,6 +156,9 @@ export function AdminUsersTable({
     const [search, setSearch] = useState("");
     const [role, setRole] = useState("all");
     const [branchName, setBranchName] = useState("all");
+    const roleFilterOptions = allowAdminRole
+        ? ROLE_FILTER_OPTIONS
+        : ROLE_FILTER_OPTIONS.filter((option) => option.value !== "ADMIN");
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
@@ -261,7 +267,7 @@ export function AdminUsersTable({
                         <SelectValue placeholder="Semua Role" />
                     </SelectTrigger>
                     <SelectContent>
-                        {ROLE_FILTER_OPTIONS.map((opt) => (
+                        {roleFilterOptions.map((opt) => (
                             <SelectItem
                                 key={opt.value}
                                 value={opt.value}
@@ -294,6 +300,7 @@ export function AdminUsersTable({
                     <div className="flex items-center gap-2 ml-auto">
                         <AdminImportUserDialog
                             allowAdminRole={allowAdminRole}
+                            branchNames={branches}
                         />
                         <AdminUserFormDialog
                             allBranchNames={branches}

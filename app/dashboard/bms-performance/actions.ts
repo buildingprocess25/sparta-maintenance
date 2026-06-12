@@ -393,6 +393,7 @@ export async function getBmsPerformanceData(
                 where: {
                     role: "BMS",
                     branchNames: { hasSome: branchNames },
+                    deletedAt: null,
                 },
                 orderBy: [{ name: "asc" }, { NIK: "asc" }],
                 select: {
@@ -651,6 +652,7 @@ export async function getScopedBmsProfile(nik: string) {
             NIK: nik,
             role: "BMS",
             branchNames: { hasSome: branchNames },
+            deletedAt: null,
         },
         select: {
             NIK: true,

@@ -165,6 +165,7 @@ export async function getDashboardPjumBmsUsers(): Promise<
         where: {
             role: "BMS",
             branchNames: { hasSome: user.branchNames },
+            deletedAt: null,
         },
         select: { NIK: true, name: true },
         orderBy: { name: "asc" },
@@ -180,6 +181,27 @@ export async function searchDashboardPjumCandidates(input: {
     const bmsNIK = input.bmsNIK.trim();
 
     if (!bmsNIK) {
+        return {
+            rows: [],
+            eligibleCount: 0,
+            eligibleTotalRealisasi: 0,
+            blockedCount: 0,
+            unfinishedCount: 0,
+        };
+    }
+
+    const bmsUser = await prisma.user.findUnique({
+        where: { NIK: bmsNIK },
+        select: { role: true, branchNames: true, deletedAt: true },
+    });
+    const hasBmsAccess =
+        bmsUser?.role === "BMS" &&
+        !bmsUser.deletedAt &&
+        bmsUser.branchNames.some((branchName) =>
+            user.branchNames.includes(branchName),
+        );
+
+    if (!hasBmsAccess) {
         return {
             rows: [],
             eligibleCount: 0,
@@ -300,6 +322,24 @@ export async function createDashboardPjum(input: {
         if (!Number.isInteger(input.weekNumber) || input.weekNumber < 1) {
             return {
                 error: "Minggu ke harus diisi dengan angka valid",
+                pjumExportId: null,
+            };
+        }
+
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { role: true, branchNames: true, deletedAt: true },
+        });
+        const hasBmsAccess =
+            bmsUser?.role === "BMS" &&
+            !bmsUser.deletedAt &&
+            bmsUser.branchNames.some((branchName) =>
+                user.branchNames.includes(branchName),
+            );
+
+        if (!hasBmsAccess) {
+            return {
+                error: "BMS tidak valid atau berada di luar scope cabang",
                 pjumExportId: null,
             };
         }

@@ -105,10 +105,11 @@ export async function loginAction(
                 branchNames: true,
                 passwordHash: true,
                 mustChangePassword: true,
+                deletedAt: true,
             },
         });
 
-        if (!user) {
+        if (!user || user.deletedAt) {
             recordLoginFailure(rateLimitKey);
             return {
                 errors: {

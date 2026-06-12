@@ -718,6 +718,7 @@ export async function getAdminVisibleOnlineUserCount(): Promise<number> {
         return await prisma.user.count({
             where: {
                 NIK: { in: onlineUserIds },
+                deletedAt: null,
                 NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
             },
         });
@@ -1040,6 +1041,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
 
 export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
     const users = await prisma.user.findMany({
+        where: { deletedAt: null },
         select: { branchNames: true },
     });
 
@@ -1085,6 +1087,7 @@ export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
         return await prisma.user.count({
             where: {
                 NIK: { in: activeUserIds },
+                deletedAt: null,
                 NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
             },
         });

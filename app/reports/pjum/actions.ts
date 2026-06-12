@@ -171,6 +171,7 @@ export async function getPjumBmsUsers(
         where: {
             role: "BMS",
             branchNames: { hasSome: branchNames },
+            deletedAt: null,
         },
         select: { NIK: true, name: true },
         orderBy: { name: "asc" },
@@ -267,10 +268,10 @@ export async function getPjumBlockedRanges(
 
         const bmsUser = await prisma.user.findUnique({
             where: { NIK: bmsNIK },
-            select: { branchNames: true, role: true },
+            select: { branchNames: true, role: true, deletedAt: true },
         });
 
-        if (!bmsUser || bmsUser.role !== "BMS") {
+        if (!bmsUser || bmsUser.deletedAt || bmsUser.role !== "BMS") {
             return { data: null, error: "BMS tidak ditemukan" };
         }
 
@@ -333,9 +334,9 @@ export async function searchPjumReports(
         // Verify the BMS belongs to one of BMC's branches
         const bmsUser = await prisma.user.findUnique({
             where: { NIK: bmsNIK },
-            select: { branchNames: true, role: true },
+            select: { branchNames: true, role: true, deletedAt: true },
         });
-        if (!bmsUser || bmsUser.role !== "BMS") {
+        if (!bmsUser || bmsUser.deletedAt || bmsUser.role !== "BMS") {
             return { data: null, error: "BMS tidak ditemukan" };
         }
         const hasAccess = bmsUser.branchNames.some((b) =>
@@ -442,6 +443,24 @@ export async function exportPjum(input: {
         if (rangeFromDate > rangeToDate) {
             return {
                 error: "Rentang tanggal tidak valid",
+                pjumExportId: null,
+            };
+        }
+
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { branchNames: true, role: true, deletedAt: true },
+        });
+        const hasBmsAccess =
+            bmsUser?.role === "BMS" &&
+            !bmsUser.deletedAt &&
+            bmsUser.branchNames.some((branchName) =>
+                user.branchNames.includes(branchName),
+            );
+
+        if (!hasBmsAccess) {
+            return {
+                error: "BMS tidak ditemukan atau tidak dalam cabang Anda",
                 pjumExportId: null,
             };
         }

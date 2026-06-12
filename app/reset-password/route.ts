@@ -116,10 +116,14 @@ export async function GET(request: NextRequest) {
 
         const user = await prisma.user.findUnique({
             where: { NIK: payload.sub },
-            select: { NIK: true, email: true },
+            select: { NIK: true, email: true, deletedAt: true },
         });
 
-        if (!user || user.email.toLowerCase() !== payload.email.toLowerCase()) {
+        if (
+            !user ||
+            user.deletedAt ||
+            user.email.toLowerCase() !== payload.email.toLowerCase()
+        ) {
             return loginRedirect(request, "invalid");
         }
 

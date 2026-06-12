@@ -29,7 +29,12 @@ export default async function AdminUsersPage() {
             user={user}
             title="Management User"
             breadcrumbs={[{ label: "User" }]}
-            headerActions={<ExportUsersDialog branches={branches} />}
+            headerActions={
+                <ExportUsersDialog
+                    branches={branches}
+                    allowAdminRole={user.role === "ADMIN"}
+                />
+            }
             contentClassName="h-full"
         >
             <AdminUsersTable

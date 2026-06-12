@@ -126,10 +126,10 @@ export async function forgotPasswordAction(
     try {
         const user = await prisma.user.findUnique({
             where: { email },
-            select: { NIK: true, email: true, name: true },
+            select: { NIK: true, email: true, name: true, deletedAt: true },
         });
 
-        if (user) {
+        if (user && !user.deletedAt) {
             const reqHeaders = await headers();
             const baseUrl = buildAppBaseUrl(reqHeaders);
             const token = await createPasswordResetToken({
