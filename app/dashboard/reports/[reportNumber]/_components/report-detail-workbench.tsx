@@ -120,7 +120,7 @@ export function ReportDetailWorkbench({
                 onValueChange={setActiveTab}
                 className="gap-0"
             >
-                <ReportHeader report={report} />
+                <ReportHeader report={report} viewerRole={viewerRole} />
 
                 <div className="sticky top-15 z-40 border-b bg-background/95 px-3 pt-2 backdrop-blur transition-[top] supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-4">
                     <div className="max-w-none overflow-x-auto overflow-y-hidden pb-1">

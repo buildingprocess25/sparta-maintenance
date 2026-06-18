@@ -34,6 +34,7 @@ export type RevisedItemData = {
         price: number;
         totalPrice: number;
     }[];
+    discountAmount?: number;
     completionNotes?: string;
 };
 
@@ -41,6 +42,7 @@ export type SaveRevisionInput = {
     reportNumber: string;
     alasanIntervensi: string;
     items: RevisedItemData[];
+    bapPdf: UploadedBapPdf;
 };
 
 export type SaveRevisionResult =
@@ -59,8 +61,10 @@ export type UploadedBapPdf = {
 
 const MAX_BAP_PDF_BYTES = 12 * 1024 * 1024;
 
-function parseBapPdfUpload(upload?: UploadedBapPdf): Buffer | null {
-    if (!upload) return null;
+function parseBapPdfUpload(upload?: UploadedBapPdf): Buffer {
+    if (!upload) {
+        throw new Error("BAP wajib diunggah sebelum intervensi disimpan.");
+    }
 
     const fileName = upload.fileName.trim();
     const isPdfMime = upload.mimeType === "application/pdf";
@@ -126,6 +130,8 @@ export async function saveRealisasiRevision(
     );
 
     try {
+        parseBapPdfUpload(input.bapPdf);
+
         const report = await prisma.report.findUnique({
             where: { reportNumber: input.reportNumber },
         });
@@ -158,14 +164,27 @@ export async function saveRealisasiRevision(
                     materialName: r.materialName,
                     quantity: r.quantity,
                     unit: r.unit,
-                    price: r.price,
-                    totalPrice: r.totalPrice,
+                    price: Math.max(0, r.price),
+                    totalPrice:
+                        Math.max(0, r.quantity) * Math.max(0, r.price),
                 }),
             );
+            const subtotal = realisasiItems.reduce(
+                (sum, r) => sum + r.totalPrice,
+                0,
+            );
+            const discountAmount = Math.max(0, rev.discountAmount ?? 0);
+
+            if (discountAmount > subtotal) {
+                throw new Error(
+                    `Potongan harga item ${item.itemId} tidak boleh lebih besar dari subtotal realisasi.`,
+                );
+            }
 
             return {
                 ...item,
                 realisasiItems,
+                discountAmount,
                 completionNotes:
                     rev.completionNotes !== undefined
                         ? rev.completionNotes
@@ -203,6 +222,8 @@ export async function saveRealisasiRevision(
         );
 
         revalidatePath(`/dashboard/intervensi/revisi-laporan`);
+        revalidatePath(`/dashboard/reports/${input.reportNumber}`);
+        revalidatePath(`/dashboard/reports/${input.reportNumber}/intervensi`);
         revalidatePath(`/reports/${input.reportNumber}`);
 
         return {
@@ -378,6 +399,8 @@ export async function applyRealisasiRevision(
         );
 
         revalidatePath(`/dashboard/intervensi/revisi-laporan`);
+        revalidatePath(`/dashboard/reports/${reportNumber}`);
+        revalidatePath(`/dashboard/reports/${reportNumber}/intervensi`);
         revalidatePath(`/reports/${reportNumber}`);
 
         return { success: true, folderUrl, revisedPdfUrl };

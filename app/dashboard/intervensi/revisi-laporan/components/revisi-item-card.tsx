@@ -76,10 +76,14 @@ export type ClientRealisasiEntry = RevisedItemData["realisasiItems"][0] & {
 
 function RealisasiTable({
     entries,
+    discountAmount,
     onChange,
+    onDiscountChange,
 }: {
     entries: ClientRealisasiEntry[];
+    discountAmount: number;
     onChange: (entries: ClientRealisasiEntry[]) => void;
+    onDiscountChange: (discountAmount: number) => void;
 }) {
     const update = (
         id: string,
@@ -110,7 +114,8 @@ function RealisasiTable({
             },
         ]);
 
-    const grandTotal = entries.reduce((s, e) => s + e.totalPrice, 0);
+    const subtotal = entries.reduce((s, e) => s + e.totalPrice, 0);
+    const grandTotal = Math.max(0, subtotal - discountAmount);
 
     return (
         <div className="border rounded-lg overflow-x-auto">
@@ -242,18 +247,50 @@ function RealisasiTable({
 
                     {/* Grand total */}
                     {entries.length > 0 && (
-                        <TableRow className="bg-primary/10 font-bold">
-                            <TableCell
-                                colSpan={5}
-                                className="text-right text-sm py-2"
-                            >
-                                Total :
-                            </TableCell>
-                            <TableCell className="text-right text-sm text-primary py-2">
-                                Rp {formatIDR(grandTotal)}
-                            </TableCell>
-                            <TableCell />
-                        </TableRow>
+                        <>
+                            <TableRow>
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm py-2"
+                                >
+                                    Subtotal :
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-medium py-2">
+                                    Rp {formatIDR(subtotal)}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                            <TableRow>
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm py-2"
+                                >
+                                    Potongan Harga :
+                                </TableCell>
+                                <TableCell className="py-2">
+                                    <PriceInput
+                                        value={discountAmount}
+                                        onCommit={(v) =>
+                                            onDiscountChange(Math.max(0, v))
+                                        }
+                                        className="h-8 text-right text-sm"
+                                    />
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                            <TableRow className="bg-primary/10 font-bold">
+                                <TableCell
+                                    colSpan={5}
+                                    className="text-right text-sm py-2"
+                                >
+                                    Total :
+                                </TableCell>
+                                <TableCell className="text-right text-sm text-primary py-2">
+                                    Rp {formatIDR(grandTotal)}
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                        </>
                     )}
                 </TableBody>
             </Table>
@@ -277,9 +314,14 @@ export function RevisiItemCard({
     onChange,
 }: RevisiItemCardProps) {
     const previousRealisasi = item.realisasiItems ?? [];
-    const previousRealisasiTotal = previousRealisasi.reduce(
+    const previousRealisasiSubtotal = previousRealisasi.reduce(
         (s, e) => s + e.totalPrice,
         0,
+    );
+    const previousDiscount = Math.max(0, item.discountAmount ?? 0);
+    const previousRealisasiTotal = Math.max(
+        0,
+        previousRealisasiSubtotal - previousDiscount,
     );
 
     const fmt = (n: number) =>
@@ -300,7 +342,7 @@ export function RevisiItemCard({
     return (
         <div
             id={`item-${item.itemId}`}
-            className="space-y-4 p-4 bg-background rounded-lg border shadow-sm transition-all duration-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20"
+            className="flex flex-col gap-3 rounded-md border bg-background p-3 transition-all duration-300 focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20"
         >
             {/* Item header */}
             <div>
@@ -310,12 +352,12 @@ export function RevisiItemCard({
                 <p className="text-xs text-muted-foreground mt-0.5">
                     {item.categoryName}
                     {item.condition === "RUSAK" && (
-                        <span className="ml-2 text-destructive font-medium">
+                        <span className="ml-2 font-medium text-destructive">
                             Rusak
                         </span>
                     )}
                     {item.preventiveCondition === "NOT_OK" && (
-                        <span className="ml-2 text-destructive font-medium">
+                        <span className="ml-2 font-medium text-destructive">
                             Not OK
                         </span>
                     )}
@@ -323,9 +365,9 @@ export function RevisiItemCard({
             </div>
 
             {/* ─── Estimasi & Realisasi ────────────────────────────────── */}
-            <div className="pt-3 border-t space-y-4">
+            <div className="flex flex-col gap-4 border-t pt-3">
                 {/* Realisasi sebelumnya (read-only reference) */}
-                {previousRealisasiTotal > 0 && (
+                {previousRealisasiSubtotal > 0 && (
                     <div>
                         <Label className="text-sm text-muted-foreground mb-1.5 block">
                             Realisasi Sebelumnya
@@ -344,8 +386,18 @@ export function RevisiItemCard({
                                     </span>
                                 </div>
                             ))}
-                            <div className="border-t border-muted-foreground/20 pt-1.5 mt-1.5 flex justify-between font-semibold text-foreground">
-                                <span>Total Realisasi Sebelumnya</span>
+                            <div className="border-t border-muted-foreground/20 pt-1.5 mt-1.5 flex justify-between font-medium text-foreground">
+                                <span>Subtotal</span>
+                                <span>{fmt(previousRealisasiSubtotal)}</span>
+                            </div>
+                            {previousDiscount > 0 ? (
+                                <div className="flex justify-between font-medium text-destructive">
+                                    <span>Potongan Harga</span>
+                                    <span>-{fmt(previousDiscount)}</span>
+                                </div>
+                            ) : null}
+                            <div className="flex justify-between font-semibold text-foreground">
+                                <span>Total</span>
                                 <span>{fmt(previousRealisasiTotal)}</span>
                             </div>
                         </div>
@@ -360,8 +412,12 @@ export function RevisiItemCard({
                     </Label>
                     <RealisasiTable
                         entries={entriesWithIds}
+                        discountAmount={state.discountAmount ?? 0}
                         onChange={(newEntries) =>
                             onChange({ realisasiItems: newEntries })
+                        }
+                        onDiscountChange={(discountAmount) =>
+                            onChange({ discountAmount })
                         }
                     />
                 </div>

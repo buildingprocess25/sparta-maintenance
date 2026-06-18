@@ -6,8 +6,15 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config({ quiet: true });
 
+function parsePositiveInteger(value: string | undefined, fallback: number) {
+    if (!value) return fallback;
+
+    const parsed = Number.parseInt(value, 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 const prismaClientSingleton = () => {
-    // Use DATABASE_URL (Supabase transaction pooler) for runtime.
+    // Use DATABASE_URL for runtime.
     // DIRECT_URL is for migrations only (bypasses pooler, hits DB directly).
     const databaseUrl = process.env.DATABASE_URL;
 
@@ -18,13 +25,25 @@ const prismaClientSingleton = () => {
     // Strip ?sslmode=require so it doesn't override our manual ssl config
     const cleanDatabaseUrl = databaseUrl.replace("?sslmode=require", "");
 
-    // Serverless-optimized pool: each function instance only handles
-    // one request at a time, so max: 1 is sufficient.
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const poolMax = parsePositiveInteger(process.env.DATABASE_POOL_MAX, 1);
+    const idleTimeoutMillis = parsePositiveInteger(
+        process.env.DATABASE_IDLE_TIMEOUT_MS,
+        isDevelopment ? 2000 : 10000,
+    );
+    const connectionTimeoutMillis = parsePositiveInteger(
+        process.env.DATABASE_CONNECTION_TIMEOUT_MS,
+        10000,
+    );
+
+    // Keep the runtime pool intentionally small. In development, Turbopack can
+    // keep multiple Node processes alive during reloads, so idle connections
+    // should be released quickly.
     const pool = new Pool({
         connectionString: cleanDatabaseUrl,
-        max: 1,
-        idleTimeoutMillis: 10000, // Release idle connections after 10s
-        connectionTimeoutMillis: 10000,
+        max: poolMax,
+        idleTimeoutMillis,
+        connectionTimeoutMillis,
         allowExitOnIdle: true,
         ssl: { rejectUnauthorized: false }, // Required for Aiven PG without specific CA
     });

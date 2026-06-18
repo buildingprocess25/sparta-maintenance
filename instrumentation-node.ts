@@ -45,6 +45,17 @@ export async function registerNodeErrorHooks() {
 }
 
 export async function preloadAppSettings() {
+    if (
+        process.env.NODE_ENV === "development" &&
+        process.env.PRELOAD_APP_SETTINGS_IN_DEV !== "true"
+    ) {
+        logger.info(
+            { operation: "preloadAppSettings" },
+            "Skipped app settings preload in development",
+        );
+        return;
+    }
+
     try {
         const { default: prisma } = await import("@/lib/prisma");
         const { setSettingOverride } = await import("@/lib/app-settings");

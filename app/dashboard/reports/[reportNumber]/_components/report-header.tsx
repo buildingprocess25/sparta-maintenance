@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import {
     AlertTriangle,
@@ -7,6 +6,7 @@ import {
     Handshake,
     ReceiptText,
 } from "lucide-react";
+import Link from "next/link";
 
 import {
     getReportStatusBadgeClass,
@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ReportDetailModel } from "../_lib/detail-data";
+import { ReportInterventionAction } from "./report-intervention-action";
 import {
     formatCurrency,
     formatDateTime,
@@ -27,7 +28,13 @@ import {
     isIssueFollowUpStatus,
 } from "./report-detail-utils";
 
-export function ReportHeader({ report }: { report: ReportDetailModel }) {
+export function ReportHeader({
+    report,
+    viewerRole,
+}: {
+    report: ReportDetailModel;
+    viewerRole: string;
+}) {
     const statusLabel = getReportStatusLabel(report.status);
     const issueCountLabel = `${report.summary.issueCount} item`;
     const isIssueFollowUp = isIssueFollowUpStatus(report.status);
@@ -36,6 +43,8 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
         report.estimations,
     );
     const finalDocuments = getFinalDriveDocuments(report);
+    const canIntervene =
+        viewerRole === "ADMIN" && report.status === "COMPLETED";
     const pjumStatusLabel = report.pjumExport
         ? getPjumStatusLabel(report.pjumExport.status)
         : "Belum masuk PJUM";
@@ -127,6 +136,11 @@ export function ReportHeader({ report }: { report: ReportDetailModel }) {
                                 </Link>
                             </Button>
                         ))}
+                        {canIntervene ? (
+                            <ReportInterventionAction
+                                reportNumber={report.reportNumber}
+                            />
+                        ) : null}
                     </div>
                 </div>
 

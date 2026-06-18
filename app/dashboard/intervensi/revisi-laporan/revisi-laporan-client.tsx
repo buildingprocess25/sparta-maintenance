@@ -9,17 +9,13 @@ import {
     type UploadedBapPdf,
 } from "./actions";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
     AlertCircle,
     CheckCircle2,
@@ -28,11 +24,13 @@ import {
     Loader2,
     Search,
     Save,
+    ShieldAlert,
     Upload,
     X,
 } from "lucide-react";
 import { RevisiItemCard } from "./components/revisi-item-card";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
+import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 
 export type SearchedReport = {
     reportNumber: string;
@@ -56,6 +54,14 @@ export type SearchedReport = {
 type Props = {
     initialQuery: string;
     report: SearchedReport | null;
+    hideSearch?: boolean;
+};
+
+type RevisionResult = {
+    type: "success" | "error";
+    message: string;
+    folderUrl?: string;
+    revisedPdfUrl?: string;
 };
 
 function fmtCurrency(n: number) {
@@ -64,6 +70,11 @@ function fmtCurrency(n: number) {
         currency: "IDR",
         minimumFractionDigits: 0,
     }).format(n);
+}
+
+function formatSignedCurrency(value: number) {
+    if (value === 0) return fmtCurrency(0);
+    return `${value > 0 ? "+" : "-"}${fmtCurrency(Math.abs(value))}`;
 }
 
 const MAX_BAP_PDF_BYTES = 12 * 1024 * 1024;
@@ -94,7 +105,54 @@ function isBmsRealisasiItem(item: ReportItemJson) {
     );
 }
 
-export function RevisiLaporanClient({ initialQuery, report }: Props) {
+function normalizeRealisasiItems(items: RevisedItemData["realisasiItems"]) {
+    return items.map((item) => ({
+        materialName: item.materialName.trim(),
+        quantity: Number(item.quantity) || 0,
+        unit: item.unit.trim(),
+        price: Number(item.price) || 0,
+        totalPrice:
+            Number(item.totalPrice) ||
+            (Number(item.quantity) || 0) * (Number(item.price) || 0),
+    }));
+}
+
+function getRealisasiSubtotal(items: RevisedItemData["realisasiItems"]) {
+    return normalizeRealisasiItems(items).reduce(
+        (sum, item) => sum + item.totalPrice,
+        0,
+    );
+}
+
+function normalizeCompletionNotes(value: string | undefined | null) {
+    return value?.trim() ?? "";
+}
+
+function buildRevisedItems(
+    items: ReportItemJson[],
+    itemStates: Record<string, RevisedItemData>,
+) {
+    return items.map((item) => {
+        const state = itemStates[item.itemId];
+        if (!state) return item;
+
+        return {
+            ...item,
+            realisasiItems: normalizeRealisasiItems(state.realisasiItems),
+            discountAmount: Math.max(0, state.discountAmount ?? 0),
+            completionNotes:
+                state.completionNotes !== undefined
+                    ? state.completionNotes
+                    : item.completionNotes,
+        };
+    });
+}
+
+export function RevisiLaporanClient({
+    initialQuery,
+    report,
+    hideSearch = false,
+}: Props) {
     const router = useRouter();
     const [query, setQuery] = useState(initialQuery);
     const [isPending, startTransition] = useTransition();
@@ -109,12 +167,7 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
     const initializedReportNumberRef = useRef<string | null>(null);
     const bapInputRef = useRef<HTMLInputElement | null>(null);
 
-    const [result, setResult] = useState<{
-        type: "success" | "error";
-        message: string;
-        folderUrl?: string;
-        revisedPdfUrl?: string;
-    } | null>(null);
+    const [result, setResult] = useState<RevisionResult | null>(null);
 
     useEffect(() => {
         setQuery(initialQuery);
@@ -161,6 +214,7 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
             initialStates[item.itemId] = {
                 itemId: item.itemId,
                 realisasiItems: realisasi,
+                discountAmount: Math.max(0, item.discountAmount ?? 0),
                 completionNotes:
                     (item as unknown as { completionNotes?: string })
                         .completionNotes ?? "",
@@ -211,8 +265,10 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
         setBapFile(file);
     };
 
-    const buildBapUpload = async (): Promise<UploadedBapPdf | undefined> => {
-        if (!bapFile) return undefined;
+    const buildBapUpload = async (): Promise<UploadedBapPdf> => {
+        if (!bapFile) {
+            throw new Error("BAP wajib diunggah sebelum intervensi disimpan.");
+        }
 
         return {
             fileName: bapFile.name,
@@ -230,11 +286,38 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
             });
             return;
         }
+        if (!bapFile) {
+            setResult({
+                type: "error",
+                message: "BAP wajib diunggah sebelum intervensi disimpan.",
+            });
+            return;
+        }
+        if (!revisionSummary.hasChanges) {
+            setResult({
+                type: "error",
+                message:
+                    "Belum ada perubahan realisasi atau catatan yang perlu disimpan.",
+            });
+            return;
+        }
+        for (const state of Object.values(itemStates)) {
+            const subtotal = getRealisasiSubtotal(state.realisasiItems);
+            const discountAmount = Math.max(0, state.discountAmount ?? 0);
+
+            if (discountAmount > subtotal) {
+                setResult({
+                    type: "error",
+                    message: `Potongan harga item ${state.itemId} tidak boleh lebih besar dari subtotal realisasi.`,
+                });
+                return;
+            }
+        }
 
         setResult(null);
 
         startTransition(async () => {
-            let bapUpload: UploadedBapPdf | undefined;
+            let bapUpload: UploadedBapPdf;
             try {
                 bapUpload = await buildBapUpload();
             } catch (error) {
@@ -253,6 +336,7 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                 reportNumber: report.reportNumber,
                 alasanIntervensi: alasanIntervensi.trim(),
                 items: Object.values(itemStates),
+                bapPdf: bapUpload,
             });
 
             if (!saveRes.success) {
@@ -273,7 +357,7 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
             if (genRes.success) {
                 setResult({
                     type: "success",
-                    message: `${saveRes.message} PDF Revisi berhasil dibuat${bapUpload ? " dengan BAP di halaman awal" : ""} dan di-upload ke Google Drive.`,
+                    message: `${saveRes.message} PDF revisi berhasil dibuat dengan BAP di halaman awal dan di-upload ke Google Drive.`,
                     folderUrl: genRes.folderUrl,
                     revisedPdfUrl: genRes.revisedPdfUrl,
                 });
@@ -296,26 +380,93 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
         [report],
     );
 
+    const revisionSummary = useMemo(() => {
+        if (!report) {
+            return {
+                beforeTotal: 0,
+                afterTotal: 0,
+                difference: 0,
+                changedItemCount: 0,
+                hasChanges: false,
+            };
+        }
+
+        const revisedItems = buildRevisedItems(report.items, itemStates);
+        const changedItemCount = report.items.reduce((count, item) => {
+            const state = itemStates[item.itemId];
+            if (!state) return count;
+
+            const previousItems = normalizeRealisasiItems(
+                item.realisasiItems ?? [],
+            );
+            const nextItems = normalizeRealisasiItems(state.realisasiItems);
+            const previousNotes = normalizeCompletionNotes(
+                item.completionNotes,
+            );
+            const nextNotes = normalizeCompletionNotes(state.completionNotes);
+            const previousDiscount = Math.max(0, item.discountAmount ?? 0);
+            const nextDiscount = Math.max(0, state.discountAmount ?? 0);
+            const hasItemChanged =
+                JSON.stringify(previousItems) !== JSON.stringify(nextItems) ||
+                previousNotes !== nextNotes ||
+                previousDiscount !== nextDiscount;
+
+            return hasItemChanged ? count + 1 : count;
+        }, 0);
+        const beforeTotal = calculateTotalRealisasiFromItems(report.items);
+        const afterTotal = calculateTotalRealisasiFromItems(revisedItems);
+
+        return {
+            beforeTotal,
+            afterTotal,
+            difference: afterTotal - beforeTotal,
+            changedItemCount,
+            hasChanges: changedItemCount > 0,
+        };
+    }, [itemStates, report]);
+
+    const canSubmitRevision =
+        Boolean(isCompleted) &&
+        revisionSummary.hasChanges &&
+        Boolean(alasanIntervensi.trim()) &&
+        Boolean(bapFile) &&
+        !bapFileError;
+
     return (
-        <div className="space-y-4">
-            <Card className="overflow-hidden shadow-sm">
-                <div className="border-b  px-4 py-3 lg:px-5">
-                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="space-y-1">
-                            <CardTitle className="text-base">
+        <div className="flex flex-col gap-4">
+            <section className="rounded-lg border bg-background">
+                <div className="flex flex-col gap-3 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h2 className="text-base font-semibold">
                                 Intervensi Revisi Laporan
-                            </CardTitle>
-                            <CardDescription>
-                                Ubah realisasi laporan selesai dan buat PDF
-                                revisi.
-                            </CardDescription>
+                            </h2>
+                            <Badge variant="outline">
+                                <ShieldAlert data-icon="inline-start" />
+                                ADMIN
+                            </Badge>
                         </div>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Ubah data realisasi laporan final dengan BAP dan PDF
+                            revisi.
+                        </p>
+                    </div>
+
+                    <Alert className="w-full border-amber-200 bg-amber-50 py-2 text-amber-900 lg:max-w-md">
+                        <ShieldAlert />
+                        <AlertDescription className="text-xs text-amber-800">
+                            Wajib BAP dan alasan intervensi karena data laporan
+                            sudah selesai.
+                        </AlertDescription>
+                    </Alert>
+
+                    {hideSearch ? null : (
                         <form
                             onSubmit={handleSearch}
                             className="flex w-full gap-2 lg:w-[420px]"
                         >
                             <div className="relative flex-1">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     id="report-search-input"
                                     value={query}
@@ -328,102 +479,78 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                             <Button
                                 id="report-search-btn"
                                 type="submit"
-                                variant="default"
                                 disabled={isPending}
                             >
                                 Cari
                             </Button>
                         </form>
-                    </div>
+                    )}
                 </div>
 
-                {report && (
-                    <CardContent className="grid gap-x-5 gap-y-2 px-4 pb-3 pt-0 text-xs md:grid-cols-3 xl:grid-cols-[minmax(120px,0.9fr)_minmax(220px,1.5fr)_minmax(120px,0.8fr)_minmax(180px,1.1fr)_minmax(120px,0.8fr)_auto] xl:items-end lg:px-5">
-                        <div className="min-w-0">
-                            <p className="text-[10px] uppercase text-muted-foreground">
-                                No. Laporan
-                            </p>
-                            <p className="truncate font-mono font-medium">
-                                {report.reportNumber}
-                            </p>
+                {report ? (
+                    <>
+                        <Separator />
+                        <div className="grid gap-x-5 gap-y-2 px-4 py-3 text-xs md:grid-cols-3 xl:grid-cols-[minmax(120px,0.9fr)_minmax(220px,1.5fr)_minmax(120px,0.8fr)_minmax(180px,1.1fr)_minmax(120px,0.8fr)_auto] xl:items-end">
+                            <InfoField
+                                label="No. Laporan"
+                                value={report.reportNumber}
+                                mono
+                            />
+                            <InfoField
+                                label="Toko"
+                                value={
+                                    report.storeCode
+                                        ? `${report.storeCode} - ${report.storeName}`
+                                        : report.storeName
+                                }
+                            />
+                            <InfoField
+                                label="Cabang"
+                                value={report.branchName}
+                            />
+                            <InfoField
+                                label="BMS"
+                                value={`${report.bmsName} (${report.bmsNIK})`}
+                            />
+                            <InfoField
+                                label="Total saat ini"
+                                value={fmtCurrency(report.totalReal)}
+                                mono
+                            />
+                            <div className="justify-self-start xl:justify-self-end">
+                                <StatusBadge status={report.status} />
+                            </div>
                         </div>
+                    </>
+                ) : null}
+            </section>
 
-                        <div className="min-w-0">
-                            <p className="text-[10px] uppercase text-muted-foreground">
-                                Toko
-                            </p>
-                            <p className="truncate font-medium">
-                                {report.storeCode
-                                    ? `${report.storeCode} - ${report.storeName}`
-                                    : report.storeName}
-                            </p>
-                        </div>
+            {initialQuery && !report ? (
+                <Alert variant="destructive">
+                    <AlertCircle />
+                    <AlertTitle>Laporan tidak ditemukan</AlertTitle>
+                    <AlertDescription>
+                        Nomor laporan <strong>{initialQuery}</strong> tidak ada
+                        di sistem.
+                    </AlertDescription>
+                </Alert>
+            ) : null}
 
-                        <div className="min-w-0">
-                            <p className="text-[10px] uppercase text-muted-foreground">
-                                Cabang
-                            </p>
-                            <p className="truncate font-medium">
-                                {report.branchName}
-                            </p>
-                        </div>
-
-                        <div className="min-w-0">
-                            <p className="text-[10px] uppercase text-muted-foreground">
-                                BMS
-                            </p>
-                            <p className="truncate font-medium">
-                                {report.bmsName} ({report.bmsNIK})
-                            </p>
-                        </div>
-
-                        <div className="min-w-0">
-                            <p className="text-[10px] uppercase text-muted-foreground">
-                                Total DB
-                            </p>
-                            <p className="truncate font-mono font-medium">
-                                {fmtCurrency(report.totalReal)}
-                            </p>
-                        </div>
-
-                        <div className="justify-self-start xl:justify-self-end">
-                            <StatusBadge status={report.status} />
-                        </div>
-                    </CardContent>
-                )}
-            </Card>
-
-            {/* Report not found */}
-            {initialQuery && !report && (
-                <div className="rounded-lg border border-red-200 bg-red-50 p-4 flex gap-3">
-                    <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
-                    <div className="text-sm text-red-800">
-                        <p className="font-semibold">Laporan tidak ditemukan</p>
-                        <p>
-                            Nomor laporan <strong>{initialQuery}</strong> tidak
-                            ada di sistem.
-                        </p>
-                    </div>
-                </div>
-            )}
-
-            {/* Report found */}
-            {report && (
-                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_360px] items-start">
-                    {/* Left Column: Editable Items */}
-                    <div className="min-w-0 space-y-4">
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-base">
+            {report ? (
+                <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div className="flex min-w-0 flex-col gap-4">
+                        <section className="rounded-lg border bg-background">
+                            <div className="flex flex-col gap-1 px-4 py-3">
+                                <h3 className="text-sm font-semibold">
                                     Data Realisasi Laporan
-                                </CardTitle>
-                                <CardDescription>
-                                    {damagedItems.length} item membutuhkan
-                                    pengecekan realisasi dan catatan
-                                    penyelesaian.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-6">
+                                </h3>
+                                <p className="text-xs text-muted-foreground">
+                                    {damagedItems.length} item pekerjaan BMS
+                                    dapat direvisi.
+                                </p>
+                            </div>
+                            <Separator />
+                            <div className="flex flex-col gap-4 p-4">
                                 {damagedItems.map((item) => {
                                     const state = itemStates[item.itemId];
                                     if (!state) return null;
@@ -446,66 +573,90 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                                     );
                                 })}
 
-                                {damagedItems.length === 0 && (
-                                    <p className="text-sm text-muted-foreground italic text-center py-4">
-                                        Tidak ada item yang rusak/membutuhkan
-                                        realisasi.
+                                {damagedItems.length === 0 ? (
+                                    <p className="py-4 text-center text-sm italic text-muted-foreground">
+                                        Tidak ada item BMS yang dapat direvisi.
                                     </p>
-                                )}
-                            </CardContent>
-                        </Card>
+                                ) : null}
+                            </div>
+                        </section>
                     </div>
 
-                    {/* Right Column: Actions */}
-                    <div className="space-y-4 xl:sticky xl:top-15">
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Ringkasan Intervensi
-                                </CardTitle>
-                                <CardDescription>
-                                    PDF PJUM akan dibuat ulang bila laporan ini
-                                    sudah masuk PJUM approved.
-                                </CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Existing PDF links */}
-                                {(report.reportFinalDriveUrl ||
-                                    report.completedPdfPath) && (
-                                    <div className="flex gap-2 flex-wrap">
-                                        <a
-                                            href={
-                                                report.reportFinalDriveUrl ??
-                                                report.completedPdfPath ??
-                                                "#"
-                                            }
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                    <aside className="flex flex-col gap-4 xl:sticky xl:top-15">
+                        <section className="rounded-lg border bg-background">
+                            <div className="px-4 py-3">
+                                <h3 className="text-sm font-semibold">
+                                    Ringkasan Revisi
+                                </h3>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                    PDF revisi akan digabung dengan BAP di
+                                    halaman awal.
+                                </p>
+                            </div>
+                            <Separator />
+                            <div className="grid grid-cols-2 gap-3 p-4 text-xs">
+                                <SummaryMetric
+                                    label="Sebelum"
+                                    value={fmtCurrency(
+                                        revisionSummary.beforeTotal,
+                                    )}
+                                />
+                                <SummaryMetric
+                                    label="Sesudah"
+                                    value={fmtCurrency(
+                                        revisionSummary.afterTotal,
+                                    )}
+                                />
+                                <SummaryMetric
+                                    label="Selisih"
+                                    value={formatSignedCurrency(
+                                        revisionSummary.difference,
+                                    )}
+                                />
+                                <SummaryMetric
+                                    label="Item berubah"
+                                    value={`${revisionSummary.changedItemCount} item`}
+                                />
+                            </div>
+                            {report.reportFinalDriveUrl ||
+                            report.completedPdfPath ? (
+                                <>
+                                    <Separator />
+                                    <div className="p-4 pt-3">
+                                        <Button
+                                            asChild
+                                            variant="outline"
+                                            size="sm"
+                                            className="w-full justify-start"
+                                            id="btn-view-original-pdf"
                                         >
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2 text-xs"
-                                                id="btn-view-original-pdf"
+                                            <a
+                                                href={
+                                                    report.reportFinalDriveUrl ??
+                                                    report.completedPdfPath ??
+                                                    "#"
+                                                }
+                                                target="_blank"
+                                                rel="noopener noreferrer"
                                             >
-                                                <FileText className="h-3.5 w-3.5" />
+                                                <FileText data-icon="inline-start" />
                                                 Lihat PDF Asli
-                                            </Button>
-                                        </a>
+                                            </a>
+                                        </Button>
                                     </div>
-                                )}
-                            </CardContent>
-                        </Card>
+                                </>
+                            ) : null}
+                        </section>
 
-                        <Card className="shadow-sm">
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Simpan Revisi
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {/* Alasan Intervensi */}
-                                <div className="space-y-2">
+                        <section className="rounded-lg border bg-background">
+                            <div className="px-4 py-3">
+                                <h3 className="text-sm font-semibold">
+                                    Simpan Intervensi
+                                </h3>
+                            </div>
+                            <Separator />
+                            <div className="flex flex-col gap-4 p-4">
+                                <div className="flex flex-col gap-2">
                                     <Label htmlFor="alasan-intervensi">
                                         Alasan Intervensi{" "}
                                         <span className="text-destructive">
@@ -519,15 +670,15 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                                         onChange={(e) =>
                                             setAlasanIntervensi(e.target.value)
                                         }
-                                        className="resize-y min-h-[80px] text-sm"
+                                        className="min-h-[88px] resize-y text-sm"
                                     />
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="flex flex-col gap-2">
                                     <Label htmlFor="bap-pdf-upload">
-                                        Upload BAP{" "}
-                                        <span className="text-muted-foreground">
-                                            (opsional)
+                                        Upload BAP PDF{" "}
+                                        <span className="text-destructive">
+                                            *
                                         </span>
                                     </Label>
                                     <div className="relative">
@@ -542,7 +693,10 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                                             disabled={isPending}
                                         />
                                     </div>
-                                    {bapFile && (
+                                    <p className="text-xs text-muted-foreground">
+                                        Format PDF, maksimal 12 MB.
+                                    </p>
+                                    {bapFile ? (
                                         <div className="flex items-center justify-between gap-2 rounded-md bg-muted/40 px-2.5 py-2 text-xs">
                                             <span className="truncate">
                                                 {bapFile.name}
@@ -563,123 +717,161 @@ export function RevisiLaporanClient({ initialQuery, report }: Props) {
                                                 }}
                                                 disabled={isPending}
                                             >
-                                                <X className="h-3.5 w-3.5" />
+                                                <X />
                                             </Button>
                                         </div>
-                                    )}
-                                    {bapFileError && (
+                                    ) : null}
+                                    {bapFileError ? (
                                         <p className="text-xs text-destructive">
                                             {bapFileError}
                                         </p>
-                                    )}
+                                    ) : null}
                                 </div>
 
-                                {/* Not COMPLETED warning */}
-                                {!isCompleted && (
-                                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-800 flex gap-2">
-                                        <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                                        <p>
-                                            Status laporan ini:{" "}
+                                {!isCompleted ? (
+                                    <Alert className="border-amber-200 bg-amber-50 text-amber-900">
+                                        <AlertCircle />
+                                        <AlertTitle>
+                                            Laporan belum selesai
+                                        </AlertTitle>
+                                        <AlertDescription className="text-amber-800">
+                                            Status saat ini{" "}
                                             <strong>{report.status}</strong>.
-                                            Revisi hanya untuk COMPLETED.
-                                        </p>
-                                    </div>
-                                )}
+                                            Intervensi hanya untuk laporan
+                                            COMPLETED.
+                                        </AlertDescription>
+                                    </Alert>
+                                ) : null}
 
-                                {/* Action result feedback */}
-                                {result && (
-                                    <div
-                                        className={`rounded-lg border p-3 text-sm space-y-2 ${
-                                            result.type === "success"
-                                                ? "border-green-200 bg-green-50 text-green-800"
-                                                : "border-red-200 bg-red-50 text-red-800"
-                                        }`}
-                                    >
-                                        <div className="flex items-start gap-2">
-                                            {result.type === "success" ? (
-                                                <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0 text-green-600" />
-                                            ) : (
-                                                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-red-600" />
-                                            )}
-                                            <p>{result.message}</p>
-                                        </div>
+                                {result ? (
+                                    <ResultFeedback result={result} />
+                                ) : null}
 
-                                        {result.type === "success" && (
-                                            <div className="flex flex-col gap-2 mt-2">
-                                                {result.revisedPdfUrl && (
-                                                    <a
-                                                        href={
-                                                            result.revisedPdfUrl
-                                                        }
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-7 w-full text-xs gap-1.5 border-green-300 text-green-800 hover:bg-green-100"
-                                                        >
-                                                            <FileText className="h-3 w-3" />{" "}
-                                                            Buka PDF Revisi
-                                                        </Button>
-                                                    </a>
-                                                )}
-                                                {result.folderUrl && (
-                                                    <a
-                                                        href={result.folderUrl}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                    >
-                                                        <Button
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="h-7 w-full text-xs gap-1.5 border-green-300 text-green-800 hover:bg-green-100"
-                                                        >
-                                                            <FolderOpen className="h-3 w-3" />{" "}
-                                                            Buka Folder Drive
-                                                        </Button>
-                                                    </a>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Apply button */}
                                 <Button
                                     id="btn-apply-revision"
                                     onClick={handleSaveAndGenerate}
-                                    disabled={
-                                        !isCompleted ||
-                                        isPending ||
-                                        !alasanIntervensi.trim()
-                                    }
-                                    className="w-full gap-2"
+                                    disabled={!canSubmitRevision || isPending}
+                                    className="w-full"
                                 >
                                     {isPending ? (
                                         <>
-                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <Loader2
+                                                data-icon="inline-start"
+                                                className="animate-spin"
+                                            />
                                             Memproses...
                                         </>
                                     ) : (
                                         <>
-                                            <Save className="h-4 w-4" />
+                                            <Save data-icon="inline-start" />
                                             Simpan & Generate PDF
                                         </>
                                     )}
                                 </Button>
 
-                                {hasExistingRevision && !result && (
-                                    <p className="text-[11px] text-center text-muted-foreground mt-2">
+                                {hasExistingRevision && !result ? (
+                                    <p className="text-center text-[11px] text-muted-foreground">
                                         Sudah ada revisi sebelumnya. Menyimpan
                                         akan membuat versi revisi baru.
                                     </p>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
+                                ) : null}
+                            </div>
+                        </section>
+                    </aside>
                 </div>
-            )}
+            ) : null}
         </div>
+    );
+}
+
+function InfoField({
+    label,
+    value,
+    mono = false,
+}: {
+    label: string;
+    value: string;
+    mono?: boolean;
+}) {
+    return (
+        <div className="min-w-0">
+            <p className="text-[10px] uppercase text-muted-foreground">
+                {label}
+            </p>
+            <p
+                className={
+                    mono
+                        ? "truncate font-mono font-medium"
+                        : "truncate font-medium"
+                }
+            >
+                {value}
+            </p>
+        </div>
+    );
+}
+
+function SummaryMetric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="min-w-0 rounded-md border bg-muted/20 px-3 py-2">
+            <p className="text-[10px] uppercase text-muted-foreground">
+                {label}
+            </p>
+            <p className="truncate font-mono text-sm font-semibold">{value}</p>
+        </div>
+    );
+}
+
+function ResultFeedback({ result }: { result: RevisionResult }) {
+    const isSuccess = result.type === "success";
+
+    return (
+        <Alert
+            variant={isSuccess ? "default" : "destructive"}
+            className={
+                isSuccess
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : undefined
+            }
+        >
+            {isSuccess ? <CheckCircle2 /> : <AlertCircle />}
+            <AlertTitle>
+                {isSuccess ? "Intervensi tersimpan" : "Intervensi gagal"}
+            </AlertTitle>
+            <AlertDescription
+                className={isSuccess ? "text-emerald-800" : undefined}
+            >
+                {result.message}
+            </AlertDescription>
+
+            {isSuccess && (result.revisedPdfUrl || result.folderUrl) ? (
+                <div className="col-start-2 mt-2 flex flex-col gap-2">
+                    {result.revisedPdfUrl ? (
+                        <Button asChild variant="outline" size="sm">
+                            <a
+                                href={result.revisedPdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <FileText data-icon="inline-start" />
+                                Buka PDF Revisi
+                            </a>
+                        </Button>
+                    ) : null}
+                    {result.folderUrl ? (
+                        <Button asChild variant="outline" size="sm">
+                            <a
+                                href={result.folderUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                            >
+                                <FolderOpen data-icon="inline-start" />
+                                Buka Folder Drive
+                            </a>
+                        </Button>
+                    ) : null}
+                </div>
+            ) : null}
+        </Alert>
     );
 }
