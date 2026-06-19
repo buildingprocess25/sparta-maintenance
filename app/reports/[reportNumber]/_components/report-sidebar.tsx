@@ -131,7 +131,7 @@ export function ReportSidebar({
                         const stored = report.completedPdfPath || null;
                         const pdfHref = stored?.startsWith("https://")
                             ? stored
-                            : `/api/reports/${report.reportNumber}/pdf?v=${report.updatedAt.getTime()}`;
+                            : `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1&v=${report.updatedAt.getTime()}`;
                         return (
                             <a
                                 href={pdfHref}

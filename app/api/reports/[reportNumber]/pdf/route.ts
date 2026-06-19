@@ -21,6 +21,8 @@ export async function GET(
     const shouldRegenerate =
         request.nextUrl.searchParams.get("regenerate") === "1" ||
         request.nextUrl.searchParams.get("force") === "1";
+    const shouldFallbackGenerate =
+        request.nextUrl.searchParams.get("fallback") === "1";
 
     try {
         const report = await prisma.report.findUnique({
@@ -32,6 +34,7 @@ export async function GET(
                 createdByNIK: true,
                 updatedAt: true,
                 completedPdfPath: true,
+                reportFinalDriveUrl: true,
             },
         });
 
@@ -91,7 +94,13 @@ export async function GET(
             );
         }
 
-        const snapshotPath = shouldRegenerate
+        const hasStoredFinalPdf = Boolean(
+            report.completedPdfPath?.trim() || report.reportFinalDriveUrl?.trim(),
+        );
+        const shouldGenerateFallbackSnapshot =
+            shouldFallbackGenerate && !hasStoredFinalPdf;
+
+        const snapshotPath = shouldRegenerate || shouldGenerateFallbackSnapshot
             ? null
             : resolveReportSnapshotPath(report);
         if (snapshotPath) {
@@ -111,7 +120,8 @@ export async function GET(
         const generated = await generateAndSaveReportSnapshot({
             reportNumber,
             checkpoint: "COMPLETED",
-            updateFinalDriveUrl: shouldRegenerate,
+            updateFinalDriveUrl:
+                shouldRegenerate || shouldGenerateFallbackSnapshot,
         });
 
         return new NextResponse(generated.buffer as unknown as BodyInit, {
@@ -121,6 +131,8 @@ export async function GET(
                 "Cache-Control": "private, max-age=3600, immutable",
                 "X-PDF-Source": shouldRegenerate
                     ? "regenerated"
+                    : shouldGenerateFallbackSnapshot
+                      ? "fallback-generated"
                     : "generated",
             },
         });

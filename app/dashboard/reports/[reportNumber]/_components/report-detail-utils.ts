@@ -31,17 +31,21 @@ export function matchesChecklistFilter(row: ChecklistRow, filter: ChecklistFilte
 export function getFinalDriveDocuments(report: ReportDetailModel) {
     const reportFinalUrl = report.reportFinalDriveUrl?.trim() || report.completedPdfPath?.trim();
     const pjumFinalUrl = report.pjumExport?.pjumFinalDriveUrl?.trim();
+    const fallbackReportFinalUrl =
+        report.status === "COMPLETED"
+            ? `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1`
+            : "";
     const documents: Array<{
         key: "report" | "pjum";
         label: string;
         url: string;
     }> = [];
 
-    if (reportFinalUrl) {
+    if (reportFinalUrl || fallbackReportFinalUrl) {
         documents.push({
             key: "report",
             label: "Laporan Final PDF",
-            url: reportFinalUrl,
+            url: reportFinalUrl || fallbackReportFinalUrl,
         });
     }
 
