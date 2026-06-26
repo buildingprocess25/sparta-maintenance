@@ -30,18 +30,18 @@ export async function generateReportNumber(
             lockKey,
         );
 
-        // Find the current max sequence number in one query.
-        const result = await client.$queryRaw<{ max_seq: number | null }[]>(
+        const latest = await client.$queryRaw<{ reportNumber: string }[]>(
             Prisma.sql`
-                SELECT MAX(
-                    CAST(SUBSTR("reportNumber", ${prefix.length + 1}) AS INTEGER)
-                ) AS max_seq
+                SELECT "reportNumber"
                 FROM "Report"
                 WHERE "reportNumber" LIKE ${prefix + "%"}
+                ORDER BY "reportNumber" DESC
+                LIMIT 1
             `,
         );
 
-        const maxSeq = result[0]?.max_seq ?? 0;
+        const latestSeq = latest[0]?.reportNumber.slice(prefix.length);
+        const maxSeq = latestSeq ? Number.parseInt(latestSeq, 10) || 0 : 0;
         const nextNumber = (maxSeq + 1).toString().padStart(3, "0");
 
         return `${prefix}${nextNumber}`;
