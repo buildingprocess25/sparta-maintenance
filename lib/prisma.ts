@@ -26,7 +26,11 @@ const prismaClientSingleton = () => {
     const cleanDatabaseUrl = databaseUrl.replace("?sslmode=require", "");
 
     const isDevelopment = process.env.NODE_ENV === "development";
-    const poolMax = parsePositiveInteger(process.env.DATABASE_POOL_MAX, 1);
+    const defaultPoolMax = 3;
+    const poolMax = parsePositiveInteger(
+        process.env.DATABASE_POOL_MAX,
+        defaultPoolMax,
+    );
     const idleTimeoutMillis = parsePositiveInteger(
         process.env.DATABASE_IDLE_TIMEOUT_MS,
         isDevelopment ? 2000 : 10000,
@@ -36,9 +40,8 @@ const prismaClientSingleton = () => {
         10000,
     );
 
-    // Keep the runtime pool intentionally small. In development, Turbopack can
-    // keep multiple Node processes alive during reloads, so idle connections
-    // should be released quickly.
+    // Keep the pool small, but not single-connection: dashboard queries run in
+    // parallel and will timeout while queued behind one busy connection.
     const pool = new Pool({
         connectionString: cleanDatabaseUrl,
         max: poolMax,
