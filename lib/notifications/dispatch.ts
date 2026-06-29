@@ -104,27 +104,23 @@ async function getReportRecipients(
             });
         case "REPORT_FINAL_APPROVED":
         case "REPORT_FINAL_REJECTED_REVISION": {
-            const [bms, bmc] = await Promise.all([
-                getBmsRecipient(report.createdByNIK),
-                getBranchRecipients({
-                    branchName: report.branchName,
-                    role: UserRole.BMC,
-                }),
-            ]);
+            const bms = await getBmsRecipient(report.createdByNIK);
+            const bmc = await getBranchRecipients({
+                branchName: report.branchName,
+                role: UserRole.BMC,
+            });
             return [...bms, ...bmc];
         }
         case "REPORT_INTERVENTION_CREATED": {
-            const [bms, bmc, bnm] = await Promise.all([
-                getBmsRecipient(report.createdByNIK),
-                getBranchRecipients({
-                    branchName: report.branchName,
-                    role: UserRole.BMC,
-                }),
-                getBranchRecipients({
-                    branchName: report.branchName,
-                    role: UserRole.BNM_MANAGER,
-                }),
-            ]);
+            const bms = await getBmsRecipient(report.createdByNIK);
+            const bmc = await getBranchRecipients({
+                branchName: report.branchName,
+                role: UserRole.BMC,
+            });
+            const bnm = await getBranchRecipients({
+                branchName: report.branchName,
+                role: UserRole.BNM_MANAGER,
+            });
             return [...bms, ...bmc, ...bnm];
         }
         default:
@@ -143,15 +139,17 @@ async function getPjumRecipients(
         });
     }
 
+    const bms = await getBmsRecipient(pjum.bmsNIK);
     const creator = await prisma.user.findUnique({
         where: { NIK: pjum.createdByNIK },
         select: { NIK: true, role: true, deletedAt: true },
     });
 
+    const recipients = [...bms];
     if (creator && !creator.deletedAt && creator.role === UserRole.BMC) {
-        return [{ NIK: creator.NIK, role: creator.role }];
+        recipients.push({ NIK: creator.NIK, role: creator.role });
     }
-    return [];
+    return recipients;
 }
 
 async function createAndPushNotifications(params: {

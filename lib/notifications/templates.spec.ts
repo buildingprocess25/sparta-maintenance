@@ -61,4 +61,22 @@ assert.equal(
 );
 assert.match(pjumTemplate.body, /2 laporan/i);
 
+const bmsPjumTemplate = buildNotificationTemplate({
+    type: "PJUM_APPROVED",
+    actorNIK: "BNM001",
+    recipientRole: UserRole.BMS,
+    pjum: {
+        id: "4a3c3d57-5555-4444-9999-111111111111",
+        bmsNIK: "24115397",
+        branchName: "SIDOARJO",
+        weekNumber: 4,
+        reportNumbers: ["U845-2606-001"],
+    },
+});
+
+assert.equal(
+    bmsPjumTemplate.href,
+    "/reports/pjum/4a3c3d57-5555-4444-9999-111111111111",
+);
+
 console.log("notification template tests passed");

@@ -7,6 +7,12 @@ function reportHref(role: UserRole, reportNumber: string) {
         : `/dashboard/reports/${reportNumber}`;
 }
 
+function pjumHref(role: UserRole, pjumId: string) {
+    return role === UserRole.BMS
+        ? `/reports/pjum/${pjumId}`
+        : `/dashboard/pjum/${pjumId}`;
+}
+
 function reportLabel(report: NonNullable<NotificationTemplateContext["report"]>) {
     return `${report.reportNumber} - ${report.storeName || report.storeCode || "Toko"}`;
 }
@@ -105,7 +111,7 @@ export function buildNotificationTemplate(
         const reportCount = pjum.reportNumbers.length;
         const base = {
             type: context.type,
-            href: `/dashboard/pjum/${pjum.id}`,
+            href: pjumHref(context.recipientRole, pjum.id),
             entityType: "PJUM" as const,
             entityId: pjum.id,
             reportNumber: null,

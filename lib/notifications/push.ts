@@ -57,46 +57,44 @@ export async function sendPushToRecipients(params: {
             },
         });
 
-        await Promise.all(
-            subscriptions.map(async (subscription) => {
-                try {
-                    await webPush.sendNotification(
-                        {
-                            endpoint: subscription.endpoint,
-                            keys: {
-                                p256dh: subscription.p256dh,
-                                auth: subscription.auth,
-                            },
+        for (const subscription of subscriptions) {
+            try {
+                await webPush.sendNotification(
+                    {
+                        endpoint: subscription.endpoint,
+                        keys: {
+                            p256dh: subscription.p256dh,
+                            auth: subscription.auth,
                         },
-                        JSON.stringify(params.payload),
-                    );
+                    },
+                    JSON.stringify(params.payload),
+                );
 
+                await prisma.pushSubscription.update({
+                    where: { id: subscription.id },
+                    data: { lastUsedAt: new Date() },
+                });
+            } catch (error) {
+                const statusCode = getStatusCode(error);
+
+                if (statusCode === 404 || statusCode === 410) {
                     await prisma.pushSubscription.update({
                         where: { id: subscription.id },
-                        data: { lastUsedAt: new Date() },
+                        data: { disabledAt: new Date() },
                     });
-                } catch (error) {
-                    const statusCode = getStatusCode(error);
-
-                    if (statusCode === 404 || statusCode === 410) {
-                        await prisma.pushSubscription.update({
-                            where: { id: subscription.id },
-                            data: { disabledAt: new Date() },
-                        });
-                        return;
-                    }
-
-                    logger.warn(
-                        {
-                            operation: "sendPushToRecipients",
-                            subscriptionId: subscription.id,
-                            errorMessage: getErrorMessage(error),
-                        },
-                        "Web Push delivery failed",
-                    );
+                    continue;
                 }
-            }),
-        );
+
+                logger.warn(
+                    {
+                        operation: "sendPushToRecipients",
+                        subscriptionId: subscription.id,
+                        errorMessage: getErrorMessage(error),
+                    },
+                    "Web Push delivery failed",
+                );
+            }
+        }
     } catch (error) {
         logger.warn(
             {
