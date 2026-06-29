@@ -3,10 +3,11 @@
 import type { ReactNode } from "react";
 import { useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
-import { Bell, KeyRound, LogOut } from "lucide-react";
+import { KeyRound, LogOut } from "lucide-react";
 
 import { logoutAction } from "@/app/dashboard/action";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
+import { NotificationBell } from "@/components/notifications/notification-bell";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,33 +73,7 @@ export function SiteHeaderActions({
                             : "hidden items-center gap-3 md:flex"
                     }
                 >
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="icon-sm"
-                                    className="rounded-full"
-                                    aria-label="Notifikasi"
-                                >
-                                    <Bell />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent
-                                align="end"
-                                className="min-w-56"
-                            >
-                                <DropdownMenuLabel>
-                                    Notifikasi
-                                </DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuGroup>
-                                    <DropdownMenuItem disabled>
-                                        Sedang dalam pengembangan
-                                    </DropdownMenuItem>
-                                </DropdownMenuGroup>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                        <NotificationBell />
 
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { AppSidebar } from "@/components/app-sidebar";
+import { NotificationPermissionGate } from "@/components/notifications/notification-permission-gate";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
@@ -29,6 +30,7 @@ export function AdminDashboardShell({
                 <SiteHeader title={title} breadcrumbs={breadcrumbs} user={user}>
                     {headerActions}
                 </SiteHeader>
+                <NotificationPermissionGate role={user.role} />
                 <div
                     className={cn(
                         "flex min-w-0 max-w-full flex-col gap-6 p-4 lg:p-6",
