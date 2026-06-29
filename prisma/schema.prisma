@@ -72,6 +72,29 @@ enum ActivityAction {
   ADMIN_REALISASI_REVISED     // Admin merevisi data realisasi laporan
 }
 
+enum NotificationType {
+  REPORT_SUBMITTED
+  REPORT_ESTIMATION_APPROVED
+  REPORT_ESTIMATION_REJECTED_REVISION
+  REPORT_ESTIMATION_REJECTED
+  REPORT_WORK_STARTED
+  REPORT_COMPLETION_SUBMITTED
+  REPORT_WORK_APPROVED
+  REPORT_WORK_REJECTED_REVISION
+  REPORT_FINAL_APPROVED
+  REPORT_FINAL_REJECTED_REVISION
+  PJUM_CREATED
+  PJUM_APPROVED
+  PJUM_REJECTED
+  REPORT_INTERVENTION_CREATED
+}
+
+enum NotificationEntityType {
+  REPORT
+  PJUM
+  INTERVENTION
+}
+
 // =========================================
 // MODELS
 // =========================================
@@ -91,6 +114,9 @@ model User {
   approvals     ApprovalLog[]
   activities    ActivityLog[]
   presence      UserPresence?
+  notificationsReceived Notification[]     @relation("ReceivedNotifications")
+  notificationsSent     Notification[]     @relation("SentNotifications")
+  pushSubscriptions     PushSubscription[]
 
   @@index([deletedAt])
 }
@@ -221,6 +247,50 @@ model UserPresence {
   user      User     @relation(fields: [userId], references: [NIK])
 
   @@index([lastSeen])
+}
+
+model Notification {
+  id            String                 @id @default(uuid())
+  recipientNIK  String
+  actorNIK      String?
+  type          NotificationType
+  title         String
+  body          String
+  href          String
+  entityType    NotificationEntityType
+  entityId      String
+  reportNumber  String?
+  pjumExportId  String?
+  metadata      Json                   @default("{}")
+  readAt        DateTime?
+  createdAt     DateTime               @default(now())
+
+  recipient     User                   @relation("ReceivedNotifications", fields: [recipientNIK], references: [NIK])
+  actor         User?                  @relation("SentNotifications", fields: [actorNIK], references: [NIK])
+
+  @@index([recipientNIK, readAt, createdAt])
+  @@index([recipientNIK, createdAt])
+  @@index([entityType, entityId])
+  @@index([reportNumber])
+  @@index([pjumExportId])
+}
+
+model PushSubscription {
+  id          String    @id @default(uuid())
+  userNIK     String
+  endpoint    String    @unique
+  p256dh      String
+  auth        String
+  userAgent   String?
+  deviceLabel String?
+  disabledAt  DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userNIK], references: [NIK])
+
+  @@index([userNIK, disabledAt])
 }
 
 model PjumExport {
