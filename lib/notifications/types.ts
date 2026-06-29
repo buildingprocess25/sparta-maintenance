@@ -8,13 +8,13 @@ export type NotificationEventInput =
     | {
           type:
               | "REPORT_SUBMITTED"
-              | "REPORT_WORK_STARTED"
-              | "REPORT_COMPLETION_SUBMITTED";
+              | "REPORT_WORK_STARTED";
           actorNIK: string;
           reportNumber: string;
       }
     | {
           type:
+              | "REPORT_COMPLETION_SUBMITTED"
               | "REPORT_ESTIMATION_APPROVED"
               | "REPORT_ESTIMATION_REJECTED_REVISION"
               | "REPORT_ESTIMATION_REJECTED"

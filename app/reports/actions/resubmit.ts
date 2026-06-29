@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import {
@@ -101,6 +102,15 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         revalidatePath("/reports");
         revalidatePath(`/reports/${reportNumber}`);
+
+        dispatchNotificationEvent({
+            type:
+                newStatus === "PENDING_REVIEW"
+                    ? "REPORT_COMPLETION_SUBMITTED"
+                    : "REPORT_SUBMITTED",
+            actorNIK: user.NIK,
+            reportNumber,
+        });
 
         return { success: true, reportId: reportNumber };
     } catch (error) {

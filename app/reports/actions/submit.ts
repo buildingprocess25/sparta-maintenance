@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { generateReportNumber } from "@/lib/report-helpers";
@@ -148,6 +149,12 @@ export async function submitReport(data: DraftData) {
         });
 
         revalidatePath("/reports");
+
+        dispatchNotificationEvent({
+            type: "REPORT_SUBMITTED",
+            actorNIK: user.NIK,
+            reportNumber: reportId,
+        });
 
         return { success: true, reportId };
     } catch (error) {

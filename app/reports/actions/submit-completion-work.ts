@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus, Prisma } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
@@ -232,6 +233,13 @@ export async function submitCompletionWork(
         revalidatePath(`/reports/${reportNumber}`);
         revalidatePath("/reports");
         revalidatePath("/reports/complete");
+
+        dispatchNotificationEvent({
+            type: "REPORT_COMPLETION_SUBMITTED",
+            actorNIK: user.NIK,
+            reportNumber,
+            notes,
+        });
 
         logger.info(
             {

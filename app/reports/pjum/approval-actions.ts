@@ -1,6 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -464,6 +465,12 @@ export async function approvePjumExport(input: {
                 pjumFinalDriveUrl:
                     uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
             },
+        });
+
+        dispatchNotificationEvent({
+            type: "PJUM_APPROVED",
+            actorNIK: user.NIK,
+            pjumExportId: pjumExport.id,
         });
 
         const snapshotPathsToDelete = [

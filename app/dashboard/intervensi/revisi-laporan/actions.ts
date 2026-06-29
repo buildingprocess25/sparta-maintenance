@@ -1,6 +1,7 @@
 "use server";
 
 import { requireRole } from "@/lib/authorization";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import prisma from "@/lib/prisma";
 import { generateRevisionPdf } from "@/lib/pdf/generate-revision-pdf";
 import {
@@ -384,6 +385,12 @@ export async function applyRealisasiRevision(
                 revisedPdfDriveUrl: revisedPdfUrl,
                 revisedPdfFolderUrl: folderUrl,
             },
+        });
+
+        dispatchNotificationEvent({
+            type: "REPORT_INTERVENTION_CREATED",
+            actorNIK: user.NIK,
+            reportNumber,
         });
 
         logger.info(

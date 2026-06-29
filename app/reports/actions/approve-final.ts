@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
@@ -100,6 +101,16 @@ export async function approveFinal(
                 },
             }),
         ]);
+
+        dispatchNotificationEvent({
+            type:
+                decision === "approve"
+                    ? "REPORT_FINAL_APPROVED"
+                    : "REPORT_FINAL_REJECTED_REVISION",
+            actorNIK: user.NIK,
+            reportNumber,
+            notes: logNote,
+        });
 
         if (decision === "approve") {
             // ── PDF snapshot (non-fatal) — captures COMPLETED state

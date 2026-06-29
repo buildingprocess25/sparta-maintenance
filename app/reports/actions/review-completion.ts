@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
@@ -86,6 +87,16 @@ export async function reviewCompletion(
         revalidatePath("/reports");
         revalidatePath("/dashboard/reports");
         revalidatePath("/dashboard");
+
+        dispatchNotificationEvent({
+            type:
+                decision === "approve"
+                    ? "REPORT_WORK_APPROVED"
+                    : "REPORT_WORK_REJECTED_REVISION",
+            actorNIK: user.NIK,
+            reportNumber,
+            notes: logNote,
+        });
 
         logger.info(
             {

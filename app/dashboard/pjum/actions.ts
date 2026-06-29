@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { getAuthUser, requireRole, validateCSRF } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
@@ -456,6 +457,12 @@ export async function createDashboardPjum(input: {
         revalidatePath("/dashboard/reports");
         revalidatePath("/dashboard");
         revalidatePath("/reports/pjum");
+
+        dispatchNotificationEvent({
+            type: "PJUM_CREATED",
+            actorNIK: user.NIK,
+            pjumExportId: pjumExport.id,
+        });
 
         const durationMs = Math.round(performance.now() - start);
         logger.info(

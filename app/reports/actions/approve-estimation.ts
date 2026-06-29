@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import { ReportStatus } from "@prisma/client";
+import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
@@ -116,6 +117,29 @@ export async function reviewEstimation(
         revalidatePath("/reports");
         revalidatePath("/dashboard/reports");
         revalidatePath("/dashboard");
+
+        const notificationType =
+            decision === "approve"
+                ? "REPORT_ESTIMATION_APPROVED"
+                : decision === "reject_revision"
+                  ? "REPORT_ESTIMATION_REJECTED_REVISION"
+                  : "REPORT_ESTIMATION_REJECTED";
+
+        dispatchNotificationEvent({
+            type: notificationType,
+            actorNIK: user.NIK,
+            reportNumber,
+            notes: logNote,
+        });
+
+        if (isRekananBypass) {
+            dispatchNotificationEvent({
+                type: "REPORT_WORK_APPROVED",
+                actorNIK: user.NIK,
+                reportNumber,
+                notes: logNote,
+            });
+        }
 
         logger.info(
             {
