@@ -47,3 +47,51 @@ self.addEventListener("fetch", (event) => {
             }),
     );
 });
+
+self.addEventListener("push", (event) => {
+    let payload = {
+        title: "SPARTA Maintenance",
+        body: "Ada notifikasi baru.",
+        href: "/dashboard",
+        notificationId: null,
+        type: null,
+    };
+
+    if (event.data) {
+        try {
+            payload = { ...payload, ...event.data.json() };
+        } catch {
+            payload.body = event.data.text();
+        }
+    }
+
+    const options = {
+        body: payload.body,
+        icon: "/icons/icon-192x192.png",
+        badge: "/icons/icon-192x192.png",
+        data: {
+            href: payload.href || "/dashboard",
+            notificationId: payload.notificationId,
+            type: payload.type,
+        },
+    };
+
+    event.waitUntil(self.registration.showNotification(payload.title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+    event.notification.close();
+
+    const href = event.notification.data?.href || "/dashboard";
+    const targetUrl = new URL(href, self.location.origin).href;
+
+    event.waitUntil(
+        self.clients
+            .matchAll({ type: "window", includeUncontrolled: true })
+            .then((clients) => {
+                const existing = clients.find((client) => client.url === targetUrl);
+                if (existing) return existing.focus();
+                return self.clients.openWindow(targetUrl);
+            }),
+    );
+});
