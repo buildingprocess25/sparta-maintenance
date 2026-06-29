@@ -20,5 +20,12 @@ export function isWebPushSupported() {
 
 export async function getServiceWorkerRegistration() {
     if (!("serviceWorker" in navigator)) return null;
-    return navigator.serviceWorker.ready;
+
+    const existing = await navigator.serviceWorker.getRegistration("/");
+    if (existing) return existing;
+
+    return navigator.serviceWorker.register("/sw.js", {
+        scope: "/",
+        updateViaCache: "none",
+    });
 }

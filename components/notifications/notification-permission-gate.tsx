@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { BellRing, LogOut, RefreshCw } from "lucide-react";
 import { logoutAction } from "@/app/dashboard/action";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,19 +10,28 @@ import { usePushSubscription } from "./use-push-subscription";
 const REQUIRED_ROLES = new Set(["BMS", "BMC", "BNM_MANAGER", "ADMIN"]);
 
 export function NotificationPermissionGate({ role }: { role: string }) {
-    const { state, isBusy, refresh, subscribe } = usePushSubscription();
+    const { state, isBusy, errorMessage, refresh, subscribe } =
+        usePushSubscription();
 
     const enabled =
         process.env.NEXT_PUBLIC_NOTIFICATIONS_ENABLED !== "false" &&
         process.env.NEXT_PUBLIC_WEB_PUSH_ENABLED !== "false" &&
         process.env.NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED === "true";
 
+    useEffect(() => {
+        if (enabled && REQUIRED_ROLES.has(role) && state === "granted" && !isBusy) {
+            subscribe();
+        }
+    }, [enabled, isBusy, role, state, subscribe]);
+
     if (!enabled || !REQUIRED_ROLES.has(role)) return null;
+
     if (state === "checking" || state === "unsupported" || state === "active") {
         return null;
     }
 
     const denied = state === "denied";
+    const error = state === "error";
 
     return (
         <div className="fixed inset-0 z-80 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm">
@@ -30,9 +40,9 @@ export function NotificationPermissionGate({ role }: { role: string }) {
                     <BellRing className="size-4" />
                     <AlertTitle>Aktifkan notifikasi untuk melanjutkan</AlertTitle>
                     <AlertDescription>
-                        SPARTA memakai notifikasi untuk approval laporan, revisi,
-                        dan PJUM. Anda wajib mengaktifkan notifikasi agar tidak
-                        melewatkan proses bisnis.
+                        {error
+                            ? `Izin browser sudah dicek, tetapi perangkat belum berhasil terhubung ke server notifikasi. ${errorMessage ?? "Coba aktifkan ulang."}`
+                            : "SPARTA memakai notifikasi untuk approval laporan, revisi, dan PJUM. Anda wajib mengaktifkan notifikasi agar tidak melewatkan proses bisnis."}
                     </AlertDescription>
                 </Alert>
                 <div className="mt-4 flex flex-wrap items-center justify-end gap-2">

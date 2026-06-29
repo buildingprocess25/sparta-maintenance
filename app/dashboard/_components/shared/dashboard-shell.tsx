@@ -1,5 +1,7 @@
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationPermissionGate } from "@/components/notifications/notification-permission-gate";
 import { Store } from "lucide-react";
 import { LogoutButton } from "../../logout-button";
 import { capitalizeEachWord } from "@/lib/utils";
@@ -37,6 +39,7 @@ export function DashboardShell({ user, children }: Props) {
                 showBackButton={false}
                 backHref="/"
             />
+            <NotificationPermissionGate role={user.role} />
 
             <main className="flex-1 container mx-auto px-4 md:px-8 py-6 md:py-8 max-w-7xl space-y-6 md:space-y-8">
                 {/* Welcome Section */}
@@ -64,7 +67,10 @@ export function DashboardShell({ user, children }: Props) {
                                 </div>
                             </div>
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
-                                <LogoutButton />
+                                <div className="flex items-center gap-2">
+                                    <NotificationBell />
+                                    <LogoutButton />
+                                </div>
                                 <p className="text-xs text-muted-foreground text-right whitespace-nowrap">
                                     {weekday},{" "}
                                     {now.toLocaleDateString("id-ID", {
@@ -121,7 +127,10 @@ export function DashboardShell({ user, children }: Props) {
                                     </div>
                                 </div>
                                 <div className="w-px h-10 bg-border" />
-                                <LogoutButton />
+                                <div className="flex items-center gap-2">
+                                    <NotificationBell />
+                                    <LogoutButton />
+                                </div>
                             </div>
                         </div>
                     </div>
