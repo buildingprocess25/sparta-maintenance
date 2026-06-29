@@ -6,7 +6,10 @@ import type {
 
 export type NotificationEventInput =
     | {
-          type: "REPORT_SUBMITTED" | "REPORT_COMPLETION_SUBMITTED";
+          type:
+              | "REPORT_SUBMITTED"
+              | "REPORT_WORK_STARTED"
+              | "REPORT_COMPLETION_SUBMITTED";
           actorNIK: string;
           reportNumber: string;
       }

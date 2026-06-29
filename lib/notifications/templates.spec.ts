@@ -32,6 +32,16 @@ const bmsTemplate = buildNotificationTemplate({
 assert.equal(bmsTemplate.href, "/reports/U845-2606-001");
 assert.match(bmsTemplate.body, /boleh mulai pekerjaan/i);
 
+const workStartedTemplate = buildNotificationTemplate({
+    type: "REPORT_WORK_STARTED",
+    actorNIK: "24115397",
+    recipientRole: UserRole.BMC,
+    report,
+});
+
+assert.equal(workStartedTemplate.href, "/dashboard/reports/U845-2606-001");
+assert.match(workStartedTemplate.title, /pekerjaan dimulai/i);
+
 const pjumTemplate = buildNotificationTemplate({
     type: "PJUM_CREATED",
     actorNIK: "BMC001",

@@ -61,6 +61,12 @@ export function buildNotificationTemplate(
                     title: "Penyelesaian menunggu review",
                     body: `${reportLabel(report)} perlu dicek dengan nota dan foto pekerjaan.`,
                 };
+            case "REPORT_WORK_STARTED":
+                return {
+                    ...base,
+                    title: "Pekerjaan dimulai",
+                    body: `${reportLabel(report)} sudah mulai dikerjakan oleh BMS.`,
+                };
             case "REPORT_WORK_APPROVED":
                 return {
                     ...base,

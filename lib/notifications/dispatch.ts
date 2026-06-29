@@ -91,6 +91,7 @@ async function getReportRecipients(
 ): Promise<NotificationRecipient[]> {
     switch (type) {
         case "REPORT_SUBMITTED":
+        case "REPORT_WORK_STARTED":
         case "REPORT_COMPLETION_SUBMITTED":
             return getBranchRecipients({
                 branchName: report.branchName,
@@ -142,19 +143,15 @@ async function getPjumRecipients(
         });
     }
 
-    const [bms, creator] = await Promise.all([
-        getBmsRecipient(pjum.bmsNIK),
-        prisma.user.findUnique({
-            where: { NIK: pjum.createdByNIK },
-            select: { NIK: true, role: true, deletedAt: true },
-        }),
-    ]);
+    const creator = await prisma.user.findUnique({
+        where: { NIK: pjum.createdByNIK },
+        select: { NIK: true, role: true, deletedAt: true },
+    });
 
-    const recipients = [...bms];
-    if (creator && !creator.deletedAt) {
-        recipients.push({ NIK: creator.NIK, role: creator.role });
+    if (creator && !creator.deletedAt && creator.role === UserRole.BMC) {
+        return [{ NIK: creator.NIK, role: creator.role }];
     }
-    return recipients;
+    return [];
 }
 
 async function createAndPushNotifications(params: {
@@ -183,50 +180,48 @@ async function createAndPushNotifications(params: {
         ).values(),
     ).filter((recipient) => recipient.NIK !== params.actorNIK);
 
-    await Promise.all(
-        uniqueRecipients.map(async (recipient) => {
-            const template = buildNotificationTemplate({
-                type: params.type,
+    for (const recipient of uniqueRecipients) {
+        const template = buildNotificationTemplate({
+            type: params.type,
+            actorNIK: params.actorNIK,
+            recipientRole: recipient.role,
+            report: params.report,
+            pjum: params.pjum,
+            notes: params.notes,
+        });
+
+        const notification = await prisma.notification.create({
+            data: {
+                recipientNIK: recipient.NIK,
                 actorNIK: params.actorNIK,
-                recipientRole: recipient.role,
-                report: params.report,
-                pjum: params.pjum,
-                notes: params.notes,
-            });
+                type: template.type,
+                title: template.title,
+                body: template.body,
+                href: template.href,
+                entityType: template.entityType,
+                entityId: template.entityId,
+                reportNumber: template.reportNumber,
+                pjumExportId: template.pjumExportId,
+                metadata: template.metadata,
+            },
+            select: {
+                id: true,
+                title: true,
+                body: true,
+                href: true,
+                type: true,
+            },
+        });
 
-            const notification = await prisma.notification.create({
-                data: {
-                    recipientNIK: recipient.NIK,
-                    actorNIK: params.actorNIK,
-                    type: template.type,
-                    title: template.title,
-                    body: template.body,
-                    href: template.href,
-                    entityType: template.entityType,
-                    entityId: template.entityId,
-                    reportNumber: template.reportNumber,
-                    pjumExportId: template.pjumExportId,
-                    metadata: template.metadata,
-                },
-                select: {
-                    id: true,
-                    title: true,
-                    body: true,
-                    href: true,
-                    type: true,
-                },
-            });
-
-            await sendPushToRecipients({
-                recipientNIKs: [recipient.NIK],
-                payload: {
-                    notificationId: notification.id,
-                    title: notification.title,
-                    body: notification.body,
-                    href: notification.href,
-                    type: notification.type,
-                },
-            });
-        }),
-    );
+        await sendPushToRecipients({
+            recipientNIKs: [recipient.NIK],
+            payload: {
+                notificationId: notification.id,
+                title: notification.title,
+                body: notification.body,
+                href: notification.href,
+                type: notification.type,
+            },
+        });
+    }
 }
