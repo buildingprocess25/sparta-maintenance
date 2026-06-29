@@ -2,11 +2,12 @@
 
 ## Goal
 
-Menambahkan sistem notifikasi proses bisnis untuk SPARTA Maintenance yang muncul di dalam aplikasi dan, bila user mengaktifkan izin perangkat, muncul sebagai notifikasi native melalui PWA/Web Push.
+Menambahkan sistem notifikasi proses bisnis untuk SPARTA Maintenance yang muncul di dalam aplikasi dan, untuk perangkat/browser yang mendukung, wajib diaktifkan sebagai notifikasi native melalui PWA/Web Push sebelum user memakai workflow operasional.
 
 Target utama:
 
 - BMS, BMC, BNM Manager, dan Admin menerima informasi proses bisnis yang relevan tanpa harus membuka halaman laporan terus-menerus.
+- User operasional dipaksa melalui gate aplikasi untuk mengaktifkan notifikasi perangkat jika browser mendukung Web Push.
 - Notifikasi tetap tercatat di database walaupun push native gagal, browser ditutup, atau perangkat tidak mendukung Web Push.
 - Push native bersifat pendukung. Sumber kebenaran tetap tabel notifikasi aplikasi.
 - Implementasi tidak memperberat transaksi utama laporan/PJUM, terutama karena database production memakai Aiven Free dengan batas koneksi kecil.
@@ -45,13 +46,18 @@ Dependency yang belum ada dan perlu ditambahkan:
 - Flow notifikasi PJUM.
 - Mark as read, mark all as read, dan unread count.
 - Link notifikasi menuju halaman terkait.
+- Gate wajib aktivasi notifikasi untuk role operasional:
+  - `BMS`
+  - `BMC`
+  - `BNM_MANAGER`
+  - `ADMIN`
 - Role-aware link:
   - BMS menuju `/reports/[reportNumber]`.
   - BMC, BNM Manager, dan Admin menuju `/dashboard/reports/[reportNumber]`.
   - PJUM dashboard menuju `/dashboard/pjum/[id]`.
-- Preference sederhana:
-  - user bisa mengaktifkan notifikasi perangkat,
-  - user bisa mematikan perangkat tertentu dengan unsubscribe.
+- Device subscription management sederhana:
+  - user wajib mengaktifkan minimal satu subscription aktif pada perangkat/browser yang sedang dipakai,
+  - user bisa mematikan perangkat tertentu dari settings, tetapi akses akan kembali diblok pada perangkat tersebut sampai subscription aktif lagi.
 
 ### Out of Scope Untuk Iterasi Pertama
 
@@ -70,7 +76,8 @@ Gunakan arsitektur hybrid:
 1. Simpan notifikasi ke database sebagai sumber kebenaran.
 2. Kirim Web Push best-effort setelah transaksi bisnis selesai.
 3. Tampilkan notifikasi in-app dari database.
-4. Jika Web Push gagal, user tetap melihat notifikasi saat membuka aplikasi.
+4. Terapkan mandatory notification gate pada client layout untuk role operasional.
+5. Jika Web Push gagal dikirim setelah subscription aktif, user tetap melihat notifikasi saat membuka aplikasi.
 
 Alasan:
 
@@ -78,6 +85,7 @@ Alasan:
 - Tidak perlu vendor realtime untuk tahap awal.
 - Tidak membuat proses bisnis gagal hanya karena push gagal.
 - Cocok dengan constraint Aiven Free karena push tidak dilakukan di dalam transaksi database.
+- Browser tidak mengizinkan aplikasi memaksa permission secara programmatic. Karena itu pemaksaan dilakukan di level UX aplikasi: halaman/workflow ditutup oleh blocking gate sampai permission diberikan dan subscription tersimpan.
 
 Alternatif yang tidak dipilih untuk tahap awal:
 
@@ -340,6 +348,7 @@ File yang disarankan:
 
 - `app/api/push/subscribe/route.ts`
 - `app/api/push/unsubscribe/route.ts`
+- `app/api/push/status/route.ts`
 - `app/api/notifications/route.ts`
 - `app/api/notifications/read/route.ts`
 
@@ -347,6 +356,7 @@ Tanggung jawab:
 
 - subscribe perangkat aktif,
 - unsubscribe endpoint,
+- mengecek apakah perangkat/browser saat ini sudah memiliki subscription aktif,
 - mengambil daftar notifikasi user saat ini,
 - mark read dan mark all read.
 
@@ -375,8 +385,10 @@ File yang disarankan:
 
 - `components/notifications/notification-bell.tsx`
 - `components/notifications/notification-enable-button.tsx`
+- `components/notifications/notification-permission-gate.tsx`
 - `components/notifications/use-push-subscription.ts`
 - `app/dashboard/_components/admin/admin-site-header-actions.tsx`
+- `app/dashboard/_components/admin/admin-dashboard-shell.tsx`
 
 UI:
 
@@ -385,7 +397,8 @@ UI:
 - dropdown berisi daftar ringkas 10 notifikasi terbaru,
 - tombol "Tandai semua dibaca",
 - state kosong "Belum ada notifikasi",
-- tombol "Aktifkan notifikasi perangkat" muncul jika browser mendukung dan permission belum granted.
+- blocking gate muncul di atas halaman jika browser mendukung Web Push tetapi perangkat ini belum punya subscription aktif,
+- tombol "Aktifkan notifikasi perangkat" menjadi aksi utama pada blocking gate dan tetap tersedia di dropdown bell sebagai status/action sekunder.
 
 ### Layer 5: Business Actions Integration
 
@@ -412,21 +425,81 @@ Aturan penting:
 
 ## Native Push Behavior
 
-### Permission Flow
+### Permission and Mandatory Gate Flow
 
-Notifikasi native tidak boleh diminta otomatis saat halaman dibuka.
+Browser tidak mengizinkan aplikasi memaksa user menerima permission notification tanpa aksi user. Prompt permission harus dipicu oleh klik/tap user. Karena itu "paksa user" diimplementasikan sebagai application-level blocking gate, bukan bypass terhadap aturan browser.
 
 Flow:
 
-1. User membuka menu notifikasi.
-2. User klik "Aktifkan notifikasi perangkat".
-3. Browser menampilkan permission prompt.
-4. Jika granted:
+1. Saat user login dan membuka halaman operasional, client mengecek dukungan Web Push:
+   - `serviceWorker` tersedia,
+   - `PushManager` tersedia,
+   - `Notification` tersedia,
+   - `NEXT_PUBLIC_VAPID_PUBLIC_KEY` tersedia.
+2. Jika browser/perangkat tidak mendukung Web Push:
+   - gate tidak memblokir,
+   - user tetap memakai in-app notification,
+   - bell dropdown menampilkan label "Notifikasi perangkat tidak didukung di perangkat ini".
+3. Jika browser mendukung Web Push dan permission `granted` tetapi subscription belum tersimpan:
+   - tampilkan blocking gate,
+   - user klik "Aktifkan notifikasi",
+   - client membuat PushSubscription,
+   - client menyimpan subscription ke `/api/push/subscribe`.
+4. Jika permission masih `default`:
+   - tampilkan blocking gate,
+   - user klik "Aktifkan notifikasi",
+   - browser menampilkan permission prompt.
+5. Jika granted:
    - client mengambil service worker registration,
    - membuat PushSubscription,
    - mengirim endpoint dan keys ke `/api/push/subscribe`.
-5. Jika denied:
-   - tampilkan pesan singkat bahwa izin ditolak dari browser/perangkat.
+6. Jika denied:
+   - gate tetap memblokir akses pada perangkat tersebut,
+   - tampilkan instruksi singkat untuk mengubah izin browser secara manual,
+   - tampilkan tombol "Saya sudah mengizinkan, cek lagi" untuk re-check permission/subscription.
+7. Jika subscription aktif:
+   - gate hilang,
+   - user bisa memakai halaman dan workflow.
+
+### Blocking Rules
+
+Gate wajib aktif untuk role:
+
+- `BMS`
+- `BMC`
+- `BNM_MANAGER`
+- `ADMIN`
+
+Gate hanya diterapkan di area aplikasi setelah login:
+
+- `/dashboard/*`
+- `/reports/*`
+
+Gate tidak diterapkan di:
+
+- `/login`
+- `/offline.html`
+- API routes
+- halaman error/auth recovery bila ada.
+
+Gate harus menutup interaksi halaman dengan overlay/modal yang tidak bisa ditutup dengan tombol close biasa. Satu-satunya jalan keluar:
+
+- aktifkan notifikasi,
+- logout,
+- atau perangkat terbukti tidak mendukung Web Push sehingga gate tidak dipakai.
+
+### Denied Permission Handling
+
+Jika `Notification.permission === "denied"`, browser tidak akan menampilkan prompt lagi. UI harus menjelaskan langkah manual:
+
+- buka pengaturan browser/site settings,
+- ubah permission Notifications menjadi Allow,
+- kembali ke aplikasi,
+- klik "Cek ulang izin".
+
+Teks harus dibuat jelas untuk user awam:
+
+> Notifikasi perangkat wajib aktif agar Anda tidak melewatkan approval laporan. Izin notifikasi sedang diblokir oleh browser. Aktifkan izin notifikasi dari pengaturan browser, lalu klik Cek ulang izin.
 
 ### Device Support Notes
 
@@ -434,6 +507,7 @@ Flow:
 - Desktop Chrome/Edge/Firefox: cocok untuk Web Push.
 - iOS/iPadOS: Web Push untuk PWA memerlukan iOS/iPadOS 16.4+ dan app sudah ditambahkan ke Home Screen.
 - Browser yang tidak mendukung Push API tetap memakai in-app notification.
+- Pada iOS Safari yang belum install PWA ke Home Screen, gate harus memberi instruksi install PWA terlebih dahulu jika Web Push terdeteksi tidak tersedia karena konteks browser.
 
 ## Database and Performance Considerations
 
@@ -516,6 +590,26 @@ Untuk tahap awal, outbox tidak wajib.
 
 ## UI Design
 
+### Mandatory Notification Gate
+
+Gate menggunakan komponen dialog/alert shadcn-compatible yang berada di atas semua konten setelah login.
+
+Isi gate:
+
+- title: "Aktifkan notifikasi untuk melanjutkan"
+- body: "SPARTA memakai notifikasi untuk approval laporan, revisi, dan PJUM. Anda wajib mengaktifkan notifikasi agar tidak melewatkan proses bisnis."
+- primary button: "Aktifkan notifikasi"
+- secondary action: "Logout"
+- status helper:
+  - "Menunggu izin browser" untuk permission `default`,
+  - "Izin diblokir browser" untuk permission `denied`,
+  - "Menyimpan perangkat..." saat subscribe,
+  - "Perangkat ini tidak mendukung notifikasi native" jika unsupported.
+
+Gate tidak memakai tombol skip.
+
+Jika permission denied, primary button berubah menjadi "Cek ulang izin" karena prompt browser tidak bisa dipanggil lagi.
+
 ### Header Bell
 
 Bell tetap berada di kanan atas site header sesuai implementasi saat ini.
@@ -526,7 +620,8 @@ State:
 - unread: badge angka kecil,
 - loading: skeleton ringkas di dropdown,
 - empty: teks "Belum ada notifikasi",
-- unsupported push: tidak menampilkan tombol aktivasi native, hanya in-app notification.
+- unsupported push: tampilkan label "Notifikasi perangkat tidak didukung di perangkat ini",
+- permission denied: tampilkan label "Izin notifikasi diblokir browser".
 
 Konten dropdown:
 
@@ -538,6 +633,9 @@ Konten dropdown:
   - waktu relatif,
   - titik unread,
   - klik menuju `href` dan mark read.
+- status perangkat:
+  - "Perangkat aktif menerima notifikasi" jika subscription aktif,
+  - "Notifikasi wajib diaktifkan" jika belum aktif.
 
 ### Settings Optional
 
@@ -563,6 +661,7 @@ Implementasi sebaiknya dibagi menjadi 6 tahap:
    - tambah env VAPID,
    - tambah helper convert VAPID key,
    - tambah subscribe/unsubscribe API,
+   - tambah status API untuk mengecek subscription perangkat saat ini,
    - update service worker push/click handler.
 
 3. Notification domain
@@ -575,7 +674,8 @@ Implementasi sebaiknya dibagi menjadi 6 tahap:
    - ubah placeholder bell menjadi daftar notifikasi,
    - unread badge,
    - mark read,
-   - enable native notification button.
+   - enable native notification button,
+   - mandatory notification gate di shell/layout setelah login.
 
 5. Business action integration
    - submit report,
@@ -614,6 +714,10 @@ Implementasi sebaiknya dibagi menjadi 6 tahap:
   - requires auth,
   - upserts endpoint,
   - does not allow user override.
+- push status route:
+  - requires auth,
+  - returns active status for the current endpoint/subscription,
+  - never exposes subscriptions from other users.
 
 - read route:
   - only marks current user's notification.
@@ -621,6 +725,12 @@ Implementasi sebaiknya dibagi menjadi 6 tahap:
 ### Manual QA
 
 - Login BMS, enable native notification.
+- Login BMS in supported browser with notification not enabled.
+- Confirm page is blocked by mandatory gate.
+- Click "Aktifkan notifikasi" and allow browser prompt.
+- Confirm gate disappears after subscription is saved.
+- Set site permission to blocked.
+- Confirm gate remains and shows manual browser instruction.
 - Login BMC in another browser/profile, enable native notification.
 - BMS submit report.
 - Confirm:
@@ -630,24 +740,26 @@ Implementasi sebaiknya dibagi menjadi 6 tahap:
 - BMC approve estimation.
 - Confirm BMS receives notification and link opens `/reports/[reportNumber]`.
 - Repeat for completion review and final BNM approval.
-- Disable notification permission and confirm in-app notification still works.
+- Use unsupported browser/context if available and confirm app falls back to in-app notification without blocking.
 
 ## Rollout Plan
 
 1. Deploy schema and code with notification UI disabled behind a constant or env flag if desired.
 2. Enable in-app notification first.
-3. Enable Web Push subscription UI for internal users.
+3. Enable Web Push subscription UI for internal users without mandatory gate.
 4. Test BMS/BMC/BNM devices.
-5. Enable broadly after one business cycle.
+5. Enable mandatory gate for internal users.
+6. Enable mandatory gate broadly after one business cycle.
 
 Recommended feature flag:
 
 ```env
 NEXT_PUBLIC_NOTIFICATIONS_ENABLED=true
 NEXT_PUBLIC_WEB_PUSH_ENABLED=true
+NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED=true
 ```
 
-If environment flags are not desired, ship both enabled but gracefully hide native activation when VAPID public key is missing.
+If environment flags are not desired, ship both enabled but keep mandatory gate disabled until VAPID keys and service worker behavior are verified in production.
 
 ## Open Decisions
 
@@ -657,14 +769,15 @@ The following decisions are intentionally fixed for the first implementation:
 - Email fallback remains only for existing PJUM approval flow.
 - No realtime websocket.
 - No outbox worker in first version.
-- Native push permission is always opt-in by user click.
+- Native push permission prompt is triggered by user click, but application access is blocked until subscription is active on supported devices.
 - Notification payload excludes sensitive details.
+- Unsupported devices/browsers are allowed to continue with in-app notification fallback.
 
 ## Spec Self-Review
 
 - No placeholder sections remain.
 - Scope is implementable as one feature with staged tasks.
 - Architecture keeps business transactions separate from push delivery.
-- Native push behavior accounts for PWA/browser limitations.
+- Native push behavior accounts for PWA/browser limitations and explicitly handles mandatory access gating.
 - Flow table covers BMS to BMC to BNM and PJUM.
 - UI uses existing shadcn-compatible header pattern and avoids creating a separate notification page in the first iteration.
