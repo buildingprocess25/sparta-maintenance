@@ -192,6 +192,27 @@ CLEANUP_PENDING_EXPIRY_DAYS="14"
 MAINTENANCE_MODE="false"
 ```
 
+### Native Notifications
+
+SPARTA Maintenance uses persistent in-app notifications and optional PWA Web Push delivery.
+
+Generate VAPID keys:
+
+```bash
+npx tsx scripts/generate-vapid-keys.ts
+```
+
+Required production env:
+
+- `NEXT_PUBLIC_NOTIFICATIONS_ENABLED=true`
+- `NEXT_PUBLIC_WEB_PUSH_ENABLED=true`
+- `NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED=true` after push is verified
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT`
+
+Do not enable `NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED=true` until service worker registration and Web Push delivery have been verified on production.
+
 Migrasi production/staging:
 
 ```bash

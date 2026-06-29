@@ -506,6 +506,15 @@ Google integration:
 - Google Drive API untuk arsip PDF.
 - Google Drive CDN/proxy untuk foto.
 
+## Notifications
+
+- Business notifications are stored in `Notification`.
+- Device push subscriptions are stored in `PushSubscription`.
+- Web Push delivery uses `web-push` and `public/sw.js`.
+- The authenticated dashboard shell owns the mandatory notification gate.
+- Business actions should call `dispatchNotificationEvent` after successful transactions, not inside Prisma transactions.
+- Keep notification dispatch non-fatal for report and PJUM workflows.
+
 ## 20. Testing dan Verifikasi
 
 Tidak ada test suite lengkap yang stabil. File `.spec.ts` dan `.test.ts` ada untuk helper tertentu.
