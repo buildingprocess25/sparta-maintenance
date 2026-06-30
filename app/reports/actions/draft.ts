@@ -45,6 +45,10 @@ export async function discardLocalDraftFiles(fileKeys: string[]) {
             return { success: true };
         }
 
+        if (!process.env.UPLOADTHING_TOKEN) {
+            return { success: true };
+        }
+
         const { UTApi } = await import("uploadthing/server");
         const utapi = new UTApi();
         await utapi.deleteFiles(fileKeys);
