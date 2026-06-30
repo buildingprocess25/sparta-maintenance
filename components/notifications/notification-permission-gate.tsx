@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { BellRing, LogOut, RefreshCw } from "lucide-react";
-import { logoutAction } from "@/app/dashboard/action";
+import { useEffect, useState } from "react";
+import { BellRing, RefreshCw, X } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { usePushSubscription } from "./use-push-subscription";
@@ -10,6 +9,7 @@ import { usePushSubscription } from "./use-push-subscription";
 const REQUIRED_ROLES = new Set(["BMS", "BMC", "BNM_MANAGER", "ADMIN"]);
 
 export function NotificationPermissionGate({ role }: { role: string }) {
+    const [dismissed, setDismissed] = useState(false);
     const { state, isBusy, errorMessage, refresh, subscribe } =
         usePushSubscription();
 
@@ -24,7 +24,7 @@ export function NotificationPermissionGate({ role }: { role: string }) {
         }
     }, [enabled, isBusy, role, state, subscribe]);
 
-    if (!enabled || !REQUIRED_ROLES.has(role)) return null;
+    if (!enabled || dismissed || !REQUIRED_ROLES.has(role)) return null;
 
     if (state === "checking" || state === "unsupported" || state === "active") {
         return null;
@@ -62,12 +62,14 @@ export function NotificationPermissionGate({ role }: { role: string }) {
                             {isBusy ? "Mengaktifkan..." : "Aktifkan notifikasi"}
                         </Button>
                     )}
-                    <form action={logoutAction}>
-                        <Button type="submit" variant="ghost">
-                            <LogOut data-icon="inline-start" />
-                            Logout
-                        </Button>
-                    </form>
+                    <Button
+                        type="button"
+                        variant="ghost"
+                        onClick={() => setDismissed(true)}
+                    >
+                        <X data-icon="inline-start" />
+                        Tutup
+                    </Button>
                 </div>
                 {denied ? (
                     <p className="mt-3 text-sm text-muted-foreground">

@@ -35,6 +35,18 @@ export type ReportExportRow = {
     totalReal: number | null;
     finishedAt: Date | null;
     pjumExportedAt: Date | null;
+    submittedAt: Date | null;
+    resubmittedEstimationAt: Date | null;
+    estimationApprovedAt: Date | null;
+    estimationRejectedRevisionAt: Date | null;
+    estimationRejectedAt: Date | null;
+    workStartedAt: Date | null;
+    completionSubmittedAt: Date | null;
+    resubmittedWorkAt: Date | null;
+    workApprovedAt: Date | null;
+    workRejectedRevisionAt: Date | null;
+    finalApprovedBnmAt: Date | null;
+    finalRejectedRevisionBnmAt: Date | null;
 };
 
 // ─── Sheet 2: Material/estimation rows (flattened from Report.estimations JSON)
@@ -183,23 +195,60 @@ export async function fetchReportExportRows(
                 totalReal: true,
                 finishedAt: true,
                 pjumExportedAt: true,
+                activities: {
+                    orderBy: { createdAt: "asc" },
+                    select: {
+                        action: true,
+                        createdAt: true,
+                    },
+                },
             },
         });
 
-        return reports.map((r) => ({
-            reportNumber: r.reportNumber,
-            createdAt: r.createdAt,
-            branchName: r.branchName,
-            storeCode: r.storeCode,
-            storeName: r.storeName,
-            bmsNIK: r.createdByNIK,
-            bmsName: r.createdBy.name,
-            status: r.status,
-            totalEstimation: Number(r.totalEstimation),
-            totalReal: r.totalReal !== null ? Number(r.totalReal) : null,
-            finishedAt: r.finishedAt,
-            pjumExportedAt: r.pjumExportedAt,
-        }));
+        return reports.map((r) => {
+            const actionTimes = new Map<string, Date>();
+            for (const activity of r.activities) {
+                if (!actionTimes.has(activity.action)) {
+                    actionTimes.set(activity.action, activity.createdAt);
+                }
+            }
+
+            return {
+                reportNumber: r.reportNumber,
+                createdAt: r.createdAt,
+                branchName: r.branchName,
+                storeCode: r.storeCode,
+                storeName: r.storeName,
+                bmsNIK: r.createdByNIK,
+                bmsName: r.createdBy.name,
+                status: r.status,
+                totalEstimation: Number(r.totalEstimation),
+                totalReal: r.totalReal !== null ? Number(r.totalReal) : null,
+                finishedAt: r.finishedAt,
+                pjumExportedAt: r.pjumExportedAt,
+                submittedAt: actionTimes.get("SUBMITTED") ?? null,
+                resubmittedEstimationAt:
+                    actionTimes.get("RESUBMITTED_ESTIMATION") ?? null,
+                estimationApprovedAt:
+                    actionTimes.get("ESTIMATION_APPROVED") ?? null,
+                estimationRejectedRevisionAt:
+                    actionTimes.get("ESTIMATION_REJECTED_REVISION") ?? null,
+                estimationRejectedAt:
+                    actionTimes.get("ESTIMATION_REJECTED") ?? null,
+                workStartedAt: actionTimes.get("WORK_STARTED") ?? null,
+                completionSubmittedAt:
+                    actionTimes.get("COMPLETION_SUBMITTED") ?? null,
+                resubmittedWorkAt:
+                    actionTimes.get("RESUBMITTED_WORK") ?? null,
+                workApprovedAt: actionTimes.get("WORK_APPROVED") ?? null,
+                workRejectedRevisionAt:
+                    actionTimes.get("WORK_REJECTED_REVISION") ?? null,
+                finalApprovedBnmAt:
+                    actionTimes.get("FINAL_APPROVED_BNM") ?? null,
+                finalRejectedRevisionBnmAt:
+                    actionTimes.get("FINAL_REJECTED_REVISION_BNM") ?? null,
+            };
+        });
     } catch (error) {
         logger.error(
             {
