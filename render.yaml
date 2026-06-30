@@ -12,15 +12,29 @@ services:
             sync: false
           - key: DIRECT_URL
             sync: false
+          - key: DATABASE_POOL_MAX
+            value: "5"
+          - key: DATABASE_IDLE_TIMEOUT_MS
+            value: "10000"
+          - key: DATABASE_CONNECTION_TIMEOUT_MS
+            value: "10000"
           - key: SESSION_SECRET
-            sync: false
-          - key: NEXT_PUBLIC_SUPABASE_URL
-            sync: false
-          - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
             sync: false
           - key: APP_BASE_URL
             sync: false
           - key: NEXT_PUBLIC_APP_URL
+            sync: false
+          - key: NEXT_PUBLIC_NOTIFICATIONS_ENABLED
+            value: "true"
+          - key: NEXT_PUBLIC_WEB_PUSH_ENABLED
+            value: "true"
+          - key: NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED
+            value: "true"
+          - key: NEXT_PUBLIC_VAPID_PUBLIC_KEY
+            sync: false
+          - key: VAPID_PRIVATE_KEY
+            sync: false
+          - key: VAPID_SUBJECT
             sync: false
           - key: GMAIL_USER
             sync: false
@@ -44,5 +58,11 @@ services:
             sync: false
           - key: CLEANUP_PENDING_EXPIRY_DAYS
             value: "14"
-          - key: UPLOADTHING_TOKEN
+          - key: DRIVE_CDN_CLIENT_ID
+            sync: false
+          - key: DRIVE_CDN_CLIENT_SECRET
+            sync: false
+          - key: DRIVE_CDN_REFRESH_TOKEN
+            sync: false
+          - key: DRIVE_CDN_ROOT_FOLDER_ID
             sync: false

@@ -228,12 +228,16 @@ Session is JWT-based, stored in httpOnly cookie, valid for 8 hours.
 **Required:**
 - `DATABASE_URL`: Pooled connection string
 - `DIRECT_URL`: Non-pooled connection (for migrations)
+- `DATABASE_POOL_MAX`, `DATABASE_IDLE_TIMEOUT_MS`, `DATABASE_CONNECTION_TIMEOUT_MS`: pg pool tuning
 - `SESSION_SECRET`: JWT secret (min 32 chars)
+- `APP_BASE_URL`: Server-side app URL for generated links/PDF
 - `NEXT_PUBLIC_APP_URL`: Public app URL
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`: Gmail OAuth
 - `GMAIL_USER`: Sender email address
 - `GOOGLE_DRIVE_ROOT_FOLDER_ID`: Drive folder for PDF archives
 - `DRIVE_CDN_*`: Drive CDN credentials (if using separate OAuth client)
+- `NEXT_PUBLIC_NOTIFICATIONS_ENABLED`, `NEXT_PUBLIC_WEB_PUSH_ENABLED`, `NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED`: notification feature flags
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`: Web Push keys
 
 **Optional:**
 - `CRON_SECRET`: Token for cron endpoints
