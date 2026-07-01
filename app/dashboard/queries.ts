@@ -5,7 +5,19 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
-import { formatJakartaDate } from "@/lib/time";
+import {
+    formatJakartaDate,
+    getJakartaDayKey,
+    getJakartaMonth,
+    getJakartaMonthKey,
+    getJakartaMonthWindow,
+    getJakartaStartOfRecentDays,
+    getJakartaStartOfRecentMonths,
+    getJakartaTodayStart,
+    getJakartaWeekStartKey,
+    getJakartaYear,
+    getJakartaYearWindow,
+} from "@/lib/time";
 
 /**
  * Fetch report statistics for a BMS user (their own reports, all time).
@@ -704,11 +716,7 @@ export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
 // ─── YTD helper ───────────────────────────────────────────────────────────────
 
 function getYtdStart(): Date {
-    const d = new Date();
-    d.setMonth(0);
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return getJakartaYearWindow(getJakartaYear()).start;
 }
 
 export async function getAdminVisibleOnlineUserCount(): Promise<number> {
@@ -853,15 +861,16 @@ const ADMIN_STATUS_ORDER = [
 ];
 
 function getMonthKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return getJakartaMonthKey(date);
 }
 
 function getMonthLabel(date: Date): string {
-    return `${MONTH_LABELS[date.getMonth()]} ${date.getFullYear()}`;
+    const month = getJakartaMonth(date);
+    return `${MONTH_LABELS[month - 1]} ${getJakartaYear(date)}`;
 }
 
 function getDayKey(date: Date): string {
-    return date.toISOString().slice(0, 10);
+    return getJakartaDayKey(date);
 }
 
 function getDayLabel(date: Date): string {
@@ -870,13 +879,11 @@ function getDayLabel(date: Date): string {
 
 function getRecentMonthKeys(count: number): { key: string; label: string }[] {
     const months: { key: string; label: string }[] = [];
-    const current = new Date();
-    current.setDate(1);
-    current.setHours(0, 0, 0, 0);
+    const currentYear = getJakartaYear();
+    const currentMonth = getJakartaMonth();
 
     for (let i = count - 1; i >= 0; i--) {
-        const date = new Date(current);
-        date.setMonth(current.getMonth() - i);
+        const date = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
         months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
     }
 
@@ -885,10 +892,11 @@ function getRecentMonthKeys(count: number): { key: string; label: string }[] {
 
 function getYtdMonthKeys(): { key: string; label: string }[] {
     const months: { key: string; label: string }[] = [];
-    const now = new Date();
+    const year = getJakartaYear();
+    const currentMonth = getJakartaMonth();
 
-    for (let month = 0; month <= now.getMonth(); month++) {
-        const date = new Date(now.getFullYear(), month, 1);
+    for (let month = 1; month <= currentMonth; month++) {
+        const date = new Date(Date.UTC(year, month - 1, 1));
         months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
     }
 
@@ -897,12 +905,10 @@ function getYtdMonthKeys(): { key: string; label: string }[] {
 
 function getRecentDayKeys(count: number): { key: string; label: string }[] {
     const days: { key: string; label: string }[] = [];
-    const current = new Date();
-    current.setHours(0, 0, 0, 0);
+    const current = getJakartaTodayStart();
 
     for (let i = count - 1; i >= 0; i--) {
-        const date = new Date(current);
-        date.setDate(current.getDate() - i);
+        const date = new Date(current.getTime() - i * 86_400_000);
         days.push({ key: getDayKey(date), label: getDayLabel(date) });
     }
 
@@ -910,18 +916,11 @@ function getRecentDayKeys(count: number): { key: string; label: string }[] {
 }
 
 function getStartOfRecentMonths(count: number): Date {
-    const d = new Date();
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    d.setMonth(d.getMonth() - (count - 1));
-    return d;
+    return getJakartaStartOfRecentMonths(count);
 }
 
 function getStartOfRecentDays(count: number): Date {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() - (count - 1));
-    return d;
+    return getJakartaStartOfRecentDays(count);
 }
 
 function getTrendWindow(period: string): {
@@ -932,24 +931,21 @@ function getTrendWindow(period: string): {
 } {
     if (/^\d{2}-\d{4}$/.test(period)) {
         const [mStr, yStr] = period.split("-");
-        const month = parseInt(mStr, 10) - 1;
+        const month = parseInt(mStr, 10);
         const year = parseInt(yStr, 10);
-        
-        const start = new Date(year, month, 1);
-        const nextMonth = new Date(year, month + 1, 1);
+        const { start, endExclusive } = getJakartaMonthWindow(year, month);
         const days = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
+        const today = getJakartaTodayStart();
         const current = new Date(start);
-        while (current < nextMonth && current <= today) {
+
+        while (current < endExclusive && current <= today) {
             days.push({ key: getDayKey(current), label: getDayLabel(current) });
-            current.setDate(current.getDate() + 1);
+            current.setTime(current.getTime() + 86_400_000);
         }
-        
+
         return {
             start,
-            end: nextMonth,
+            end: endExclusive,
             buckets: days,
             bucketKey: getDayKey,
         };
@@ -991,12 +987,7 @@ function calculateAgeDays(date: Date): number {
 }
 
 function getWeekKey(date: Date): string {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diffToMonday);
-    return d.toISOString().slice(0, 10);
+    return getJakartaWeekStartKey(date);
 }
 
 function averageMapValues(map: Map<string, number>): number {
@@ -1696,8 +1687,7 @@ export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
             if (!branchMap.has(r.branchName)) branchMap.set(r.branchName, []);
             branchMap.get(r.branchName)!.push(val);
 
-            const d = r.createdAt;
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            const key = getJakartaMonthKey(r.createdAt);
             if (!monthMap.has(key)) monthMap.set(key, []);
             monthMap.get(key)!.push(val);
 
@@ -1719,18 +1709,19 @@ export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
             }))
             .sort((a, b) => b.avg - a.avg);
 
-        // Build ordered list from Jan to current month
-        const now = new Date();
+        // Build ordered list from January to the current Jakarta month.
+        const currentYear = getJakartaYear();
+        const currentMonth = getJakartaMonth();
         const buildMonthStats = (
             source: Map<string, number[]>,
         ): RealisasiMonthStat[] => {
             const stats: RealisasiMonthStat[] = [];
-            for (let m = 0; m <= now.getMonth(); m++) {
-                const key = `${now.getFullYear()}-${String(m + 1).padStart(2, "0")}`;
+            for (let month = 1; month <= currentMonth; month++) {
+                const key = `${currentYear}-${String(month).padStart(2, "0")}`;
                 const vals = source.get(key) ?? [];
                 stats.push({
                     yearMonth: key,
-                    label: `${MONTH_LABELS[m]} ${now.getFullYear()}`,
+                    label: `${MONTH_LABELS[month - 1]} ${currentYear}`,
                     count: vals.length,
                     avg:
                         vals.length > 0

@@ -11,6 +11,7 @@ import {
 import { buildDriveFolderUrl } from "@/lib/google-drive/archive";
 import { logger } from "@/lib/logger";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
+import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
 import type {
     MaterialEstimationJson,
     ReportItemJson,
@@ -489,9 +490,9 @@ async function generatePjumAddendumPages(
     const fromDate = pjumExport.fromDate;
     const monthName = fromDate.toLocaleDateString("id-ID", {
         month: "long",
-        timeZone: "Asia/Jakarta",
+        timeZone: JAKARTA_TIME_ZONE,
     });
-    const year = fromDate.getFullYear();
+    const year = getJakartaYear(fromDate);
 
     const formBuffer = await generatePjumFormPdf(
         {

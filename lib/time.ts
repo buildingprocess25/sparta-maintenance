@@ -30,6 +30,7 @@ const JAKARTA_PARTS_FORMATTER = new Intl.DateTimeFormat("en-CA", {
 
 const EXCEL_DATE_OFFSET = 25569;
 const MS_PER_DAY = 86_400_000;
+const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 export function formatJakartaDateTime(value: Date | string | null | undefined) {
     if (!value) return "";
@@ -46,7 +47,10 @@ export function getJakartaDayRange(dateKey: string) {
     if (!match) throw new Error(`Invalid date key: ${dateKey}`);
 
     const [, year, month, day] = match;
-    const start = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)) - 7 * 60 * 60 * 1000);
+    const start = new Date(
+        Date.UTC(Number(year), Number(month) - 1, Number(day)) -
+            JAKARTA_OFFSET_MS,
+    );
     const endExclusive = new Date(start.getTime() + MS_PER_DAY);
 
     return { start, endExclusive };
@@ -57,6 +61,66 @@ export function getJakartaDateRange(fromDate?: string, toDate?: string) {
         start: fromDate ? getJakartaDayRange(fromDate).start : undefined,
         endExclusive: toDate ? getJakartaDayRange(toDate).endExclusive : undefined,
     };
+}
+
+export function getJakartaYear(value: Date | string = new Date()) {
+    return Number(getJakartaParts(new Date(value)).year);
+}
+
+export function getJakartaMonth(value: Date | string = new Date()) {
+    return Number(getJakartaParts(new Date(value)).month);
+}
+
+export function getJakartaDayKey(value: Date | string = new Date()) {
+    const parts = getJakartaParts(new Date(value));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+export function getJakartaMonthKey(value: Date | string = new Date()) {
+    const parts = getJakartaParts(new Date(value));
+    return `${parts.year}-${parts.month}`;
+}
+
+export function getJakartaCurrentQuarter(
+    value: Date | string = new Date(),
+): 1 | 2 | 3 | 4 {
+    const month = getJakartaMonth(value);
+    if (month <= 3) return 1;
+    if (month <= 6) return 2;
+    if (month <= 9) return 3;
+    return 4;
+}
+
+export function getJakartaWeekStartKey(value: Date | string) {
+    const parts = getJakartaParts(new Date(value));
+    const utcDayStart = Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day),
+    );
+    const day = new Date(utcDayStart).getUTCDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    return new Date(utcDayStart + diffToMonday * MS_PER_DAY)
+        .toISOString()
+        .slice(0, 10);
+}
+
+export function getJakartaStartOfRecentDays(count: number, now = new Date()) {
+    const { start } = getTodayJakartaRange(now);
+    return new Date(start.getTime() - (count - 1) * MS_PER_DAY);
+}
+
+export function getJakartaStartOfRecentMonths(count: number, now = new Date()) {
+    const year = getJakartaYear(now);
+    const month = getJakartaMonth(now);
+    const firstMonth = new Date(Date.UTC(year, month - count, 1));
+
+    return getJakartaDayRange(
+        `${firstMonth.getUTCFullYear()}-${String(
+            firstMonth.getUTCMonth() + 1,
+        ).padStart(2, "0")}-01`,
+    ).start;
 }
 
 export function getJakartaMonthWindow(year: number, month: number) {
@@ -91,11 +155,11 @@ export function getJakartaQuarterWindow(year: number, quarter: 1 | 2 | 3 | 4) {
 }
 
 export function getJakartaQuarterKey(value: Date | string) {
-    const month = Number(getJakartaParts(new Date(value)).month);
-    if (month <= 3) return "q1";
-    if (month <= 6) return "q2";
-    if (month <= 9) return "q3";
-    return "q4";
+    return `q${getJakartaCurrentQuarter(value)}` as
+        | "q1"
+        | "q2"
+        | "q3"
+        | "q4";
 }
 
 export function toExcelJakartaSerial(value: Date | string | null | undefined) {

@@ -6,7 +6,17 @@ import { getPjumPolicySettings, getReportSlaDays } from "@/lib/app-settings";
 import { getAuthUser, type AuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import type { ReportStatusKey } from "@/lib/report-status";
-import { formatJakartaDate } from "@/lib/time";
+import {
+    formatJakartaDate,
+    getJakartaCurrentQuarter,
+    getJakartaDayKey,
+    getJakartaDayRange,
+    getJakartaQuarterWindow,
+    getJakartaTodayStart,
+    getJakartaWeekStartKey,
+    getJakartaYear,
+    getJakartaYearWindow,
+} from "@/lib/time";
 
 const ACTIVE_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
@@ -103,18 +113,11 @@ function normalizeBranchNames(branchNames: string[]) {
 }
 
 function startOfToday() {
-    const date = new Date();
-    date.setHours(0, 0, 0, 0);
-    return date;
+    return getJakartaTodayStart();
 }
 
 function getWeekStart(date: Date) {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diffToMonday);
-    return d;
+    return getJakartaDayRange(getJakartaWeekStartKey(date)).start;
 }
 
 function getPeriodWindow(filters: BmsPerformanceFilters) {
@@ -125,21 +128,20 @@ function getPeriodWindow(filters: BmsPerformanceFilters) {
         ? (filters.period as BmsPerformancePeriod)
         : "quarter";
 
-    const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
-
     if (period === "quarter") {
-        const quarterStartMonth = Math.floor(now.getMonth() / 3) * 3;
-        start.setMonth(quarterStartMonth, 1);
+        const { start } = getJakartaQuarterWindow(
+            getJakartaYear(now),
+            getJakartaCurrentQuarter(now),
+        );
         return { period, start, end: now };
     }
 
     if (period === "ytd") {
-        start.setMonth(0, 1);
+        const { start } = getJakartaYearWindow(getJakartaYear(now));
         return { period, start, end: now };
     }
 
-    start.setMonth(0, 1);
+    const { start } = getJakartaYearWindow(getJakartaYear(now));
     return { period: "ytd" as const, start, end: now };
 }
 
@@ -151,11 +153,11 @@ function getDateFilter(window: { start: Date; end: Date }) {
 }
 
 function getWeekKey(date: Date): string {
-    return getWeekStart(date).toISOString().slice(0, 10);
+    return getJakartaWeekStartKey(date);
 }
 
 function getWeekLabel(weekKey: string): string {
-    const date = new Date(weekKey);
+    const date = getJakartaDayRange(weekKey).start;
     return formatJakartaDate(date);
 }
 
@@ -165,8 +167,8 @@ function getWeekKeysInWindow(window: { start: Date; end: Date }) {
     const end = getWeekStart(window.end);
 
     while (cursor <= end) {
-        keys.push(cursor.toISOString().slice(0, 10));
-        cursor.setDate(cursor.getDate() + 7);
+        keys.push(getJakartaDayKey(cursor));
+        cursor.setTime(cursor.getTime() + 7 * 86_400_000);
     }
 
     return keys.length > 0 ? keys : [getWeekKey(window.start)];

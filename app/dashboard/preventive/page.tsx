@@ -5,6 +5,7 @@ import { getAdminBranchOptions } from "../queries";
 import { getAdminPreventive, getReportYears } from "./actions";
 import { AdminPreventiveTable } from "./_components/admin-preventive-table";
 import { ExportPreventiveDialog } from "./_components/export-preventive-dialog";
+import { getJakartaYear } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function AdminPreventivePage() {
     }
 
     const isAdmin = user.role === "ADMIN";
-    const currentYear = new Date().getFullYear();
+    const currentYear = getJakartaYear();
     const defaultBranch = "all";
 
     const [branchOptions, years, initialData] = await Promise.all([

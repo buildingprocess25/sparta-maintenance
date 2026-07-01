@@ -8,6 +8,7 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
 import { isReportStatusKey } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
+import { getJakartaDateRange } from "@/lib/time";
 
 export type AdminReportFilters = {
     search?: string;
@@ -213,15 +214,15 @@ export async function getAdminReports(
         }
 
         if (filters.fromDate || filters.toDate) {
-            where.createdAt = {};
-            if (filters.fromDate) {
-                where.createdAt.gte = new Date(filters.fromDate);
-            }
-            if (filters.toDate) {
-                const end = new Date(filters.toDate);
-                end.setHours(23, 59, 59, 999);
-                where.createdAt.lte = end;
-            }
+            const { start, endExclusive } = getJakartaDateRange(
+                filters.fromDate,
+                filters.toDate,
+            );
+
+            where.createdAt = {
+                ...(start ? { gte: start } : {}),
+                ...(endExclusive ? { lt: endExclusive } : {}),
+            };
         }
 
         if (filters.pjumStatus && filters.pjumStatus !== "all") {

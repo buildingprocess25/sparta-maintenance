@@ -71,7 +71,12 @@ import {
     getPjumStatusLabel,
     PJUM_STATUS_OPTIONS,
 } from "@/lib/pjum-status";
-import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
+import {
+    formatJakartaDate,
+    formatJakartaDateTime,
+    getJakartaDayKey,
+    getJakartaDayRange,
+} from "@/lib/time";
 
 type Props = {
     bmsUsers: PjumBmsUser[];
@@ -124,17 +129,11 @@ function buildPjumPdfUrl(params: {
 }
 
 function toIsoDate(d: Date): string {
-    return [
-        d.getFullYear(),
-        String(d.getMonth() + 1).padStart(2, "0"),
-        String(d.getDate()).padStart(2, "0"),
-    ].join("-");
+    return getJakartaDayKey(d);
 }
 
 function startOfDay(date: Date): Date {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return getJakartaDayRange(getJakartaDayKey(date)).start;
 }
 
 function findOverlappingRange(

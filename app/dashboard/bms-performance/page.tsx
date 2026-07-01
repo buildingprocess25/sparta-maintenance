@@ -4,9 +4,7 @@ import { redirect } from "next/navigation";
 import {
     Activity,
     ArrowUpRight,
-    ArrowLeft,
     CheckCircle2,
-    FileWarning,
     TimerReset,
     UserRound,
     Wallet,
@@ -41,6 +39,7 @@ import {
 } from "@/components/ui/sheet";
 import { getAuthUser } from "@/lib/authorization";
 import { cn } from "@/lib/utils";
+import { formatJakartaDateTime } from "@/lib/time";
 import { BmsPerformanceChart } from "./_components/bms-performance-chart";
 import { BmsPerformancePeriodFilter } from "./_components/bms-performance-period-filter";
 import {
@@ -76,13 +75,7 @@ function formatShortRp(value: number) {
 
 function formatDateTime(date: Date | null) {
     if (!date) return "-";
-    return date.toLocaleString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return formatJakartaDateTime(date);
 }
 
 function formatDuration(hours: number | null) {

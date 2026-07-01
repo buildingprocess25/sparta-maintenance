@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { getJakartaYear } from "@/lib/time";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ function parsePeriodValue(raw: string): { selectVal: string; year: string } {
   if (match) return { selectVal: match[1], year: match[2] };
   return {
     selectVal: "ytd",
-    year: String(new Date().getFullYear()),
+    year: String(getJakartaYear()),
   };
 }
 
@@ -150,7 +151,7 @@ export function RealisasiFilter({
           defaultValue={year}
           onBlur={handleYearBlur}
           onKeyDown={handleYearKeyDown}
-          placeholder={String(new Date().getFullYear())}
+          placeholder={String(getJakartaYear())}
           maxLength={4}
           className="h-8 w-16 text-xs"
         />

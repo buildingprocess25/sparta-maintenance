@@ -50,25 +50,17 @@ import {
     getReportStatusLabel,
 } from "@/lib/report-status";
 import {
+    formatJakartaDate,
+    formatJakartaDateTime,
+    getJakartaYear,
+    getTodayJakartaDateKey,
+} from "@/lib/time";
+import {
     AdminPreventiveResult,
     PreventiveQuarter,
     PreventiveRow,
     getAdminPreventive,
 } from "../actions";
-
-const preventiveDateFormatter = new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-});
-
-const preventiveDateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-});
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
     { value: 1, label: "Triwulan 1", period: "Jan-Mar" },
@@ -81,21 +73,21 @@ const PENDING_PAGE_SIZE = 30;
 const HISTORY_PAGE_SIZE = 30;
 
 function getCurrentQuarter(): PreventiveQuarter {
-    const month = new Date().getMonth();
-    if (month <= 2) return 1;
-    if (month <= 5) return 2;
-    if (month <= 8) return 3;
+    const month = Number(getTodayJakartaDateKey().slice(5, 7));
+    if (month <= 3) return 1;
+    if (month <= 6) return 2;
+    if (month <= 9) return 3;
     return 4;
 }
 
 function formatDate(value: string | null) {
     if (!value) return "-";
-    return preventiveDateFormatter.format(new Date(value));
+    return formatJakartaDate(value);
 }
 
 function formatDateTime(value: string | null) {
     if (!value) return "-";
-    return preventiveDateTimeFormatter.format(new Date(value));
+    return formatJakartaDateTime(value);
 }
 
 function getQuarterInfo(row: PreventiveRow, quarter: PreventiveQuarter) {
@@ -241,7 +233,7 @@ export function AdminPreventiveTable({
     showBranchControls?: boolean;
     actions?: ReactNode;
 }) {
-    const currentYear = new Date().getFullYear();
+    const currentYear = getJakartaYear();
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialData.nextCursor,

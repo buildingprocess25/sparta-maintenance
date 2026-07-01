@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import {
     AlertTriangle,
     CalendarDays,
@@ -53,17 +51,14 @@ import {
     getReportStatusLabel,
 } from "@/lib/report-status";
 import { cn } from "@/lib/utils";
+import { formatJakartaDate, getJakartaDayKey } from "@/lib/time";
 
 type CreatePjumDialogProps = {
     bmsUsers: DashboardPjumBmsUser[];
 };
 
 function toDateInputValue(date: Date) {
-    return [
-        date.getFullYear(),
-        String(date.getMonth() + 1).padStart(2, "0"),
-        String(date.getDate()).padStart(2, "0"),
-    ].join("-");
+    return getJakartaDayKey(date);
 }
 
 function getDefaultDateRange() {
@@ -79,7 +74,7 @@ function getDefaultDateRange() {
 
 function formatDate(iso: string | null) {
     if (!iso) return "-";
-    return format(new Date(iso), "dd MMM yyyy", { locale: id });
+    return formatJakartaDate(iso);
 }
 
 function formatCurrency(value: number) {

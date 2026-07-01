@@ -11,6 +11,7 @@ import {
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { getTodayJakartaDateKey } from "@/lib/time";
 
 type ApprovalReviewTourProps = {
     enabled: boolean;
@@ -268,7 +269,7 @@ function ApprovalTourTooltip({
 }
 
 function getTodayKey() {
-    return new Date().toISOString().slice(0, 10);
+    return getTodayJakartaDateKey();
 }
 
 function getVisibleCheckboxChecked() {

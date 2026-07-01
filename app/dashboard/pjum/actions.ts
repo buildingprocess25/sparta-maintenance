@@ -102,15 +102,6 @@ function parsePjumDateRange(input: { from: string; to: string }) {
         throw new Error("Rentang tanggal tidak valid");
     }
 
-    // endExclusive is midnight of the next day.
-    // For inclusive comparison that some legacy codes might need, we can keep the toDate
-    // as the start of the end date. However, looking at the code, it uses `toEndOfDay`
-    // mainly for `< toEndOfDay` or `<= toEndOfDay`.
-    // Wait, the original code uses:
-    // `toEndOfDay.setHours(23, 59, 59, 999);`
-    // And then `lte: toEndOfDay`.
-    // We should adapt it to return `toDate` (original inclusive date) and `toEndOfDay` (new endExclusive).
-    // Let's create an inclusive toDate for compatibility:
     const toDate = new Date(endExclusive.getTime() - 24 * 60 * 60 * 1000);
 
     return { fromDate: start, toDate, toEndOfDay: endExclusive };
@@ -567,15 +558,15 @@ export async function getAdminPjum(
         }
 
         if (filters.fromDate || filters.toDate) {
-            baseWhere.createdAt = {};
-            if (filters.fromDate) {
-                baseWhere.createdAt.gte = new Date(filters.fromDate);
-            }
-            if (filters.toDate) {
-                const end = new Date(filters.toDate);
-                end.setHours(23, 59, 59, 999);
-                baseWhere.createdAt.lte = end;
-            }
+            const { start, endExclusive } = getJakartaDateRange(
+                filters.fromDate,
+                filters.toDate,
+            );
+
+            baseWhere.createdAt = {
+                ...(start ? { gte: start } : {}),
+                ...(endExclusive ? { lt: endExclusive } : {}),
+            };
         }
 
         const where: Prisma.PjumExportWhereInput = { ...baseWhere };

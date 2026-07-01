@@ -8,6 +8,7 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
+import { JAKARTA_TIME_ZONE } from "@/lib/time";
 
 const styles = StyleSheet.create({
     page: {
@@ -176,6 +177,7 @@ function fmtCurrency(amount: number) {
 
 function fmtDate(iso: string) {
     return new Date(iso).toLocaleDateString("id-ID", {
+        timeZone: JAKARTA_TIME_ZONE,
         day: "2-digit",
         month: "short",
         year: "numeric",

@@ -6,6 +6,15 @@ import {
     DEFAULT_PJUM_POLICY_SETTINGS,
     getPjumPolicySettings,
 } from "@/lib/app-settings";
+import {
+    getJakartaMonth,
+    getJakartaMonthKey,
+    getJakartaMonthWindow,
+    getJakartaTodayStart,
+    getJakartaWeekStartKey,
+    getJakartaYear,
+    getJakartaYearWindow,
+} from "@/lib/time";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,60 +98,56 @@ const MONTH_LABELS = [
 ];
 
 function getYtdStart(): Date {
-    const d = new Date();
-    d.setMonth(0);
-    d.setDate(1);
-    d.setHours(0, 0, 0, 0);
-    return d;
+    return getJakartaYearWindow(getJakartaYear()).start;
 }
 
 function getPeriodStart(period: RealisasiPeriod): Date {
     if (period === "ytd") return getYtdStart();
 
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
+    const start = getJakartaTodayStart();
 
     if (period === "30d") {
-        d.setDate(d.getDate() - 30);
-        return d;
+        return new Date(start.getTime() - 30 * 86_400_000);
     }
     if (period === "90d") {
-        d.setDate(d.getDate() - 90);
-        return d;
+        return new Date(start.getTime() - 90 * 86_400_000);
     }
     // 12m
-    d.setMonth(d.getMonth() - 12);
-    d.setDate(1);
-    return d;
+    const year = getJakartaYear();
+    const month = getJakartaMonth();
+    const firstMonth = new Date(Date.UTC(year, month - 13, 1));
+    return getJakartaMonthWindow(
+        firstMonth.getUTCFullYear(),
+        firstMonth.getUTCMonth() + 1,
+    ).start;
 }
 
 function buildMonthBuckets(start: Date, end: Date = new Date()): { key: string; label: string }[] {
     const buckets: { key: string; label: string }[] = [];
-    const cursor = new Date(start);
-    cursor.setDate(1);
+    let year = getJakartaYear(start);
+    let month = getJakartaMonth(start);
+    const endKey = getJakartaMonthKey(end);
 
-    while (cursor <= end) {
-        const m = cursor.getMonth();
-        const y = cursor.getFullYear();
-        const key = `${y}-${String(m + 1).padStart(2, "0")}`;
-        buckets.push({ key, label: `${MONTH_LABELS[m]} ${y}` });
-        cursor.setMonth(cursor.getMonth() + 1);
+    while (`${year}-${String(month).padStart(2, "0")}` <= endKey) {
+        const key = `${year}-${String(month).padStart(2, "0")}`;
+        buckets.push({ key, label: `${MONTH_LABELS[month - 1]} ${year}` });
+
+        month += 1;
+        if (month > 12) {
+            month = 1;
+            year += 1;
+        }
     }
 
     return buckets;
 }
 
 function monthKey(date: Date): string {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    return getJakartaMonthKey(date);
 }
 
 function weekKey(date: Date): string {
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    d.setDate(d.getDate() + diffToMonday);
-    return d.toISOString().slice(0, 10);
+    return getJakartaWeekStartKey(date);
 }
 
 function averageMapValues(map?: Map<string, number>): number {
@@ -185,13 +190,15 @@ export async function getRealisasiPageData(
         let bucketEnd = new Date();
 
         if (parsed.mode === "month") {
-            start = new Date(parsed.year, parsed.month - 1, 1, 0, 0, 0, 0);
-            end = new Date(parsed.year, parsed.month, 1, 0, 0, 0, 0); // exclusive
+            const window = getJakartaMonthWindow(parsed.year, parsed.month);
+            start = window.start;
+            end = window.endExclusive;
         } else {
             start = getPeriodStart(parsed.period);
             if (parsed.period === "ytd") {
                 // For YTD, show all 12 months of the year in the chart
-                bucketEnd = new Date(start.getFullYear(), 11, 31);
+                const yearWindow = getJakartaYearWindow(getJakartaYear());
+                bucketEnd = new Date(yearWindow.endExclusive.getTime() - 1);
             }
         }
 

@@ -2,9 +2,15 @@ import assert from "node:assert/strict";
 import {
     formatJakartaDate,
     formatJakartaDateTime,
+    getJakartaCurrentQuarter,
     getJakartaDayRange,
+    getJakartaDayKey,
+    getJakartaMonthKey,
     getJakartaQuarterKey,
     getJakartaQuarterWindow,
+    getJakartaStartOfRecentDays,
+    getJakartaStartOfRecentMonths,
+    getJakartaWeekStartKey,
     getJakartaYearWindow,
     toExcelJakartaSerial,
 } from "./time";
@@ -22,3 +28,10 @@ assert.equal(getJakartaQuarterWindow(2026, 2).endExclusive.toISOString(), "2026-
 assert.equal(getJakartaQuarterKey(new Date("2026-06-30T16:59:59.000Z")), "q2");
 assert.equal(getJakartaQuarterKey(new Date("2026-06-30T17:00:00.000Z")), "q3");
 assert.equal(toExcelJakartaSerial(new Date("2026-06-30T17:00:00.000Z")), 46204);
+assert.equal(getJakartaDayKey(new Date("2026-06-30T17:00:00.000Z")), "2026-07-01");
+assert.equal(getJakartaMonthKey(new Date("2026-06-30T17:00:00.000Z")), "2026-07");
+assert.equal(getJakartaCurrentQuarter(new Date("2026-06-30T17:00:00.000Z")), 3);
+assert.equal(getJakartaWeekStartKey(new Date("2026-07-05T16:59:59.000Z")), "2026-06-29");
+assert.equal(getJakartaWeekStartKey(new Date("2026-07-05T17:00:00.000Z")), "2026-07-06");
+assert.equal(getJakartaStartOfRecentDays(3, new Date("2026-07-02T01:00:00.000Z")).toISOString(), "2026-06-29T17:00:00.000Z");
+assert.equal(getJakartaStartOfRecentMonths(3, new Date("2026-07-02T01:00:00.000Z")).toISOString(), "2026-04-30T17:00:00.000Z");

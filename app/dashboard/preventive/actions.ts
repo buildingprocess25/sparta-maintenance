@@ -9,6 +9,13 @@ import {
     getAdminBranchHierarchy,
     type AdminBranchHierarchy,
 } from "../queries";
+import {
+    getJakartaCurrentQuarter,
+    getJakartaQuarterWindow,
+    getJakartaTodayStart,
+    getJakartaYear,
+    getJakartaYearWindow,
+} from "@/lib/time";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -156,19 +163,11 @@ function resolveDashboardBranchName(
 }
 
 function getCurrentQuarter(): PreventiveQuarter {
-    const month = new Date().getMonth();
-    if (month <= 2) return 1;
-    if (month <= 5) return 2;
-    if (month <= 8) return 3;
-    return 4;
+    return getJakartaCurrentQuarter();
 }
 
 function getQuarterFromDate(date: Date): PreventiveQuarter {
-    const month = date.getMonth();
-    if (month <= 2) return 1;
-    if (month <= 5) return 2;
-    if (month <= 8) return 3;
-    return 4;
+    return getJakartaCurrentQuarter(date);
 }
 
 function getQuarterKey(quarter: PreventiveQuarter): PreventiveQuarterKey {
@@ -176,17 +175,14 @@ function getQuarterKey(quarter: PreventiveQuarter): PreventiveQuarterKey {
 }
 
 function getQuarterWindow(year: number, quarter: PreventiveQuarter) {
-    const startMonth = (quarter - 1) * 3;
-    const start = new Date(year, startMonth, 1);
-    const endExclusive = new Date(year, startMonth + 3, 1);
-    const endInclusive = new Date(year, startMonth + 3, 0);
+    const { start, endExclusive } = getJakartaQuarterWindow(year, quarter);
+    const endInclusive = new Date(endExclusive.getTime() - 1);
     return { start, endExclusive, endInclusive };
 }
 
 function getQuarterTiming(year: number, quarter: PreventiveQuarter) {
     const { start, endInclusive } = getQuarterWindow(year, quarter);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = getJakartaTodayStart();
 
     if (today < start) {
         return { daysRemaining: null, daysOverdue: null };
@@ -282,8 +278,8 @@ export async function getAdminPreventive(
                 : null;
 
         // Fetch reports for these stores in the given year
-        const yearStart = new Date(filters.year, 0, 1);
-        const yearEnd = new Date(filters.year + 1, 0, 1); // Exclusive
+        const { start: yearStart, endExclusive: yearEnd } =
+            getJakartaYearWindow(filters.year);
 
         const allStoreCodes = allStores.map((s) => s.code);
         const storeMap = new Map(allStores.map((store) => [store.code, store]));
@@ -581,11 +577,11 @@ export async function getReportYears() {
         });
 
         if (!firstReport || !lastReport) {
-            return [new Date().getFullYear()];
+            return [getJakartaYear()];
         }
 
-        const startYear = firstReport.createdAt.getFullYear();
-        const endYear = lastReport.createdAt.getFullYear();
+        const startYear = getJakartaYear(firstReport.createdAt);
+        const endYear = getJakartaYear(lastReport.createdAt);
         const years: number[] = [];
 
         for (let y = endYear; y >= startYear; y--) {
@@ -599,6 +595,6 @@ export async function getReportYears() {
             "Failed to fetch report years",
             error,
         );
-        return [new Date().getFullYear()];
+        return [getJakartaYear()];
     }
 }

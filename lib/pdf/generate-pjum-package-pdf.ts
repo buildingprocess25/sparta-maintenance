@@ -13,6 +13,7 @@ import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import { PDFDocument } from "pdf-lib";
 import { parseMaterialStores } from "@/lib/report-material-stores";
+import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
 
 const _assetsDir = path.join(process.cwd(), "public", "assets");
 let ALFAMART_LOGO_BASE64 = "";
@@ -233,10 +234,13 @@ export async function generatePjumPackagePdf(params: {
                   weekNumber: params.weekNumber,
                   monthName: new Date(
                       params.from || reports[0].createdAt.toISOString(),
-                  ).toLocaleString("id-ID", { month: "long" }),
-                  year: new Date(
+                  ).toLocaleString("id-ID", {
+                      month: "long",
+                      timeZone: JAKARTA_TIME_ZONE,
+                  }),
+                  year: getJakartaYear(
                       params.from || reports[0].createdAt.toISOString(),
-                  ).getFullYear(),
+                  ),
                   bmsName: bmsUser?.name ?? params.bmsNIK,
                   submissionDate: exportCreatedAt ?? exportedAt,
                   totalExpenditure: recapRows.reduce(
@@ -361,8 +365,11 @@ export async function generatePjumPackagePdf(params: {
     const fromDate = new Date(
         params.from || reports[0].createdAt.toISOString(),
     );
-    const monthName = fromDate.toLocaleString("id-ID", { month: "long" });
-    const year = fromDate.getFullYear();
+    const monthName = fromDate.toLocaleString("id-ID", {
+        month: "long",
+        timeZone: JAKARTA_TIME_ZONE,
+    });
+    const year = getJakartaYear(fromDate);
 
     return {
         buffer: Buffer.from(await merged.save()),

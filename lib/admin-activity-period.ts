@@ -1,4 +1,8 @@
-import { getJakartaMonthWindow, getJakartaYearWindow } from "./time";
+import {
+    getJakartaMonthWindow,
+    getJakartaYearWindow,
+    getTodayJakartaDateKey,
+} from "./time";
 
 export type ActivityPeriodWindow = {
     start: Date;
@@ -20,6 +24,7 @@ export function getActivityPeriodWindow(
         }
     }
 
-    const { start } = getJakartaYearWindow(now.getFullYear());
+    const jakartaYear = Number(getTodayJakartaDateKey(now).slice(0, 4));
+    const { start } = getJakartaYearWindow(jakartaYear);
     return { start };
 }

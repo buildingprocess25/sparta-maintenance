@@ -13,6 +13,15 @@ import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import {
+    JAKARTA_TIME_ZONE,
+    getJakartaDayRange,
+    getJakartaMonth,
+    getJakartaMonthWindow,
+    getJakartaWeekStartKey,
+    getJakartaYear,
+    getTodayJakartaRange,
+} from "@/lib/time";
+import {
     buildFinalReportDrivePath,
     deletePdfSnapshots,
     downloadPdfSnapshot,
@@ -97,20 +106,17 @@ export async function getPendingPjumExports(filters?: {
         let dateFrom: Date | undefined;
         if (filters?.dateRange && filters.dateRange !== "all") {
             const now = new Date();
-            const today = new Date(
-                now.getFullYear(),
-                now.getMonth(),
-                now.getDate(),
-            );
 
             if (filters.dateRange === "today") {
-                dateFrom = today;
+                dateFrom = getTodayJakartaRange(now).start;
             } else if (filters.dateRange === "week") {
-                const startOfWeek = new Date(today);
-                startOfWeek.setDate(today.getDate() - today.getDay());
-                dateFrom = startOfWeek;
+                dateFrom = getJakartaDayRange(getJakartaWeekStartKey(now))
+                    .start;
             } else if (filters.dateRange === "month") {
-                dateFrom = new Date(today.getFullYear(), today.getMonth(), 1);
+                dateFrom = getJakartaMonthWindow(
+                    getJakartaYear(now),
+                    getJakartaMonth(now),
+                ).start;
             }
         }
 
@@ -369,8 +375,9 @@ export async function approvePjumExport(input: {
             weekNumber: pjumExport.weekNumber,
             monthName: pjumExport.fromDate.toLocaleString("id-ID", {
                 month: "long",
+                timeZone: JAKARTA_TIME_ZONE,
             }),
-            year: pjumExport.fromDate.getFullYear(),
+            year: getJakartaYear(pjumExport.fromDate),
             bmsName,
             submissionDate: approvedAtDate.toISOString(),
             totalExpenditure,

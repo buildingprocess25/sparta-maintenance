@@ -22,6 +22,7 @@ import {
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
+import { getJakartaYear } from "@/lib/time";
 
 export function ExportPreventiveDialog({
     branches,
@@ -30,7 +31,7 @@ export function ExportPreventiveDialog({
     branches: string[];
     allowAllBranches?: boolean;
 }) {
-    const currentYear = new Date().getFullYear();
+    const currentYear = getJakartaYear();
     const defaultBranch = allowAllBranches ? "all" : (branches[0] ?? "");
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);

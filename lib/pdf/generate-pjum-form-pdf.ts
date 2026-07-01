@@ -8,6 +8,7 @@ import {
     renderToBuffer,
 } from "@react-pdf/renderer";
 import React from "react";
+import { JAKARTA_TIME_ZONE } from "@/lib/time";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data types
@@ -39,6 +40,7 @@ function fmtCurrency(amount: number): string {
 
 function fmtDate(iso: string): string {
     return new Date(iso).toLocaleDateString("id-ID", {
+        timeZone: JAKARTA_TIME_ZONE,
         day: "numeric",
         month: "long",
         year: "numeric",
