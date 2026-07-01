@@ -48,6 +48,7 @@ const prismaClientSingleton = () => {
         idleTimeoutMillis,
         connectionTimeoutMillis,
         allowExitOnIdle: true,
+        options: "-c timezone=UTC",
         ssl: { rejectUnauthorized: false }, // Required for Aiven PG without specific CA
     });
     const adapter = new PrismaPg(pool);

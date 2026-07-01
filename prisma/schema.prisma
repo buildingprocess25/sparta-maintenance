@@ -107,7 +107,7 @@ model User {
   branchNames        String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
   passwordHash       String?       // null = legacy user, login pakai branch name
   mustChangePassword Boolean       @default(true) // true = paksa ganti password saat login
-  deletedAt          DateTime?
+  deletedAt          DateTime?     @db.Timestamptz(3)
   deletedByNIK       String?
   
   reports       Report[]      @relation("CreatedReports")
@@ -125,8 +125,8 @@ model GoogleDriveFolderCache {
   id         String   @id @default(uuid())
   cacheKey   String   @unique
   folderId   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt     @db.Timestamptz(3)
 }
 
 model Store {
@@ -169,10 +169,10 @@ model Report {
   completionNotes      String?   // notes during completion
   completionAdditionalPhotos Json @default("[]") // additional completion documentation photos
   completionAdditionalNote   String? // one note for additional completion documentation set
-  finishedAt           DateTime? // final BNM approval time when report reaches COMPLETED
+  finishedAt           DateTime?     @db.Timestamptz(3) // final BNM approval time when report reaches COMPLETED
 
   // PJUM — tracks when this report was included in a PJUM export
-  pjumExportedAt       DateTime?
+  pjumExportedAt       DateTime?     @db.Timestamptz(3)
 
   // Final workflow PDF snapshot path in Google Drive (stored as Drive URL/path)
   completedPdfPath          String?
@@ -192,8 +192,8 @@ model Report {
   logs          ApprovalLog[]
   activities    ActivityLog[]
 
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt     @db.Timestamptz(3)
 
   @@index([createdByNIK])
   @@index([status])
@@ -217,7 +217,7 @@ model ApprovalLog {
   report        Report    @relation(fields: [reportNumber], references: [reportNumber])
   approver      User      @relation(fields: [approverNIK], references: [NIK])
   
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([reportNumber])
 }
@@ -233,7 +233,7 @@ model ActivityLog {
   report        Report    @relation(fields: [reportNumber], references: [reportNumber])
   actor         User      @relation(fields: [actorNIK], references: [NIK])
 
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([reportNumber])
   @@index([actorNIK])
@@ -242,7 +242,7 @@ model ActivityLog {
 
 model UserPresence {
   userId    String   @id
-  lastSeen  DateTime
+  lastSeen  DateTime @db.Timestamptz(3)
 
   user      User     @relation(fields: [userId], references: [NIK])
 
@@ -262,8 +262,8 @@ model Notification {
   reportNumber  String?
   pjumExportId  String?
   metadata      Json                   @default("{}")
-  readAt        DateTime?
-  createdAt     DateTime               @default(now())
+  readAt        DateTime?              @db.Timestamptz(3)
+  createdAt     DateTime               @default(now()) @db.Timestamptz(3)
 
   recipient     User                   @relation("ReceivedNotifications", fields: [recipientNIK], references: [NIK])
   actor         User?                  @relation("SentNotifications", fields: [actorNIK], references: [NIK])
@@ -283,10 +283,10 @@ model PushSubscription {
   auth        String
   userAgent   String?
   deviceLabel String?
-  disabledAt  DateTime?
-  lastUsedAt  DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  disabledAt  DateTime? @db.Timestamptz(3)
+  lastUsedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt     @db.Timestamptz(3)
 
   user        User      @relation(fields: [userNIK], references: [NIK])
 
@@ -301,8 +301,8 @@ model PjumExport {
   bmsNIK          String
   branchName      String
   weekNumber      Int
-  fromDate        DateTime
-  toDate          DateTime
+  fromDate        DateTime    @db.Timestamptz(3)
+  toDate          DateTime    @db.Timestamptz(3)
 
   // Report numbers included in this PJUM
   reportNumbers   String[]
@@ -312,7 +312,7 @@ model PjumExport {
 
   // BnM Manager who approved
   approvedByNIK   String?
-  approvedAt      DateTime?
+  approvedAt      DateTime?   @db.Timestamptz(3)
 
   // Rejection notes
   rejectionNotes  String?
@@ -321,8 +321,8 @@ model PjumExport {
   pjumPdfPath      String?
   pjumFinalDriveUrl String?
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt     @db.Timestamptz(3)
 
   @@index([status])
   @@index([branchName])
@@ -332,6 +332,6 @@ model PjumExport {
 model AppSetting {
   key       String   @id       // e.g. "maintenance_enabled"
   value     String             // stored as string; parse at read time
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
   updatedBy String?            // NIK admin who last changed this
 }
