@@ -1,5 +1,7 @@
 "use server";
 
+"use server";
+
 import prisma from "@/lib/prisma";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
@@ -8,6 +10,7 @@ import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
+import { getJakartaDateRange } from "@/lib/time";
 import {
     buildPjumSnapshotPath,
     uploadPdfSnapshot,
@@ -346,12 +349,13 @@ export async function searchPjumReports(
             return { data: null, error: "BMS tidak dalam cabang Anda" };
         }
 
-        const fromDate = new Date(from);
-        fromDate.setHours(0, 0, 0, 0);
-        const toDate = new Date(to);
-        toDate.setHours(23, 59, 59, 999); // include full last day
+        const { start, endExclusive } = getJakartaDateRange(from, to);
 
-        if (fromDate > toDate) {
+        if (!start || !endExclusive) {
+            return { data: null, error: "Tanggal mulai tidak valid" };
+        }
+
+        if (start >= endExclusive) {
             return { data: null, error: "Tanggal mulai tidak valid" };
         }
 
@@ -361,8 +365,8 @@ export async function searchPjumReports(
         const reports = await getReportsInRangeByPjumDate({
             bmsNIK,
             branchNames: user.branchNames,
-            fromDate,
-            toDate,
+            fromDate: start,
+            toDate: new Date(endExclusive.getTime() - 1),
         });
 
         const data: PjumReportRow[] = reports.map((r) => {
@@ -423,16 +427,10 @@ export async function exportPjum(input: {
             };
         }
 
-        const rangeFromDate = new Date(from);
-        rangeFromDate.setHours(0, 0, 0, 0);
-        const rangeToDate = new Date(to);
-        rangeToDate.setHours(0, 0, 0, 0);
-        const rangeToEndOfDay = new Date(rangeToDate);
-        rangeToEndOfDay.setHours(23, 59, 59, 999);
+        const { start: rangeFromDate, endExclusive: rangeToEndOfDay } = getJakartaDateRange(from, to);
 
         if (
-            Number.isNaN(rangeFromDate.getTime()) ||
-            Number.isNaN(rangeToDate.getTime())
+            !rangeFromDate || !rangeToEndOfDay
         ) {
             return {
                 error: "Format tanggal tidak valid",
@@ -440,12 +438,15 @@ export async function exportPjum(input: {
             };
         }
 
-        if (rangeFromDate > rangeToDate) {
+        if (rangeFromDate >= rangeToEndOfDay) {
             return {
                 error: "Rentang tanggal tidak valid",
                 pjumExportId: null,
             };
         }
+        
+        // for inclusive toDate
+        const rangeToDate = new Date(rangeToEndOfDay.getTime() - 24 * 60 * 60 * 1000);
 
         const bmsUser = await prisma.user.findUnique({
             where: { NIK: bmsNIK },

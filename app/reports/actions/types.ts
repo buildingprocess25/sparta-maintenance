@@ -10,6 +10,8 @@ export type ChecklistItemData = {
     notes?: string;
 };
 
+import { getJakartaMonthWindow, getJakartaYearWindow } from "@/lib/time";
+
 export type BmsEstimationData = {
     itemName: string;
     quantity: number;
@@ -50,23 +52,42 @@ export function resolveDateRange(
 ): { gte: Date; lt: Date } | undefined {
     if (!range || range === "all") return undefined;
 
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth(); // 0-indexed
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+    });
+    const parts = formatter.formatToParts(new Date());
+    const y = Number(parts.find(p => p.type === 'year')!.value);
+    const m = Number(parts.find(p => p.type === 'month')!.value); // 1-indexed
 
     switch (range) {
-        case "this_month":
-            return { gte: new Date(y, m, 1), lt: new Date(y, m + 1, 1) };
-        case "last_month":
-            return { gte: new Date(y, m - 1, 1), lt: new Date(y, m, 1) };
-        case "last_3_months":
-            return { gte: new Date(y, m - 3, 1), lt: new Date(y, m + 1, 1) };
-        case "last_6_months":
-            return { gte: new Date(y, m - 6, 1), lt: new Date(y, m + 1, 1) };
-        case "this_year":
-            return { gte: new Date(y, 0, 1), lt: new Date(y + 1, 0, 1) };
-        case "last_year":
-            return { gte: new Date(y - 1, 0, 1), lt: new Date(y, 0, 1) };
+        case "this_month": {
+            const w = getJakartaMonthWindow(y, m);
+            return { gte: w.start, lt: w.endExclusive };
+        }
+        case "last_month": {
+            const w = getJakartaMonthWindow(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1);
+            return { gte: w.start, lt: w.endExclusive };
+        }
+        case "last_3_months": {
+            const wStart = getJakartaMonthWindow(m <= 3 ? y - 1 : y, m <= 3 ? m + 12 - 3 : m - 3);
+            const wEnd = getJakartaMonthWindow(y, m);
+            return { gte: wStart.start, lt: wEnd.endExclusive };
+        }
+        case "last_6_months": {
+            const wStart = getJakartaMonthWindow(m <= 6 ? y - 1 : y, m <= 6 ? m + 12 - 6 : m - 6);
+            const wEnd = getJakartaMonthWindow(y, m);
+            return { gte: wStart.start, lt: wEnd.endExclusive };
+        }
+        case "this_year": {
+            const w = getJakartaYearWindow(y);
+            return { gte: w.start, lt: w.endExclusive };
+        }
+        case "last_year": {
+            const w = getJakartaYearWindow(y - 1);
+            return { gte: w.start, lt: w.endExclusive };
+        }
     }
 }
 

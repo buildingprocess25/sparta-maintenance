@@ -6,6 +6,7 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
 import { logger } from "@/lib/logger";
 import { getTodayActiveUsers } from "@/lib/presence";
+import { getJakartaTodayWindow } from "@/lib/time";
 import type { Prisma, UserRole } from "@prisma/client";
 
 export type AdminActivityModule = "MAINTENANCE" | "PJUM" | "REALISASI";
@@ -109,13 +110,8 @@ function buildWindowDateFilter(window: { start: Date; end?: Date }) {
 }
 
 function getTodayWindow() {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-
-    const end = new Date(start);
-    end.setDate(end.getDate() + 1);
-
-    return { start, end };
+    const { start, endExclusive } = getJakartaTodayWindow();
+    return { start, end: endExclusive };
 }
 
 function normalizeFilterValue(value?: string) {

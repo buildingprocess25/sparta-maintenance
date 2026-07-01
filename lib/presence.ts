@@ -1,13 +1,12 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
+import { getJakartaTodayStart } from "./time";
 
 export const ONLINE_THRESHOLD_MS = 6 * 60 * 1000;
 
 export function getTodayPresenceStart() {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    return start;
+    return getJakartaTodayStart();
 }
 
 /**

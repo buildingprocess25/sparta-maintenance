@@ -5,6 +5,12 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { Prisma } from "@prisma/client";
 import type { MaterialEstimationJson } from "@/types/report";
 import { getAdminBranchHierarchy } from "@/app/dashboard/queries";
+import {
+    getJakartaDateRange,
+    getJakartaQuarterKey,
+    getJakartaQuarterWindow,
+    getJakartaYearWindow,
+} from "@/lib/time";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -117,17 +123,16 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     };
 
     if (filter.fromDate || filter.toDate) {
-        where.createdAt = {};
-        if (filter.fromDate) {
-            (where.createdAt as Prisma.DateTimeFilter).gte = new Date(
-                filter.fromDate,
-            );
-        }
-        if (filter.toDate) {
-            // Include the entire toDate day
-            const end = new Date(filter.toDate);
-            end.setHours(23, 59, 59, 999);
-            (where.createdAt as Prisma.DateTimeFilter).lte = end;
+        const { start, endExclusive } = getJakartaDateRange(
+            filter.fromDate,
+            filter.toDate,
+        );
+
+        if (start || endExclusive) {
+            where.createdAt = {
+                ...(start ? { gte: start } : {}),
+                ...(endExclusive ? { lt: endExclusive } : {}),
+            };
         }
     }
 
@@ -335,16 +340,16 @@ export async function fetchPjumExportRows(
         };
 
         if (filter.fromDate || filter.toDate) {
-            where.createdAt = {};
-            if (filter.fromDate) {
-                (where.createdAt as Prisma.DateTimeFilter).gte = new Date(
-                    filter.fromDate,
-                );
-            }
-            if (filter.toDate) {
-                const end = new Date(filter.toDate);
-                end.setHours(23, 59, 59, 999);
-                (where.createdAt as Prisma.DateTimeFilter).lte = end;
+            const { start, endExclusive } = getJakartaDateRange(
+                filter.fromDate,
+                filter.toDate,
+            );
+
+            if (start || endExclusive) {
+                where.createdAt = {
+                    ...(start ? { gte: start } : {}),
+                    ...(endExclusive ? { lt: endExclusive } : {}),
+                };
             }
         }
 
@@ -476,25 +481,14 @@ function getPreventiveExportWindow(
     quarter: "all" | 1 | 2 | 3 | 4,
 ) {
     if (quarter === "all") {
-        return {
-            start: new Date(year, 0, 1),
-            endExclusive: new Date(year + 1, 0, 1),
-        };
+        return getJakartaYearWindow(year);
     }
 
-    const startMonth = (quarter - 1) * 3;
-    return {
-        start: new Date(year, startMonth, 1),
-        endExclusive: new Date(year, startMonth + 3, 1),
-    };
+    return getJakartaQuarterWindow(year, quarter);
 }
 
 function getQuarterKeyFromDate(date: Date): "q1" | "q2" | "q3" | "q4" {
-    const month = date.getMonth();
-    if (month <= 2) return "q1";
-    if (month <= 5) return "q2";
-    if (month <= 8) return "q3";
-    return "q4";
+    return getJakartaQuarterKey(date);
 }
 
 function normalizeBranchFilter(branchName: ExportFilter["branchName"]) {

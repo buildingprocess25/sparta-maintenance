@@ -1,3 +1,5 @@
+import { getJakartaMonthWindow, getJakartaYearWindow } from "./time";
+
 export type ActivityPeriodWindow = {
     start: Date;
     end?: Date;
@@ -13,14 +15,11 @@ export function getActivityPeriodWindow(
         const year = Number(yearRaw);
 
         if (month >= 1 && month <= 12 && year >= 1900) {
-            return {
-                start: new Date(year, month - 1, 1),
-                end: new Date(year, month, 1),
-            };
+            const { start, endExclusive } = getJakartaMonthWindow(year, month);
+            return { start, end: endExclusive };
         }
     }
 
-    return {
-        start: new Date(now.getFullYear(), 0, 1),
-    };
+    const { start } = getJakartaYearWindow(now.getFullYear());
+    return { start };
 }

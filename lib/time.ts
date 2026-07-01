@@ -59,6 +59,18 @@ export function getJakartaDateRange(fromDate?: string, toDate?: string) {
     };
 }
 
+export function getJakartaMonthWindow(year: number, month: number) {
+    const startMonthStr = String(month).padStart(2, "0");
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const nextMonthStr = String(nextMonth).padStart(2, "0");
+    
+    return {
+        start: getJakartaDayRange(`${year}-${startMonthStr}-01`).start,
+        endExclusive: getJakartaDayRange(`${nextYear}-${nextMonthStr}-01`).start,
+    };
+}
+
 export function getJakartaYearWindow(year: number) {
     return {
         start: getJakartaDayRange(`${year}-01-01`).start,
@@ -109,6 +121,14 @@ export function getTodayJakartaDateKey(now = new Date()) {
 
 export function getTodayJakartaRange(now = new Date()) {
     return getJakartaDayRange(getTodayJakartaDateKey(now));
+}
+
+export function getJakartaTodayWindow(now = new Date()) {
+    return getTodayJakartaRange(now);
+}
+
+export function getJakartaTodayStart(now = new Date()) {
+    return getTodayJakartaRange(now).start;
 }
 
 function getJakartaParts(date: Date) {

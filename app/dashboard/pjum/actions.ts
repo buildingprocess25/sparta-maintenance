@@ -12,6 +12,7 @@ import { getGoogleDriveClient } from "@/lib/google-drive/client";
 import { deletePdfSnapshots } from "@/lib/pdf/snapshot-storage";
 import { getPjumPolicySettings } from "@/lib/app-settings";
 import { resolveReportTotalRealisasi } from "@/lib/realisasi";
+import { getJakartaDateRange } from "@/lib/time";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -91,24 +92,28 @@ function getPjumPeriodDate(report: DashboardPjumCandidate): Date {
 }
 
 function parsePjumDateRange(input: { from: string; to: string }) {
-    const fromDate = new Date(input.from);
-    fromDate.setHours(0, 0, 0, 0);
+    const { start, endExclusive } = getJakartaDateRange(input.from, input.to);
 
-    const toDate = new Date(input.to);
-    toDate.setHours(0, 0, 0, 0);
-
-    const toEndOfDay = new Date(toDate);
-    toEndOfDay.setHours(23, 59, 59, 999);
-
-    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime())) {
+    if (!start || !endExclusive) {
         throw new Error("Format tanggal tidak valid");
     }
 
-    if (fromDate > toDate) {
+    if (start > endExclusive) {
         throw new Error("Rentang tanggal tidak valid");
     }
 
-    return { fromDate, toDate, toEndOfDay };
+    // endExclusive is midnight of the next day.
+    // For inclusive comparison that some legacy codes might need, we can keep the toDate
+    // as the start of the end date. However, looking at the code, it uses `toEndOfDay`
+    // mainly for `< toEndOfDay` or `<= toEndOfDay`.
+    // Wait, the original code uses:
+    // `toEndOfDay.setHours(23, 59, 59, 999);`
+    // And then `lte: toEndOfDay`.
+    // We should adapt it to return `toDate` (original inclusive date) and `toEndOfDay` (new endExclusive).
+    // Let's create an inclusive toDate for compatibility:
+    const toDate = new Date(endExclusive.getTime() - 24 * 60 * 60 * 1000);
+
+    return { fromDate: start, toDate, toEndOfDay: endExclusive };
 }
 
 async function getDashboardPjumReportsInRange(params: {
@@ -217,7 +222,7 @@ export async function searchDashboardPjumCandidates(input: {
         bmsNIK,
         branchNames: user.branchNames,
         fromDate,
-        toDate: toEndOfDay,
+        toDate: new Date(toEndOfDay.getTime() - 1), // to keep lte semantics if used
     });
 
     const reportNumbers = reports.map((report) => report.reportNumber);
@@ -350,7 +355,7 @@ export async function createDashboardPjum(input: {
             bmsNIK,
             branchNames: user.branchNames,
             fromDate,
-            toDate: toEndOfDay,
+            toDate: new Date(toEndOfDay.getTime() - 1),
         });
         const reportMap = new Map(
             reports.map((report) => [report.reportNumber, report]),
