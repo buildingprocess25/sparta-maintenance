@@ -71,6 +71,7 @@ import {
     getPjumStatusLabel,
     PJUM_STATUS_OPTIONS,
 } from "@/lib/pjum-status";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 
 type Props = {
     bmsUsers: PjumBmsUser[];
@@ -94,21 +95,11 @@ function formatCurrency(amount: number) {
 }
 
 function formatDate(iso: string) {
-    return new Date(iso).toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    });
+    return formatJakartaDate(iso);
 }
 
 function formatDateTime(iso: string) {
-    return new Date(iso).toLocaleDateString("id-ID", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
+    return formatJakartaDateTime(iso);
 }
 
 function formatPeriode(fromDate: string, toDate: string) {

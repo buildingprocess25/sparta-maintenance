@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { ActivityItem, PjumActivityItem } from "../../queries";
+import { formatJakartaDate } from "@/lib/time";
 
 const ACTIVITY_CONFIG: Record<
     string,
@@ -94,11 +95,7 @@ function formatRelativeDate(date: Date): string {
     if (diffDay === 1) return "Kemarin";
     if (diffDay < 7) return `${diffDay} hari lalu`;
 
-    return date.toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: diffDay > 365 ? "numeric" : undefined,
-    });
+    return formatJakartaDate(date);
 }
 
 interface ActivityFeedProps {

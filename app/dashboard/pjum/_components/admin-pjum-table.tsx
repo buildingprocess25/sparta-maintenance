@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import {
     AlertTriangle,
     ArrowUpRight,
@@ -59,11 +58,11 @@ function resolveInitialQuickFilter(
 }
 
 function formatDate(date: Date) {
-    return format(new Date(date), "dd MMM yyyy", { locale: id });
+    return formatJakartaDate(date);
 }
 
 function formatDateTime(date: Date) {
-    return format(new Date(date), "dd MMM yyyy HH:mm", { locale: id });
+    return formatJakartaDateTime(date);
 }
 
 export function AdminPjumTable({

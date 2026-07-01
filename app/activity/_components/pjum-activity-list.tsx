@@ -47,6 +47,7 @@ import {
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import type { PjumActivityItem } from "@/app/dashboard/queries";
+import { formatJakartaDateTime } from "@/lib/time";
 
 const ACTIVITY_CONFIG: Record<string, { label: string; color: string }> = {
     PJUM_CREATED: {
@@ -121,14 +122,7 @@ export function PjumActivityList({
         );
     };
 
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+    const formatDate = (date: Date) => formatJakartaDateTime(date);
 
     const getActivityBadge = (action: string) => {
         const cfg = ACTIVITY_CONFIG[action] ?? {

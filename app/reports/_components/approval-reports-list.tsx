@@ -59,6 +59,7 @@ import {
     getReportStatusLabel,
     getReportStatusLabelFromSlug,
 } from "@/lib/report-status";
+import { formatJakartaDate } from "@/lib/time";
 
 export type ApprovalReportData = {
     reportNumber: string;
@@ -291,12 +292,7 @@ export function ApprovalReportsList({
         startTransition(() => router.replace(pathname));
     };
 
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
+    const formatDate = (date: Date) => formatJakartaDate(date);
 
     const formatCurrency = (amount: number) =>
         `Rp ${Number(amount).toLocaleString("id-ID")}`;

@@ -5,6 +5,7 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
+import { formatJakartaDate } from "@/lib/time";
 
 /**
  * Fetch report statistics for a BMS user (their own reports, all time).
@@ -864,10 +865,7 @@ function getDayKey(date: Date): string {
 }
 
 function getDayLabel(date: Date): string {
-    return date.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-    });
+    return formatJakartaDate(date);
 }
 
 function getRecentMonthKeys(count: number): { key: string; label: string }[] {

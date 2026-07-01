@@ -22,6 +22,7 @@ import {
     ChevronDown,
     CalendarClock,
 } from "lucide-react";
+import { JAKARTA_TIME_ZONE } from "@/lib/time";
 import {
     type ChecklistItem,
     type ChecklistCondition,
@@ -197,6 +198,7 @@ export function ChecklistStep({
                                             {
                                                 month: "long",
                                                 year: "numeric",
+                                                timeZone: JAKARTA_TIME_ZONE,
                                             },
                                         )}
                                     </Badge>

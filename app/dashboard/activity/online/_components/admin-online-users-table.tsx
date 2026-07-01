@@ -9,9 +9,8 @@ import {
     UserRound,
     Wifi,
 } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import { toast } from "sonner";
+import { formatJakartaDateTime } from "@/lib/time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,7 +52,7 @@ const ROLE_STYLES: Record<string, string> = {
 type ActivityScope = NonNullable<AdminOnlineUserFilters["scope"]>;
 
 function formatDateTime(date: Date | string) {
-    return format(new Date(date), "dd MMM yyyy HH:mm:ss", { locale: id });
+    return formatJakartaDateTime(date);
 }
 
 function formatRelativeLastSeen(date: Date | string) {

@@ -13,9 +13,8 @@ import {
     Search,
     UserRound,
 } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import { toast } from "sonner";
+import { formatJakartaDateTime } from "@/lib/time";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,7 +54,7 @@ import {
 } from "../activity-format";
 
 function formatDateTime(date: Date | string) {
-    return format(new Date(date), "dd MMM yyyy HH:mm", { locale: id });
+    return formatJakartaDateTime(date);
 }
 
 function formatNumber(value: number) {

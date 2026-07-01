@@ -14,9 +14,8 @@ import {
     Store,
     Users,
 } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import { Badge } from "@/components/ui/badge";
+import { formatJakartaDate } from "@/lib/time";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -74,7 +73,7 @@ function formatShortRp(value: number) {
 
 function formatDate(date: Date | string | null) {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy", { locale: id });
+    return formatJakartaDate(date);
 }
 
 function branchDetailHref(branchName: string) {

@@ -4,6 +4,7 @@ import { getStoresByBranch } from "@/app/reports/actions";
 import prisma from "@/lib/prisma";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
+import { formatJakartaDateTime } from "@/lib/time";
 
 export default async function EditReportPage({
     params,
@@ -57,13 +58,7 @@ export default async function EditReportPage({
         storeCode: report.storeCode || "",
         branchName: report.branchName,
         totalEstimation: Number(report.totalEstimation),
-        updatedAt: report.updatedAt.toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        }),
+        updatedAt: formatJakartaDateTime(report.updatedAt),
         items: items.map((item) => ({
             itemId: item.itemId,
             itemName: item.itemName,

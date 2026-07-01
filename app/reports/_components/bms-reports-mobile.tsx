@@ -6,6 +6,7 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ReportData } from "./bms-reports-list";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { formatJakartaDate } from "@/lib/time";
 
 type StatusConfig = {
     label: string;
@@ -67,11 +68,7 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
 };
 
 function formatDateShort(date: Date) {
-    return new Date(date).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-    });
+    return formatJakartaDate(date);
 }
 
 function formatCurrency(amount: number) {

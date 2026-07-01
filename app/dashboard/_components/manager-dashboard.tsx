@@ -42,6 +42,7 @@ import {
     getActionBadgeClass,
     getActivityActionLabel,
 } from "../activity/activity-format";
+import { formatJakartaDate } from "@/lib/time";
 
 function formatNumber(value: number): string {
     return value.toLocaleString("id-ID");
@@ -66,11 +67,7 @@ function formatShortRp(value: number): string {
 }
 
 function formatDate(date: Date): string {
-    return date.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
+    return formatJakartaDate(date);
 }
 
 function formatRelativeDate(date: Date): string {

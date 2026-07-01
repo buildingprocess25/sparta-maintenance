@@ -6,6 +6,7 @@ import { getPjumPolicySettings, getReportSlaDays } from "@/lib/app-settings";
 import { getAuthUser, type AuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import type { ReportStatusKey } from "@/lib/report-status";
+import { formatJakartaDate } from "@/lib/time";
 
 const ACTIVE_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
@@ -155,10 +156,7 @@ function getWeekKey(date: Date): string {
 
 function getWeekLabel(weekKey: string): string {
     const date = new Date(weekKey);
-    return date.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-    });
+    return formatJakartaDate(date);
 }
 
 function getWeekKeysInWindow(window: { start: Date; end: Date }) {
@@ -179,15 +177,7 @@ function formatPeriodLabel(window: {
     start: Date;
     end: Date;
 }) {
-    const range = `${window.start.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    })} - ${window.end.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    })}`;
+    const range = `${formatJakartaDate(window.start)} - ${formatJakartaDate(window.end)}`;
 
     const labelByPeriod: Record<BmsPerformancePeriod, string> = {
         quarter: "Triwulan ini",

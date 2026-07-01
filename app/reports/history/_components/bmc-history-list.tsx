@@ -47,6 +47,7 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { ActivityItem } from "@/app/dashboard/queries";
+import { formatJakartaDateTime } from "@/lib/time";
 
 const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
     ESTIMATION_APPROVED: {
@@ -127,14 +128,7 @@ export function BmcHistoryList({
         );
     };
 
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+    const formatDate = (date: Date) => formatJakartaDateTime(date);
 
     const getActionBadge = (action: string) => {
         const cfg = ACTION_CONFIG[action] ?? {

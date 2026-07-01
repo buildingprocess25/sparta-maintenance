@@ -44,6 +44,7 @@ import {
 import { AdminTrendChart } from "./admin-overview-charts";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
+import { formatJakartaDate } from "@/lib/time";
 
 function normalizePeriod(value?: string): string {
     if (value === "30d" || value === "90d" || value === "12m") {
@@ -75,11 +76,7 @@ function formatShortRp(value: number): string {
 }
 
 function formatDate(date: Date): string {
-    return date.toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    });
+    return formatJakartaDate(date);
 }
 
 function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {

@@ -2,9 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { id as localeId } from "date-fns/locale";
 import { toast } from "sonner";
+import { formatJakartaDate } from "@/lib/time";
 import {
     Loader2,
     CheckCircle2,
@@ -75,7 +74,7 @@ export function PjumApprovalDetail({ detail }: Props) {
     }
 
     const selisih = 1_000_000 - detail.totalExpenditure;
-    const periode = `${format(fromDate, "d MMM", { locale: localeId })} – ${format(new Date(detail.toDate), "d MMM yyyy", { locale: localeId })}`;
+    const periode = `${formatJakartaDate(fromDate)} – ${formatJakartaDate(detail.toDate)}`;
     const isPending = detail.status === "PENDING_APPROVAL";
 
     return (
@@ -269,15 +268,7 @@ export function PjumApprovalDetail({ detail }: Props) {
                                                 <p className="text-xs text-muted-foreground mt-0.5">
                                                     Selesai final:{" "}
                                                     {r.finishedAt
-                                                        ? format(
-                                                              new Date(
-                                                                  r.finishedAt,
-                                                              ),
-                                                              "dd MMM yyyy",
-                                                              {
-                                                                  locale: localeId,
-                                                              },
-                                                          )
+                                                        ? formatJakartaDate(r.finishedAt)
                                                         : "—"}
                                                 </p>
                                             </div>
@@ -335,15 +326,7 @@ export function PjumApprovalDetail({ detail }: Props) {
                                                     </TableCell>
                                                     <TableCell className="text-muted-foreground">
                                                         {r.finishedAt
-                                                            ? format(
-                                                                  new Date(
-                                                                      r.finishedAt,
-                                                                  ),
-                                                                  "dd MMM yyyy",
-                                                                  {
-                                                                      locale: localeId,
-                                                                  },
-                                                              )
+                                                            ? formatJakartaDate(r.finishedAt)
                                                             : "—"}
                                                     </TableCell>
                                                     <TableCell className="text-right">

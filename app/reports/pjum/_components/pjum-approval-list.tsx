@@ -5,15 +5,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
 import { id as localeId } from "date-fns/locale";
-import {
-    FileText,
-    ArrowRight,
-    CalendarDays,
-    ChevronRight,
-    User,
-    Search,
-    Building2,
-} from "lucide-react";
+import { Building2, CalendarDays, ChevronRight, FileText, Search, User, ArrowRight } from "lucide-react";
+import { formatJakartaDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -106,11 +99,10 @@ export function PjumApprovalList({
         });
     };
 
-    const formatDate = (dateStr: string) =>
-        format(new Date(dateStr), "d MMM yyyy", { locale: localeId });
+    const formatDate = (dateStr: string) => formatJakartaDate(dateStr);
 
     const formatPeriode = (from: string, to: string) =>
-        `${format(new Date(from), "d MMM", { locale: localeId })} – ${format(new Date(to), "d MMM yyyy", { locale: localeId })}`;
+        `${formatJakartaDate(from)} – ${formatJakartaDate(to)}`;
 
     const createPageHref = (page: number) => {
         const params = new URLSearchParams(searchParams.toString());

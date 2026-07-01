@@ -61,6 +61,7 @@ import {
     getReportStatusLabel,
     getReportStatusLabelFromSlug,
 } from "@/lib/report-status";
+import { formatJakartaDate } from "@/lib/time";
 
 // Type for report data from server
 export type ReportData = {
@@ -373,13 +374,7 @@ export default function BmsReportsList({
         );
     };
 
-    const formatDate = (date: Date) => {
-        return new Date(date).toLocaleDateString("id-ID", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-        });
-    };
+    const formatDate = (date: Date) => formatJakartaDate(date);
 
     const formatCurrency = (amount: number) => {
         return `Rp ${Number(amount).toLocaleString("id-ID")}`;

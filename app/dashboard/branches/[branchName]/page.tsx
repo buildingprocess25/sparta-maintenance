@@ -14,9 +14,8 @@ import {
     Store,
     Users,
 } from "lucide-react";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
 import { getAuthUser } from "@/lib/authorization";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -70,12 +69,12 @@ function formatShortRp(value: number) {
 
 function formatDate(date: Date | string | null) {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy", { locale: id });
+    return formatJakartaDate(date);
 }
 
 function formatDateTime(date: Date | string | null) {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy HH:mm", { locale: id });
+    return formatJakartaDateTime(date);
 }
 
 export default async function AdminBranchDetailPage({

@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { getPjumPolicySettings } from "@/lib/app-settings";
 import { PjumApprovalButton } from "./_components/pjum-approval-button";
 import { PjumCancelButton } from "./_components/pjum-cancel-button";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 
 export const dynamic = "force-dynamic";
 
@@ -454,24 +455,12 @@ function isPjumStalePending(pjum: PjumDetail["pjum"], staleDays: number) {
 
 function formatDate(date: Date | string | null) {
     if (!date) return "-";
-    return new Intl.DateTimeFormat("id-ID", {
-        timeZone: "Asia/Jakarta",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-    }).format(new Date(date));
+    return formatJakartaDate(date);
 }
 
 function formatDateTime(date: Date | string | null) {
     if (!date) return "-";
-    return new Intl.DateTimeFormat("id-ID", {
-        timeZone: "Asia/Jakarta",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(date));
+    return formatJakartaDateTime(date);
 }
 
 function formatRp(value: number | null) {

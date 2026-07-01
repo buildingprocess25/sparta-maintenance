@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { BmcApprovalFilters } from "./bmc-approval-filters";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { formatJakartaDate } from "@/lib/time";
 
 type ApprovalUser = {
     role: string;
@@ -228,12 +229,7 @@ export async function BmcApprovalList({
             maximumFractionDigits: 0,
         }).format(Number(amount));
 
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString("id-ID", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-        });
+    const formatDate = (date: Date) => formatJakartaDate(date);
 
     const storeDisplay = (storeName: string, storeCode: string | null) =>
         storeCode ? `${storeCode} - ${storeName}` : storeName || "—";

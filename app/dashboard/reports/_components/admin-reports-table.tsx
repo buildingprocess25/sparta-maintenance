@@ -23,8 +23,7 @@ import {
 } from "lucide-react";
 import { getAdminReports, AdminReportFilters } from "../actions";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import { id } from "date-fns/locale";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
@@ -107,7 +106,7 @@ function formatRp(n: number | null | undefined) {
 
 function formatCompactDate(date: Date | string | null): string {
     if (!date) return "-";
-    return format(new Date(date), "dd MMM yyyy", { locale: id });
+    return formatJakartaDate(date);
 }
 
 function getPjumBadge(report: ReportItem) {
@@ -549,22 +548,9 @@ export function AdminReportsTable({
                                             </Link>
                                         </TableCell>
                                         <TableCell className="whitespace-nowrap align-middle text-muted-foreground">
-                                            {format(
-                                                new Date(
-                                                    report.lastActivityAt,
-                                                ),
-                                                "dd MMM yyyy",
-                                                { locale: id },
+                                            {formatJakartaDateTime(
+                                                report.lastActivityAt
                                             )}
-                                            <div className="text-[10px]">
-                                                {format(
-                                                    new Date(
-                                                        report.lastActivityAt,
-                                                    ),
-                                                    "HH:mm",
-                                                    { locale: id },
-                                                )}
-                                            </div>
                                         </TableCell>
                                         <TableCell className="align-middle">
                                             <div className="max-w-[260px] truncate text-[11px] font-medium">

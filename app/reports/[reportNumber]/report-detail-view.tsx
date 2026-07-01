@@ -15,6 +15,7 @@ import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
 import { reviewCompletion } from "@/app/reports/actions/review-completion";
 import { approveFinal } from "@/app/reports/actions/approve-final";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 
 import type { ReportData, Viewer, ActionState } from "./_components/types";
 import { StatusTimeline } from "./_components/status-timeline";
@@ -33,19 +34,14 @@ type ReportDetailProps = {
 };
 
 export function ReportDetailView({ report, viewer }: ReportDetailProps) {
-    const formatDate = (date: Date) =>
-        new Date(date).toLocaleDateString("id-ID", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        });
+    const formatDate = (date: Date) => formatJakartaDate(date);
 
-    const formatTime = (date: Date) =>
-        new Date(date).toLocaleTimeString("id-ID", {
-            hour: "2-digit",
-            minute: "2-digit",
-        });
+    const formatTime = (date: Date) => {
+        // Extract time portion from formatted datetime (e.g. "1 Jan 2026, 10:30" -> "10:30")
+        const dt = formatJakartaDateTime(date);
+        const comma = dt.lastIndexOf(", ");
+        return comma >= 0 ? dt.slice(comma + 2) : dt;
+    };
 
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat("id-ID", {

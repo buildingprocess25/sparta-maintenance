@@ -1,4 +1,5 @@
 import type { ChecklistRow, DetailPhoto, ReportDetailModel } from "../_lib/detail-data";
+import { formatJakartaDateTime } from "@/lib/time";
 
 export type ChecklistFilter = "all" | "issue" | "photo" | "bms" | "rekanan";
 
@@ -273,12 +274,5 @@ export function formatNullableValue(value: string | number | null | undefined) {
 }
 
 export function formatDateTime(value: string) {
-    return new Intl.DateTimeFormat("id-ID", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    }).format(new Date(value));
+    return formatJakartaDateTime(value);
 }
-

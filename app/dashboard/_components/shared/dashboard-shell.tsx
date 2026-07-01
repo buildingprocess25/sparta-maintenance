@@ -7,6 +7,7 @@ import { LogoutButton } from "../../logout-button";
 import { capitalizeEachWord } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
 import { ROLE_LABEL_OVERRIDES } from "@/lib/role-overrides";
+import { JAKARTA_TIME_ZONE } from "@/lib/time";
 
 const ROLE_LABELS: Record<string, string> = {
     BMS: "Branch Maintenance Support",
@@ -28,8 +29,9 @@ export function DashboardShell({ user, children }: Props) {
     const monthYear = now.toLocaleDateString("id-ID", {
         month: "long",
         year: "numeric",
+        timeZone: JAKARTA_TIME_ZONE,
     });
-    const weekday = now.toLocaleDateString("id-ID", { weekday: "long" });
+    const weekday = now.toLocaleDateString("id-ID", { weekday: "long", timeZone: JAKARTA_TIME_ZONE });
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">
@@ -77,6 +79,7 @@ export function DashboardShell({ user, children }: Props) {
                                         day: "numeric",
                                         month: "short",
                                         year: "numeric",
+                                        timeZone: JAKARTA_TIME_ZONE,
                                     })}
                                 </p>
                             </div>
