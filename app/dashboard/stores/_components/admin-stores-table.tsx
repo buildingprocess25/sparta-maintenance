@@ -107,12 +107,14 @@ export function AdminStoresTable({
     initialNextCursor,
     initialTotalCount,
     branches,
+    areaNames,
     canManage = true,
 }: {
     initialData: StoreItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
     branches: string[];
+    areaNames: string[];
     canManage?: boolean;
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
@@ -126,6 +128,7 @@ export function AdminStoresTable({
     // Filters
     const [search, setSearch] = useState("");
     const [branchName, setBranchName] = useState("all");
+    const [areaName, setAreaName] = useState("all");
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
@@ -135,6 +138,7 @@ export function AdminStoresTable({
             const filters: AdminStoreFilters = {
                 search: search || undefined,
                 branchName: branchName === "all" ? undefined : branchName,
+                areaName: areaName === "all" ? undefined : areaName,
             };
 
             try {
@@ -167,7 +171,7 @@ export function AdminStoresTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, branchName],
+        [search, branchName, areaName],
     );
 
     // Debounced reload on filter change
@@ -177,7 +181,7 @@ export function AdminStoresTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, branchName, loadData]);
+    }, [search, branchName, areaName, loadData]);
 
     // Infinite scroll
     useEffect(() => {
@@ -247,6 +251,28 @@ export function AdminStoresTable({
                     </SelectContent>
                 </Select>
 
+                {areaNames.length > 0 ? (
+                    <Select value={areaName} onValueChange={setAreaName}>
+                        <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
+                            <SelectValue placeholder="Semua Area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all" className="text-xs">
+                                Semua Area
+                            </SelectItem>
+                            {areaNames.map((area) => (
+                                <SelectItem
+                                    key={area}
+                                    value={area}
+                                    className="text-xs"
+                                >
+                                    {area}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : null}
+
                 {canManage ? (
                     <div className="flex items-center gap-2 ml-auto">
                         <ImportStoresDialog branches={branches} />
@@ -308,6 +334,11 @@ export function AdminStoresTable({
                                         <TableCell>{store.name}</TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {store.branchName}
+                                            {store.areaName ? (
+                                                <div className="text-[10px]">
+                                                    {store.areaName}
+                                                </div>
+                                            ) : null}
                                         </TableCell>
                                         <TableCell>
                                             <Badge

@@ -8,7 +8,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
-import { resolveReportTotalRealisasi } from "@/lib/realisasi";
+import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { getJakartaDateRange } from "@/lib/time";
 import {
@@ -30,6 +30,7 @@ export type PjumReportRow = {
     status: string;
     totalRealisasi: number;
     pjumExportedAt: string | null; // ISO string or null
+    requiresPjum: boolean;
 };
 
 export type PjumBlockedRange = {
@@ -386,6 +387,7 @@ export async function searchPjumReports(
                 pjumExportedAt: r.pjumExportedAt
                     ? r.pjumExportedAt.toISOString()
                     : null,
+                requiresPjum: requiresPjum(r.totalReal, r.items),
             };
         });
 
@@ -492,7 +494,7 @@ export async function exportPjum(input: {
         }
 
         const eligibleReportNumbers = rangeReports
-            .filter((report) => !report.pjumExportedAt)
+            .filter((report) => !report.pjumExportedAt && requiresPjum(report.totalReal, report.items))
             .map((report) => report.reportNumber);
         const eligibleSet = new Set(eligibleReportNumbers);
 

@@ -1,10 +1,12 @@
 import "server-only";
 import prisma from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
+import { requiresPjum } from "@/lib/realisasi";
 import {
     formatJakartaDate,
     getJakartaDayKey,
@@ -753,6 +755,7 @@ export type AdminKpiMetric = {
     avgRealisasi: number;
     avgBmsWeeklyRealisasi: number;
     activeUsers: number;
+    pjumCompletedReports: number;
     unpjumCompletedReports: number;
     pendingPjum: number;
 };
@@ -1015,6 +1018,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
             avgRealisasi: 0,
             avgBmsWeeklyRealisasi: 0,
             activeUsers: 0,
+            pjumCompletedReports: 0,
             unpjumCompletedReports: 0,
             pendingPjum: 0,
         },
@@ -1217,6 +1221,7 @@ async function getAdminKpiMetric(
         inProgressReports,
         pendingReviewReports,
         revisionReports,
+        pjumCompletedReports,
         unpjumCompletedReports,
         totalRealisasi,
         avgRealisasi,
@@ -1252,9 +1257,10 @@ async function getAdminKpiMetric(
         prisma.report.count({
             where: {
                 ...completedWhere,
-                pjumExportedAt: null,
+                pjumExportedAt: { not: null },
             },
         }),
+        countRequiredUnpjumReports(completedWhere),
         prisma.report.aggregate({
             where: {
                 ...completedWhere,
@@ -1312,6 +1318,7 @@ async function getAdminKpiMetric(
         avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
         avgBmsWeeklyRealisasi: averageMapValues(bmsWeekTotals),
         activeUsers,
+        pjumCompletedReports,
         unpjumCompletedReports,
         pendingPjum,
     };
@@ -1332,6 +1339,27 @@ function getBranchAccumulator(
     };
     map.set(branchName, next);
     return next;
+}
+
+async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
+    const rows = await prisma.report.findMany({
+        where: {
+            AND: [
+                where,
+                {
+                    status: "COMPLETED",
+                    pjumExportedAt: null,
+                },
+            ],
+        },
+        select: {
+            totalReal: true,
+            items: true,
+        },
+    });
+
+    return rows.filter((report) => requiresPjum(report.totalReal, report.items))
+        .length;
 }
 
 async function getAdminBranchPerformance(

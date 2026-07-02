@@ -72,6 +72,7 @@ export function AdminPjumTable({
     initialSummary,
     initialFilters,
     branches,
+    areaNames,
 }: {
     initialData: PjumRow[];
     initialNextCursor: string | null;
@@ -79,6 +80,7 @@ export function AdminPjumTable({
     initialSummary: PjumSummary;
     initialFilters?: AdminPjumFilters;
     branches: string[];
+    areaNames: string[];
 }) {
     const [pjums, setPjums] = useState<PjumRow[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -106,6 +108,11 @@ export function AdminPjumTable({
                       initialFilters.branchName,
                   ])
                 : null,
+            initialFilters?.areaName && initialFilters.areaName !== "all"
+                ? createFilter<string>("areaName", "is", [
+                      initialFilters.areaName,
+                  ])
+                : null,
         ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
@@ -125,6 +132,21 @@ export function AdminPjumTable({
                     label: branch,
                 })),
             },
+            ...(areaNames.length > 0
+                ? [
+                      {
+                          key: "areaName",
+                          label: "Area",
+                          type: "select" as const,
+                          placeholder: "Pilih area",
+                          icon: <Building2 className="h-3.5 w-3.5" />,
+                          options: areaNames.map((areaName) => ({
+                              value: areaName,
+                              label: areaName,
+                          })),
+                      },
+                  ]
+                : []),
             {
                 key: "status",
                 label: "Status",
@@ -146,7 +168,7 @@ export function AdminPjumTable({
                 icon: <CalendarDays className="h-3.5 w-3.5" />,
             },
         ],
-        [branches],
+        [branches, areaNames],
     );
 
     const getFilterValue = useCallback(
@@ -158,6 +180,7 @@ export function AdminPjumTable({
 
     const searchValue = search.trim();
     const branchName = String(getFilterValue("branchName"));
+    const areaName = String(getFilterValue("areaName"));
     const status = String(getFilterValue("status"));
     const fromDate = String(getFilterValue("fromDate"));
     const toDate = String(getFilterValue("toDate"));
@@ -175,6 +198,7 @@ export function AdminPjumTable({
             const filters: AdminPjumFilters = {
                 search: searchValue || undefined,
                 branchName: branchName || undefined,
+                areaName: areaName || undefined,
                 status: quickStatus || status || undefined,
                 fromDate: fromDate || undefined,
                 toDate: toDate || undefined,
@@ -209,7 +233,7 @@ export function AdminPjumTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [searchValue, branchName, quickStatus, status, fromDate, toDate],
+        [searchValue, branchName, areaName, quickStatus, status, fromDate, toDate],
     );
 
     const resetFilters = useCallback(() => {
@@ -239,6 +263,7 @@ export function AdminPjumTable({
     }, [
         searchValue,
         branchName,
+        areaName,
         quickStatus,
         status,
         fromDate,
@@ -426,6 +451,11 @@ export function AdminPjumTable({
                                         </TableCell>
                                         <TableCell className="font-medium">
                                             {item.branchName}
+                                            {item.areaNames.length > 0 ? (
+                                                <div className="mt-0.5 text-[10px] text-muted-foreground">
+                                                    {item.areaNames.join(", ")}
+                                                </div>
+                                            ) : null}
                                         </TableCell>
                                         <TableCell>
                                             <div className="font-medium">

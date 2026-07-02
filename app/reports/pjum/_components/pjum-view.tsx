@@ -438,7 +438,12 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     }
 
     const eligibleReports =
-        reports?.filter((r) => r.status === "COMPLETED" && !r.pjumExportedAt) ??
+        reports?.filter(
+            (r) =>
+                r.status === "COMPLETED" &&
+                !r.pjumExportedAt &&
+                r.requiresPjum,
+        ) ??
         [];
     const exportedReportsCount =
         reports?.filter((r) => r.pjumExportedAt !== null).length ?? 0;
@@ -752,8 +757,8 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                     Range overlap dengan PJUM sebelumnya (
                                     {formatDate(overlappingRange.fromDate)} -{" "}
                                     {formatDate(overlappingRange.toDate)}).
-                                    Hanya laporan yang belum PJUM yang akan
-                                    dipilih.
+                                    Hanya laporan yang perlu dan belum PJUM
+                                    yang akan dipilih.
                                 </span>
                             )}
 
@@ -935,6 +940,13 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                         PJUM
                                                                     </span>
                                                                 )}
+                                                                {!isExported &&
+                                                                    !r.requiresPjum && (
+                                                                        <span className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                                                                            Tidak
+                                                                            perlu
+                                                                        </span>
+                                                                    )}
                                                             </div>
                                                             {/* Row 3: report number */}
                                                             <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5">
@@ -1077,6 +1089,11 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                         >
                                                                             Sudah
                                                                             PJUM
+                                                                        </Badge>
+                                                                    ) : !r.requiresPjum ? (
+                                                                        <Badge variant="outline">
+                                                                            Tidak
+                                                                            perlu
                                                                         </Badge>
                                                                     ) : (
                                                                         <span className="text-muted-foreground text-sm">

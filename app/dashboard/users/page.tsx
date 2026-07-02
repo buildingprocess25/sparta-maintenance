@@ -42,6 +42,7 @@ export default async function AdminUsersPage() {
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
                 branches={branches}
+                areaNames={user.areaNames}
                 canManage
                 allowAdminRole={user.role === "ADMIN"}
             />

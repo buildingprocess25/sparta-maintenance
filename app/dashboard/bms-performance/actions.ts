@@ -17,6 +17,7 @@ import {
     getJakartaYear,
     getJakartaYearWindow,
 } from "@/lib/time";
+import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 
 const ACTIVE_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
@@ -417,6 +418,7 @@ export async function getBmsPerformanceData(
                     finishedAt: true,
                     pjumExportedAt: true,
                     totalReal: true,
+                    items: true,
                     activities: {
                         orderBy: { createdAt: "desc" },
                         take: 1,
@@ -505,10 +507,16 @@ export async function getBmsPerformanceData(
             }
 
             if (report.status === "COMPLETED") {
-                const realisasi = Number(report.totalReal ?? 0);
+                const realisasi = resolveReportTotalRealisasi(
+                    report.totalReal,
+                    report.items,
+                );
                 row.completedReports += 1;
                 row.totalRealisasi += realisasi;
-                if (report.pjumExportedAt) {
+                if (
+                    report.pjumExportedAt &&
+                    requiresPjum(report.totalReal, report.items)
+                ) {
                     row.pjumReports += 1;
                 }
 

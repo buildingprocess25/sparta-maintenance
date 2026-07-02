@@ -105,6 +105,7 @@ model User {
   name               String
   role               UserRole      @default(BMS)
   branchNames        String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
+  areaNames          String[]      @default([])
   passwordHash       String?       // null = legacy user, login pakai branch name
   mustChangePassword Boolean       @default(true) // true = paksa ganti password saat login
   deletedAt          DateTime?     @db.Timestamptz(3)
@@ -133,17 +134,21 @@ model Store {
   code       String   @id @unique 
   name       String                 
   branchName String                 
+  areaName   String?
   isActive   Boolean  @default(true)
   
   reports    Report[]
   
   @@index([branchName])
+  @@index([areaName])
   @@index([branchName, code])
+  @@index([branchName, areaName])
 }
 
 model Report {
   reportNumber  String        @id @unique 
   branchName    String        
+  areaName      String?
   storeName     String        @default("")
   
   storeCode     String?       
@@ -204,6 +209,7 @@ model Report {
   @@index([branchName, status, finishedAt])
   @@index([branchName, status, updatedAt])
   @@index([branchName, status, pjumExportedAt])
+  @@index([branchName, areaName, status])
 }
 
 model ApprovalLog {
@@ -300,6 +306,7 @@ model PjumExport {
   // Filter context
   bmsNIK          String
   branchName      String
+  areaNames       String[]    @default([])
   weekNumber      Int
   fromDate        DateTime    @db.Timestamptz(3)
   toDate          DateTime    @db.Timestamptz(3)
@@ -326,6 +333,7 @@ model PjumExport {
 
   @@index([status])
   @@index([branchName])
+  @@index([areaNames], type: Gin)
   @@index([createdByNIK])
 }
 

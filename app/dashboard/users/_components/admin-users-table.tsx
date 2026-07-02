@@ -134,6 +134,7 @@ export function AdminUsersTable({
     initialNextCursor,
     initialTotalCount,
     branches,
+    areaNames,
     canManage = true,
     allowAdminRole = true,
 }: {
@@ -141,6 +142,7 @@ export function AdminUsersTable({
     initialNextCursor: string | null;
     initialTotalCount: number;
     branches: string[];
+    areaNames: string[];
     canManage?: boolean;
     allowAdminRole?: boolean;
 }) {
@@ -156,6 +158,7 @@ export function AdminUsersTable({
     const [search, setSearch] = useState("");
     const [role, setRole] = useState("all");
     const [branchName, setBranchName] = useState("all");
+    const [areaName, setAreaName] = useState("all");
     const roleFilterOptions = allowAdminRole
         ? ROLE_FILTER_OPTIONS
         : ROLE_FILTER_OPTIONS.filter((option) => option.value !== "ADMIN");
@@ -169,6 +172,7 @@ export function AdminUsersTable({
                 search: search || undefined,
                 role: role === "all" ? undefined : role,
                 branchName: branchName === "all" ? undefined : branchName,
+                areaName: areaName === "all" ? undefined : areaName,
             };
 
             try {
@@ -199,7 +203,7 @@ export function AdminUsersTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, role, branchName],
+        [search, role, branchName, areaName],
     );
 
     // Debounced reload on filter change
@@ -209,7 +213,7 @@ export function AdminUsersTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, role, branchName, loadData]);
+    }, [search, role, branchName, areaName, loadData]);
 
     // Infinite scroll
     useEffect(() => {
@@ -296,6 +300,28 @@ export function AdminUsersTable({
                     </SelectContent>
                 </Select>
 
+                {areaNames.length > 0 ? (
+                    <Select value={areaName} onValueChange={setAreaName}>
+                        <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
+                            <SelectValue placeholder="Semua Area" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all" className="text-xs">
+                                Semua Area
+                            </SelectItem>
+                            {areaNames.map((area) => (
+                                <SelectItem
+                                    key={area}
+                                    value={area}
+                                    className="text-xs"
+                                >
+                                    {area}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                ) : null}
+
                 {canManage ? (
                     <div className="flex items-center gap-2 ml-auto">
                         <AdminImportUserDialog
@@ -371,6 +397,11 @@ export function AdminUsersTable({
                                             {user.branchNames.length > 0
                                                 ? user.branchNames.join(", ")
                                                 : "—"}
+                                            {user.areaNames.length > 0 ? (
+                                                <div className="text-[10px]">
+                                                    {user.areaNames.join(", ")}
+                                                </div>
+                                            ) : null}
                                         </TableCell>
                                         <TableCell>
                                             <Badge

@@ -13,6 +13,7 @@ export type AuthUser = {
     name: string;
     role: UserRole;
     branchNames: string[];
+    areaNames: string[];
     mustChangePassword: boolean;
 };
 
@@ -45,6 +46,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
                 name: true,
                 role: true,
                 branchNames: true,
+                areaNames: true,
                 mustChangePassword: true,
                 deletedAt: true,
             },

@@ -9,12 +9,14 @@ import { revalidatePath } from "next/cache";
 import { isReportStatusKey } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { getJakartaDateRange } from "@/lib/time";
+import { requiresPjum } from "@/lib/realisasi";
 
 export type AdminReportFilters = {
     search?: string;
     status?: string;
     scope?: string;
     branchName?: string;
+    areaName?: string;
     fromDate?: string;
     toDate?: string;
     pjumStatus?: string;
@@ -95,6 +97,29 @@ function getReportSlaInfo(
         slaOverdue,
         slaLabel: slaOverdue ? "Lewat SLA" : "Aman",
     };
+}
+
+async function getRequiredUnpjumReportNumbers(where: Prisma.ReportWhereInput) {
+    const rows = await prisma.report.findMany({
+        where: {
+            AND: [
+                where,
+                {
+                    status: "COMPLETED",
+                    pjumExportedAt: null,
+                },
+            ],
+        },
+        select: {
+            reportNumber: true,
+            totalReal: true,
+            items: true,
+        },
+    });
+
+    return rows
+        .filter((report) => requiresPjum(report.totalReal, report.items))
+        .map((report) => report.reportNumber);
 }
 
 export async function getAdminReports(
@@ -213,6 +238,18 @@ export async function getAdminReports(
             }
         }
 
+        if (filters.areaName && filters.areaName !== "all") {
+            if (
+                scopedBranchNames === null ||
+                user.areaNames.length === 0 ||
+                user.areaNames.includes(filters.areaName)
+            ) {
+                where.areaName = filters.areaName;
+            } else {
+                where.areaName = "__NO_AREA_SCOPE__";
+            }
+        }
+
         if (filters.fromDate || filters.toDate) {
             const { start, endExclusive } = getJakartaDateRange(
                 filters.fromDate,
@@ -225,17 +262,18 @@ export async function getAdminReports(
             };
         }
 
+        if (andFilters.length > 0) {
+            where.AND = andFilters;
+        }
+
         if (filters.pjumStatus && filters.pjumStatus !== "all") {
             if (filters.pjumStatus === "exported") {
                 where.pjumExportedAt = { not: null };
             }
             if (filters.pjumStatus === "not_exported") {
-                where.pjumExportedAt = null;
+                const reportNumbers = await getRequiredUnpjumReportNumbers(where);
+                where.reportNumber = { in: reportNumbers };
             }
-        }
-
-        if (andFilters.length > 0) {
-            where.AND = andFilters;
         }
         
         // Count total reports for the given filters
@@ -266,9 +304,11 @@ export async function getAdminReports(
                 storeName: true,
                 storeCode: true,
                 branchName: true,
+                areaName: true,
                 status: true,
                 totalEstimation: true,
                 totalReal: true,
+                items: true,
                 finishedAt: true,
                 pjumExportedAt: true,
                 createdByNIK: true,
@@ -300,7 +340,7 @@ export async function getAdminReports(
 
         return {
             reports: reports.map(r => {
-                const { activities, ...report } = r;
+                const { activities, items, ...report } = r;
                 const lastActivityAt = activities[0]?.createdAt ?? r.createdAt;
 
                 return {
@@ -308,6 +348,7 @@ export async function getAdminReports(
                     lastActivityAt,
                     totalEstimation: Number(r.totalEstimation),
                     totalReal: r.totalReal ? Number(r.totalReal) : null,
+                    requiresPjum: requiresPjum(r.totalReal, items),
                     ...getReportSlaInfo(
                         r.status,
                         lastActivityAt,

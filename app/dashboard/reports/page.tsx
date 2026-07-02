@@ -14,6 +14,7 @@ type Props = {
         status?: string;
         pjumStatus?: string;
         branchName?: string;
+        areaName?: string;
         scope?: string;
         sla?: string;
         review?: string;
@@ -69,6 +70,14 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             ? null
             : user.branchNames.filter((branchName) => branchName.trim() !== "");
     const requestedBranchName = params.branchName?.trim() || undefined;
+    const areaOptions = user.areaNames
+        .map((areaName) => areaName.trim())
+        .filter((areaName) => areaName.length > 0);
+    const requestedAreaName = params.areaName?.trim() || undefined;
+    const initialAreaName =
+        requestedAreaName && areaOptions.includes(requestedAreaName)
+            ? requestedAreaName
+            : undefined;
     const initialBranchName =
         scopedBranches === null
             ? requestedBranchName
@@ -84,6 +93,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             scope: initialScope,
             pjumStatus: initialPjumStatus,
             branchName: initialBranchName,
+            areaName: initialAreaName,
         }),
     ]);
 
@@ -99,12 +109,13 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                 initialData={initialReports.reports}
                 initialNextCursor={initialReports.nextCursor}
                 initialTotalCount={initialReports.totalCount}
-                initialSummary={initialReports.summary}
                 branches={branches}
+                areaNames={areaOptions}
                 initialStatus={initialStatus ?? "all"}
                 initialScope={initialScope ?? "all"}
                 initialPjumStatus={initialPjumStatus ?? "all"}
                 initialBranchName={initialBranchName ?? "all"}
+                initialAreaName={initialAreaName ?? "all"}
             />
         </AdminDashboardShell>
     );

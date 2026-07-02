@@ -42,6 +42,7 @@ async function dispatchReportNotification(
             storeCode: true,
             storeName: true,
             branchName: true,
+            areaName: true,
             createdByNIK: true,
         },
     });
@@ -67,6 +68,7 @@ async function dispatchPjumNotification(
             id: true,
             bmsNIK: true,
             branchName: true,
+            areaNames: true,
             weekNumber: true,
             reportNumbers: true,
             createdByNIK: true,
@@ -87,19 +89,23 @@ async function dispatchPjumNotification(
 
 async function getReportRecipients(
     type: NotificationType,
-    report: { branchName: string; createdByNIK: string },
+    report: { branchName: string; areaName: string | null; createdByNIK: string },
 ): Promise<NotificationRecipient[]> {
+    const areaNames = report.areaName ? [report.areaName] : [];
+
     switch (type) {
         case "REPORT_SUBMITTED":
         case "REPORT_WORK_STARTED":
         case "REPORT_COMPLETION_SUBMITTED":
             return getBranchRecipients({
                 branchName: report.branchName,
+                areaNames,
                 role: UserRole.BMC,
             });
         case "REPORT_WORK_APPROVED":
             return getBranchRecipients({
                 branchName: report.branchName,
+                areaNames,
                 role: UserRole.BNM_MANAGER,
             });
         case "REPORT_FINAL_APPROVED":
@@ -107,6 +113,7 @@ async function getReportRecipients(
             const bms = await getBmsRecipient(report.createdByNIK);
             const bmc = await getBranchRecipients({
                 branchName: report.branchName,
+                areaNames,
                 role: UserRole.BMC,
             });
             return [...bms, ...bmc];
@@ -115,10 +122,12 @@ async function getReportRecipients(
             const bms = await getBmsRecipient(report.createdByNIK);
             const bmc = await getBranchRecipients({
                 branchName: report.branchName,
+                areaNames,
                 role: UserRole.BMC,
             });
             const bnm = await getBranchRecipients({
                 branchName: report.branchName,
+                areaNames,
                 role: UserRole.BNM_MANAGER,
             });
             return [...bms, ...bmc, ...bnm];
@@ -130,11 +139,17 @@ async function getReportRecipients(
 
 async function getPjumRecipients(
     type: NotificationType,
-    pjum: { bmsNIK: string; branchName: string; createdByNIK: string },
+    pjum: {
+        bmsNIK: string;
+        branchName: string;
+        areaNames: string[];
+        createdByNIK: string;
+    },
 ): Promise<NotificationRecipient[]> {
     if (type === "PJUM_CREATED") {
         return getBranchRecipients({
             branchName: pjum.branchName,
+            areaNames: pjum.areaNames,
             role: UserRole.BNM_MANAGER,
         });
     }
@@ -161,12 +176,14 @@ async function createAndPushNotifications(params: {
         storeCode: string | null;
         storeName: string;
         branchName: string;
+        areaName: string | null;
         createdByNIK: string;
     };
     pjum?: {
         id: string;
         bmsNIK: string;
         branchName: string;
+        areaNames: string[];
         weekNumber: number;
         reportNumbers: string[];
     };

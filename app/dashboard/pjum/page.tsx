@@ -13,6 +13,7 @@ type AdminPjumPageProps = {
     searchParams?: Promise<{
         status?: string;
         branchName?: string;
+        areaName?: string;
     }>;
 };
 
@@ -41,6 +42,14 @@ export default async function AdminPjumPage({
             ? null
             : user.branchNames.filter((branchName) => branchName.trim() !== "");
     const requestedBranchName = params?.branchName?.trim();
+    const areaOptions = user.areaNames
+        .map((areaName) => areaName.trim())
+        .filter((areaName) => areaName.length > 0);
+    const requestedAreaName = params?.areaName?.trim();
+    const initialAreaName =
+        requestedAreaName && areaOptions.includes(requestedAreaName)
+            ? requestedAreaName
+            : undefined;
     const initialBranchName =
         scopedBranches === null
             ? requestedBranchName
@@ -50,6 +59,7 @@ export default async function AdminPjumPage({
     const initialFilters = {
         ...(initialStatus ? { status: initialStatus } : {}),
         ...(initialBranchName ? { branchName: initialBranchName } : {}),
+        ...(initialAreaName ? { areaName: initialAreaName } : {}),
     };
 
     const [branchOptions, initialData, bmsUsers] = await Promise.all([
@@ -83,6 +93,7 @@ export default async function AdminPjumPage({
                 initialSummary={initialData.summary}
                 initialFilters={initialFilters}
                 branches={branches}
+                areaNames={areaOptions}
             />
         </AdminDashboardShell>
     );

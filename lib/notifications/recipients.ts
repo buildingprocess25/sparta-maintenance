@@ -5,6 +5,7 @@ type BranchUser = {
     NIK: string;
     role: UserRole;
     branchNames: string[];
+    areaNames: string[];
     deletedAt: Date | null;
 };
 
@@ -17,11 +18,18 @@ export function filterUsersByBranchAndRole(
     users: BranchUser[],
     branchName: string,
     role: UserRole,
+    areaNames: string[] = [],
 ): NotificationRecipient[] {
+    const hasAreaFilter = areaNames.length > 0;
+
     return users
         .filter((user) => user.role === role)
         .filter((user) => user.deletedAt === null)
-        .filter((user) => user.branchNames.includes(branchName))
+        .filter((user) =>
+            hasAreaFilter
+                ? user.areaNames.some((areaName) => areaNames.includes(areaName))
+                : user.branchNames.includes(branchName),
+        )
         .map((user) => ({ NIK: user.NIK, role: user.role }));
 }
 
@@ -41,12 +49,16 @@ export async function getBmsRecipient(
 export async function getBranchRecipients(params: {
     branchName: string;
     role: UserRole;
+    areaNames?: string[];
 }): Promise<NotificationRecipient[]> {
     const prisma = await getPrisma();
+    const areaNames = params.areaNames ?? [];
     const users = await prisma.user.findMany({
         where: {
             role: params.role,
-            branchNames: { has: params.branchName },
+            ...(areaNames.length > 0
+                ? { areaNames: { hasSome: areaNames } }
+                : { branchNames: { has: params.branchName } }),
             deletedAt: null,
         },
         select: { NIK: true, role: true },

@@ -10,6 +10,7 @@ export type AdminUserFilters = {
     search?: string;
     role?: string;       // single role value — "all" = no filter
     branchName?: string; // single branch — "all" = no filter
+    areaName?: string;
 };
 
 // ─── List (cursor-based infinite scroll) ─────────────────────────────────────
@@ -87,6 +88,18 @@ export async function getAdminUsers(
             andClauses.push({ branchNames: { has: filters.branchName } });
         }
 
+        if (filters.areaName && filters.areaName !== "all") {
+            if (
+                user.role === "ADMIN" ||
+                user.areaNames.length === 0 ||
+                user.areaNames.includes(filters.areaName)
+            ) {
+                andClauses.push({ areaNames: { has: filters.areaName } });
+            } else {
+                andClauses.push({ NIK: "__NO_AREA_SCOPE__" });
+            }
+        }
+
         const where: Prisma.UserWhereInput = { AND: andClauses };
 
         const totalCount = await prisma.user.count({ where });
@@ -103,6 +116,7 @@ export async function getAdminUsers(
                 email: true,
                 role: true,
                 branchNames: true,
+                areaNames: true,
             },
         });
 

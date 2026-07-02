@@ -11,12 +11,13 @@ import { headers } from "next/headers";
 import { getGoogleDriveClient } from "@/lib/google-drive/client";
 import { deletePdfSnapshots } from "@/lib/pdf/snapshot-storage";
 import { getPjumPolicySettings } from "@/lib/app-settings";
-import { resolveReportTotalRealisasi } from "@/lib/realisasi";
+import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { getJakartaDateRange } from "@/lib/time";
 
 export type AdminPjumFilters = {
     search?: string;
     branchName?: string;
+    areaName?: string;
     status?: string;
     fromDate?: string;
     toDate?: string;
@@ -35,6 +36,7 @@ export type PjumRow = {
     id: string;
     weekNumber: number;
     branchName: string;
+    areaNames: string[];
     bmsNIK: string;
     bmsName: string;
     fromDate: Date;
@@ -59,6 +61,7 @@ export type DashboardPjumCandidateRow = {
     storeName: string;
     storeCode: string | null;
     branchName: string;
+    areaName: string | null;
     status: string;
     totalRealisasi: number;
     pjumExportedAt: string | null;
@@ -81,6 +84,7 @@ type DashboardPjumCandidate = {
     storeName: string;
     storeCode: string | null;
     branchName: string;
+    areaName: string | null;
     status: string;
     totalReal: unknown;
     items: unknown;
@@ -137,6 +141,7 @@ async function getDashboardPjumReportsInRange(params: {
             storeName: true,
             storeCode: true,
             branchName: true,
+            areaName: true,
             status: true,
             totalReal: true,
             items: true,
@@ -241,13 +246,16 @@ export async function searchDashboardPjumCandidates(input: {
             report.totalReal,
             report.items,
         );
+        const reportRequiresPjum = requiresPjum(report.totalReal, report.items);
         const isAlreadyInPjum =
             Boolean(report.pjumExportedAt) ||
             numbersInActivePjum.has(report.reportNumber);
         const invalidReason =
             report.status !== "COMPLETED"
                 ? "Belum selesai"
-                : isAlreadyInPjum
+                : !reportRequiresPjum
+                  ? "Tidak perlu PJUM"
+                  : isAlreadyInPjum
                   ? "Sudah masuk PJUM"
                   : null;
         const isValid = invalidReason === null;
@@ -269,6 +277,7 @@ export async function searchDashboardPjumCandidates(input: {
             storeName: report.storeName,
             storeCode: report.storeCode,
             branchName: report.branchName,
+            areaName: report.areaName,
             status: report.status,
             totalRealisasi,
             pjumExportedAt: report.pjumExportedAt?.toISOString() ?? null,
@@ -368,6 +377,7 @@ export async function createDashboardPjum(input: {
                 (report) =>
                     !report ||
                     report.status !== "COMPLETED" ||
+                    !requiresPjum(report.totalReal, report.items) ||
                     report.pjumExportedAt,
             );
         if (invalidReport) {
@@ -375,6 +385,11 @@ export async function createDashboardPjum(input: {
                 error:
                     invalidReport.status !== "COMPLETED"
                         ? `Laporan ${invalidReport.reportNumber} belum SELESAI`
+                        : !requiresPjum(
+                                invalidReport.totalReal,
+                                invalidReport.items,
+                            )
+                          ? `Laporan ${invalidReport.reportNumber} tidak memiliki biaya atau pekerjaan BMS yang perlu PJUM`
                         : `Laporan ${invalidReport.reportNumber} sudah masuk PJUM`,
                 pjumExportId: null,
             };
@@ -415,6 +430,13 @@ export async function createDashboardPjum(input: {
             };
         }
         const branchName = selectedReports[0].branchName;
+        const areaNames = [
+            ...new Set(
+                selectedReports
+                    .map((report) => report.areaName)
+                    .filter((areaName): areaName is string => Boolean(areaName)),
+            ),
+        ];
 
         const pjumExport = await prisma.$transaction(async (tx) => {
             const reportResult = await tx.report.updateMany({
@@ -439,6 +461,7 @@ export async function createDashboardPjum(input: {
                     status: "PENDING_APPROVAL",
                     bmsNIK,
                     branchName,
+                    areaNames,
                     weekNumber: input.weekNumber,
                     fromDate,
                     toDate,
@@ -557,6 +580,18 @@ export async function getAdminPjum(
             }
         }
 
+        if (filters.areaName && filters.areaName !== "all") {
+            if (
+                scopedBranchNames === null ||
+                user.areaNames.length === 0 ||
+                user.areaNames.includes(filters.areaName)
+            ) {
+                baseWhere.areaNames = { has: filters.areaName };
+            } else {
+                baseWhere.areaNames = { has: "__NO_AREA_SCOPE__" };
+            }
+        }
+
         if (filters.fromDate || filters.toDate) {
             const { start, endExclusive } = getJakartaDateRange(
                 filters.fromDate,
@@ -594,6 +629,7 @@ export async function getAdminPjum(
                     id: true,
                     weekNumber: true,
                     branchName: true,
+                    areaNames: true,
                     bmsNIK: true,
                     fromDate: true,
                     toDate: true,
@@ -662,6 +698,7 @@ export async function getAdminPjum(
             id: p.id,
             weekNumber: p.weekNumber,
             branchName: p.branchName,
+            areaNames: p.areaNames,
             bmsNIK: p.bmsNIK,
             bmsName: nameMap.get(p.bmsNIK) || p.bmsNIK,
             fromDate: p.fromDate,

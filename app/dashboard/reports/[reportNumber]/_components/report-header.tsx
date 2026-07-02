@@ -45,16 +45,24 @@ export function ReportHeader({
     const finalDocuments = getFinalDriveDocuments(report);
     const canIntervene =
         viewerRole === "ADMIN" && report.status === "COMPLETED";
-    const pjumStatusLabel = report.pjumExport
+    const pjumStatusLabel = !report.requiresPjum
+        ? "Tidak perlu PJUM"
+        : report.pjumExport
         ? getPjumStatusLabel(report.pjumExport.status)
         : "Belum masuk PJUM";
-    const pjumExportLabel = report.pjumExportedAt
+    const pjumExportLabel = !report.requiresPjum
+        ? "-"
+        : report.pjumExportedAt
         ? formatDateTime(report.pjumExportedAt)
         : "Belum diekspor";
-    const pjumWeekLabel = report.pjumExport
+    const pjumWeekLabel = !report.requiresPjum
+        ? "-"
+        : report.pjumExport
         ? `Minggu ${report.pjumExport.weekNumber}`
         : "Belum ada";
-    const pjumApprovalLabel = report.pjumExport?.approvedAt
+    const pjumApprovalLabel = !report.requiresPjum
+        ? "-"
+        : report.pjumExport?.approvedAt
         ? formatDateTime(report.pjumExport.approvedAt)
         : report.pjumExport
           ? "Belum disetujui"
@@ -239,22 +247,25 @@ export function ReportHeader({
                             <SummaryRow
                                 label="Status:"
                                 value={pjumStatusLabel}
-                                muted={!report.pjumExport}
+                                muted={!report.pjumExport || !report.requiresPjum}
                             />
                             <SummaryRow
                                 label="Masuk PJUM:"
                                 value={pjumExportLabel}
-                                muted={!report.pjumExportedAt}
+                                muted={!report.pjumExportedAt || !report.requiresPjum}
                             />
                             <SummaryRow
                                 label="Minggu:"
                                 value={pjumWeekLabel}
-                                muted={!report.pjumExport}
+                                muted={!report.pjumExport || !report.requiresPjum}
                             />
                             <SummaryRow
                                 label="Approval:"
                                 value={pjumApprovalLabel}
-                                muted={!report.pjumExport?.approvedAt}
+                                muted={
+                                    !report.pjumExport?.approvedAt ||
+                                    !report.requiresPjum
+                                }
                             />
                         </SummaryColumn>
                     </div>

@@ -35,7 +35,6 @@ import {
 } from "@/components/reui/filters";
 
 type ReportItem = Awaited<ReturnType<typeof getAdminReports>>["reports"][0];
-type ReportSummary = Awaited<ReturnType<typeof getAdminReports>>["summary"];
 
 const PJUM_OPTIONS = [
     { value: "exported", label: "Sudah PJUM" },
@@ -121,13 +120,21 @@ function getPjumBadge(report: ReportItem) {
         );
     }
 
-    if (report.status === "COMPLETED") {
+    if (report.status === "COMPLETED" && report.requiresPjum) {
         return (
             <Badge
                 variant="outline"
                 className="h-5 border-amber-200 bg-amber-50 px-1.5 text-[10px] font-medium text-amber-700"
             >
                 Belum PJUM
+            </Badge>
+        );
+    }
+
+    if (report.status === "COMPLETED" && !report.requiresPjum) {
+        return (
+            <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-medium">
+                Tidak perlu
             </Badge>
         );
     }
@@ -165,22 +172,24 @@ export function AdminReportsTable({
     initialData,
     initialNextCursor,
     initialTotalCount,
-    initialSummary,
     branches,
+    areaNames,
     initialStatus = "all",
     initialScope = "all",
     initialPjumStatus = "all",
     initialBranchName = "all",
+    initialAreaName = "all",
 }: {
     initialData: ReportItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
-    initialSummary: ReportSummary;
     branches: string[];
+    areaNames: string[];
     initialStatus?: string;
     initialScope?: string;
     initialPjumStatus?: string;
     initialBranchName?: string;
+    initialAreaName?: string;
 }) {
     const initialQuickFilter = resolveInitialQuickFilter({
         initialScope,
@@ -192,7 +201,6 @@ export function AdminReportsTable({
         initialNextCursor,
     );
     const [totalCount, setTotalCount] = useState(initialTotalCount);
-    const [summary, setSummary] = useState(initialSummary);
     const [isLoading, setIsLoading] = useState(false);
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
     const [search, setSearch] = useState("");
@@ -217,6 +225,9 @@ export function AdminReportsTable({
             !initialBranchName || initialBranchName === "all"
                 ? null
                 : createFilter<string>("branchName", "is", [initialBranchName]),
+            !initialAreaName || initialAreaName === "all"
+                ? null
+                : createFilter<string>("areaName", "is", [initialAreaName]),
         ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
@@ -236,6 +247,21 @@ export function AdminReportsTable({
                     label: branch,
                 })),
             },
+            ...(areaNames.length > 0
+                ? [
+                      {
+                          key: "areaName",
+                          label: "Area",
+                          type: "select" as const,
+                          placeholder: "Pilih area",
+                          icon: <Building2 className="h-3.5 w-3.5" />,
+                          options: areaNames.map((areaName) => ({
+                              value: areaName,
+                              label: areaName,
+                          })),
+                      },
+                  ]
+                : []),
             {
                 key: "status",
                 label: "Status",
@@ -265,7 +291,7 @@ export function AdminReportsTable({
                 icon: <CalendarDays className="h-3.5 w-3.5" />,
             },
         ],
-        [branches],
+        [branches, areaNames],
     );
 
     const getFilterValue = useCallback(
@@ -277,6 +303,7 @@ export function AdminReportsTable({
 
     const searchValue = search.trim();
     const branchName = String(getFilterValue("branchName"));
+    const areaName = String(getFilterValue("areaName"));
     const status = String(getFilterValue("status"));
     const fromDate = String(getFilterValue("fromDate"));
     const toDate = String(getFilterValue("toDate"));
@@ -291,6 +318,7 @@ export function AdminReportsTable({
             const filters: AdminReportFilters = {
                 search: searchValue || undefined,
                 branchName: branchName || undefined,
+                areaName: areaName || undefined,
                 status: status || undefined,
                 scope:
                     quickFilter !== "all" &&
@@ -318,7 +346,6 @@ export function AdminReportsTable({
                 if (isInitial) {
                     setReports(res.reports);
                     setTotalCount(res.totalCount);
-                    setSummary(res.summary);
                 } else {
                     setReports((prev) => {
                         const existing = new Set(
@@ -343,6 +370,7 @@ export function AdminReportsTable({
         [
             searchValue,
             branchName,
+            areaName,
             status,
             fromDate,
             toDate,
@@ -382,6 +410,7 @@ export function AdminReportsTable({
     }, [
         searchValue,
         branchName,
+        areaName,
         status,
         fromDate,
         toDate,
@@ -568,6 +597,11 @@ export function AdminReportsTable({
                                             <div className="max-w-[140px] truncate text-[11px] font-medium">
                                                 {report.branchName || "-"}
                                             </div>
+                                            {report.areaName ? (
+                                                <div className="mt-0.5 max-w-[140px] truncate text-[10px] text-muted-foreground">
+                                                    {report.areaName}
+                                                </div>
+                                            ) : null}
                                         </TableCell>
                                         <TableCell className="align-middle">
                                             <div className="max-w-[180px] truncate text-[11px]">

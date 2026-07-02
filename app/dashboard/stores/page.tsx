@@ -37,6 +37,7 @@ export default async function AdminStoresPage() {
                 initialNextCursor={initialData.nextCursor}
                 initialTotalCount={initialData.totalCount}
                 branches={branches}
+                areaNames={user.areaNames}
                 canManage
             />
         </AdminDashboardShell>

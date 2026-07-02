@@ -152,6 +152,8 @@ export async function uploadPjumToDrive(params: {
     year: number;
     monthName: string;
     weekNumber: number;
+    reportCount?: number;
+    documentCode?: string;
     pdfBuffer: Buffer;
 }) {
     const monthFolderId = await ensureDriveFolderPath([
@@ -162,7 +164,13 @@ export async function uploadPjumToDrive(params: {
         sanitizeDriveName(params.monthName),
     ]);
 
-    const fileName = `PJUM ${sanitizeDriveName(params.monthName)} minggu ke ${params.weekNumber}.pdf`;
+    const reportCount = params.reportCount
+        ? ` - ${params.reportCount} laporan`
+        : "";
+    const documentCode = params.documentCode
+        ? ` - ${sanitizeDriveName(params.documentCode)}`
+        : "";
+    const fileName = `PJUM ${sanitizeDriveName(params.monthName)} minggu ke ${params.weekNumber}${reportCount}${documentCode}.pdf`;
 
     const uploaded = await uploadPdfToDrive({
         fileName,

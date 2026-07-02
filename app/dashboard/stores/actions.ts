@@ -16,6 +16,7 @@ export type { ImportResult } from "@/app/admin/database/actions";
 export type AdminStoreFilters = {
     search?: string;
     branchName?: string; // "all" = no filter
+    areaName?: string;
 };
 
 // ─── List (cursor-based infinite scroll) ─────────────────────────────────────
@@ -64,6 +65,18 @@ export async function getAdminStores(
             }
         }
 
+        if (filters.areaName && filters.areaName !== "all") {
+            if (
+                user.role === "ADMIN" ||
+                user.areaNames.length === 0 ||
+                user.areaNames.includes(filters.areaName)
+            ) {
+                where.areaName = filters.areaName;
+            } else {
+                where.areaName = "__NO_AREA_SCOPE__";
+            }
+        }
+
         const totalCount = await prisma.store.count({ where });
 
         const stores = await prisma.store.findMany({
@@ -76,6 +89,7 @@ export async function getAdminStores(
                 code: true,
                 name: true,
                 branchName: true,
+                areaName: true,
                 isActive: true,
             },
         });

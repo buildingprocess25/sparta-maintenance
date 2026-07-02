@@ -190,6 +190,19 @@ export function hasRealisasiItems(items: unknown): boolean {
     return false;
 }
 
+export function hasBmsHandledItems(items: unknown): boolean {
+    const reportItems = Array.isArray(items) ? (items as ReportItemJson[]) : [];
+
+    return reportItems.some((item) => item.handler === "BMS");
+}
+
+export function requiresPjum(totalReal: unknown, items: unknown): boolean {
+    return (
+        resolveReportTotalRealisasi(totalReal, items) > 0 ||
+        hasBmsHandledItems(items)
+    );
+}
+
 export function resolveReportTotalRealisasi(
     totalReal: unknown,
     items: unknown,

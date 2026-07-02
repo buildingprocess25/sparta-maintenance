@@ -412,6 +412,8 @@ export async function approvePjumExport(input: {
             year: result.year,
             monthName: result.monthName,
             weekNumber: pjumExport.weekNumber,
+            reportCount: pjumExport.reportNumbers.length,
+            documentCode: pjumExport.id.slice(0, 8),
             pdfBuffer: result.buffer,
         });
 

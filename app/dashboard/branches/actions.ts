@@ -11,6 +11,7 @@ import {
 } from "@/lib/admin-branches";
 import { logger } from "@/lib/logger";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { requiresPjum } from "@/lib/realisasi";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import type { Prisma } from "@prisma/client";
 import type { AuthUser } from "@/lib/authorization";
@@ -121,6 +122,19 @@ function mapCountRows(rows: CountRow[]) {
     return new Map(rows.map((row) => [row.branchName, row._count._all]));
 }
 
+function mapRequiredUnpjumRows(
+    rows: Array<{ branchName: string; totalReal: unknown; items: unknown }>,
+) {
+    const map = new Map<string, number>();
+
+    for (const row of rows) {
+        if (!requiresPjum(row.totalReal, row.items)) continue;
+        map.set(row.branchName, (map.get(row.branchName) ?? 0) + 1);
+    }
+
+    return map;
+}
+
 function calculateAgeDays(date: Date): number {
     return Math.max(0, Math.floor((Date.now() - date.getTime()) / 86_400_000));
 }
@@ -185,7 +199,7 @@ async function getAdminBranchOverview(
         completedAggregate,
         openReports,
         stuckReports,
-        unpjumCompletedReports,
+        unpjumCompletedReportRows,
         lastActivityRows,
     ] = await Promise.all([
         prisma.store.count({
@@ -236,11 +250,15 @@ async function getAdminBranchOverview(
                 },
             },
         }),
-        prisma.report.count({
+        prisma.report.findMany({
             where: {
                 branchName,
                 status: "COMPLETED",
                 pjumExportedAt: null,
+            },
+            select: {
+                totalReal: true,
+                items: true,
             },
         }),
         prisma.activityLog.findFirst({
@@ -249,6 +267,9 @@ async function getAdminBranchOverview(
             select: { createdAt: true },
         }),
     ]);
+    const unpjumCompletedReports = unpjumCompletedReportRows.filter((report) =>
+        requiresPjum(report.totalReal, report.items),
+    ).length;
 
     const usersForBranch = { BMS: 0, BMC: 0, BNM_MANAGER: 0 };
     for (const row of userRoleRows) {
@@ -379,14 +400,17 @@ export async function getAdminBranchesData(
                 },
                 _count: { _all: true },
             }),
-            prisma.report.groupBy({
-                by: ["branchName"],
+            prisma.report.findMany({
                 where: {
                     branchName: { in: branchNames },
                     status: "COMPLETED",
                     pjumExportedAt: null,
                 },
-                _count: { _all: true },
+                select: {
+                    branchName: true,
+                    totalReal: true,
+                    items: true,
+                },
             }),
             prisma.$queryRaw<BranchActivityRow[]>`
                 SELECT
@@ -404,7 +428,7 @@ export async function getAdminBranchesData(
         const reportMap = mapCountRows(reportRows);
         const openMap = mapCountRows(openRows);
         const stuckMap = mapCountRows(stuckRows);
-        const unpjumMap = mapCountRows(unpjumRows);
+        const unpjumMap = mapRequiredUnpjumRows(unpjumRows);
         const completedMap = new Map(
             completedRows.map((row: CompletedRow) => [
                 row.branchName,
@@ -635,6 +659,7 @@ export async function getAdminBranchDetail(
                 updatedAt: true,
                 finishedAt: true,
                 totalReal: true,
+                items: true,
             },
         }),
         prisma.activityLog.findMany({
@@ -683,7 +708,9 @@ export async function getAdminBranchDetail(
             };
         }),
         stuckReports: stuckReports.map(mapReportItem),
-        unpjumReports: unpjumReports.map(mapReportItem),
+        unpjumReports: unpjumReports
+            .filter((report) => requiresPjum(report.totalReal, report.items))
+            .map(mapReportItem),
         recentActivity: activityRows.map((row) => ({
             id: row.id,
             reportNumber: row.reportNumber,

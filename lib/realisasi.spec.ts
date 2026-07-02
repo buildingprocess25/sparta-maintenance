@@ -3,6 +3,7 @@ import {
     buildRealisasiDanaTaktisSummary,
     calculateItemRealisasiTotal,
     calculateTotalRealisasiFromItems,
+    requiresPjum,
 } from "./realisasi";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 
@@ -227,5 +228,16 @@ assert.equal(pipaC1.estQty, 1);
 assert.equal(pipaC2.realPrice, 12_000);
 assert.equal(pipaC2.estTotal, 0, "C2 Pipa listrik TIDAK punya estimasi → 0");
 assert.equal(pipaC2.estQty, 0, "C2 Pipa listrik TIDAK punya estimasi → 0");
+
+assert.equal(
+    requiresPjum(0, [{ ...items[0], realisasiItems: [] }]),
+    true,
+    "Rp0 dengan item pekerjaan BMS tetap wajib PJUM",
+);
+assert.equal(
+    requiresPjum(0, [{ ...items[0], handler: "REKANAN", realisasiItems: [] }]),
+    false,
+    "Rp0 tanpa item pekerjaan BMS tidak wajib PJUM",
+);
 
 console.log("✅ Semua assertions passed");

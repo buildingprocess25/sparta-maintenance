@@ -53,7 +53,9 @@ export function ActionsTab({
                     <InfoPill
                         label="PJUM"
                         value={
-                            report.pjumExport
+                            !report.requiresPjum
+                                ? "Tidak perlu PJUM"
+                                : report.pjumExport
                                 ? getPjumStatusLabel(report.pjumExport.status)
                                 : "Belum masuk PJUM"
                         }

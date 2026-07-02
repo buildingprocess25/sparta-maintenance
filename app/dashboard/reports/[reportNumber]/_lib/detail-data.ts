@@ -4,7 +4,7 @@ import type {
     RealisasiItemJson,
     ReportItemJson,
 } from "@/types/report";
-import { calculateItemRealisasiTotal } from "@/lib/realisasi";
+import { calculateItemRealisasiTotal, requiresPjum } from "@/lib/realisasi";
 import {
     normalizePhotoUrl,
     normalizePhotoUrls,
@@ -143,6 +143,7 @@ export type ReportDocument = {
 };
 
 export type ReportDetailModel = RawReportDetailInput & {
+    requiresPjum: boolean;
     checklistGroups: ChecklistGroup[];
     workItems: WorkItem[];
     photos: DetailPhoto[];
@@ -243,6 +244,7 @@ export function buildReportDetailModel(
 
     return {
         ...input,
+        requiresPjum: requiresPjum(input.totalReal, sortedItems),
         checklistGroups,
         workItems,
         photos,

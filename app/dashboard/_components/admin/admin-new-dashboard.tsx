@@ -6,7 +6,6 @@ import {
     CircleDollarSign,
     Clock3,
     FileText,
-    Info,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,9 +162,7 @@ function KpiGrid({
                     },
                     {
                         label: "Sudah PJUM",
-                        value: formatNumber(
-                            kpi.completedReports - kpi.unpjumCompletedReports,
-                        ),
+                        value: formatNumber(kpi.pjumCompletedReports),
                         href: "/dashboard/reports?status=COMPLETED&pjumStatus=exported",
                         tone: "blue",
                     },
@@ -355,9 +352,6 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
         (sum, item) => sum + item.overdueCount,
         0,
     );
-    const safeCount = Math.max(totalActive - totalOverdue, 0);
-    const safeRate =
-        totalActive > 0 ? Math.round((safeCount / totalActive) * 100) : 100;
 
     return (
         <div className="space-y-4">
@@ -503,9 +497,7 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
     );
 }
 
-function SlaStatusGuide({ status }: { status: AdminStatusDatum[] }) {
-    const statusMap = new Map(status.map((item) => [item.status, item]));
-
+function SlaStatusGuide() {
     return (
         <aside className="rounded-lg border bg-background p-3">
             <div className="flex items-center justify-between gap-3">
@@ -523,7 +515,6 @@ function SlaStatusGuide({ status }: { status: AdminStatusDatum[] }) {
 
             <div className="mt-3 space-y-2">
                 {SLA_STATUS_GUIDE.map((guide) => {
-                    const current = statusMap.get(guide.status);
                     return (
                         <div
                             key={guide.status}
@@ -925,7 +916,7 @@ export async function AdminNewDashboard({
                     </div>
                     <StatusDistributionKpis status={data.status} />
                 </div>
-                <SlaStatusGuide status={data.status} />
+                <SlaStatusGuide />
             </section>
 
             <Card>
