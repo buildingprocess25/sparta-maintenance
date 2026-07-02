@@ -16,6 +16,8 @@ const BRANCH_MERGES = new Map<string, string>([
 const OLD_BRANCHES = [...BRANCH_MERGES.keys()];
 const STORE_AREA_CSV = "backup/branch-area-backup.csv";
 const USER_AREA_CSV = "backup/user-area.csv";
+const BATCH_SIZE = 500;
+const PJUM_PAGE_SIZE = 200;
 
 function normalizeAreaName(areaName: string) {
     return areaName.trim().replaceAll("_", " ");
@@ -28,6 +30,25 @@ function normalizeUserBranches(branchNames: string[]) {
     });
 
     return [...new Set(next)].filter(Boolean);
+}
+
+function sameStringArray(left: string[], right: string[]) {
+    return (
+        left.length === right.length &&
+        left.every((value, index) => value === right[index])
+    );
+}
+
+function chunk<T>(items: T[], size = BATCH_SIZE) {
+    const chunks: T[][] = [];
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size));
+    }
+    return chunks;
+}
+
+function logProgress(message: string) {
+    console.log(`[${new Date().toISOString()}] ${message}`);
 }
 
 function parseStoreAreaCsv(path = STORE_AREA_CSV) {
@@ -111,10 +132,8 @@ async function main() {
         }))
         .filter(
             (user) =>
-                user.branchNames.join("\u0000") !==
-                    user.nextBranchNames.join("\u0000") ||
-                user.areaNames.join("\u0000") !==
-                    user.nextAreaNames.join("\u0000"),
+                !sameStringArray(user.branchNames, user.nextBranchNames) ||
+                !sameStringArray(user.areaNames, user.nextAreaNames),
         );
 
     const storeCounts = await Promise.all(
@@ -159,6 +178,7 @@ async function main() {
     let updatedStores = 0;
     let updatedReports = 0;
     let updatedPjumExports = 0;
+    logProgress("Updating merged branch names...");
     for (const branchName of OLD_BRANCHES) {
         const targetBranchName = BRANCH_MERGES.get(branchName)!;
         const storeResult = await prisma.store.updateMany({
@@ -177,6 +197,7 @@ async function main() {
         updatedReports += reportResult.count;
         updatedPjumExports += pjumResult.count;
     }
+    logProgress("Merged branch names done.");
 
     const storesByArea = new Map<string, string[]>();
     for (const [storeCode, areaName] of storeAreaMap) {
@@ -185,20 +206,31 @@ async function main() {
             storeCode,
         ]);
     }
+    logProgress(`Updating store/report areas in ${storesByArea.size} groups...`);
     for (const [areaName, entries] of storesByArea) {
-        const storeResult = await prisma.store.updateMany({
-            where: { code: { in: entries } },
-            data: { areaName },
-        });
-        const reportResult = await prisma.report.updateMany({
-            where: { storeCode: { in: entries } },
-            data: { areaName },
-        });
-        updatedStores += storeResult.count;
-        updatedReports += reportResult.count;
+        let areaStores = 0;
+        let areaReports = 0;
+        for (const codes of chunk(entries)) {
+            const storeResult = await prisma.store.updateMany({
+                where: { code: { in: codes } },
+                data: { areaName },
+            });
+            const reportResult = await prisma.report.updateMany({
+                where: { storeCode: { in: codes } },
+                data: { areaName },
+            });
+            areaStores += storeResult.count;
+            areaReports += reportResult.count;
+            updatedStores += storeResult.count;
+            updatedReports += reportResult.count;
+        }
+        logProgress(
+            `Area ${areaName}: ${areaStores} stores, ${areaReports} reports updated.`,
+        );
     }
 
     let updatedUsers = 0;
+    logProgress(`Updating ${userUpdates.length} users...`);
     for (const user of userUpdates) {
         await prisma.user.update({
             where: { NIK: user.NIK },
@@ -209,39 +241,56 @@ async function main() {
         });
         updatedUsers += 1;
     }
+    logProgress("Users done.");
 
-    const pjumExports = await prisma.pjumExport.findMany({
-        select: { id: true, reportNumbers: true, areaNames: true },
-    });
-    const reportNumbers = [
-        ...new Set(pjumExports.flatMap((pjum) => pjum.reportNumbers)),
-    ];
-    const reports = await prisma.report.findMany({
-        where: { reportNumber: { in: reportNumbers } },
-        select: { reportNumber: true, areaName: true },
-    });
-    const reportAreaMap = new Map(
-        reports.map((report) => [report.reportNumber, report.areaName]),
-    );
+    logProgress("Updating PJUM areas...");
+    let cursor: string | undefined;
+    while (true) {
+        const pjumExports = await prisma.pjumExport.findMany({
+            take: PJUM_PAGE_SIZE,
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            orderBy: { id: "asc" },
+            select: { id: true, reportNumbers: true, areaNames: true },
+        });
 
-    for (const pjum of pjumExports) {
-        const areaNames = [
-            ...new Set(
-                pjum.reportNumbers
-                    .map((reportNumber) => reportAreaMap.get(reportNumber))
-                    .filter((areaName): areaName is string => Boolean(areaName)),
-            ),
+        if (pjumExports.length === 0) break;
+
+        const reportNumbers = [
+            ...new Set(pjumExports.flatMap((pjum) => pjum.reportNumbers)),
         ];
+        const reports = await prisma.report.findMany({
+            where: { reportNumber: { in: reportNumbers } },
+            select: { reportNumber: true, areaName: true },
+        });
+        const reportAreaMap = new Map(
+            reports.map((report) => [report.reportNumber, report.areaName]),
+        );
 
-        if (pjum.areaNames.join("\u0000") === areaNames.join("\u0000")) {
-            continue;
+        for (const pjum of pjumExports) {
+            const areaNames = [
+                ...new Set(
+                    pjum.reportNumbers
+                        .map((reportNumber) => reportAreaMap.get(reportNumber))
+                        .filter(
+                            (areaName): areaName is string =>
+                                Boolean(areaName),
+                        ),
+                ),
+            ];
+
+            if (sameStringArray(pjum.areaNames, areaNames)) {
+                continue;
+            }
+
+            await prisma.pjumExport.update({
+                where: { id: pjum.id },
+                data: { areaNames },
+            });
+            updatedPjumExports += 1;
         }
 
-        await prisma.pjumExport.update({
-            where: { id: pjum.id },
-            data: { areaNames },
-        });
-        updatedPjumExports += 1;
+        cursor = pjumExports.at(-1)?.id;
+        logProgress(`Processed ${pjumExports.length} PJUM rows.`);
     }
 
     console.log("✅ Branch user dan toko berhasil diperbarui");
