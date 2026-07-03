@@ -92,7 +92,7 @@ Catatan:
 
 - `TZ=UTC` dipakai di service.
 - Dockerfile juga set `TZ=UTC`.
-- Build memakai placeholder non-secret agar import Prisma/Next tidak gagal.
+- Build memakai nilai dummy non-secret agar import Prisma/Next tidak gagal.
 - Jika env public `NEXT_PUBLIC_*` berubah, rebuild/redeploy diperlukan karena nilainya bisa masuk bundle client.
 
 ## UploadThing Legacy
