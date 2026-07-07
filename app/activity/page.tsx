@@ -7,6 +7,8 @@ import {
 } from "@/app/dashboard/queries";
 import { ActivityList } from "./_components/activity-list";
 import { PjumActivityList } from "./_components/pjum-activity-list";
+import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
+import { BmsMobileActivityList } from "./_components/bms-mobile-activity-list";
 
 const PER_PAGE = 20;
 const POOL = 500;
@@ -67,11 +69,46 @@ export default async function ActivityPage({ searchParams }: Props) {
         );
     }
 
+    if (user.role === "BMS") {
+        const bmsAll = await getBMSActivity(user.NIK, POOL);
+        let bmsFiltered = bmsAll;
+
+        if (action && action !== "all") {
+            bmsFiltered = bmsFiltered.filter((item) => item.action === action);
+        }
+
+        if (date) {
+            const filterDate = new Date(date);
+            bmsFiltered = bmsFiltered.filter((item) => {
+                const itemDate = new Date(item.createdAt);
+                return (
+                    itemDate.getFullYear() === filterDate.getFullYear() &&
+                    itemDate.getMonth() === filterDate.getMonth() &&
+                    itemDate.getDate() === filterDate.getDate()
+                );
+            });
+        }
+
+        if (search) {
+            const q = search.toLowerCase();
+            bmsFiltered = bmsFiltered.filter(
+                (item) =>
+                    item.reportNumber.toLowerCase().includes(q) ||
+                    item.report.storeName?.toLowerCase().includes(q) ||
+                    item.report.branchName.toLowerCase().includes(q) ||
+                    item.actor.name.toLowerCase().includes(q),
+            );
+        }
+
+        return (
+            <BmsMobilePage navItem="activity" title="Aktivitas Anda">
+                <BmsMobileActivityList items={bmsFiltered} />
+            </BmsMobilePage>
+        );
+    }
+
     let all;
     switch (user.role) {
-        case "BMS":
-            all = await getBMSActivity(user.NIK, POOL);
-            break;
         case "BMC":
             all = await getBranchActivity(user.branchNames, POOL);
             break;

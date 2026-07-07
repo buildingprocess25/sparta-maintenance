@@ -140,13 +140,13 @@ These stay on current project UI until v2 versions exist.
   - current `ActivityItem` shape from `app/dashboard/queries.ts`
 - Produces: mobile BMS activity page only.
 
-- [ ] Keep current role switch for BNM_MANAGER, BMC, and ADMIN.
-- [ ] For `user.role === "BMS"`, render the copied/adapted v2 mobile activity UI.
-- [ ] Remove v2 fake `ACTIVITY_DATA`.
-- [ ] Keep current search/action/date filters if they are already supported by `app/activity/page.tsx`.
-- [ ] Use current route `/activity`.
-- [ ] Use `BmsMobilePage` with bottom nav active item `activity`.
-- [ ] Run `npx tsc --noEmit`.
+- [x] Keep current role switch for BNM_MANAGER, BMC, and ADMIN.
+- [x] For `user.role === "BMS"`, render the copied/adapted v2 mobile activity UI.
+- [x] Remove v2 fake `ACTIVITY_DATA`.
+- [x] Keep current search/action/date filters if they are already supported by `app/activity/page.tsx`.
+- [x] Use current route `/activity`.
+- [x] Use `BmsMobilePage` with bottom nav active item `activity`.
+- [x] Run `npx tsc --noEmit`.
 
 ## Task 5: Route Link Cleanup For BMS Mobile
 
@@ -157,14 +157,14 @@ These stay on current project UI until v2 versions exist.
 - Consumes: current BMS routes.
 - Produces: no broken links introduced by copied v2 UI.
 
-- [ ] Ensure dashboard CTA points to `/reports/create`, not `/reports/new`.
-- [ ] Bottom nav Reports points to `/reports`.
-- [ ] Bottom nav Activity points to `/activity`.
-- [ ] Menu action must not point to missing `/settings`.
-- [ ] If menu includes change password, reuse existing `ChangePasswordDialog`.
-- [ ] If menu includes logout, reuse current logout action/pattern.
-- [ ] Run `rg -n '"/reports/new"|"/settings"|"/user-manual"' app components`.
-- [ ] Any remaining match must be outside BMS mobile replacement or intentionally skipped.
+- [x] Ensure dashboard CTA points to `/reports/create`, not `/reports/new`.
+- [x] Bottom nav Reports points to `/reports`.
+- [x] Bottom nav Activity points to `/activity`.
+- [x] Menu action must not point to missing `/settings`.
+- [x] If menu includes change password, reuse existing `ChangePasswordDialog`.
+- [x] If menu includes logout, reuse current logout action/pattern.
+- [x] Run `rg -n '"/reports/new"|"/settings"|"/user-manual"' app components`.
+- [x] Any remaining match must be outside BMS mobile replacement or intentionally skipped.
 
 ## Task 6: Clean Unused BMS Replacement Code
 
@@ -176,12 +176,12 @@ These stay on current project UI until v2 versions exist.
 - Consumes: `rg` results.
 - Produces: smaller BMS-only code path.
 
-- [ ] Run `rg -n "DashboardShell|DashboardMenus|DashboardStats|ActivitySectionWide" app/dashboard/_components app/activity components`.
-- [ ] Remove imports from BMS files when no longer used.
-- [ ] Do not delete `DashboardShell`, `DashboardMenus`, or shared dashboard components if BMC/BNM still use them.
-- [ ] Run `rg -n "STORES|ACTIVITY_DATA|mock|fake|dummy" app components`.
-- [ ] Remove mock data introduced from v2.
-- [ ] Run `npx tsc --noEmit`.
+- [x] Run `rg -n "DashboardShell|DashboardMenus|DashboardStats|ActivitySectionWide" app/dashboard/_components app/activity components`.
+- [x] Remove imports from BMS files when no longer used.
+- [x] Do not delete `DashboardShell`, `DashboardMenus`, or shared dashboard components if BMC/BNM still use them. (Verified they are NOT used by BMC/BNM either, deleted all dead code)
+- [x] Run `rg -n "STORES|ACTIVITY_DATA|mock|fake|dummy" app components`.
+- [x] Remove mock data introduced from v2.
+- [x] Run `npx tsc --noEmit`.
 
 ## Task 7: Mobile Visual Verification
 
