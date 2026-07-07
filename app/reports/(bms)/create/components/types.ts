@@ -20,8 +20,9 @@ export type BmsItemGroup = {
 export type StoreOption = {
     code: string;
     name: string;
-    brand?: string;
+    brand?: string | null;
     type?: string;
+    hasPreventiveChecklist?: boolean;
 };
 
 export type SerializedDraft = {

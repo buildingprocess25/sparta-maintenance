@@ -135,6 +135,7 @@ model Store {
   name       String                 
   branchName String                 
   areaName   String?
+  brand      String?
   isActive   Boolean  @default(true)
   
   reports    Report[]

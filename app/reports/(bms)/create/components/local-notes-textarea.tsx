@@ -40,7 +40,7 @@ export function LocalNotesTextarea({
                 onClick={() => setIsEditing(true)}
             >
                 <Plus className="h-4 w-4 mr-2" />
-                {required ? "Tambah Catatan (wajib)" : "Tambah Catatan (opsional)"}
+                {required ? "Tambah Catatan" : "Tambah Catatan (opsional)"}
             </Button>
         );
     }

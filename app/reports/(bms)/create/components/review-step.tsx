@@ -80,9 +80,13 @@ export function ReviewStep({
   ).length;
 
   const reviewSummaryItems = [
-    { label: "OK", value: goodCount, className: "text-primary" },
-    { label: "Not OK", value: brokenCount, className: "text-destructive" },
-    { label: "Tdk Ada", value: noneCount, className: "text-muted-foreground" },
+    { label: "Baik", value: goodCount, className: "text-primary" },
+    { label: "Rusak", value: brokenCount, className: "text-destructive" },
+    {
+      label: "Tidak Ada",
+      value: noneCount,
+      className: "text-muted-foreground",
+    },
   ];
 
   const brokenChecklistItems = Array.from(checklist.values()).filter(

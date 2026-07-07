@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ChevronDown,
   ClipboardCheck,
+  InfoIcon,
   Search,
   X,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import { LocalNotesTextarea } from "./local-notes-textarea";
+import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import {
   type ChecklistItem,
   type ChecklistCondition,
@@ -43,12 +45,15 @@ interface ChecklistStepProps {
   onOpenCamera: (itemId: string) => void;
   onPreviewPhoto: (photo: File | string) => void;
   onRemovePhoto: (itemId: string) => void;
+  openCategories: Set<string>;
+  onToggleCategory: (categoryId: string) => void;
+  onDevAutofill?: () => void;
 }
 
 const CHECKLIST_STATUS_LABELS: Record<string, string> = {
-  baik: "OK",
-  rusak: "Not OK",
-  tidak_ada: "Tdk Ada",
+  baik: "Baik",
+  rusak: "Rusak",
+  tidak_ada: "Tidak Ada",
 };
 
 const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
@@ -66,11 +71,11 @@ export function ChecklistStep({
   onOpenCamera,
   onPreviewPhoto,
   onRemovePhoto,
+  openCategories,
+  onToggleCategory,
+  onDevAutofill,
 }: ChecklistStepProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [openCategories, setOpenCategories] = useState<Record<string, boolean>>(
-    {},
-  );
 
   const filteredCategories = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -100,6 +105,8 @@ export function ChecklistStep({
   const progress =
     totalItems > 0 ? Math.round((evaluatedCount / totalItems) * 100) : 0;
   const hasSearch = searchQuery.trim().length > 0;
+
+  const isHeaderVisible = useBmsMobileHeaderVisibility();
 
   return (
     <>
@@ -137,11 +144,22 @@ export function ChecklistStep({
         </Card>
       ) : null}
 
+      {process.env.NODE_ENV === "development" && onDevAutofill && (
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full bg-primary/10 text-primary hover:bg-primary/20 border-primary/20"
+          onClick={onDevAutofill}
+        >
+          Autofill (Dev Mode)
+        </Button>
+      )}
+
       <Card size="sm" className="bg-card/95 shadow-sm ring-1 ring-border/60">
         <CardContent>
           <div className="flex items-start gap-3">
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <ClipboardCheck className="size-5" />
+              <InfoIcon className="size-5" />
             </div>
             <div className="min-w-0">
               <h3 className="text-sm font-semibold">
@@ -150,14 +168,19 @@ export function ChecklistStep({
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {isRepairOnlyMode
                   ? "Toko sudah mengisi item preventif. Anda cukup memilih item yang rusak dan mengisi detail perbaikannya."
-                  : "Toko belum mengisi item preventif. Anda wajib mengevaluasi semua item checklist sebelum lanjut."}
+                  : "Toko belum mengisi item preventif. Anda wajib mengevaluasi semua item checklist."}
               </p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      <section className="flex flex-col gap-3">
+      <section
+        className={cn(
+          "sticky z-40 -mx-4 px-4 bg-background/95 py-3 backdrop-blur-md transition-all duration-300",
+          isHeaderVisible ? "top-[60px]" : "top-0",
+        )}
+      >
         <div className="relative">
           <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -184,7 +207,7 @@ export function ChecklistStep({
         </div>
 
         {hasSearch ? (
-          <p className="px-1 text-xs text-muted-foreground">
+          <p className="px-1 mt-3 text-xs text-muted-foreground">
             {filteredCategories.reduce(
               (total, category) => total + category.items.length,
               0,
@@ -201,18 +224,13 @@ export function ChecklistStep({
             return isRepairOnlyMode ? status === "rusak" : status;
           }).length;
 
-          const isOpen = hasSearch || openCategories[category.id];
+          const isOpen = hasSearch || openCategories.has(category.id);
 
           return (
             <Collapsible
               key={category.id}
               open={isOpen}
-              onOpenChange={(open) =>
-                setOpenCategories((current) => ({
-                  ...current,
-                  [category.id]: open,
-                }))
-              }
+              onOpenChange={() => onToggleCategory(category.id)}
             >
               <Card
                 size="sm"
@@ -221,7 +239,7 @@ export function ChecklistStep({
                 <CollapsibleTrigger asChild>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                    className="flex w-full items-center justify-between gap-3 px-4 text-left"
                   >
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-sm font-bold text-primary">
@@ -229,7 +247,7 @@ export function ChecklistStep({
                       </div>
                       <div className="min-w-0">
                         <h3 className="truncate font-heading text-base font-semibold text-foreground">
-                          {category.title}
+                          {category.title.replace(/^[A-Z]\.\s*/, "")}
                         </h3>
                         <p className="text-xs text-muted-foreground">
                           {evaluatedCategoryCount} dari {category.items.length}{" "}
@@ -267,6 +285,7 @@ export function ChecklistStep({
                         return (
                           <Card
                             key={item.id}
+                            id={`item-${item.id}`}
                             size="sm"
                             className={cn(
                               "bg-card/95 shadow-sm ring-1 ring-border/60",
@@ -349,7 +368,10 @@ export function ChecklistStep({
                                     {isBroken ? (
                                       <div className="flex flex-col gap-2">
                                         <p className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">
-                                          akan dihandle
+                                          akan dihandle{" "}
+                                          <span className="text-destructive">
+                                            *
+                                          </span>
                                         </p>
                                         <RadioGroup
                                           value={handler}
@@ -389,7 +411,10 @@ export function ChecklistStep({
 
                                     <div className="flex flex-col gap-2">
                                       <p className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">
-                                        Foto Bukti
+                                        Foto Bukti{" "}
+                                        <span className="text-destructive">
+                                          *
+                                        </span>
                                       </p>
                                       {!hasPhoto ? (
                                         <Button
@@ -422,9 +447,13 @@ export function ChecklistStep({
                                           htmlFor={`${item.id}-note`}
                                           className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
                                         >
-                                          Catatan
+                                          Catatan{" "}
+                                          <span className="text-destructive">
+                                            *
+                                          </span>
                                         </Label>
                                         <LocalNotesTextarea
+                                          required={true}
                                           initialValue={itemData?.notes || ""}
                                           onCommit={(val) =>
                                             onNotesChange(

@@ -260,6 +260,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                             return false;
                         }
                     }
+
                 }
             }
         }
@@ -273,6 +274,59 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
         openCategories,
         toggleCategory,
     ]);
+
+    const devAutofill = useCallback(() => {
+        if (process.env.NODE_ENV !== "development") return;
+
+        // Open all categories
+        const allCatIds = activeCategories.map((c) => c.id);
+        setOpenCategories(new Set(allCatIds));
+
+        setChecklist((prev) => {
+            const next = new Map(prev);
+
+            const nonPreventiveItems = activeCategories
+                .filter((cat) => !cat.isPreventive)
+                .flatMap((cat) => cat.items);
+
+            // Shuffle nonPreventiveItems
+            const shuffled = [...nonPreventiveItems];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+
+            const rusakCount = Math.floor(Math.random() * 2) + 2; // 2 or 3
+            const rusakIds = new Set(shuffled.slice(0, rusakCount).map(i => i.id));
+            const baikIds = new Set(shuffled.slice(rusakCount, rusakCount + 2).map(i => i.id));
+
+            for (const cat of activeCategories) {
+                for (const item of cat.items) {
+                    let condition: ChecklistCondition;
+                    if (cat.isPreventive) {
+                        condition = "baik";
+                    } else if (rusakIds.has(item.id)) {
+                        condition = "rusak";
+                    } else if (baikIds.has(item.id)) {
+                        condition = "baik";
+                    } else {
+                        condition = "tidak_ada";
+                    }
+
+                    next.set(item.id, {
+                        id: item.id,
+                        name: item.name,
+                        condition,
+                        handler: condition === "rusak" ? "BMS" : "",
+                        photoUrl: condition === "rusak" || condition === "baik" ? "https://example.com/dummy.jpg" : undefined,
+                        notes: condition === "rusak" ? "Dummy notes" : undefined,
+                    });
+                }
+            }
+            return next;
+        });
+        toast.success("Autofill dev mode selesai!");
+    }, [activeCategories]);
 
     return {
         checklist,
@@ -290,5 +344,6 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
         toggleCategory,
         updateChecklistItem,
         validateStep1,
+        devAutofill,
     };
 }

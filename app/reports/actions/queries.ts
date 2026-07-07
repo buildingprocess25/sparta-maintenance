@@ -22,6 +22,7 @@ export async function getStoresByBranch(branchName: string) {
         select: {
             code: true,
             name: true,
+            brand: true,
         },
     });
 
