@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DraftDialog } from "./draft-dialog";
@@ -9,27 +8,27 @@ import { submitReport, resubmitReport } from "@/app/reports/actions";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { ArrowLeft, Zap } from "lucide-react";
-import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
-import { cn } from "@/lib/utils";
 
 import type { CreateReportFormProps } from "./components/types";
 export type { StoreOption, SerializedDraft } from "./components/types";
-import { StoreSelectDialog } from "./components/store-select-dialog";
+import { StoreStep } from "./components/store-step";
 import { ChecklistStep } from "./components/checklist-step";
 import { BmsEstimationStep } from "./components/bms-estimation-step";
+import { ReviewStep } from "./components/review-step";
+import { ReportWizardShell, type ReportWizardStep } from "./components/report-wizard-shell";
 
 import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
 import { useBmsEstimation } from "./hooks/use-bms-estimation";
 import { useDraft } from "./hooks/use-draft";
 import { clearDraftPhotos } from "./hooks/draft-photo-storage";
-import { autoFillStep1, autoFillStep2 } from "./dev-utils";
 
-const WIZARD_STEPS = [
-    { label: "Checklist" },
-    { label: "Estimasi" },
-] as const;
+const WIZARD_STEPS: ReportWizardStep[] = [
+    { key: "store", label: "Pilih Toko" },
+    { key: "checklist", label: "Checklist" },
+    { key: "estimation", label: "Estimasi" },
+    { key: "review", label: "Review" },
+];
 
 export default function CreateReportForm({
     stores,
@@ -40,18 +39,14 @@ export default function CreateReportForm({
     autoRestoreOnMount,
 }: CreateReportFormProps) {
     const router = useRouter();
-    const [step, setStep] = useState<1 | 2>(1);
-    const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+    // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
+    // However, the v2 flow might just have edit skip store step logic by checking selectedStoreCode.
+    const [step, setStep] = useState<"store" | "checklist" | "estimation" | "review">(editMode ? "checklist" : "store");
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const isHeaderVisible = useBmsMobileHeaderVisibility();
 
     const isEditMode = !!editMode;
     const shouldAutoRestore = isEditMode || !!autoRestoreOnMount;
-    const activeStepIndex = step - 1;
-    const progressValue = (step / WIZARD_STEPS.length) * 100;
-    const backHref =
-        isEditMode && editMode ? `/reports/${editMode.reportNumber}` : "/dashboard";
-
+    
     const {
         checklist,
         setChecklist,
@@ -73,8 +68,7 @@ export default function CreateReportForm({
         setBmsItems,
         grandTotalBms,
         buildBmsMapFromChecklist,
-        addBmsEntry,
-        updateBmsEntry,
+        addBmsEntryWithDetails,
         removeBmsEntry,
         validateStep2,
     } = useBmsEstimation();
@@ -131,12 +125,40 @@ export default function CreateReportForm({
         (i) => i.condition === "rusak",
     );
     const bmsItemsList = rusakItems.filter((i) => i.handler === "BMS");
-    const rekananItems = rusakItems.filter((i) => i.handler === "Rekanan");
 
-    const handleNextStep = () => {
-        if (!validateStep1()) return;
-        buildBmsMapFromChecklist(checklist, bmsItems);
-        setStep(2);
+    // Handlers
+    const handleNext = () => {
+        if (step === "store") {
+            if (!selectedStoreCode) {
+                toast.error("Silakan pilih toko terlebih dahulu");
+                return;
+            }
+            setStep("checklist");
+        } else if (step === "checklist") {
+            if (!validateStep1()) return;
+            buildBmsMapFromChecklist(checklist, bmsItems);
+            setStep("estimation");
+        } else if (step === "estimation") {
+            if (!validateStep2()) return;
+            setStep("review");
+        }
+        window.scrollTo(0, 0);
+    };
+
+    const handleBack = () => {
+        if (step === "store") {
+            router.push("/dashboard");
+        } else if (step === "checklist") {
+            if (isEditMode) {
+                router.push(`/reports/${editMode.reportNumber}`);
+            } else {
+                setStep("store");
+            }
+        } else if (step === "estimation") {
+            setStep("checklist");
+        } else if (step === "review") {
+            setStep("estimation");
+        }
         window.scrollTo(0, 0);
     };
 
@@ -144,7 +166,6 @@ export default function CreateReportForm({
         if (!validateStep2()) return;
 
         setIsSubmitting(true);
-        setIsSubmitDialogOpen(false);
 
         try {
             const draftData = buildDraftData();
@@ -218,9 +239,14 @@ export default function CreateReportForm({
         }
     };
 
+    const isRepairOnlyMode = false; // Add logic if needed, currently not provided
+    
+    // Store data to pass to review step
+    const storeObj = stores.find(s => s.code === selectedStoreCode);
+
     return (
-        <div className="relative min-h-svh bg-background text-foreground">
-            {showDraftDialog ? (
+        <>
+            {showDraftDialog && (
                 <DraftDialog
                     open={showDraftDialog}
                     draftStoreName={
@@ -237,15 +263,7 @@ export default function CreateReportForm({
                     onContinueDraft={handleContinueDraft}
                     onCreateNew={handleCreateNew}
                 />
-            ) : !isEditMode ? (
-                <StoreSelectDialog
-                    open={!selectedStoreCode}
-                    stores={stores}
-                    selectedStoreCode={selectedStoreCode}
-                    onStoreChange={handleStoreChange}
-                    onCancel={() => router.push("/dashboard")}
-                />
-            ) : null}
+            )}
 
             <LoadingOverlay
                 isOpen={isSubmitting}
@@ -253,65 +271,6 @@ export default function CreateReportForm({
                     isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."
                 }
             />
-
-            <header
-                className={cn(
-                    "fixed inset-x-0 top-0 z-50 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-transform duration-300 ease-out will-change-transform",
-                    isHeaderVisible ? "translate-y-0" : "-translate-y-full",
-                )}
-            >
-                <div className="mx-auto grid w-full max-w-lg grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 py-3">
-                    <div className="flex justify-start">
-                        {step === 2 ? (
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Kembali ke checklist"
-                                className="rounded-full"
-                                onClick={() => setStep(1)}
-                            >
-                                <ArrowLeft />
-                            </Button>
-                        ) : (
-                            <Button
-                                asChild
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label="Kembali"
-                                className="rounded-full"
-                            >
-                                <Link href={backHref}>
-                                    <ArrowLeft />
-                                </Link>
-                            </Button>
-                        )}
-                    </div>
-
-                    <div className="min-w-0 text-center">
-                        <h1 className="truncate text-xs font-semibold text-muted-foreground">
-                            {isEditMode ? "Edit Laporan" : "Buat Laporan"}
-                        </h1>
-                        <p className="truncate font-heading text-sm font-bold tracking-tight text-foreground">
-                            {step} / {WIZARD_STEPS.length}{" "}
-                            {WIZARD_STEPS[activeStepIndex]?.label}
-                        </p>
-                    </div>
-
-                    <div />
-                </div>
-
-                <div
-                    aria-hidden="true"
-                    className="h-0.5 w-full bg-border/70"
-                    role="presentation"
-                >
-                    <div
-                        className="h-full bg-primary transition-[width] duration-300 ease-out"
-                        style={{ width: `${progressValue}%` }}
-                    />
-                </div>
-            </header>
 
             <CameraModal
                 isOpen={isCameraOpen}
@@ -327,7 +286,7 @@ export default function CreateReportForm({
 
             {previewPhoto && (
                 <div
-                    className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
+                    className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
                     onClick={closePreview}
                 >
                     <div
@@ -350,110 +309,78 @@ export default function CreateReportForm({
                 </div>
             )}
 
-            <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pt-20 pb-32">
-                {process.env.NODE_ENV === "development" && step === 1 && (
-                    <div className="flex justify-center">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
-                            onClick={() =>
-                                autoFillStep1(
-                                    activeCategories,
-                                    setOpenCategories,
-                                    setChecklist,
-                                    {
-                                        storeCode: selectedStoreCode,
-                                        branchName: userBranchName,
-                                        draftReportId: draftReportId!,
-                                    },
-                                )
-                            }
-                        >
-                            <Zap data-icon="inline-start" />
-                            Auto Fill (Dev Only)
-                        </Button>
-                    </div>
-                )}
-                {process.env.NODE_ENV === "development" && step === 2 && (
-                    <div className="flex justify-center">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
-                            onClick={() => autoFillStep2(bmsItems, setBmsItems)}
-                        >
-                            <Zap data-icon="inline-start" />
-                            Auto Fill (Dev Only)
-                        </Button>
-                    </div>
+            <ReportWizardShell
+                title={isEditMode ? "Edit Laporan" : "Buat Laporan"}
+                steps={WIZARD_STEPS}
+                activeStep={step}
+                onBack={handleBack}
+                footer={
+                    <Button
+                        type="button"
+                        size="lg"
+                        className="w-full text-base font-bold shadow-sm"
+                        onClick={step === "review" ? handleSubmit : handleNext}
+                        disabled={isSubmitting || (step === "store" && !selectedStoreCode)}
+                    >
+                        {step === "review" ? (isEditMode ? "Simpan Perubahan" : "Kirim Laporan") : "Lanjutkan"}
+                    </Button>
+                }
+            >
+                {step === "store" && (
+                    <StoreStep
+                        stores={stores}
+                        selectedStoreCode={selectedStoreCode}
+                        onStoreSelect={(code) => {
+                            handleStoreChange(code);
+                            // Auto next step on store select for convenience
+                            setTimeout(() => {
+                                setStep("checklist");
+                                window.scrollTo(0, 0);
+                            }, 300);
+                        }}
+                    />
                 )}
 
-                {step === 1 ? (
+                {step === "checklist" && (
                     <ChecklistStep
-                        storeCode={selectedStoreCode}
-                        storeName={store}
+                        isRepairOnlyMode={isRepairOnlyMode}
                         activeCategories={activeCategories}
-                        openCategories={openCategories}
                         checklist={checklist}
-                        isCategoryICoolingDown={
-                            isEditMode ? false : isCategoryICoolingDown
-                        }
-                        categoryIAvailableDate={
-                            isEditMode ? null : categoryIAvailableDate
-                        }
-                        onToggleCategory={toggleCategory}
                         onConditionChange={(itemId, itemName, value) =>
-                            updateChecklistItem(
-                                itemId,
-                                itemName,
-                                "condition",
-                                value,
-                            )
+                            updateChecklistItem(itemId, itemName, "condition", value)
                         }
                         onNotesChange={(itemId, itemName, value) =>
-                            updateChecklistItem(
-                                itemId,
-                                itemName,
-                                "notes",
-                                value,
-                            )
+                            updateChecklistItem(itemId, itemName, "notes", value)
                         }
                         onHandlerChange={(itemId, itemName, value) =>
-                            updateChecklistItem(
-                                itemId,
-                                itemName,
-                                "handler",
-                                value,
-                            )
+                            updateChecklistItem(itemId, itemName, "handler", value)
                         }
                         onOpenCamera={handleOpenCamera}
                         onPreviewPhoto={handlePreviewPhoto}
                         onRemovePhoto={removePhoto}
-                        onBack={() => router.back()}
-                        onNext={handleNextStep}
                     />
-                ) : (
+                )}
+
+                {step === "estimation" && (
                     <BmsEstimationStep
                         bmsItems={bmsItems}
                         bmsItemsList={bmsItemsList}
-                        rekananItems={rekananItems}
                         grandTotalBms={grandTotalBms}
-                        store={store}
-                        storeCode={selectedStoreCode}
-                        isSubmitDialogOpen={isSubmitDialogOpen}
-                        setIsSubmitDialogOpen={setIsSubmitDialogOpen}
-                        onAddBmsEntry={addBmsEntry}
-                        onUpdateBmsEntry={updateBmsEntry}
+                        onAddBmsEntryWithDetails={addBmsEntryWithDetails}
                         onRemoveBmsEntry={removeBmsEntry}
-                        onBack={() => setStep(1)}
-                        onSubmit={handleSubmit}
                     />
                 )}
-            </main>
-        </div>
+
+                {step === "review" && (
+                    <ReviewStep
+                        store={storeObj}
+                        isRepairOnlyMode={isRepairOnlyMode}
+                        checklist={checklist}
+                        bmsItems={bmsItems}
+                        grandTotalBms={grandTotalBms}
+                    />
+                )}
+            </ReportWizardShell>
+        </>
     );
 }
-

@@ -1,475 +1,463 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-    Plus,
-    Trash2,
-    ChevronDown,
-    CheckCircle,
-    AlertTriangle,
-} from "lucide-react";
+import { Fragment, useState } from "react";
+import { FileCheck2, PlusCircle, Trash2 } from "lucide-react";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ButtonGroup } from "@/components/ui/button-group";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 import {
-    DropdownMenu,
-    DropdownMenuTrigger,
-    DropdownMenuContent,
-    DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { unitOptions, type ChecklistItem } from "@/lib/checklist-data";
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+
+import { ESTIMATE_UNITS, type ChecklistItem } from "@/lib/checklist-data";
 import type { BmsItemGroup } from "./types";
-
-/** Format angka dengan titik sebagai separator ribuan: 50000 → "50.000" */
-function formatNumber(value: number): string {
-    if (!Number.isFinite(value)) return "";
-    return value.toLocaleString("id-ID");
-}
-
-/** Parse string berformat "50.000" → 50000 */
-function parseFormattedNumber(formatted: string): number {
-    const cleaned = formatted.replace(/\./g, "").replace(/[^0-9]/g, "");
-    return parseInt(cleaned, 10) || 0;
-}
-
-/** Input harga dengan local state — commit ke parent setiap perubahan */
-function PriceInput({
-    value,
-    onCommit,
-    className,
-}: {
-    value: number;
-    onCommit: (value: number) => void;
-    className?: string;
-}) {
-    const [localValue, setLocalValue] = useState(formatNumber(value));
-
-    // Sync jika value dari parent berubah (misal restore draft)
-    useEffect(() => {
-        setLocalValue(formatNumber(value));
-    }, [value]);
-
-    return (
-        <Input
-            type="text"
-            inputMode="numeric"
-            value={localValue}
-            onChange={(e) => {
-                const raw = e.target.value.replace(/[^0-9]/g, "");
-                const num = parseInt(raw, 10) || 0;
-                setLocalValue(num ? num.toLocaleString("id-ID") : raw);
-                onCommit(num);
-            }}
-            onBlur={() => {
-                const num = parseFormattedNumber(localValue);
-                setLocalValue(formatNumber(num));
-            }}
-            className={className}
-        />
-    );
-}
+import { formatCurrency } from "@/lib/utils";
 
 interface BmsEstimationStepProps {
     bmsItems: Map<string, BmsItemGroup>;
     bmsItemsList: ChecklistItem[];
-    rekananItems: ChecklistItem[];
     grandTotalBms: number;
-    store: string;
-    storeCode: string;
-    isSubmitDialogOpen: boolean;
-    setIsSubmitDialogOpen: (open: boolean) => void;
-    onAddBmsEntry: (itemId: string) => void;
-    onUpdateBmsEntry: (
+    onAddBmsEntryWithDetails: (
         itemId: string,
-        entryId: string,
-        field: "itemName" | "quantity" | "unit" | "price",
-        value: string | number,
+        details: { itemName: string; quantity: number; unit: string; price: number }
     ) => void;
     onRemoveBmsEntry: (itemId: string, entryId: string) => void;
-    onBack: () => void;
-    onSubmit: () => void;
 }
 
 export function BmsEstimationStep({
     bmsItems,
     bmsItemsList,
-    rekananItems,
     grandTotalBms,
-    store,
-    storeCode,
-    isSubmitDialogOpen,
-    setIsSubmitDialogOpen,
-    onAddBmsEntry,
-    onUpdateBmsEntry,
+    onAddBmsEntryWithDetails,
     onRemoveBmsEntry,
-    onBack,
-    onSubmit,
 }: BmsEstimationStepProps) {
+    const [isEstimateDialogOpen, setIsEstimateDialogOpen] = useState(false);
+    const [estimateDraft, setEstimateDraft] = useState({
+        checklistItemId: "",
+        itemName: "",
+        quantity: "1",
+        unit: "pcs",
+        unitPrice: "0",
+    });
+
+    // Count how many total entries (children) exist across all broken items
+    const totalEntriesCount = Array.from(bmsItems.values()).reduce(
+        (acc, group) => acc + group.entries.length,
+        0
+    );
+
+    const handleEstimateDialogOpen = () => {
+        setEstimateDraft({
+            checklistItemId: bmsItemsList[0]?.id || "",
+            itemName: "",
+            quantity: "1",
+            unit: "pcs",
+            unitPrice: "0",
+        });
+        setIsEstimateDialogOpen(true);
+    };
+
+    const quantityNum = parseInt(estimateDraft.quantity, 10);
+    const priceNum = parseInt(estimateDraft.unitPrice, 10);
+    const canSaveEstimateItem =
+        !!estimateDraft.checklistItemId &&
+        !!estimateDraft.itemName.trim() &&
+        !isNaN(quantityNum) &&
+        quantityNum > 0 &&
+        !isNaN(priceNum) &&
+        priceNum >= 0;
+
+    const handleEstimateItemSave = () => {
+        if (!canSaveEstimateItem) return;
+
+        onAddBmsEntryWithDetails(estimateDraft.checklistItemId, {
+            itemName: estimateDraft.itemName.trim(),
+            quantity: quantityNum,
+            unit: estimateDraft.unit,
+            price: priceNum,
+        });
+
+        setIsEstimateDialogOpen(false);
+    };
+
     return (
-        <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-            <div className="flex w-full flex-col gap-4">
-                {bmsItems.size > 0 && (
-                    <Card size="sm">
-                        <CardHeader>
-                            <CardTitle className="text-base">
-                                Estimasi Harga BMS ({bmsItemsList.length} item)
-                            </CardTitle>
-                            <CardDescription>
-                                Tambahkan barang untuk setiap item rusak
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-4">
-                                {Array.from(bmsItems.entries()).map(
-                                    ([itemId, itemGroup], idx) => {
-                                        const subtotal =
-                                            itemGroup.entries.reduce(
-                                                (sum, entry) =>
-                                                    sum + entry.total,
-                                                0,
-                                            );
-
-                                        return (
-                                            <div
-                                                key={itemId}
-                                                id={`bms-${itemId}`}
-                                                className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-3"
-                                            >
-                                                <div className="flex items-start justify-between gap-3">
-                                                    <div className="min-w-0">
-                                                        <p className="text-xs font-semibold text-primary">
-                                                            Item {idx + 1}
-                                                        </p>
-                                                        <h3 className="text-sm font-semibold leading-snug">
-                                                            {
-                                                                itemGroup
-                                                                    .checklistItem
-                                                                    .name
-                                                            }
-                                                        </h3>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {
-                                                                itemGroup.categoryTitle
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                    <p className="shrink-0 text-right text-sm font-semibold">
-                                                        Rp{" "}
-                                                        {subtotal.toLocaleString(
-                                                            "id-ID",
-                                                        )}
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex flex-col gap-3">
-                                                    {itemGroup.entries.map(
-                                                        (entry) => (
-                                                            <div
-                                                                key={entry.id}
-                                                                id={`bms-${itemId}-${entry.id}`}
-                                                                className="flex flex-col gap-2 rounded-lg bg-background p-3"
-                                                            >
-                                                                <Input
-                                                                    type="text"
-                                                                    placeholder="Nama barang"
-                                                                    value={
-                                                                        entry.itemName
-                                                                    }
-                                                                    onChange={(
-                                                                        e,
-                                                                    ) =>
-                                                                        onUpdateBmsEntry(
-                                                                            itemId,
-                                                                            entry.id,
-                                                                            "itemName",
-                                                                            e
-                                                                                .target
-                                                                                .value,
-                                                                        )
-                                                                    }
-                                                                />
-                                                                <div className="grid grid-cols-[minmax(0,0.7fr)_minmax(0,1fr)] gap-2">
-                                                                    <Input
-                                                                        type="number"
-                                                                        min="0"
-                                                                        placeholder="Jml"
-                                                                        value={
-                                                                            entry.quantity ||
-                                                                            ""
-                                                                        }
-                                                                        onChange={(
-                                                                            e,
-                                                                        ) =>
-                                                                            onUpdateBmsEntry(
-                                                                                itemId,
-                                                                                entry.id,
-                                                                                "quantity",
-                                                                                parseFloat(
-                                                                                    e
-                                                                                        .target
-                                                                                        .value,
-                                                                                ) ||
-                                                                                    0,
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                    <DropdownMenu>
-                                                                        <DropdownMenuTrigger
-                                                                            asChild
-                                                                        >
-                                                                            <Button
-                                                                                type="button"
-                                                                                variant="outline"
-                                                                                className="w-full justify-between"
-                                                                            >
-                                                                                {entry.unit ||
-                                                                                    "Satuan"}
-                                                                                <ChevronDown data-icon="inline-end" />
-                                                                            </Button>
-                                                                        </DropdownMenuTrigger>
-                                                                        <DropdownMenuContent className="max-h-48 overflow-y-auto">
-                                                                            {unitOptions.map(
-                                                                                (
-                                                                                    unitOption,
-                                                                                ) => (
-                                                                                    <DropdownMenuItem
-                                                                                        key={
-                                                                                            unitOption
-                                                                                        }
-                                                                                        onSelect={() =>
-                                                                                            onUpdateBmsEntry(
-                                                                                                itemId,
-                                                                                                entry.id,
-                                                                                                "unit",
-                                                                                                unitOption,
-                                                                                            )
-                                                                                        }
-                                                                                    >
-                                                                                        {
-                                                                                            unitOption
-                                                                                        }
-                                                                                    </DropdownMenuItem>
-                                                                                ),
-                                                                            )}
-                                                                        </DropdownMenuContent>
-                                                                    </DropdownMenu>
-                                                                </div>
-                                                                <div className="grid grid-cols-[1fr_auto] gap-2">
-                                                                    <PriceInput
-                                                                        value={
-                                                                            entry.price
-                                                                        }
-                                                                        onCommit={(
-                                                                            num,
-                                                                        ) =>
-                                                                            onUpdateBmsEntry(
-                                                                                itemId,
-                                                                                entry.id,
-                                                                                "price",
-                                                                                num,
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                    <Button
-                                                                        type="button"
-                                                                        size="icon"
-                                                                        variant="ghost"
-                                                                        className="text-destructive"
-                                                                        onClick={() =>
-                                                                            onRemoveBmsEntry(
-                                                                                itemId,
-                                                                                entry.id,
-                                                                            )
-                                                                        }
-                                                                    >
-                                                                        <Trash2 />
-                                                                    </Button>
-                                                                </div>
-                                                                <div className="flex items-center justify-between text-xs">
-                                                                    <span className="text-muted-foreground">
-                                                                        Total
-                                                                    </span>
-                                                                    <span className="font-semibold">
-                                                                        Rp{" "}
-                                                                        {entry.total.toLocaleString(
-                                                                            "id-ID",
-                                                                        )}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        ),
-                                                    )}
-                                                </div>
-
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        onAddBmsEntry(itemId)
-                                                    }
-                                                >
-                                                    <Plus data-icon="inline-start" />
-                                                    Tambah barang
-                                                </Button>
-                                            </div>
-                                        );
-                                    },
-                                )}
-
-                                <div className="flex items-center justify-between rounded-xl bg-primary/10 p-3">
-                                    <span className="text-sm font-semibold">
-                                        Total Keseluruhan
-                                    </span>
-                                    <span className="font-bold text-primary">
-                                        Rp {grandTotalBms.toLocaleString("id-ID")}
-                                    </span>
-                                </div>
+        <>
+            {bmsItemsList.length === 0 ? (
+                <Card size="sm" className="bg-primary/5 shadow-sm ring-1 ring-primary/15">
+                    <CardContent>
+                        <div className="flex flex-col items-center gap-4 text-center">
+                            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                <FileCheck2 className="size-6" />
                             </div>
-                        </CardContent>
-                    </Card>
-                )}
 
-                {/* Rekanan Items */}
-                {rekananItems.length > 0 && (
-                    <Card size="sm">
-                        <CardHeader>
-                            <CardTitle className="text-base">
-                                Item Rekanan ({rekananItems.length})
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <div className="flex flex-col gap-2">
-                                {rekananItems.map((item, i) => (
-                                    <div
-                                        key={item.id}
-                                        className="flex gap-2 rounded-lg bg-muted/40 p-2 text-sm"
-                                    >
-                                        <span className="text-muted-foreground">
-                                            {i + 1}.
-                                        </span>
-                                        <span>{item.name}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
-
-            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-[0_-12px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl">
-                <ButtonGroup className="w-full">
-                    <Button
-                        variant="outline"
-                        className="flex-1"
-                        onClick={onBack}
-                    >
-                        Kembali
-                    </Button>
-                    <AlertDialog
-                        open={isSubmitDialogOpen}
-                        onOpenChange={setIsSubmitDialogOpen}
-                    >
-                        <AlertDialogTrigger asChild>
-                            <Button className="flex-1">Submit Laporan</Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle className="flex items-center gap-2">
-                                    <AlertTriangle data-icon="inline-start" />
-                                    Konfirmasi Submit Laporan
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                    Apakah Anda yakin ingin submit laporan ini?
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <div className="space-y-3">
-                                <div className="bg-muted p-3 rounded-md space-y-2 text-sm">
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Toko:
-                                        </span>
-                                        <span className="font-medium text-foreground">
-                                            {storeCode} - {store}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Item Rusak:
-                                        </span>
-                                        <span className="font-medium text-red-600">
-                                            {bmsItemsList.length +
-                                                rekananItems.length}{" "}
-                                            item
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Handler BMS:
-                                        </span>
-                                        <span className="font-medium text-foreground">
-                                            {bmsItemsList.length} item
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-muted-foreground">
-                                            Handler Rekanan:
-                                        </span>
-                                        <span className="font-medium text-foreground">
-                                            {rekananItems.length} item
-                                        </span>
-                                    </div>
-                                    {grandTotalBms > 0 && (
-                                        <div className="flex justify-between pt-2 border-t">
-                                            <span className="text-muted-foreground">
-                                                Total Biaya BMS:
-                                            </span>
-                                            <span className="font-bold text-primary">
-                                                Rp{" "}
-                                                {grandTotalBms.toLocaleString(
-                                                    "id-ID",
-                                                )}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="flex flex-col gap-1">
+                                <h2 className="font-heading text-base font-bold">
+                                    Tidak Ada Estimasi BMS
+                                </h2>
                                 <p className="text-xs text-muted-foreground">
-                                    Setelah submit, laporan akan dikirim untuk
-                                    proses approval.
+                                    Input anda pada laporan ini hanya berupa checklist item.
+                                    Tidak ada item rusak yang perlu ditangani oleh BMS.
                                 </p>
                             </div>
-                            <AlertDialogFooter className="flex-row justify-end grid grid-cols-2 gap-2">
-                                <AlertDialogCancel>Batal</AlertDialogCancel>
-                                <AlertDialogAction
-                                    onClick={onSubmit}
-                                    className="bg-primary"
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : (
+                <>
+                    <section className="rounded-2xl bg-primary/10 p-5 text-primary shadow-sm ring-1 ring-primary/20">
+                        <div className="flex flex-col gap-4">
+                            <div>
+                                <h4 className="text-xs font-bold tracking-[0.12em] text-primary/75 uppercase">
+                                    Grand Total
+                                </h4>
+                                <p className="text-sm text-primary/70">
+                                    Total akumulasi estimasi biaya material
+                                </p>
+                            </div>
+
+                            <p className="font-heading text-4xl leading-none font-black tracking-tight text-primary">
+                                {formatCurrency(grandTotalBms)}
+                            </p>
+                        </div>
+                    </section>
+
+                    <Card size="sm" className="bg-primary/5 shadow-sm ring-1 ring-primary/15">
+                        <CardContent>
+                            <div className="flex flex-col gap-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div>
+                                        <h3 className="font-heading text-lg font-bold">
+                                            Estimasi Harga BMS
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground">
+                                            Lengkapi rincian estimasi biaya untuk item rusak yang
+                                            dihandle BMS.
+                                        </p>
+                                    </div>
+
+                                    <Badge variant="secondary" className="shrink-0">
+                                        {totalEntriesCount} Item
+                                    </Badge>
+                                </div>
+
+                                <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border/60">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="h-9 px-3 text-[10px] uppercase">
+                                                    Item / Barang
+                                                </TableHead>
+                                                <TableHead className="h-9 px-2 text-right text-[10px] uppercase">
+                                                    Qty
+                                                </TableHead>
+                                                <TableHead className="h-9 px-2 text-right text-[10px] uppercase">
+                                                    Subtotal
+                                                </TableHead>
+                                                <TableHead className="h-9 w-8 px-1" />
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {bmsItemsList.map((checklistItem) => {
+                                                const group = bmsItems.get(checklistItem.id);
+                                                if (!group) return null;
+
+                                                const childItems = group.entries;
+                                                const checklistSubtotal = childItems.reduce(
+                                                    (total, item) => total + item.total,
+                                                    0
+                                                );
+
+                                                return (
+                                                    <Fragment key={checklistItem.id}>
+                                                        <TableRow className="bg-muted/60 hover:bg-muted/60">
+                                                            <TableCell className="px-3 py-2" colSpan={2}>
+                                                                <div className="flex min-w-0 items-center gap-2">
+                                                                    <Badge variant="secondary" className="text-[9px]">
+                                                                        {checklistItem.id}
+                                                                    </Badge>
+                                                                    <span className="truncate text-xs font-bold">
+                                                                        {checklistItem.name}
+                                                                    </span>
+                                                                </div>
+                                                            </TableCell>
+                                                            <TableCell className="px-2 py-2 text-right text-xs font-bold">
+                                                                {formatCurrency(checklistSubtotal)}
+                                                            </TableCell>
+                                                            <TableCell className="px-1 py-2" />
+                                                        </TableRow>
+
+                                                        {childItems.length === 0 ? (
+                                                            <TableRow>
+                                                                <TableCell
+                                                                    colSpan={4}
+                                                                    className="px-3 py-2 text-[10px] text-muted-foreground"
+                                                                >
+                                                                    Belum ada barang dibeli untuk item ini.
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        ) : (
+                                                            childItems.map((item) => {
+                                                                return (
+                                                                    <TableRow key={item.id}>
+                                                                        <TableCell className="max-w-36 px-3 py-2 pl-6">
+                                                                            <div className="flex min-w-0 flex-col gap-1">
+                                                                                <span className="truncate text-xs font-semibold">
+                                                                                    {item.itemName}
+                                                                                </span>
+                                                                                <p className="truncate text-[10px] text-muted-foreground">
+                                                                                    {formatCurrency(item.price)} / {item.unit}
+                                                                                </p>
+                                                                            </div>
+                                                                        </TableCell>
+                                                                        <TableCell className="px-2 py-2 text-right text-xs text-muted-foreground">
+                                                                            {item.quantity} {item.unit}
+                                                                        </TableCell>
+                                                                        <TableCell className="px-2 py-2 text-right text-xs font-bold">
+                                                                            {formatCurrency(item.total)}
+                                                                        </TableCell>
+                                                                        <TableCell className="px-1 py-2 text-right">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="icon-xs"
+                                                                                aria-label="Hapus item estimasi"
+                                                                                onClick={() =>
+                                                                                    onRemoveBmsEntry(checklistItem.id, item.id)
+                                                                                }
+                                                                            >
+                                                                                <Trash2 />
+                                                                            </Button>
+                                                                        </TableCell>
+                                                                    </TableRow>
+                                                                );
+                                                            })
+                                                        )}
+                                                    </Fragment>
+                                                );
+                                            })}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="h-12 bg-background"
+                                    onClick={handleEstimateDialogOpen}
+                                    disabled={bmsItemsList.length === 0}
                                 >
-                                    <CheckCircle data-icon="inline-start" />
-                                    Ya, Submit
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                        </AlertDialogContent>
-                    </AlertDialog>
-                </ButtonGroup>
-            </div>
-        </div>
+                                    <PlusCircle data-icon="inline-start" className="mr-2 h-4 w-4" />
+                                    Tambah Barang
+                                </Button>
+
+                                {bmsItemsList.length === 0 ? (
+                                    <p className="text-center text-xs text-muted-foreground">
+                                        Pilih status Rusak dan handler BMS di checklist untuk
+                                        menambahkan estimasi barang.
+                                    </p>
+                                ) : null}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </>
+            )}
+
+            <Dialog open={isEstimateDialogOpen} onOpenChange={setIsEstimateDialogOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Tambah Estimasi Barang</DialogTitle>
+                        <DialogDescription>
+                            Isi rincian material untuk item rusak yang akan ditangani BMS.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex flex-col gap-4 py-2">
+                        <div className="flex flex-col gap-2">
+                            <Label
+                                htmlFor="estimate-checklist-item"
+                                className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                            >
+                                Pilih Item Rusak
+                            </Label>
+                            <Select
+                                value={estimateDraft.checklistItemId}
+                                onValueChange={(value) =>
+                                    setEstimateDraft((current) => ({
+                                        ...current,
+                                        checklistItemId: value,
+                                    }))
+                                }
+                            >
+                                <SelectTrigger
+                                    id="estimate-checklist-item"
+                                    className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
+                                >
+                                    <SelectValue placeholder="Pilih asset" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectGroup>
+                                        {bmsItemsList.map((item) => (
+                                            <SelectItem key={item.id} value={item.id}>
+                                                {item.id} - {item.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label
+                                htmlFor="estimate-item-name"
+                                className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                            >
+                                Nama Barang yang Dibeli
+                            </Label>
+                            <Input
+                                id="estimate-item-name"
+                                value={estimateDraft.itemName}
+                                onChange={(event) =>
+                                    setEstimateDraft((current) => ({
+                                        ...current,
+                                        itemName: event.target.value,
+                                    }))
+                                }
+                                className="h-11 rounded-xl bg-muted/60"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-2">
+                                <Label
+                                    htmlFor="estimate-quantity"
+                                    className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                                >
+                                    Jumlah
+                                </Label>
+                                <Input
+                                    id="estimate-quantity"
+                                    type="number"
+                                    min={1}
+                                    value={estimateDraft.quantity}
+                                    onChange={(event) =>
+                                        setEstimateDraft((current) => ({
+                                            ...current,
+                                            quantity: event.target.value,
+                                        }))
+                                    }
+                                    className="h-11 rounded-xl bg-muted/60"
+                                />
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <Label
+                                    htmlFor="estimate-unit"
+                                    className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                                >
+                                    Satuan
+                                </Label>
+                                <Select
+                                    value={estimateDraft.unit}
+                                    onValueChange={(value) =>
+                                        setEstimateDraft((current) => ({
+                                            ...current,
+                                            unit: value,
+                                        }))
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="estimate-unit"
+                                        className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
+                                    >
+                                        <SelectValue placeholder="Satuan" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectGroup>
+                                            {ESTIMATE_UNITS.map((unit) => (
+                                                <SelectItem key={unit} value={unit}>
+                                                    {unit}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                            <Label
+                                htmlFor="estimate-unit-price"
+                                className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                            >
+                                Harga per Satuan
+                            </Label>
+                            <div className="relative">
+                                <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm font-bold text-muted-foreground">
+                                    Rp
+                                </span>
+                                <Input
+                                    id="estimate-unit-price"
+                                    type="number"
+                                    min={0}
+                                    value={estimateDraft.unitPrice}
+                                    onChange={(event) =>
+                                        setEstimateDraft((current) => ({
+                                            ...current,
+                                            unitPrice: event.target.value,
+                                        }))
+                                    }
+                                    className="h-11 rounded-xl bg-muted/60 pl-11"
+                                />
+                            </div>
+                            <p className="text-[10px] text-muted-foreground">
+                                *Masukkan Rp 0 untuk item yang tidak menggunakan dana
+                                taktis.
+                            </p>
+                        </div>
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEstimateDialogOpen(false)}
+                        >
+                            Batal
+                        </Button>
+                        <Button
+                            type="button"
+                            onClick={handleEstimateItemSave}
+                            disabled={!canSaveEstimateItem}
+                        >
+                            Simpan Item
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

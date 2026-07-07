@@ -198,9 +198,9 @@ export function useDraft({
                         } else if (item.preventiveCondition === "NOT_OK") {
                             restoredCondition = "rusak";
                         } else if (item.preventiveCondition === "TIDAK_ADA") {
-                            restoredCondition = "tidak-ada";
+                            restoredCondition = "tidak_ada";
                         } else if (item.condition === "TIDAK_ADA") {
-                            restoredCondition = "tidak-ada";
+                            restoredCondition = "tidak_ada";
                         } else if (item.condition) {
                             restoredCondition =
                                 item.condition.toLowerCase() as ChecklistCondition;
@@ -279,9 +279,9 @@ export function useDraft({
                         } else if (item.preventiveCondition === "NOT_OK") {
                             restoredCondition = "rusak";
                         } else if (item.preventiveCondition === "TIDAK_ADA") {
-                            restoredCondition = "tidak-ada";
+                            restoredCondition = "tidak_ada";
                         } else if (item.condition === "TIDAK_ADA") {
-                            restoredCondition = "tidak-ada";
+                            restoredCondition = "tidak_ada";
                         } else if (item.condition) {
                             restoredCondition =
                                 item.condition.toLowerCase() as ChecklistCondition;
@@ -435,7 +435,7 @@ export function useDraft({
                           ? ("BAIK" as const)
                           : item.condition === "rusak"
                             ? ("RUSAK" as const)
-                            : item.condition === "tidak-ada"
+                            : item.condition === "tidak_ada"
                               ? ("TIDAK_ADA" as const)
                               : undefined,
                     preventiveCondition: isPreventive
@@ -443,7 +443,7 @@ export function useDraft({
                             ? ("OK" as const)
                             : item.condition === "rusak"
                               ? ("NOT_OK" as const)
-                              : item.condition === "tidak-ada"
+                              : item.condition === "tidak_ada"
                                 ? ("TIDAK_ADA" as const)
                                 : undefined
                         : undefined,
@@ -545,7 +545,7 @@ export function useDraft({
                           ? ("BAIK" as const)
                           : item.condition === "rusak"
                             ? ("RUSAK" as const)
-                            : item.condition === "tidak-ada"
+                            : item.condition === "tidak_ada"
                               ? ("TIDAK_ADA" as const)
                               : undefined,
                     preventiveCondition: isPreventive
@@ -553,7 +553,7 @@ export function useDraft({
                             ? ("OK" as const)
                             : item.condition === "rusak"
                               ? ("NOT_OK" as const)
-                              : item.condition === "tidak-ada"
+                              : item.condition === "tidak_ada"
                                 ? ("TIDAK_ADA" as const)
                                 : undefined
                         : undefined,

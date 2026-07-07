@@ -20,6 +20,8 @@ export type BmsItemGroup = {
 export type StoreOption = {
     code: string;
     name: string;
+    brand?: string;
+    type?: string;
 };
 
 export type SerializedDraft = {

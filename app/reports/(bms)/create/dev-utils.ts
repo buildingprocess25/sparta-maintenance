@@ -66,7 +66,7 @@ export function autoFillStep1(
                 } else if (baikIds.has(item.id)) {
                     condition = "baik";
                 } else {
-                    condition = "tidak-ada";
+                    condition = "tidak_ada";
                 }
                 const checklistItem: ChecklistItem = {
                     id: item.id,

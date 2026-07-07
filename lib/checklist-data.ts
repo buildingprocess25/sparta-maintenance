@@ -1,5 +1,5 @@
 // Data checklist berdasarkan FCKT BnM Menu Ceklist
-export type ChecklistCondition = "baik" | "rusak" | "tidak-ada" | "";
+export type ChecklistCondition = "baik" | "rusak" | "tidak_ada" | "";
 
 export interface ChecklistItem {
     id: string;
@@ -268,3 +268,9 @@ export const unitOptions = [
     "Unit",
     "Zak",
 ];
+
+export const ESTIMATE_UNITS = unitOptions;
+
+export const REPORT_CHECKLIST_ITEMS = checklistCategories.flatMap((c) =>
+    c.items.map((i) => ({ ...i, categoryId: c.id, categoryTitle: c.title }))
+);

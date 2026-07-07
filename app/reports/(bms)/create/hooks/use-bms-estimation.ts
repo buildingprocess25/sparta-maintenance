@@ -72,6 +72,33 @@ export function useBmsEstimation() {
         });
     }, []);
 
+    const addBmsEntryWithDetails = useCallback((
+        itemId: string,
+        details: { itemName: string; quantity: number; unit: string; price: number }
+    ) => {
+        setBmsItems((prev) => {
+            const next = new Map(prev);
+            const itemGroup = next.get(itemId);
+            if (itemGroup) {
+                const newEntry: BmsItemEntry = {
+                    id: `entry_${Date.now()}_${Math.random()}`,
+                    categoryId: "",
+                    categoryTitle: itemGroup.categoryTitle,
+                    itemName: details.itemName,
+                    quantity: details.quantity,
+                    unit: details.unit,
+                    price: details.price,
+                    total: details.quantity * details.price,
+                };
+                next.set(itemId, {
+                    ...itemGroup,
+                    entries: [...itemGroup.entries, newEntry],
+                });
+            }
+            return next;
+        });
+    }, []);
+
     const updateBmsEntry = useCallback(
         (
             itemId: string,
@@ -179,6 +206,7 @@ export function useBmsEstimation() {
         grandTotalBms,
         buildBmsMapFromChecklist,
         addBmsEntry,
+        addBmsEntryWithDetails,
         updateBmsEntry,
         removeBmsEntry,
         validateStep2,
