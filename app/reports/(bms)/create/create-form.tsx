@@ -1,21 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { DraftDialog } from "./draft-dialog";
 import { submitReport, resubmitReport } from "@/app/reports/actions";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { Zap } from "lucide-react";
+import { ArrowLeft, Zap } from "lucide-react";
+import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
+import { cn } from "@/lib/utils";
 
 import type { CreateReportFormProps } from "./components/types";
 export type { StoreOption, SerializedDraft } from "./components/types";
 import { StoreSelectDialog } from "./components/store-select-dialog";
-import { ProgressBar } from "./components/progress-bar";
 import { ChecklistStep } from "./components/checklist-step";
 import { BmsEstimationStep } from "./components/bms-estimation-step";
 
@@ -25,6 +25,11 @@ import { useBmsEstimation } from "./hooks/use-bms-estimation";
 import { useDraft } from "./hooks/use-draft";
 import { clearDraftPhotos } from "./hooks/draft-photo-storage";
 import { autoFillStep1, autoFillStep2 } from "./dev-utils";
+
+const WIZARD_STEPS = [
+    { label: "Checklist" },
+    { label: "Estimasi" },
+] as const;
 
 export default function CreateReportForm({
     stores,
@@ -38,9 +43,14 @@ export default function CreateReportForm({
     const [step, setStep] = useState<1 | 2>(1);
     const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const isHeaderVisible = useBmsMobileHeaderVisibility();
 
     const isEditMode = !!editMode;
     const shouldAutoRestore = isEditMode || !!autoRestoreOnMount;
+    const activeStepIndex = step - 1;
+    const progressValue = (step / WIZARD_STEPS.length) * 100;
+    const backHref =
+        isEditMode && editMode ? `/reports/${editMode.reportNumber}` : "/dashboard";
 
     const {
         checklist,
@@ -209,7 +219,7 @@ export default function CreateReportForm({
     };
 
     return (
-        <div className="min-h-screen flex flex-col bg-background">
+        <div className="relative min-h-svh bg-background text-foreground">
             {showDraftDialog ? (
                 <DraftDialog
                     open={showDraftDialog}
@@ -244,25 +254,64 @@ export default function CreateReportForm({
                 }
             />
 
-            <Header
-                variant="dashboard"
-                title={
-                    isEditMode
-                        ? step === 1
-                            ? "Edit Laporan"
-                            : "Ringkasan Revisi"
-                        : step === 1
-                          ? "Checklist Perbaikan Toko"
-                          : "Ringkasan Laporan"
-                }
-                showBackButton={step === 1}
-                backHref={
-                    isEditMode && editMode
-                        ? `/reports/${editMode.reportNumber}`
-                        : "/dashboard"
-                }
-                logo={false}
-            />
+            <header
+                className={cn(
+                    "fixed inset-x-0 top-0 z-50 bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-xl transition-transform duration-300 ease-out will-change-transform",
+                    isHeaderVisible ? "translate-y-0" : "-translate-y-full",
+                )}
+            >
+                <div className="mx-auto grid w-full max-w-lg grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 py-3">
+                    <div className="flex justify-start">
+                        {step === 2 ? (
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Kembali ke checklist"
+                                className="rounded-full"
+                                onClick={() => setStep(1)}
+                            >
+                                <ArrowLeft />
+                            </Button>
+                        ) : (
+                            <Button
+                                asChild
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Kembali"
+                                className="rounded-full"
+                            >
+                                <Link href={backHref}>
+                                    <ArrowLeft />
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
+
+                    <div className="min-w-0 text-center">
+                        <h1 className="truncate text-xs font-semibold text-muted-foreground">
+                            {isEditMode ? "Edit Laporan" : "Buat Laporan"}
+                        </h1>
+                        <p className="truncate font-heading text-sm font-bold tracking-tight text-foreground">
+                            {step} / {WIZARD_STEPS.length}{" "}
+                            {WIZARD_STEPS[activeStepIndex]?.label}
+                        </p>
+                    </div>
+
+                    <div />
+                </div>
+
+                <div
+                    aria-hidden="true"
+                    className="h-0.5 w-full bg-border/70"
+                    role="presentation"
+                >
+                    <div
+                        className="h-full bg-primary transition-[width] duration-300 ease-out"
+                        style={{ width: `${progressValue}%` }}
+                    />
+                </div>
+            </header>
 
             <CameraModal
                 isOpen={isCameraOpen}
@@ -301,9 +350,7 @@ export default function CreateReportForm({
                 </div>
             )}
 
-            <main className="flex-1 container mx-auto px-4 md:px-4 py-4 md:py-8 max-w-7xl content-wrapper">
-                <ProgressBar step={step} />
-
+            <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pt-20 pb-32">
                 {process.env.NODE_ENV === "development" && step === 1 && (
                     <div className="flex justify-center">
                         <Button
@@ -324,7 +371,7 @@ export default function CreateReportForm({
                                 )
                             }
                         >
-                            <Zap className="mr-2 h-4 w-4" />
+                            <Zap data-icon="inline-start" />
                             Auto Fill (Dev Only)
                         </Button>
                     </div>
@@ -338,7 +385,7 @@ export default function CreateReportForm({
                             className="bg-yellow-50 hover:bg-yellow-100 text-yellow-700 border-yellow-300"
                             onClick={() => autoFillStep2(bmsItems, setBmsItems)}
                         >
-                            <Zap className="mr-2 h-4 w-4" />
+                            <Zap data-icon="inline-start" />
                             Auto Fill (Dev Only)
                         </Button>
                     </div>
@@ -406,7 +453,6 @@ export default function CreateReportForm({
                     />
                 )}
             </main>
-            <Footer />
         </div>
     );
 }

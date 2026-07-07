@@ -116,17 +116,17 @@ These stay on current project UI until v2 versions exist.
   - current `checklistCategories` and report item schema
 - Produces: same `DraftData` payload currently accepted by `submitReport`.
 
-- [ ] Do not copy v2 `STORES`, fake checklist, or fake BMS data.
-- [ ] Use v2 page as visual reference for the wizard shell, store search, checklist grouping, estimation step, and review step.
-- [ ] Keep current working submit payload shape; no schema change.
-- [ ] Keep current Google Drive/photo upload handling.
-- [ ] Keep current preventive cooldown logic.
-- [ ] Keep current handler logic: BMS vs REKANAN.
-- [ ] Keep current draft restore behavior.
-- [ ] Split the 1600-line v2 page into existing focused current files/hooks instead of creating another huge one-file component.
-- [ ] Keep mobile-only layout; no desktop tables.
-- [ ] Replace custom form markup with existing shadcn `Field`, `InputGroup`, `Select`, `RadioGroup`, `Dialog`, `Collapsible`, `Badge`, `Button` where applicable.
-- [ ] Run `npx tsc --noEmit`.
+- [x] Do not copy v2 `STORES`, fake checklist, or fake BMS data.
+- [x] Use v2 page as visual reference for the wizard shell, store search, checklist grouping, estimation step, and review step.
+- [x] Keep current working submit payload shape; no schema change.
+- [x] Keep current Google Drive/photo upload handling.
+- [x] Keep current preventive cooldown logic.
+- [x] Keep current handler logic: BMS vs REKANAN.
+- [x] Keep current draft restore behavior.
+- [x] Split the 1600-line v2 page into existing focused current files/hooks instead of creating another huge one-file component.
+- [x] Keep mobile-only layout; no desktop tables.
+- [x] Replace custom form markup with existing shadcn `Field`, `InputGroup`, `Select`, `RadioGroup`, `Dialog`, `Collapsible`, `Badge`, `Button` where applicable.
+- [x] Run `npx tsc --noEmit`.
 
 ## Task 4: Replace BMS Activity View Only
 

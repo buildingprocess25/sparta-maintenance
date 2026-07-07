@@ -72,7 +72,7 @@ export function ChecklistStep({
     onNext,
 }: ChecklistStepProps) {
     return (
-        <div className="flex flex-col max-w-5xl mx-auto w-full gap-4 md:gap-8">
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
             {/* Checklist */}
             <div className="w-full">
                 <Card className="py-0 md:py-6 ring-0 shadow-none bg-transparent md:border md:shadow-sm md:bg-card">
@@ -209,7 +209,7 @@ export function ChecklistStep({
                 </Card>
             </div>
             {/* Action Buttons */}
-            <div className="w-full mt-4 md:mt-0">
+            <div className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-[0_-12px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl">
                 <ButtonGroup className="w-full" orientation="horizontal">
                     <Button
                         type="button"
