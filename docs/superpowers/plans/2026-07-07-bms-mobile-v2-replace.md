@@ -82,22 +82,22 @@ These stay on current project UI until v2 versions exist.
   - `BmsMobilePage`
 - Produces: BMS dashboard UI only. `app/dashboard/page.tsx` role switch stays unchanged.
 
-- [ ] Remove old desktop `DashboardShell`, `DashboardMenus`, and wide layout from BMS dashboard only.
-- [ ] Map current `getUserStats()` values into the v2 dashboard stat cards:
+- [x] Remove old desktop `DashboardShell`, `DashboardMenus`, and wide layout from BMS dashboard only.
+- [x] Map current `getUserStats()` values into the v2 dashboard stat cards:
   - `needsAction` -> `Perlu Tindakan`
   - `waitingReview` -> `Menunggu Review`
   - `inProgress` -> `Dikerjakan`
   - `completed` -> `Selesai`
-- [ ] Keep primary CTA: `/reports/create`.
-- [ ] Keep secondary action links minimal:
+- [x] Keep primary CTA: `/reports/create`.
+- [x] Keep secondary action links minimal:
   - `/reports?status=needs_action`
   - `/reports?status=waiting_review`
   - `/reports?status=in_progress`
   - `/reports?status=completed`
-- [ ] Replace v2 mock activity data with `getBMSActivity(user.NIK)`.
-- [ ] Use global status/action labels already available in the current project.
-- [ ] Verify BMC, BNM_MANAGER, and ADMIN dashboard imports are untouched.
-- [ ] Run `npx tsc --noEmit`.
+- [x] Replace v2 mock activity data with `getBMSActivity(user.NIK)`.
+- [x] Use global status/action labels already available in the current project.
+- [x] Verify BMC, BNM_MANAGER, and ADMIN dashboard imports are untouched.
+- [x] Run `npx tsc --noEmit`.
 
 ## Task 3: Port v2 Create Report Visual Flow Into Current `/reports/create`
 
