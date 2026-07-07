@@ -61,13 +61,13 @@ These stay on current project UI until v2 versions exist.
   - `BmsMobilePage(props: { children: React.ReactNode; navItem: BmsMobileNavItem; title?: string; subtitle?: string })`
 - Consumes: existing shadcn `Button`, `Sheet`, `Avatar`, `Badge`, `Separator`, `DropdownMenu` only if already installed.
 
-- [ ] Copy visual structure from v2 `components/header.tsx` and `components/bottom-nav.tsx`.
-- [ ] Replace the `/settings` nav href with a `Sheet`/menu trigger because there is no v2 settings page.
-- [ ] Keep layout capped to mobile width: page content should use `max-w-lg`.
-- [ ] Do not add desktop sidebar or responsive desktop variants.
-- [ ] Use `data-icon` on icons inside buttons.
-- [ ] Run `rg -n "BmsMobile" components app` to confirm imports are explicit.
-- [ ] Run `npx tsc --noEmit`.
+- [x] Copy visual structure from v2 `components/header.tsx` and `components/bottom-nav.tsx`.
+- [x] Replace the `/settings` nav href with a `Sheet`/menu trigger because there is no v2 settings page.
+- [x] Keep layout capped to mobile width: page content should use `max-w-lg`.
+- [x] Do not add desktop sidebar or responsive desktop variants.
+- [x] Use `data-icon` on icons inside buttons.
+- [x] Run `rg -n "BmsMobile" components app` to confirm imports are explicit.
+- [x] Run `npx tsc --noEmit`.
 
 ## Task 2: Replace BMS Dashboard With v2 Mobile UI
 
