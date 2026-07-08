@@ -177,7 +177,7 @@ export function ChecklistStep({
 
       <section
         className={cn(
-          "sticky z-40 -mx-4 px-4 bg-background/95 py-3 backdrop-blur-md transition-all duration-300",
+          "sticky z-40 -mx-4 px-4 pt-2 pb-0 bg-background/95 backdrop-blur-md transition-all duration-300",
           isHeaderVisible ? "top-[60px]" : "top-0",
         )}
       >
@@ -337,6 +337,16 @@ export function ChecklistStep({
                                           <Label
                                             key={val}
                                             htmlFor={`${item.id}-${val}`}
+                                            onClick={(e) => {
+                                              if (condition === val) {
+                                                e.preventDefault();
+                                                onConditionChange(
+                                                  item.id,
+                                                  item.name,
+                                                  "" as ChecklistCondition,
+                                                );
+                                              }
+                                            }}
                                             className={cn(
                                               "relative flex h-10 cursor-pointer items-center justify-center gap-0 rounded-lg text-center text-sm leading-none font-semibold transition-colors",
                                               condition === val

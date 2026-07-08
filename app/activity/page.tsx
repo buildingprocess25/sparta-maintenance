@@ -1,9 +1,9 @@
 import { requireAuth } from "@/lib/authorization";
 import {
-    getBMSActivity,
-    getBranchActivity,
-    getGlobalActivity,
-    getPjumActivity,
+  getBMSActivity,
+  getBranchActivity,
+  getGlobalActivity,
+  getPjumActivity,
 } from "@/app/dashboard/queries";
 import { ActivityList } from "./_components/activity-list";
 import { PjumActivityList } from "./_components/pjum-activity-list";
@@ -14,145 +14,131 @@ const PER_PAGE = 20;
 const POOL = 500;
 
 type Props = {
-    searchParams: Promise<{
-        page?: string;
-        search?: string;
-        action?: string;
-        date?: string;
-    }>;
+  searchParams: Promise<{
+    page?: string;
+    search?: string;
+    action?: string;
+    date?: string;
+  }>;
 };
 
 export default async function ActivityPage({ searchParams }: Props) {
-    const user = await requireAuth();
-    const { page: pageParam, search, action, date } = await searchParams;
+  const user = await requireAuth();
+  const { page: pageParam, search, action, date } = await searchParams;
 
-    if (user.role === "BNM_MANAGER") {
-        const allPjum = await getPjumActivity(user.branchNames, POOL);
-        let filteredPjum = allPjum;
-
-        if (action && action !== "all") {
-            filteredPjum = filteredPjum.filter(
-                (item) => item.action === action,
-            );
-        }
-
-        if (date) {
-            const filterDate = new Date(date);
-            filteredPjum = filteredPjum.filter((item) => {
-                const itemDate = new Date(item.createdAt);
-                return (
-                    itemDate.getFullYear() === filterDate.getFullYear() &&
-                    itemDate.getMonth() === filterDate.getMonth() &&
-                    itemDate.getDate() === filterDate.getDate()
-                );
-            });
-        }
-
-        const totalPjum = filteredPjum.length;
-        const totalPagesPjum = Math.max(1, Math.ceil(totalPjum / PER_PAGE));
-        const currentPagePjum = Math.min(
-            Math.max(1, Number(pageParam) || 1),
-            totalPagesPjum,
-        );
-        const activitiesPjum = filteredPjum.slice(
-            (currentPagePjum - 1) * PER_PAGE,
-            currentPagePjum * PER_PAGE,
-        );
-
-        return (
-            <PjumActivityList
-                activities={activitiesPjum}
-                total={totalPjum}
-                totalPages={totalPagesPjum}
-                currentPage={currentPagePjum}
-            />
-        );
-    }
-
-    if (user.role === "BMS") {
-        const bmsAll = await getBMSActivity(user.NIK, POOL);
-        let bmsFiltered = bmsAll;
-
-        if (action && action !== "all") {
-            bmsFiltered = bmsFiltered.filter((item) => item.action === action);
-        }
-
-        if (date) {
-            const filterDate = new Date(date);
-            bmsFiltered = bmsFiltered.filter((item) => {
-                const itemDate = new Date(item.createdAt);
-                return (
-                    itemDate.getFullYear() === filterDate.getFullYear() &&
-                    itemDate.getMonth() === filterDate.getMonth() &&
-                    itemDate.getDate() === filterDate.getDate()
-                );
-            });
-        }
-
-        if (search) {
-            const q = search.toLowerCase();
-            bmsFiltered = bmsFiltered.filter(
-                (item) =>
-                    item.reportNumber.toLowerCase().includes(q) ||
-                    item.report.storeName?.toLowerCase().includes(q) ||
-                    item.report.branchName.toLowerCase().includes(q) ||
-                    item.actor.name.toLowerCase().includes(q),
-            );
-        }
-
-        return (
-            <BmsMobilePage navItem="activity" title="Aktivitas Anda">
-                <BmsMobileActivityList items={bmsFiltered} />
-            </BmsMobilePage>
-        );
-    }
-
-    let all;
-    switch (user.role) {
-        case "BMC":
-            all = await getBranchActivity(user.branchNames, POOL);
-            break;
-        case "ADMIN":
-        default:
-            all = await getGlobalActivity(POOL);
-            break;
-    }
-
-    // Filter in memory
-    let filtered = all;
+  if (user.role === "BNM_MANAGER") {
+    const allPjum = await getPjumActivity(user.branchNames, POOL);
+    let filteredPjum = allPjum;
 
     if (action && action !== "all") {
-        filtered = filtered.filter((item) => item.action === action);
+      filteredPjum = filteredPjum.filter((item) => item.action === action);
     }
 
-    if (search) {
-        const q = search.toLowerCase();
-        filtered = filtered.filter(
-            (item) =>
-                item.reportNumber.toLowerCase().includes(q) ||
-                item.report.storeName?.toLowerCase().includes(q) ||
-                item.report.branchName.toLowerCase().includes(q) ||
-                item.actor.name.toLowerCase().includes(q),
+    if (date) {
+      const filterDate = new Date(date);
+      filteredPjum = filteredPjum.filter((item) => {
+        const itemDate = new Date(item.createdAt);
+        return (
+          itemDate.getFullYear() === filterDate.getFullYear() &&
+          itemDate.getMonth() === filterDate.getMonth() &&
+          itemDate.getDate() === filterDate.getDate()
         );
+      });
     }
 
-    const total = filtered.length;
-    const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
-    const currentPage = Math.min(
-        Math.max(1, Number(pageParam) || 1),
-        totalPages,
+    const totalPjum = filteredPjum.length;
+    const totalPagesPjum = Math.max(1, Math.ceil(totalPjum / PER_PAGE));
+    const currentPagePjum = Math.min(
+      Math.max(1, Number(pageParam) || 1),
+      totalPagesPjum,
     );
-    const activities = filtered.slice(
-        (currentPage - 1) * PER_PAGE,
-        currentPage * PER_PAGE,
+    const activitiesPjum = filteredPjum.slice(
+      (currentPagePjum - 1) * PER_PAGE,
+      currentPagePjum * PER_PAGE,
     );
 
     return (
-        <ActivityList
-            activities={activities}
-            total={total}
-            totalPages={totalPages}
-            currentPage={currentPage}
-        />
+      <PjumActivityList
+        activities={activitiesPjum}
+        total={totalPjum}
+        totalPages={totalPagesPjum}
+        currentPage={currentPagePjum}
+      />
     );
+  }
+
+  if (user.role === "BMS") {
+    const { getBMSActivityPaginatedAction } = await import("./actions");
+    
+    const initialData = await getBMSActivityPaginatedAction({
+      search,
+      action,
+      limit: 20,
+    });
+
+    return (
+      <BmsMobilePage
+        navItem="activity"
+        title="Aktivitas Laporan"
+        userInitials={user.name
+          .split(" ")
+          .slice(0, 2)
+          .map((w) => w[0]?.toUpperCase() ?? "")
+          .join("")}
+      >
+        <BmsMobileActivityList 
+            initialItems={initialData.items} 
+            initialCursor={initialData.nextCursor} 
+            initialSearch={search || ""}
+            initialAction={action || "all"}
+        />
+      </BmsMobilePage>
+    );
+  }
+
+  let all;
+  switch (user.role) {
+    case "BMC":
+      all = await getBranchActivity(user.branchNames, POOL);
+      break;
+    case "ADMIN":
+    default:
+      all = await getGlobalActivity(POOL);
+      break;
+  }
+
+  // Filter in memory
+  let filtered = all;
+
+  if (action && action !== "all") {
+    filtered = filtered.filter((item) => item.action === action);
+  }
+
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(
+      (item) =>
+        item.reportNumber.toLowerCase().includes(q) ||
+        item.report.storeName?.toLowerCase().includes(q) ||
+        item.report.branchName.toLowerCase().includes(q) ||
+        item.actor.name.toLowerCase().includes(q),
+    );
+  }
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
+  const currentPage = Math.min(Math.max(1, Number(pageParam) || 1), totalPages);
+  const activities = filtered.slice(
+    (currentPage - 1) * PER_PAGE,
+    currentPage * PER_PAGE,
+  );
+
+  return (
+    <ActivityList
+      activities={activities}
+      total={total}
+      totalPages={totalPages}
+      currentPage={currentPage}
+    />
+  );
 }

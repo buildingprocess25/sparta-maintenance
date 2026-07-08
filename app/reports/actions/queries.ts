@@ -26,7 +26,40 @@ export async function getStoresByBranch(branchName: string) {
         },
     });
 
-    return stores;
+    // Determine the current quarter date range
+    const now = new Date();
+    const quarter = Math.floor(now.getMonth() / 3);
+    const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
+    const quarterEnd = new Date(now.getFullYear(), (quarter + 1) * 3, 1);
+
+    // Fetch all non-DRAFT reports for this branch in the current quarter
+    const reportsThisQuarter = await prisma.report.findMany({
+        where: {
+            branchName,
+            status: { not: "DRAFT" },
+            createdAt: { gte: quarterStart, lt: quarterEnd },
+        },
+        select: { storeCode: true, items: true },
+    });
+
+    // Build a set of store codes that have preventive (category I) reports
+    const storesWithPreventive = new Set<string>();
+    for (const report of reportsThisQuarter) {
+        const items = report.items as ReportItemJson[] | null;
+        if (items && Array.isArray(items)) {
+            const hasCategoryI = items.some((item) =>
+                item.itemId.startsWith("I"),
+            );
+            if (hasCategoryI && report.storeCode) {
+                storesWithPreventive.add(report.storeCode);
+            }
+        }
+    }
+
+    return stores.map((store) => ({
+        ...store,
+        hasPreventiveChecklist: storesWithPreventive.has(store.code),
+    }));
 }
 
 export async function getMyReports(filters: ReportFilters = {}) {
