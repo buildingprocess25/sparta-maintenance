@@ -31,17 +31,22 @@ export type DraftData = {
 
 export type DateRangeFilter =
     | "all"
+    | "this_week"
+    | "last_week"
     | "this_month"
     | "last_month"
     | "last_3_months"
     | "last_6_months"
     | "this_year"
-    | "last_year";
+    | "last_year"
+    | "custom";
 
 export type ReportFilters = {
     search?: string;
     status?: string | string[];
     dateRange?: DateRangeFilter;
+    fromDate?: string;
+    toDate?: string;
     page?: number;
     limit?: number;
 };
@@ -62,6 +67,26 @@ export function resolveDateRange(
     const m = Number(parts.find(p => p.type === 'month')!.value); // 1-indexed
 
     switch (range) {
+        case "this_week": {
+            const now = new Date();
+            const day = now.getDay() || 7; // 1-7 (Mon-Sun)
+            const start = new Date(now);
+            start.setDate(now.getDate() - day + 1);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 7);
+            return { gte: start, lt: end };
+        }
+        case "last_week": {
+            const now = new Date();
+            const day = now.getDay() || 7;
+            const start = new Date(now);
+            start.setDate(now.getDate() - day - 6);
+            start.setHours(0, 0, 0, 0);
+            const end = new Date(start);
+            end.setDate(start.getDate() + 7);
+            return { gte: start, lt: end };
+        }
         case "this_month": {
             const w = getJakartaMonthWindow(y, m);
             return { gte: w.start, lt: w.endExclusive };

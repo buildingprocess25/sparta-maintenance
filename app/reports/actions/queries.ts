@@ -65,7 +65,7 @@ export async function getStoresByBranch(branchName: string) {
 export async function getMyReports(filters: ReportFilters = {}) {
     const user = await requireRole("BMS");
 
-    const { search, status, dateRange, page = 1, limit = 20 } = filters;
+    const { search, status, dateRange, fromDate, toDate, page = 1, limit = 20 } = filters;
     const skip = (page - 1) * limit;
 
     // Include COMPLETED by default so BMS can see their full report history
@@ -93,11 +93,18 @@ export async function getMyReports(filters: ReportFilters = {}) {
         },
     };
 
-    const dateBounds = resolveDateRange(
-        dateRange as DateRangeFilter | undefined,
-    );
-    if (dateBounds) {
-        where.createdAt = dateBounds;
+    if (dateRange === "custom" && fromDate && toDate) {
+        const start = new Date(fromDate);
+        const end = new Date(toDate);
+        end.setHours(23, 59, 59, 999);
+        where.createdAt = { gte: start, lte: end };
+    } else {
+        const dateBounds = resolveDateRange(
+            dateRange as DateRangeFilter | undefined,
+        );
+        if (dateBounds) {
+            where.createdAt = dateBounds;
+        }
     }
 
     if (search) {

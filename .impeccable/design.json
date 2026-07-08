@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-08T10:41:00Z",
+  "title": "Design System: SPARTA Maintenance",
+  "extensions": {
+    "colorMeta": {
+      "primary":          { "role": "primary",     "displayName": "Corporate Blue",         "canonical": "oklch(0.44 0.13 231)", "tonalRamp": ["#001f33","#003352","#004b77","#005a8f","#0069a7","#1a80b8","#4fa0cc","#a8d3e8","#d4eaf5","#edf6fb"] },
+      "primary-deep":     { "role": "primary",     "displayName": "Corporate Blue Deep",    "canonical": "oklch(0.38 0.12 231)", "tonalRamp": ["#001a2b","#002b46","#003d60","#004a73","#005a8f","#1570a2","#4090bb","#9ac5db","#cfe4ef","#e9f3f8"] },
+      "primary-deeper":   { "role": "primary",     "displayName": "Corporate Blue Deeper",  "canonical": "oklch(0.32 0.11 231)", "tonalRamp": ["#001522","#00253a","#003251","#003d62","#004b77","#105e8a","#3a7da5","#96bad0","#c7dfec","#e3f0f7"] },
+      "primary-darkest":  { "role": "primary",     "displayName": "Corporate Blue Darkest", "canonical": "oklch(0.25 0.09 231)", "tonalRamp": ["#000d16","#001727","#00253c","#002e4b","#00375c","#0a4e70","#336b90","#90afc5","#c3d9e7","#e0ecf3"] },
+      "foreground":       { "role": "neutral",     "displayName": "Ink",                    "canonical": "oklch(0.13 0.028 261.692)", "tonalRamp": ["#0a0e1c","#131828","#1a1f3c","#252b4a","#333a5c","#4d5573","#717a96","#a8afc4","#d3d7e4","#eceff6"] },
+      "muted-fg":         { "role": "neutral",     "displayName": "Slate Muted",            "canonical": "oklch(0.551 0.027 264.364)", "tonalRamp": ["#1e2438","#2d3550","#3e4869","#505b7d","#6b7a9e","#8a97b8","#aab4cc","#cbd0de","#e4e7ef","#f3f4f8"] },
+      "background":       { "role": "neutral",     "displayName": "Canvas White",           "canonical": "oklch(1 0 0)", "tonalRamp": ["#e8eaf0","#edeef5","#f2f3f8","#f5f6fa","#f8f9fc","#fafbfd","#fcfcfe","#fdfefe","#fefeff","#ffffff"] },
+      "surface":          { "role": "neutral",     "displayName": "Muted Surface",          "canonical": "oklch(0.967 0.003 264.542)", "tonalRamp": ["#dde0e8","#e3e6ef","#e9ecf3","#eef0f7","#f1f3f8","#f4f6f9","#f7f8fb","#fafbfd","#fcfcfe","#fefeff"] },
+      "border":           { "role": "neutral",     "displayName": "Divider Border",         "canonical": "oklch(0.928 0.006 264.531)", "tonalRamp": ["#c8ccd8","#d0d4de","#d8dce6","#dfe3ec","#e5e7eb","#eceff4","#f2f3f7","#f7f8fb","#fbfcfd","#fefeff"] },
+      "destructive":      { "role": "tertiary",    "displayName": "Error Red",              "canonical": "oklch(0.55 0.22 30)", "tonalRamp": ["#3b0a05","#6b1208","#a31c0d","#c02010","#dc2626","#e84b40","#f07d74","#f9b8b4","#fcd9d6","#fef0ef"] },
+      "status-approved":  { "role": "semantic",    "displayName": "Emerald Approved",       "canonical": "#059669", "tonalRamp": ["#022c22","#064e3b","#065f46","#047857","#059669","#10b981","#34d399","#6ee7b7","#a7f3d0","#d1fae5"] },
+      "status-rejected":  { "role": "semantic",    "displayName": "Red Rejected",           "canonical": "#dc2626", "tonalRamp": ["#450a0a","#7f1d1d","#991b1b","#b91c1c","#dc2626","#ef4444","#f87171","#fca5a5","#fecaca","#fee2e2"] },
+      "status-revision":  { "role": "semantic",    "displayName": "Amber Revision",         "canonical": "#d97706", "tonalRamp": ["#451a03","#78350f","#92400e","#b45309","#d97706","#f59e0b","#fbbf24","#fcd34d","#fde68a","#fef3c7"] },
+      "status-pending":   { "role": "semantic",    "displayName": "Blue Pending",           "canonical": "#0069a7", "tonalRamp": ["#1e3a5f","#1e40af","#1d4ed8","#2563eb","#3b82f6","#60a5fa","#93c5fd","#bfdbfe","#dbeafe","#eff6ff"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display",  "purpose": "Header halaman, title mobile. Satu per layar." },
+      "headline": { "displayName": "Headline", "purpose": "Section header, card title, judul panel dashboard." },
+      "title":    { "displayName": "Title",    "purpose": "Sub-section, kolom tabel, label panel." },
+      "body":     { "displayName": "Body",     "purpose": "Konten paragraf, deskripsi, metadata. Maks 75ch." },
+      "label":    { "displayName": "Label",    "purpose": "Badge, chip status, nav item, tabel header." }
+    },
+    "shadows": [
+      { "name": "none",          "value": "none",                                                                                  "purpose": "BMS mobile — semua list item dan section container. Flat total." },
+      { "name": "surface-lift",  "value": "0 1px 2px 0 rgb(0 0 0 / 0.05)",                                                        "purpose": "Input field dan button outline di desktop. Affordance minimal." },
+      { "name": "card-elevated", "value": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",                       "purpose": "Modal, popover, dropdown. Tidak untuk card konten biasa." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default easing untuk state transitions (button, input, badge)." },
+      { "name": "ease-out",      "value": "cubic-bezier(0, 0, 0.2, 1)",   "purpose": "Elemen yang masuk ke layar (slide-in, fade-in)." },
+      { "name": "duration-fast", "value": "150ms",                          "purpose": "Hover states, color transitions." },
+      { "name": "duration-base", "value": "200ms",                          "purpose": "Panel transitions, sticky header." },
+      { "name": "duration-slow", "value": "300ms",                          "purpose": "Modal open/close, page transitions." }
+    ],
+    "breakpoints": [
+      { "name": "mobile",  "value": "375px",  "note": "BMS primary target" },
+      { "name": "sm",      "value": "640px" },
+      { "name": "md",      "value": "768px",  "note": "Tablet — BMC secondary" },
+      { "name": "lg",      "value": "1024px", "note": "Desktop — admin/manager primary" },
+      { "name": "max-mobile", "value": "512px", "note": "max-w-lg — BMS content container cap" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "CTA utama. Submit laporan, konfirmasi aksi, approve.",
+      "html": "<button class=\"ds-btn-primary\">Ajukan Laporan</button>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; background: #0069a7; color: #ffffff; font-size: 0.875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background 150ms; white-space: nowrap; outline: none; } .ds-btn-primary:hover { background: #005a8f; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 105, 167, 0.3); } .ds-btn-primary:disabled { opacity: 0.5; pointer-events: none; }"
+    },
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Aksi sekunder. Kembali, filter, export.",
+      "html": "<button class=\"ds-btn-outline\">Lihat Detail</button>",
+      "css": ".ds-btn-outline { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; background: #ffffff; color: #1a1f3c; font-size: 0.875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border: 1px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: background 150ms, color 150ms; white-space: nowrap; outline: none; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-btn-outline:hover { background: #f4f6f9; } .ds-btn-outline:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0, 105, 167, 0.3); }"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Aksi destruktif. Hapus laporan, batalkan PJUM.",
+      "html": "<button class=\"ds-btn-destructive\">Hapus Laporan</button>",
+      "css": ".ds-btn-destructive { display: inline-flex; align-items: center; justify-content: center; height: 36px; padding: 0 10px; background: rgba(220, 38, 38, 0.1); color: #dc2626; font-size: 0.875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border: 1px solid transparent; border-radius: 10px; cursor: pointer; transition: background 150ms; white-space: nowrap; outline: none; } .ds-btn-destructive:hover { background: rgba(220, 38, 38, 0.2); } .ds-btn-destructive:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.2); }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input-default",
+      "description": "Field input standar. Search, form laporan, filter.",
+      "html": "<input class=\"ds-input\" type=\"text\" placeholder=\"Cari aktivitas...\" />",
+      "css": ".ds-input { display: block; width: 100%; height: 36px; padding: 4px 10px; background: transparent; color: #1a1f3c; font-size: 0.875rem; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border: 1px solid #e5e7eb; border-radius: 6px; outline: none; transition: border-color 150ms, box-shadow 150ms; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); } .ds-input::placeholder { color: #6b7a9e; } .ds-input:focus { border-color: #0069a7; box-shadow: 0 0 0 3px rgba(0, 105, 167, 0.2); } .ds-input:disabled { opacity: 0.5; pointer-events: none; cursor: not-allowed; }"
+    },
+    {
+      "name": "Badge — Status Approved",
+      "kind": "chip",
+      "refersTo": "badge-status-approved",
+      "description": "Label status disetujui. ESTIMATION_APPROVED, FINAL_APPROVED_BNM.",
+      "html": "<span class=\"ds-badge-approved\">Disetujui</span>",
+      "css": ".ds-badge-approved { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 2px 8px; background: #d1fae5; color: #065f46; font-size: 0.6875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border-radius: 9999px; white-space: nowrap; }"
+    },
+    {
+      "name": "Badge — Status Rejected",
+      "kind": "chip",
+      "refersTo": "badge-status-rejected",
+      "description": "Label status ditolak. Semua varian REJECTED.",
+      "html": "<span class=\"ds-badge-rejected\">Ditolak</span>",
+      "css": ".ds-badge-rejected { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 2px 8px; background: #fee2e2; color: #991b1b; font-size: 0.6875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border-radius: 9999px; white-space: nowrap; }"
+    },
+    {
+      "name": "Badge — Status Revision",
+      "kind": "chip",
+      "refersTo": "badge-status-revision",
+      "description": "Label status perlu revisi. Semua varian REJECTED_REVISION dan REVISED.",
+      "html": "<span class=\"ds-badge-revision\">Perlu Revisi</span>",
+      "css": ".ds-badge-revision { display: inline-flex; align-items: center; justify-content: center; height: 20px; padding: 2px 8px; background: #fef3c7; color: #92400e; font-size: 0.6875rem; font-weight: 500; font-family: Geist, ui-sans-serif, system-ui, sans-serif; border-radius: 9999px; white-space: nowrap; }"
+    },
+    {
+      "name": "Activity Item",
+      "kind": "custom",
+      "refersTo": null,
+      "description": "Signature component SPARTA. Item aktivitas laporan di BMS dashboard dan halaman /activity.",
+      "html": "<div class=\"ds-activity-item\"><div class=\"ds-activity-icon ds-activity-icon--created\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" y1=\"8\" x2=\"12\" y2=\"16\"/><line x1=\"8\" y1=\"12\" x2=\"16\" y2=\"12\"/></svg></div><div class=\"ds-activity-content\"><div class=\"ds-activity-header\"><div><a href=\"#\" class=\"ds-activity-report\">Laporan #RN-00001</a><p class=\"ds-activity-meta\">Cabang Jakarta Pusat • Toko Alfamart Kebon Sirih</p></div><span class=\"ds-activity-time\">10:42</span></div><div class=\"ds-activity-footer\"><span class=\"ds-badge-pending\">Laporan diajukan</span><p class=\"ds-activity-actor\">Ahmad Rizki</p></div></div></div>",
+      "css": ".ds-activity-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: transparent; border-bottom: 1px solid rgba(229,231,235,0.4); transition: background 150ms; } .ds-activity-item:last-child { border-bottom: none; } .ds-activity-item:hover { background: rgba(244,246,249,0.5); } .ds-activity-icon { flex-shrink: 0; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 12px; margin-top: 2px; } .ds-activity-icon--created { background: rgba(14,165,233,0.1); color: #0369a1; } .ds-activity-icon--approved { background: rgba(16,185,129,0.1); color: #059669; } .ds-activity-icon--rejected { background: rgba(220,38,38,0.1); color: #dc2626; } .ds-activity-icon--revision { background: rgba(217,119,6,0.1); color: #b45309; } .ds-activity-content { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; } .ds-activity-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; } .ds-activity-report { font-size: 0.875rem; font-weight: 500; color: #1a1f3c; text-decoration: none; font-family: Geist, ui-sans-serif, system-ui, sans-serif; } .ds-activity-report:hover { color: #0069a7; } .ds-activity-meta { font-size: 0.6875rem; color: #6b7a9e; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-family: Geist, ui-sans-serif, system-ui, sans-serif; } .ds-activity-time { flex-shrink: 0; font-size: 0.625rem; font-weight: 500; color: rgba(107,122,158,0.7); margin-top: 2px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; } .ds-activity-footer { display: flex; align-items: center; gap: 8px; } .ds-activity-actor { font-size: 0.6875rem; color: #6b7a9e; font-family: Geist, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .ds-badge-pending { display: inline-flex; align-items: center; height: 18px; padding: 1px 6px; background: #dbeafe; color: #1e40af; font-size: 0.5625rem; font-weight: 500; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.05em; font-family: Geist, ui-sans-serif, system-ui, sans-serif; white-space: nowrap; }"
+    },
+    {
+      "name": "Bottom Navigation (BMS Mobile)",
+      "kind": "nav",
+      "refersTo": null,
+      "description": "Fixed bottom nav untuk BMS mobile. 4 tab: Dashboard, Laporan, Aktivitas, Menu.",
+      "html": "<nav class=\"ds-bottom-nav\"><a href=\"#\" class=\"ds-nav-item ds-nav-item--active\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\"/></svg><span>Dashboard</span></a><a href=\"#\" class=\"ds-nav-item\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z\"/><polyline points=\"14 2 14 8 20 8\"/></svg><span>Laporan</span></a><a href=\"#\" class=\"ds-nav-item\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><polyline points=\"22 12 18 12 15 21 9 3 6 12 2 12\"/></svg><span>Aktivitas</span></a><a href=\"#\" class=\"ds-nav-item\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/></svg><span>Menu</span></a></nav>",
+      "css": ".ds-bottom-nav { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 8px 16px 20px; background: rgba(255,255,255,0.9); border-top: 1px solid rgba(229,231,235,0.6); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); } .ds-nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 44px; padding: 4px 8px; border-radius: 12px; color: #6b7a9e; text-decoration: none; transition: background 150ms, color 150ms; gap: 0; } .ds-nav-item span { font-size: 0.5rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; font-family: Geist, ui-sans-serif, system-ui, sans-serif; } .ds-nav-item--active { background: rgba(0,105,167,0.15); color: #0069a7; } .ds-nav-item:hover:not(.ds-nav-item--active) { background: rgba(244,246,249,0.8); color: #1a1f3c; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Corporate Compact",
+    "overview": "SPARTA Maintenance adalah tool operasional internal, bukan produk marketing. Design system-nya mencerminkan prinsip yang sama: setiap piksel harus bisa dipertanggungjawabkan. Interface ini melayani petugas lapangan di toko-toko Alfamart, manajer cabang di kantor, dan tim head office — tiga konteks yang berbeda, satu design language yang harus bekerja di semuanya.\n\nBersih, ringan, aksesibel. Bukan berarti minimal atau steril. Artinya: tidak ada dekorasi yang tidak bermakna, tidak ada warna yang sekadar 'kelihatan bagus', tidak ada komponen yang memerlukan penjelasan. Biru korporat (#0069a7) adalah warisan merek PT Sumber Alfaria Trijaya — ia bukan pilihan estetika, tapi identitas yang wajib dijaga.\n\nInterface ini secara eksplisit menolak: tampilan startup SaaS dengan gradient mesh dan glassmorphism berlebihan; dashboard card-heavy yang membungkus setiap data dalam container; komponen yang terlalu 'fun' atau cartoonish; dan enterprise berat seperti Jira yang membuat pengguna awam perlu training sebelum bisa submit laporan.",
+    "keyCharacteristics": [
+      "Biru korporat Alfamart sebagai primary, bukan aksesori",
+      "Flat-by-default di mobile; sedikit elevation di desktop admin",
+      "Status di-encode via warna dan label — tidak pernah hanya salah satunya",
+      "Mobile-first untuk BMS; data-dense untuk admin desktop",
+      "Geist, satu typeface, multiple weight — tidak ada drama tipografi"
+    ],
+    "rules": [
+      { "name": "The Two-Signal Rule",    "body": "Status laporan selalu dikomunikasikan via warna DAN label teks. Warna saja tidak cukup (aksesibilitas). Label saja tidak cukup (keterbacaan cepat). Selalu keduanya, selalu dari getActionBadgeClass() dan getActivityActionLabel() yang sama.", "section": "colors" },
+      { "name": "The No-Novelty Rule",    "body": "Tidak ada font kedua. Tidak ada display size di atas 1.5rem. Letter-spacing negatif di bawah -0.04em dilarang — terlalu rapat.", "section": "typography" },
+      { "name": "The Flat-Mobile Rule",   "body": "Komponen BMS mobile tidak boleh memiliki shadow-sm atau lebih besar. Jika sebuah komponen memerlukan shadow untuk terlihat sebagai 'unit terpisah' di mobile, strukturnya perlu dipikirkan ulang.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do selalu gunakan label teks bersama warna pada setiap badge status — warna saja tidak cukup untuk aksesibilitas.",
+      "Do gunakan getActionBadgeClass() dan getActivityActionLabel() dari activity-format.ts sebagai single source of truth.",
+      "Do buat tampilan BMS mobile flat total — tidak ada shadow pada list item atau section container mobile.",
+      "Do jaga touch target minimum 44px untuk semua elemen interaktif di BMS mobile.",
+      "Do gunakan formatRelativeDate() dan label tanggal relatif untuk aktivitas terbaru di BMS.",
+      "Do cap line length body text di 65–75ch pada halaman dengan konten panjang.",
+      "Do gunakan primary blue #0069a7 sebagai identitas brand — fungsional, bukan dekorasi.",
+      "Do pisahkan status laporan dan status PJUM — keduanya berbeda.",
+      "Do gunakan komponen yang sudah ada sebelum membuat yang baru.",
+      "Do implement @media (prefers-reduced-motion: reduce) untuk semua animasi."
+    ],
+    "donts": [
+      "Don't gunakan glassmorphism, gradient mesh, atau efek visual dekoratif.",
+      "Don't bungkus setiap section dalam card — gunakan section/table ketika itu pilihan yang lebih baik. Nested cards selalu salah.",
+      "Don't gunakan warna status untuk tujuan non-semantik atau dekorasi.",
+      "Don't tambah font kedua — satu typeface (Geist) dengan multiple weight sudah cukup.",
+      "Don't gunakan border-left berwarna lebih dari 1px sebagai aksen.",
+      "Don't gunakan box-shadow pada activity item atau section container BMS mobile.",
+      "Don't buat interface yang terasa fun atau cartoonish.",
+      "Don't gunakan PJUM_CREATED atau PJUM_APPROVED sebagai filter langsung ke Prisma activityLog.",
+      "Don't tampilkan label ambigu seperti 'selesai' untuk timestamp selain final BNM approval.",
+      "Don't buat komponen baru jika helper lokal atau shadcn/ui sudah cukup."
+    ]
+  }
+}

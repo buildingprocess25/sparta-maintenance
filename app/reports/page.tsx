@@ -2,6 +2,8 @@ import { requireAuth } from "@/lib/authorization";
 import { getMyReports, getApprovalReports } from "@/app/reports/actions";
 import BmsReportsList from "./_components/bms-reports-list";
 import { ApprovalReportsList } from "./_components/approval-reports-list";
+import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
+import { BmsMobileReportsList } from "./_components/bms-mobile-reports-list";
 import type { DateRangeFilter } from "./actions/types";
 
 type ReportsPageProps = {
@@ -14,6 +16,8 @@ type ReportsPageProps = {
         // Shared
         status?: string;
         dateRange?: string;
+        fromDate?: string;
+        toDate?: string;
     }>;
 };
 
@@ -56,8 +60,21 @@ export default async function ReportsPage(props: ReportsPageProps) {
     const search = searchParams.search || "";
     const rawStatus = searchParams.status || "all";
     const dateRange = searchParams.dateRange || "all";
+    const fromDate = searchParams.fromDate;
+    const toDate = searchParams.toDate;
 
     // Group filters: map dashboard stat-card params to arrays of statuses
+    const BMS_ACTIVE = [
+        "DRAFT",
+        "PENDING_ESTIMATION",
+        "ESTIMATION_APPROVED",
+        "ESTIMATION_REJECTED_REVISION",
+        "ESTIMATION_REJECTED",
+        "IN_PROGRESS",
+        "PENDING_REVIEW",
+        "APPROVED_BMC",
+        "REVIEW_REJECTED_REVISION",
+    ];
     const BMS_NEEDS_ACTION = [
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED_REVISION",
@@ -71,11 +88,13 @@ export default async function ReportsPage(props: ReportsPageProps) {
     const resolvedStatus: string | string[] | undefined =
         rawStatus === "all"
             ? undefined
-            : rawStatus === "needs_action"
-              ? BMS_NEEDS_ACTION
-              : rawStatus === "waiting_review"
-                ? BMS_WAITING_REVIEW
-                : rawStatus.toUpperCase();
+            : rawStatus === "active"
+              ? BMS_ACTIVE
+              : rawStatus === "needs_action"
+                ? BMS_NEEDS_ACTION
+                : rawStatus === "waiting_review"
+                  ? BMS_WAITING_REVIEW
+                  : rawStatus.toUpperCase();
 
     const { reports, total } = await getMyReports({
         page,
@@ -83,6 +102,8 @@ export default async function ReportsPage(props: ReportsPageProps) {
         search,
         status: resolvedStatus,
         dateRange: dateRange as DateRangeFilter,
+        fromDate,
+        toDate,
     });
 
     const totalPages = Math.ceil(total / limit);
@@ -96,12 +117,21 @@ export default async function ReportsPage(props: ReportsPageProps) {
         totalRealisasi: Number(r.totalRealisasi ?? 0),
     }));
 
+    // ── BMS → Mobile-first layout with BmsMobilePage ─────────────────────────
+    const userInitials = user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((w: string) => w[0]?.toUpperCase() ?? "")
+        .join("");
+
     return (
-        <BmsReportsList
-            reports={serializedReports}
-            total={total}
-            totalPages={totalPages}
-            currentPage={page}
-        />
+        <BmsMobilePage navItem="reports" title="Laporan Saya" userInitials={userInitials}>
+            <BmsMobileReportsList
+                reports={serializedReports}
+                total={total}
+                totalPages={totalPages}
+                currentPage={page}
+            />
+        </BmsMobilePage>
     );
 }

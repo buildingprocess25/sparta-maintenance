@@ -1,69 +1,58 @@
 "use client";
 
 import React from "react";
-import { Building2, CalendarDays, ChevronRight, Wrench } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { ReportData } from "./bms-reports-list";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { formatJakartaDate } from "@/lib/time";
+import { Badge } from "@/components/ui/badge";
 
 type StatusConfig = {
     label: string;
-    badge: string;
-    bar: string;
+    badgeClass: string;
 };
 
 const STATUS_CONFIG: Record<string, StatusConfig> = {
     DRAFT: {
         label: getReportStatusLabel("DRAFT"),
-        badge: "bg-gray-100 text-gray-600",
-        bar: "bg-gray-300",
+        badgeClass: "bg-muted text-muted-foreground",
     },
     PENDING_ESTIMATION: {
         label: getReportStatusLabel("PENDING_ESTIMATION"),
-        badge: "bg-yellow-100 text-yellow-700",
-        bar: "bg-yellow-400",
+        badgeClass: "bg-amber-100 text-amber-800",
     },
     ESTIMATION_APPROVED: {
         label: getReportStatusLabel("ESTIMATION_APPROVED"),
-        badge: "bg-green-100 text-green-700",
-        bar: "bg-green-500",
+        badgeClass: "bg-emerald-100 text-emerald-800",
     },
     ESTIMATION_REJECTED_REVISION: {
         label: getReportStatusLabel("ESTIMATION_REJECTED_REVISION"),
-        badge: "bg-orange-100 text-orange-700",
-        bar: "bg-orange-500",
+        badgeClass: "bg-amber-100 text-amber-800",
     },
     ESTIMATION_REJECTED: {
         label: getReportStatusLabel("ESTIMATION_REJECTED"),
-        badge: "bg-red-100 text-red-700",
-        bar: "bg-red-500",
+        badgeClass: "bg-red-100 text-red-800",
     },
     IN_PROGRESS: {
         label: getReportStatusLabel("IN_PROGRESS"),
-        badge: "bg-blue-100 text-blue-700",
-        bar: "bg-blue-500",
+        badgeClass: "bg-blue-100 text-blue-800",
     },
     PENDING_REVIEW: {
         label: getReportStatusLabel("PENDING_REVIEW"),
-        badge: "bg-purple-100 text-purple-700",
-        bar: "bg-purple-500",
+        badgeClass: "bg-blue-100 text-blue-800",
     },
     APPROVED_BMC: {
         label: getReportStatusLabel("APPROVED_BMC"),
-        badge: "bg-cyan-100 text-cyan-700",
-        bar: "bg-cyan-500",
+        badgeClass: "bg-blue-100 text-blue-800",
     },
     REVIEW_REJECTED_REVISION: {
         label: getReportStatusLabel("REVIEW_REJECTED_REVISION"),
-        badge: "bg-orange-100 text-orange-700",
-        bar: "bg-orange-500",
+        badgeClass: "bg-amber-100 text-amber-800",
     },
     COMPLETED: {
         label: getReportStatusLabel("COMPLETED"),
-        badge: "bg-emerald-100 text-emerald-700",
-        bar: "bg-emerald-500",
+        badgeClass: "bg-emerald-100 text-emerald-800",
     },
 };
 
@@ -72,7 +61,7 @@ function formatDateShort(date: Date) {
 }
 
 function formatCurrency(amount: number) {
-    if (!amount) return null;
+    if (!amount && amount !== 0) return null;
     return `Rp ${Number(amount).toLocaleString("id-ID")}`;
 }
 
@@ -82,12 +71,11 @@ interface BmsReportsMobileProps {
 
 export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
     return (
-        <div className="md:hidden rounded-xl border overflow-hidden divide-y bg-card shadow-sm">
+        <div className="md:hidden flex flex-col">
             {reports.map((report) => {
                 const cfg = STATUS_CONFIG[report.status] ?? {
-                    label: report.status,
-                    badge: "bg-muted text-muted-foreground",
-                    bar: "bg-muted",
+                    label: getReportStatusLabel(report.status) || report.status,
+                    badgeClass: "bg-muted text-muted-foreground",
                 };
 
                 const isCompleted = report.status === "COMPLETED";
@@ -97,92 +85,94 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                     isCompleted && driveUrl
                         ? driveUrl
                         : report.status === "DRAFT"
-                            ? "/reports/create?restore=1"
-                            : `/reports/${report.reportNumber}`;
-                
-                const targetAttrs = isCompleted && driveUrl ? { target: "_blank", rel: "noopener noreferrer" } : {};
+                          ? "/reports/create?restore=1"
+                          : `/reports/${report.reportNumber}`;
 
-                const amountFormatted = formatCurrency(
-                    report.status === "COMPLETED"
-                        ? report.totalRealisasi
-                        : report.totalEstimation,
-                );
+                const targetAttrs =
+                    isCompleted && driveUrl
+                        ? { target: "_blank", rel: "noopener noreferrer" }
+                        : {};
+
                 const storeLabel = report.storeCode
                     ? `${report.storeCode} – ${report.storeName || "—"}`
                     : report.storeName || "—";
 
                 return (
-                    <Link prefetch={false}
+                    <Link
+                        prefetch={false}
                         key={report.reportNumber}
                         href={href}
                         {...targetAttrs}
-                        className="flex items-stretch hover:bg-muted/40 active:bg-muted/60 transition-colors"
+                        className="flex flex-col gap-3 p-4 bg-transparent border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
                     >
-                        {/* Left accent bar */}
-                        <span className={cn("w-1 shrink-0", cfg.bar)} />
-
-                        {/* Content */}
-                        <div className="flex-1 min-w-0 px-3 py-3">
-                            {/* Row 1: store code + name */}
-                            <p className="font-semibold text-sm leading-tight truncate mb-1">
-                                {storeLabel}
-                            </p>
-
-                            {/* Row 2: status badge */}
-                            <span
+                        {/* Row 1: Report Number & Status Badge */}
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0 flex flex-col gap-0.5">
+                                <span className="font-mono text-sm font-semibold text-primary underline underline-offset-2">
+                                    {report.status === "DRAFT"
+                                        ? "Laporan Draft"
+                                        : `Laporan #${report.reportNumber}`}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground truncate">
+                                    {storeLabel}
+                                </span>
+                            </div>
+                            <Badge
+                                variant="secondary"
                                 className={cn(
-                                    "inline-block text-xs font-medium px-2 py-0.5 rounded-full whitespace-nowrap mb-2",
-                                    cfg.badge,
+                                    "rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold border-transparent shadow-none shrink-0",
+                                    cfg.badgeClass
                                 )}
                             >
                                 {cfg.label}
-                            </span>
-
-                            {/* Row 3: report number + branch */}
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5">
-                                <span className="font-mono shrink-0">
-                                    {report.status === "DRAFT"
-                                        ? "DRAFT"
-                                        : report.reportNumber}
-                                </span>
-                                <span className="flex items-center gap-1 min-w-0">
-                                    <Building2 className="h-3 w-3 shrink-0" />
-                                    <span className="truncate">
-                                        {report.branchName}
-                                    </span>
-                                </span>
-                            </div>
-
-                            {/* Row 4: date + rusak count + estimation */}
-                            <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
-                                <span className="flex items-center gap-1">
-                                    <CalendarDays className="h-3 w-3 shrink-0" />
-                                    {formatDateShort(report.createdAt)}
-                                </span>
-                                {report.finishedAt && (
-                                    <span className="flex items-center gap-1 text-green-600">
-                                        <CalendarDays className="h-3 w-3 shrink-0" />
-                                        Selesai final:{" "}
-                                        {formatDateShort(report.finishedAt)}
-                                    </span>
-                                )}
-                                {report.rusakCount > 0 && (
-                                    <span className="flex items-center gap-1 text-red-600">
-                                        <Wrench className="h-3 w-3 shrink-0" />
-                                        {report.rusakCount} perlu perbaikan
-                                    </span>
-                                )}
-                                {amountFormatted && (
-                                    <span className="font-medium text-foreground">
-                                        {amountFormatted}
-                                    </span>
-                                )}
-                            </div>
+                            </Badge>
                         </div>
 
-                        {/* Right chevron */}
-                        <div className="flex items-center pr-3 text-muted-foreground/40">
-                            <ChevronRight className="h-4 w-4" />
+                        {/* Row 2: Grid for Dates and Amounts */}
+                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 mt-1">
+                            {/* Dates Column */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70 font-semibold mb-0.5">
+                                        Dibuat
+                                    </span>
+                                    <span className="text-[11px] font-medium text-foreground/80">
+                                        {formatDateShort(report.createdAt)}
+                                    </span>
+                                </div>
+                                {report.finishedAt && (
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px] uppercase tracking-widest text-emerald-600/70 font-semibold mb-0.5">
+                                            Selesai
+                                        </span>
+                                        <span className="text-[11px] font-medium text-emerald-700 dark:text-emerald-500">
+                                            {formatDateShort(report.finishedAt)}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Amounts Column */}
+                            <div className="flex flex-col gap-2 items-end text-right">
+                                <div className="flex flex-col items-end">
+                                    <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70 font-semibold mb-0.5">
+                                        Estimasi
+                                    </span>
+                                    <span className="text-[11px] font-medium text-foreground/80">
+                                        {formatCurrency(report.totalEstimation) || "Rp 0"}
+                                    </span>
+                                </div>
+                                {(isCompleted || report.totalRealisasi > 0) && (
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-[10px] uppercase tracking-widest text-muted-foreground/70 font-semibold mb-0.5">
+                                            Realisasi
+                                        </span>
+                                        <span className="text-[11px] font-medium text-foreground/80">
+                                            {formatCurrency(report.totalRealisasi) || "Rp 0"}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </Link>
                 );
@@ -190,4 +180,3 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
         </div>
     );
 }
-

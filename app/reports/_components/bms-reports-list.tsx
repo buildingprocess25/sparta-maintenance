@@ -172,24 +172,26 @@ export default function BmsReportsList({
         });
     };
 
+    // Aligned to DESIGN.md semantic color system — The Two-Signal Rule applies
     const getStatusBadge = (status: string) => {
         switch (status) {
             case "DRAFT":
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-gray-100 text-gray-700 hover:bg-gray-100/80 border-gray-200 shadow-none"
+                        className="gap-1 bg-muted text-muted-foreground shadow-none border-0"
                     >
-                        <FileEdit className="h-3 w-3" /> Draft
+                        <FileEdit className="h-3 w-3" />
+                        {getReportStatusLabel("DRAFT")}
                     </Badge>
                 );
             case "PENDING_ESTIMATION":
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-yellow-100 text-yellow-700 hover:bg-yellow-100/80 border-yellow-200 shadow-none"
+                        className="gap-1 bg-amber-100 text-amber-800 shadow-none border-0"
                     >
-                        <Clock className="h-3 w-3" />{" "}
+                        <Clock className="h-3 w-3" />
                         {getReportStatusLabel("PENDING_ESTIMATION")}
                     </Badge>
                 );
@@ -197,9 +199,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-green-100 text-green-700 hover:bg-green-100/80 border-green-200 shadow-none"
+                        className="gap-1 bg-emerald-100 text-emerald-800 shadow-none border-0"
                     >
-                        <Check className="h-3 w-3" />{" "}
+                        <Check className="h-3 w-3" />
                         {getReportStatusLabel("ESTIMATION_APPROVED")}
                     </Badge>
                 );
@@ -207,9 +209,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
+                        className="gap-1 bg-amber-100 text-amber-800 shadow-none border-0"
                     >
-                        <X className="h-3 w-3" />{" "}
+                        <X className="h-3 w-3" />
                         {getReportStatusLabel("ESTIMATION_REJECTED_REVISION")}
                     </Badge>
                 );
@@ -217,9 +219,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-red-100 text-red-700 hover:bg-red-100/80 border-red-200 shadow-none"
+                        className="gap-1 bg-red-100 text-red-800 shadow-none border-0"
                     >
-                        <X className="h-3 w-3" />{" "}
+                        <X className="h-3 w-3" />
                         {getReportStatusLabel("ESTIMATION_REJECTED")}
                     </Badge>
                 );
@@ -227,9 +229,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-blue-100 text-blue-700 hover:bg-blue-100/80 border-blue-200 shadow-none"
+                        className="gap-1 bg-blue-100 text-blue-800 shadow-none border-0"
                     >
-                        <Wrench className="h-3 w-3" />{" "}
+                        <Wrench className="h-3 w-3" />
                         {getReportStatusLabel("IN_PROGRESS")}
                     </Badge>
                 );
@@ -237,9 +239,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-purple-100 text-purple-700 hover:bg-purple-100/80 border-purple-200 shadow-none"
+                        className="gap-1 bg-blue-100 text-blue-800 shadow-none border-0"
                     >
-                        <Clock className="h-3 w-3" />{" "}
+                        <Clock className="h-3 w-3" />
                         {getReportStatusLabel("PENDING_REVIEW")}
                     </Badge>
                 );
@@ -247,9 +249,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-cyan-100 text-cyan-700 hover:bg-cyan-100/80 border-cyan-200 shadow-none"
+                        className="gap-1 bg-blue-100 text-blue-800 shadow-none border-0"
                     >
-                        <Clock className="h-3 w-3" />{" "}
+                        <Clock className="h-3 w-3" />
                         {getReportStatusLabel("APPROVED_BMC")}
                     </Badge>
                 );
@@ -257,9 +259,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-orange-100 text-orange-700 hover:bg-orange-100/80 border-orange-200 shadow-none"
+                        className="gap-1 bg-amber-100 text-amber-800 shadow-none border-0"
                     >
-                        <X className="h-3 w-3" />{" "}
+                        <X className="h-3 w-3" />
                         {getReportStatusLabel("REVIEW_REJECTED_REVISION")}
                     </Badge>
                 );
@@ -267,9 +269,9 @@ export default function BmsReportsList({
                 return (
                     <Badge
                         variant="secondary"
-                        className="gap-1 bg-primary/10 text-primary hover:bg-primary/20 border-primary/20 shadow-none"
+                        className="gap-1 bg-emerald-100 text-emerald-800 shadow-none border-0"
                     >
-                        <Check className="h-3 w-3" />{" "}
+                        <Check className="h-3 w-3" />
                         {getReportStatusLabel("COMPLETED")}
                     </Badge>
                 );
@@ -549,7 +551,7 @@ export default function BmsReportsList({
 
                     <Button
                         onClick={() => router.push("/reports/create")}
-                        className="w-full md:w-auto gap-2 shadow-sm"
+                        className="w-full md:w-auto gap-2"
                     >
                         <Plus className="h-4 w-4" />
                         <span className="hidden md:inline">Buat Laporan</span>
@@ -559,11 +561,11 @@ export default function BmsReportsList({
 
                 {reports.length > 0 ? (
                     <>
-                        {/* --- MOBILE VIEW: CARD LIST --- */}
+                        {/* --- MOBILE VIEW: FLAT LIST --- */}
                         <div className="relative md:hidden">
                             {isPending && (
-                                <div className="absolute inset-0 bg-background z-50 flex items-center justify-center rounded-lg">
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                                <div className="absolute inset-0 bg-background/80 z-50 flex items-center justify-center">
+                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                 </div>
                             )}
                             <BmsReportsMobile reports={reports} />
