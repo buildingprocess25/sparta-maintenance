@@ -308,7 +308,6 @@ export async function getAdminReports(
                 status: true,
                 totalEstimation: true,
                 totalReal: true,
-                items: true,
                 finishedAt: true,
                 pjumExportedAt: true,
                 createdByNIK: true,
@@ -332,6 +331,34 @@ export async function getAdminReports(
             nextCursor = nextItem!.reportNumber;
         }
 
+        const pjumCandidates = reports.filter(
+            (report) =>
+                report.status === "COMPLETED" && !report.pjumExportedAt,
+        );
+        const requiresPjumByReportNumber = new Map<string, boolean>();
+
+        if (pjumCandidates.length > 0) {
+            const rows = await prisma.report.findMany({
+                where: {
+                    reportNumber: {
+                        in: pjumCandidates.map((report) => report.reportNumber),
+                    },
+                },
+                select: {
+                    reportNumber: true,
+                    totalReal: true,
+                    items: true,
+                },
+            });
+
+            for (const row of rows) {
+                requiresPjumByReportNumber.set(
+                    row.reportNumber,
+                    requiresPjum(row.totalReal, row.items),
+                );
+            }
+        }
+
         const durationMs = Math.round(performance.now() - start);
         logger.info(
             { operation: "getAdminReports", correlationId, durationMs, count: reports.length },
@@ -340,7 +367,7 @@ export async function getAdminReports(
 
         return {
             reports: reports.map(r => {
-                const { activities, items, ...report } = r;
+                const { activities, ...report } = r;
                 const lastActivityAt = activities[0]?.createdAt ?? r.createdAt;
 
                 return {
@@ -348,7 +375,8 @@ export async function getAdminReports(
                     lastActivityAt,
                     totalEstimation: Number(r.totalEstimation),
                     totalReal: r.totalReal ? Number(r.totalReal) : null,
-                    requiresPjum: requiresPjum(r.totalReal, items),
+                    requiresPjum:
+                        requiresPjumByReportNumber.get(r.reportNumber) ?? false,
                     ...getReportSlaInfo(
                         r.status,
                         lastActivityAt,

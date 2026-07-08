@@ -432,6 +432,7 @@ export function AdminPjumTable({
                                     >
                                         <TableCell>
                                             <Link
+                                                prefetch={false}
                                                 href={`/dashboard/pjum/${item.id}`}
                                                 className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
                                             >
