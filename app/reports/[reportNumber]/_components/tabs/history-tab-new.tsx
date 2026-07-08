@@ -1,14 +1,8 @@
 import { Clock, User } from "lucide-react";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import type { ActivityEntry } from "./types";
+import type { ActivityEntry } from "../types";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 
 const ACTIVITY_HISTORY_CONFIG: Record<
     string,
@@ -74,29 +68,31 @@ const ACTIVITY_HISTORY_CONFIG: Record<
 
 type Props = {
     activities: ActivityEntry[];
-    formatDate: (d: Date) => string;
-    formatTime: (d: Date) => string;
 };
 
-export function HistoryTab({ activities, formatDate, formatTime }: Props) {
+export function HistoryTabNew({ activities }: Props) {
+    const formatDate = (date: Date) => formatJakartaDate(date);
+    const formatTime = (date: Date) => {
+        const dt = formatJakartaDateTime(date);
+        const comma = dt.lastIndexOf(", ");
+        return comma >= 0 ? dt.slice(comma + 2) : dt;
+    };
+
     return (
-        <Card className="shadow-sm border-border/60">
-            <CardHeader className="border-b">
-                <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
+        <div className="space-y-4 pb-6 bg-white rounded-xl shadow-sm border border-slate-100 p-4">
+            <div className="border-b border-slate-100 pb-3">
+                <h3 className="text-base font-semibold flex items-center gap-2 text-slate-800">
+                    <Clock className="h-4 w-4 text-[#0069a7]" />
                     Riwayat Aktivitas
-                </CardTitle>
-                <CardDescription>
-                    Jejak persetujuan dan perubahan status laporan.
-                </CardDescription>
-            </CardHeader>
-            <CardContent className="pl-2">
+                </h3>
+            </div>
+            <div className="pl-2">
                 {activities.length === 0 ? (
-                    <div className="text-center text-muted-foreground py-8">
+                    <div className="text-center text-slate-400 py-8 text-sm">
                         Belum ada riwayat aktivitas.
                     </div>
                 ) : (
-                    <div className="relative border-l border-muted ml-4 space-y-8 pb-2">
+                    <div className="relative border-l border-slate-200 ml-4 space-y-8 pb-2">
                         {[...activities].reverse().map((entry, i) => {
                             const cfg = ACTIVITY_HISTORY_CONFIG[
                                 entry.action
@@ -105,41 +101,36 @@ export function HistoryTab({ activities, formatDate, formatTime }: Props) {
                                 positive: false,
                                 negative: false,
                             };
-                            const isPositive = cfg.positive;
-                            const isNegative = cfg.negative;
 
                             return (
                                 <div key={i} className="relative pl-6">
                                     <div
                                         className={cn(
-                                            "absolute -left-1.25 top-1 h-2.5 w-2.5 rounded-full border-2 bg-background transition-colors",
-                                            isNegative
-                                                ? "border-red-500 bg-red-50"
-                                                : isPositive
-                                                  ? "border-green-500 bg-green-50"
-                                                  : "border-muted-foreground",
+                                            "absolute -left-1.25 top-1 h-2.5 w-2.5 rounded-full border-2 bg-white transition-colors",
+                                            cfg.negative
+                                                ? "border-amber-500 bg-amber-50"
+                                                : cfg.positive
+                                                  ? "border-emerald-500 bg-emerald-50"
+                                                  : "border-slate-400",
                                         )}
                                     />
                                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-1 mb-1">
-                                        <div className="font-medium text-sm">
+                                        <div className="font-medium text-sm text-slate-800">
                                             {cfg.label}
                                         </div>
-                                        <span className="text-xs text-muted-foreground font-mono">
+                                        <span className="text-xs text-slate-500 font-mono">
                                             {formatDate(entry.createdAt)} •{" "}
                                             {formatTime(entry.createdAt)}
                                         </span>
                                     </div>
-                                    <div className="text-sm text-muted-foreground flex items-center gap-1.5 mb-2">
+                                    <div className="text-xs text-slate-500 flex items-center gap-1.5 mb-2">
                                         <User className="h-3 w-3" />
                                         <span>{entry.actorName}</span>
                                     </div>
                                     {entry.notes && (
-                                        <div className="bg-muted/30 p-3 rounded-md border border-border/50 text-xs italic text-muted-foreground relative">
-                                            <span className="absolute top-2 left-2 text-muted-foreground/20 text-xl font-serif leading-none">
-                                                &quot;
-                                            </span>
-                                            <span className="pl-3 relative z-10">
-                                                {entry.notes}
+                                        <div className="bg-slate-50 p-3 rounded-md border border-slate-100 text-xs text-slate-600">
+                                            <span className="italic">
+                                                &quot;{entry.notes}&quot;
                                             </span>
                                         </div>
                                     )}
@@ -148,7 +139,7 @@ export function HistoryTab({ activities, formatDate, formatTime }: Props) {
                         })}
                     </div>
                 )}
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     );
 }

@@ -33,7 +33,7 @@ export function BmsWelcomeCard({
           Welcome {name}
         </h3>
         <p className="mt-1 text-xs leading-snug text-primary-foreground/90">
-          Sisa saldo anda minggu ini
+          Sisa saldo anda minggu ini:
         </p>
 
         <div className="mt-4 inline-flex self-start rounded-xl bg-black/10 px-4 py-2.5 backdrop-blur-sm">

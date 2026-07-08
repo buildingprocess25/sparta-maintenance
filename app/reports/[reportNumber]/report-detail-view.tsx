@@ -1,580 +1,884 @@
 "use client";
 
-import { useState, useMemo, useTransition } from "react";
-import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
-import { toast } from "sonner";
-import { Header } from "@/components/layout/header";
-import { Footer } from "@/components/layout/footer";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import Link from "next/link";
+import {
+  ChevronRight,
+  AlertTriangle,
+  Printer,
+  WrenchIcon,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { History, Layers, Package, ClipboardList, Printer } from "lucide-react";
-
-import { submitCompletion } from "@/app/reports/actions/submit-completion";
-import { reviewEstimation } from "@/app/reports/actions/approve-estimation";
-import { reviewCompletion } from "@/app/reports/actions/review-completion";
-import { approveFinal } from "@/app/reports/actions/approve-final";
-import { getReportStatusLabel } from "@/lib/report-status";
-import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
-
-import type { ReportData, Viewer, ActionState } from "./_components/types";
-import { StatusTimeline } from "./_components/status-timeline";
-import { ReportSidebar } from "./_components/report-sidebar";
-import { ChecklistTab } from "./_components/checklist-tab";
-import { EstimationsTab } from "./_components/estimations-tab";
-import { CompletionTab } from "./_components/completion-tab";
-import { HistoryTab } from "./_components/history-tab";
-import { MobileCtaBar } from "./_components/mobile-cta-bar";
+import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
+import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
+import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
+import {
+  getReportStatusLabel,
+  getReportStatusBadgeClass,
+} from "@/lib/report-status";
+import { formatJakartaDateTime } from "@/lib/time";
+import { checklistCategories } from "@/lib/checklist-data";
+import {
+  normalizePhotoUrl,
+  normalizePhotoUrls,
+  resolvePhotoUrl,
+} from "@/lib/storage/photo-url";
+import { calculateItemRealisasiTotal } from "@/lib/realisasi";
+import { cn } from "@/lib/utils";
+import type { ReportData, Viewer, ActivityEntry } from "./_components/types";
+import type { RealisasiItemJson } from "@/types/report";
 
 export type { ReportData };
 
 type ReportDetailProps = {
-    report: ReportData;
-    viewer: Viewer;
+  report: ReportData;
+  viewer: Viewer;
 };
 
+/* ─── Tab definition ─── */
+type TabKey = "checklist" | "biaya" | "riwayat";
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "checklist", label: "Checklist" },
+  { key: "biaya", label: "Biaya" },
+  { key: "riwayat", label: "Riwayat" },
+];
+
+/* ─── Currency formatting ─── */
+function fmt(n: number) {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
+}
+
+/* ─── Condition indicator ─── */
+function ConditionBadge({
+  id,
+  condition,
+  preventive,
+  isPreventive,
+}: {
+  id: string;
+  condition: string | null | undefined;
+  preventive: string | null | undefined;
+  isPreventive: boolean;
+}) {
+  const isOk =
+    preventive === "OK" ||
+    (isPreventive && condition === "BAIK") ||
+    (!isPreventive && condition === "BAIK");
+  const isBad = preventive === "NOT_OK" || condition === "RUSAK";
+  const isMissing = preventive === "TIDAK_ADA" || condition === "TIDAK_ADA";
+
+  let colorClass = "bg-muted/50 text-muted-foreground border-border/50";
+  if (isBad) colorClass = "bg-amber-100 text-amber-800 border-amber-200/60";
+  else if (isOk)
+    colorClass = "bg-emerald-100 text-emerald-800 border-emerald-200/60";
+  else if (isMissing)
+    colorClass = "bg-muted text-muted-foreground border-border/50";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center justify-center shrink-0 rounded text-[10px] font-bold px-1.5 py-0.5 border min-w-[28px]",
+        colorClass,
+      )}
+    >
+      {id}
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ═══════════════════════════════════════════════════════════════ */
 export function ReportDetailView({ report, viewer }: ReportDetailProps) {
-    const formatDate = (date: Date) => formatJakartaDate(date);
+  const [tab, setTab] = useState<TabKey>("checklist");
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
-    const formatTime = (date: Date) => {
-        // Extract time portion from formatted datetime (e.g. "1 Jan 2026, 10:30" -> "10:30")
-        const dt = formatJakartaDateTime(date);
-        const comma = dt.lastIndexOf(", ");
-        return comma >= 0 ? dt.slice(comma + 2) : dt;
-    };
+  const closeLightbox = useHistoryBackClose(!!lightboxSrc, () =>
+    setLightboxSrc(null),
+  );
 
-    const formatCurrency = (amount: number) =>
-        new Intl.NumberFormat("id-ID", {
-            style: "currency",
-            currency: "IDR",
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(amount);
+  const isHeaderVisible = useBmsMobileHeaderVisibility();
 
-    const rusakCount = report.items.filter(
-        (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
-    ).length;
+  const showCompletion = [
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "APPROVED_BMC",
+    "REVIEW_REJECTED_REVISION",
+    "COMPLETED",
+  ].includes(report.status);
 
-    // Show Penyelesaian tab instead of Estimasi for statuses after work is done
-    const COMPLETION_STATUSES = [
-        "IN_PROGRESS",
-        "PENDING_REVIEW",
-        "APPROVED_BMC",
-        "REVIEW_REJECTED_REVISION",
-        "COMPLETED",
-    ];
-    const showCompletionTab = COMPLETION_STATUSES.includes(report.status);
+  /* Revision info */
+  const isRevision =
+    report.status === "ESTIMATION_REJECTED_REVISION" ||
+    report.status === "REVIEW_REJECTED_REVISION";
+  const latestRevision = isRevision
+    ? [...report.activities]
+        .reverse()
+        .find(
+          (a) =>
+            a.action === "ESTIMATION_REJECTED_REVISION" ||
+            a.action === "REVIEW_REJECTED_REVISION" ||
+            a.action === "WORK_REJECTED_REVISION" ||
+            a.action === "FINAL_REJECTED_REVISION_BNM",
+        )
+    : null;
 
-    const [isPending, startTransition] = useTransition();
-    const [notesInput, setNotesInput] = useState("");
-    const [activeDialog, setActiveDialog] = useState<string | null>(null);
-    const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState("checklist");
-    const [viewedSections, setViewedSections] = useState<Set<string>>(
-        new Set(),
-    );
-    const [checkedRealisasiItems, setCheckedRealisasiItems] = useState<
-        Set<string>
-    >(new Set());
-    const closeLightbox = useHistoryBackClose(!!lightboxSrc, () =>
-        setLightboxSrc(null),
-    );
+  /* CTA logic */
+  const canStartWork =
+    viewer.role === "BMS" &&
+    (report.status === "ESTIMATION_APPROVED" ||
+      report.status === "ESTIMATION_REJECTED_REVISION");
+  const canSubmitCompletion =
+    viewer.role === "BMS" &&
+    (report.status === "IN_PROGRESS" ||
+      report.status === "REVIEW_REJECTED_REVISION");
 
-    const isBmcReviewer =
-        viewer.role === "BMC" && report.status === "PENDING_REVIEW";
-    const isBnmReviewer =
-        viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC";
+  return (
+    <div className="min-h-svh bg-background">
+      {/* ── HEADER (fixed via BmsMobileHeader internals) ── */}
+      <BmsMobileHeader
+        title="Detail Laporan"
+        showBackButton
+        backHref="/reports"
+      />
 
-    const requiredSections = useMemo(() => {
-        if (!isBmcReviewer && !isBnmReviewer) return new Set<string>();
-        const s = new Set<string>();
-        if (report.startSelfieUrls.length > 0) s.add("selfie");
-        if (report.startReceiptUrls.length > 0) s.add("nota");
-        if (
-            report.startMaterialStores.some(
-                (store) => (store.photoUrls?.length ?? 0) > 0,
-            )
-        ) {
-            s.add("store");
-        }
-        if (report.completionAdditionalPhotos.length > 0)
-            s.add("additional-docs");
-        report.items
-            .filter(
-                (item) =>
-                    (item.condition === "RUSAK" ||
-                        item.preventiveCondition === "NOT_OK") &&
-                    item.handler === "BMS" &&
-                    (item.afterImages?.length ?? 0) > 0,
-            )
-            .forEach((item) => s.add(`after-${item.itemId}`));
-        return s;
-    }, [isBmcReviewer, isBnmReviewer, report]);
-
-    const requiredRealisasiItems = useMemo(() => {
-        if (!isBmcReviewer && !isBnmReviewer) return new Set<string>();
-        const s = new Set<string>();
-        report.items
-            .filter(
-                (item) =>
-                    (item.condition === "RUSAK" ||
-                        item.preventiveCondition === "NOT_OK") &&
-                    item.handler === "BMS" &&
-                    item.realisasiItems &&
-                    item.realisasiItems.length > 0,
-            )
-            .forEach((item) => s.add(item.itemId));
-        return s;
-    }, [isBmcReviewer, isBnmReviewer, report]);
-
-    function handleSectionViewed(sectionId: string) {
-        setViewedSections((prev) => new Set(prev).add(sectionId));
-    }
-
-    function handleRealisasiItemChecked(itemId: string) {
-        setCheckedRealisasiItems((prev) => {
-            const next = new Set(prev);
-            if (next.has(itemId)) {
-                next.delete(itemId);
-            } else {
-                next.add(itemId);
-            }
-            return next;
-        });
-    }
-
-    const handleSubmitCompletion = () => {
-        startTransition(async () => {
-            const result = await submitCompletion(
-                report.reportNumber,
-                notesInput || undefined,
-            );
-            if (result.error) {
-                toast.error("Gagal mengirim laporan penyelesaian", {
-                    description: result.error,
-                });
-            } else {
-                toast.success("Laporan dikirim!", {
-                    description: `Status laporan diubah menjadi '${getReportStatusLabel("PENDING_REVIEW")}'.`,
-                });
-                setActiveDialog(null);
-                setNotesInput("");
-            }
-        });
-    };
-
-    const handleReviewEstimation = (
-        decision: "approve" | "reject_revision" | "reject",
-    ) => {
-        startTransition(async () => {
-            const result = await reviewEstimation(
-                report.reportNumber,
-                decision,
-                notesInput || undefined,
-            );
-            if (result.error) {
-                toast.error("Gagal memproses estimasi", {
-                    description: result.error,
-                });
-            } else {
-                const labels = {
-                    approve: "Estimasi disetujui",
-                    reject_revision: "Estimasi ditolak (revisi)",
-                    reject: "Estimasi ditolak",
-                };
-                toast.success(labels[decision]);
-                setActiveDialog(null);
-                setNotesInput("");
-            }
-        });
-    };
-
-    const handleReviewCompletion = (
-        decision: "approve" | "reject_revision",
-    ) => {
-        if (decision === "approve" && isBmcReviewer) {
-            const unviewed = [...requiredSections].filter(
-                (id) => !viewedSections.has(id),
-            );
-            if (unviewed.length > 0) {
-                const firstId = unviewed[0];
-                const sectionLabel =
-                    firstId === "selfie"
-                        ? "Foto Selfie"
-                        : firstId === "nota"
-                          ? "Foto Nota / Struk Belanja"
-                          : firstId === "store"
-                            ? "Foto Toko Material"
-                            : `Foto Sesudah item ${firstId.replace("after-", "")}`;
-                toast.warning("Tinjau semua foto terlebih dahulu", {
-                    description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
-                });
-                setActiveTab("estimations");
-                setTimeout(() => {
-                    const el = document.getElementById(`review-${firstId}`);
-                    if (el)
-                        el.scrollIntoView({
-                            behavior: "smooth",
-                            block: "center",
-                        });
-                }, 150);
-                return;
-            }
-
-            // Validasi item realisasi harus dicek semua
-            const uncheckedRealisasi = [...requiredRealisasiItems].filter(
-                (id) => !checkedRealisasiItems.has(id),
-            );
-            if (uncheckedRealisasi.length > 0) {
-                const firstItemId = uncheckedRealisasi[0];
-                const item = report.items.find((i) => i.itemId === firstItemId);
-                toast.warning("Cek semua item realisasi terlebih dahulu", {
-                    description: `Item ${firstItemId}${item ? ` - ${item.itemName}` : ""} belum dicek. Klik tombol "Cek Item Ini" untuk menandai NOTA dan nominal sudah sesuai.`,
-                });
-                setActiveTab("estimations");
-                return;
-            }
-        }
-        startTransition(async () => {
-            const result = await reviewCompletion(
-                report.reportNumber,
-                decision,
-                notesInput || undefined,
-            );
-            if (result.error) {
-                toast.error("Gagal memproses review", {
-                    description: result.error,
-                });
-            } else {
-                toast.success(
-                    decision === "approve"
-                        ? "Pekerjaan disetujui (BMC)"
-                        : "Pekerjaan ditolak (revisi)",
-                );
-                setActiveDialog(null);
-                setNotesInput("");
-            }
-        });
-    };
-
-    const checkFinalApprovalReady = () => {
-        if (!isBnmReviewer) return true;
-
-        const unviewed = [...requiredSections].filter(
-            (id) => !viewedSections.has(id),
-        );
-        if (unviewed.length > 0) {
-            const firstId = unviewed[0];
-            const sectionLabel =
-                firstId === "selfie"
-                    ? "Foto Selfie"
-                    : firstId === "nota"
-                      ? "Foto Nota / Struk Belanja"
-                      : firstId === "store"
-                        ? "Foto Toko Material"
-                        : firstId === "additional-docs"
-                          ? "Dokumentasi Tambahan"
-                          : `Foto Sesudah item ${firstId.replace("after-", "")}`;
-            toast.warning("Tinjau semua foto terlebih dahulu", {
-                description: `Belum ditinjau: ${sectionLabel}. Klik foto untuk menandai sudah ditinjau.`,
-            });
-            setActiveTab("estimations");
-            setTimeout(() => {
-                const el = document.getElementById(`review-${firstId}`);
-                if (el)
-                    el.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                    });
-            }, 150);
-            return false;
-        }
-
-        const uncheckedRealisasi = [...requiredRealisasiItems].filter(
-            (id) => !checkedRealisasiItems.has(id),
-        );
-        if (uncheckedRealisasi.length > 0) {
-            const firstItemId = uncheckedRealisasi[0];
-            const item = report.items.find((i) => i.itemId === firstItemId);
-            toast.warning("Cek semua item realisasi terlebih dahulu", {
-                description: `Item ${firstItemId}${item ? ` - ${item.itemName}` : ""} belum dicek. Klik tombol "Cek Item Ini" untuk menandai NOTA dan nominal sudah sesuai.`,
-            });
-            setActiveTab("estimations");
-            return false;
-        }
-
-        return true;
-    };
-
-    const handleFinalApproval = (decision: "approve" | "reject_revision") => {
-        if (decision === "approve" && isBnmReviewer) {
-            if (!checkFinalApprovalReady()) return;
-        }
-
-        startTransition(async () => {
-            const result = await approveFinal(
-                report.reportNumber,
-                decision,
-                notesInput || undefined,
-            );
-            if (result.error) {
-                toast.error("Gagal memproses persetujuan final", {
-                    description: result.error,
-                });
-            } else {
-                toast.success(
-                    decision === "approve"
-                        ? "Laporan disetujui final oleh BNM"
-                        : "Laporan dikembalikan untuk revisi",
-                );
-                setActiveDialog(null);
-                setNotesInput("");
-            }
-        });
-    };
-
-    const actions: ActionState = {
-        isPending,
-        notesInput,
-        setNotesInput,
-        activeDialog,
-        setActiveDialog,
-        handleSubmitCompletion,
-        handleReviewEstimation,
-        handleReviewCompletion,
-        handleFinalApproval,
-        checkFinalApprovalReady,
-    };
-
-    const hasWorkflowAction =
-        (viewer.role === "BMS" &&
-            (report.status === "ESTIMATION_APPROVED" ||
-                report.status === "IN_PROGRESS" ||
-                report.status === "REVIEW_REJECTED_REVISION")) ||
-        (viewer.role === "BMC" &&
-            (report.status === "PENDING_ESTIMATION" ||
-                report.status === "PENDING_REVIEW")) ||
-        (viewer.role === "BNM_MANAGER" && report.status === "APPROVED_BMC");
-
-    return (
-        <div className="min-h-screen flex flex-col bg-background/50">
-            <Header
-                variant="dashboard"
-                title="Detail Laporan"
-                description={`#${report.reportNumber}`}
-                showBackButton
-                backHref="/reports"
-                logo={false}
-            />
-
-            <main className="flex-1 container mx-auto px-4 py-4 md:py-8 max-w-7xl pb-24 lg:pb-8">
-                {!["BMC", "BNM_MANAGER"].includes(viewer.role) && (
-                    <div className="mb-10 lg:mb-16 md:-mt-5">
-                        <StatusTimeline status={report.status} />
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                    <ReportSidebar
-                        report={report}
-                        viewer={viewer}
-                        rusakCount={rusakCount}
-                        formatDate={formatDate}
-                        formatTime={formatTime}
-                        actions={actions}
-                    />
-
-                    <div className="lg:col-span-8 xl:col-span-9">
-                        {/* Mobile PDF button — above tabs, separate from bottom action bar */}
-                        <div className="lg:hidden mb-4">
-                            {report.status === "COMPLETED" &&
-                                (() => {
-                                    const stored =
-                                        report.completedPdfPath || null;
-                                    const pdfHref = stored?.startsWith(
-                                        "https://",
-                                    )
-                                        ? stored
-                                        : `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1&v=${report.updatedAt.getTime()}`;
-                                    return (
-                                        <a
-                                            href={pdfHref}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="block w-full"
-                                        >
-                                            <Button
-                                                variant={
-                                                    hasWorkflowAction
-                                                        ? "outline"
-                                                        : "default"
-                                                }
-                                                className="w-full"
-                                                size="lg"
-                                            >
-                                                <Printer className="h-4 w-4 mr-2" />
-                                                Lihat Laporan Lengkap (PDF)
-                                            </Button>
-                                        </a>
-                                    );
-                                })()}
-                        </div>
-                        <Tabs
-                            value={activeTab}
-                            onValueChange={setActiveTab}
-                            className="w-full"
-                        >
-                            <div className="mb-5">
-                                <TabsList className="w-full bg-primary/10">
-                                    <TabsTrigger
-                                        value="checklist"
-                                        className="rounded-lg px-2 py-2.5 sm:px-4 text-muted-foreground hover:bg-primary/30 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-200 gap-1.5 sm:gap-2"
-                                    >
-                                        <Layers className="h-4 w-4 shrink-0" />
-                                        <span className="font-medium text-xs sm:text-sm truncate">
-                                            Checklist
-                                        </span>
-                                        <Badge
-                                            variant="secondary"
-                                            className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
-                                        >
-                                            {report.items.length}
-                                        </Badge>
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="estimations"
-                                        className="rounded-lg px-2 py-2.5 sm:px-4 text-muted-foreground hover:bg-primary/30 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-200 gap-1.5 sm:gap-2"
-                                    >
-                                        {showCompletionTab ? (
-                                            <>
-                                                <ClipboardList className="h-4 w-4 shrink-0" />
-                                                <span className="font-medium text-xs sm:text-sm truncate">
-                                                    Penyelesaian
-                                                </span>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Package className="h-4 w-4 shrink-0" />
-                                                <span className="font-medium text-xs sm:text-sm truncate">
-                                                    Estimasi
-                                                </span>
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="h-5 min-w-5 px-1.5 text-[10px] hidden sm:inline-flex"
-                                                >
-                                                    {report.estimations.length}
-                                                </Badge>
-                                            </>
-                                        )}
-                                    </TabsTrigger>
-                                    <TabsTrigger
-                                        value="history"
-                                        className="rounded-lg px-2 py-2.5 sm:px-4 text-muted-foreground hover:bg-primary/30 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm transition-all duration-200 gap-1.5 sm:gap-2"
-                                    >
-                                        <History className="h-4 w-4 shrink-0" />
-                                        <span className="font-medium text-xs sm:text-sm truncate">
-                                            Riwayat
-                                        </span>
-                                    </TabsTrigger>
-                                </TabsList>
-                            </div>
-
-                            <TabsContent
-                                value="checklist"
-                                className="space-y-3 mt-0"
-                            >
-                                <ChecklistTab
-                                    items={report.items}
-                                    estimations={report.estimations}
-                                    formatCurrency={formatCurrency}
-                                    onPhotoClick={setLightboxSrc}
-                                />
-                            </TabsContent>
-
-                            <TabsContent value="estimations" className="mt-0">
-                                {showCompletionTab ? (
-                                    <CompletionTab
-                                        items={report.items}
-                                        estimations={report.estimations}
-                                        startSelfieUrls={report.startSelfieUrls}
-                                        startReceiptUrls={
-                                            report.startReceiptUrls
-                                        }
-                                        startMaterialStores={
-                                            report.startMaterialStores
-                                        }
-                                        completionAdditionalPhotos={
-                                            report.completionAdditionalPhotos
-                                        }
-                                        completionAdditionalNote={
-                                            report.completionAdditionalNote
-                                        }
-                                        formatCurrency={formatCurrency}
-                                        onPhotoClick={setLightboxSrc}
-                                        isReviewer={
-                                            isBmcReviewer || isBnmReviewer
-                                        }
-                                        onSectionViewed={handleSectionViewed}
-                                        viewedSections={viewedSections}
-                                        isZeroCost={
-                                            Number(report.totalEstimation) === 0
-                                        }
-                                        onRealisasiItemChecked={
-                                            handleRealisasiItemChecked
-                                        }
-                                        checkedRealisasiItems={
-                                            checkedRealisasiItems
-                                        }
-                                    />
-                                ) : (
-                                    <EstimationsTab
-                                        estimations={report.estimations}
-                                        totalEstimation={report.totalEstimation}
-                                        formatCurrency={formatCurrency}
-                                    />
-                                )}
-                            </TabsContent>
-
-                            <TabsContent value="history" className="mt-0">
-                                <HistoryTab
-                                    activities={report.activities}
-                                    formatDate={formatDate}
-                                    formatTime={formatTime}
-                                />
-                            </TabsContent>
-                        </Tabs>
-                    </div>
-                </div>
-            </main>
-
-            <MobileCtaBar report={report} viewer={viewer} actions={actions} />
-
-            <Footer />
-
-            {lightboxSrc && (
-                <div
-                    className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
-                    onClick={closeLightbox}
-                >
-                    <div
-                        className="relative max-w-4xl max-h-[90vh] w-full"
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src={lightboxSrc}
-                            alt="Foto Item"
-                            className="w-full h-full object-contain rounded-lg max-h-[85vh]"
-                        />
-                        <button
-                            onClick={closeLightbox}
-                            className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
-                        >
-                            ×
-                        </button>
-                    </div>
-                </div>
+      {/* ── Info bar + Tabs — fixed below header ── */}
+      <div
+        className={cn(
+          "fixed top-[56px] inset-x-0 z-30 bg-background transition-transform duration-300 ease-out will-change-transform border-b border-border/40 shadow-sm shadow-black/5",
+          isHeaderVisible ? "translate-y-0" : "-translate-y-[56px]",
+        )}
+      >
+        {/* Report info bar */}
+        <div className="mx-auto max-w-lg px-4 py-2.5 border-b border-border/40 flex items-center justify-between">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-foreground truncate">
+              {report.storeName}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-mono mt-0.5">
+              {report.reportNumber}
+            </p>
+          </div>
+          <span
+            className={cn(
+              "text-[10px] font-semibold px-2 py-1 rounded-full shrink-0",
+              getReportStatusBadgeClass(report.status),
             )}
+          >
+            {getReportStatusLabel(report.status)}
+          </span>
         </div>
+
+        {/* Tab bar */}
+        <nav className="mx-auto max-w-lg flex" role="tablist">
+          {TABS.map((t) => (
+            <button
+              key={t.key}
+              role="tab"
+              aria-selected={tab === t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "flex-1 py-2.5 text-xs font-semibold text-center transition-colors relative",
+                tab === t.key
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {t.label}
+              {tab === t.key && (
+                <span className="absolute bottom-0 inset-x-4 h-[2px] bg-primary rounded-t-full" />
+              )}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Spacer for fixed header + info + tabs (56px header + 48px info + 40px tabs = 144px) */}
+      <div className="h-[144px]" />
+
+      <main className="mx-auto w-full max-w-lg pb-28">
+        {/* ── Revision banner ── */}
+        {latestRevision && latestRevision.notes && (
+          <div className="px-4 pt-3 mt-4">
+            <div className="flex gap-3 items-start bg-amber-50 border border-amber-200/60 rounded-lg p-3">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-amber-900">
+                  Catatan revisi dari {latestRevision.actorName}
+                </p>
+                <p className="text-xs text-amber-800 mt-1 leading-relaxed whitespace-pre-wrap">
+                  {latestRevision.notes}
+                </p>
+                <p className="text-[10px] text-amber-600/70 mt-1.5 font-mono">
+                  {formatJakartaDateTime(latestRevision.createdAt)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PDF link ── */}
+        {report.status === "COMPLETED" && report.completedPdfPath && (
+          <div className="px-4 pt-3">
+            <a
+              href={
+                report.completedPdfPath.startsWith("https://")
+                  ? report.completedPdfPath
+                  : `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1&v=${report.updatedAt.getTime()}`
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between rounded-lg border border-border/40 p-3 hover:bg-muted/30 transition-colors active:scale-[0.98]"
+            >
+              <div className="flex items-center gap-3">
+                <Printer className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm font-medium">Laporan Lengkap</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Buka file PDF
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+            </a>
+          </div>
+        )}
+
+        {/* ── Tab content ── */}
+        <div className="px-4 pt-3">
+          {tab === "checklist" && (
+            <ChecklistPanel items={report.items} onPhoto={setLightboxSrc} />
+          )}
+          {tab === "biaya" &&
+            (showCompletion ? (
+              <CompletionPanel report={report} onPhoto={setLightboxSrc} />
+            ) : (
+              <EstimationsPanel
+                estimations={report.estimations}
+                total={report.totalEstimation}
+              />
+            ))}
+          {tab === "riwayat" && <HistoryPanel activities={report.activities} />}
+        </div>
+      </main>
+
+      {/* ── Sticky CTA ── */}
+      {(canStartWork || canSubmitCompletion) && (
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border/60 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
+          <div className="mx-auto max-w-lg">
+            {canStartWork && (
+              <Button asChild size="lg" className="w-full">
+                <Link href={`/reports/${report.reportNumber}/start`}>
+                  <WrenchIcon className="h-4 w-4 mr-2" />
+                  Mulai Pengerjaan
+                </Link>
+              </Button>
+            )}
+            {canSubmitCompletion && (
+              <Button
+                asChild
+                size="lg"
+                className="w-full bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Link href={`/reports/${report.reportNumber}/completion`}>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Kirim Penyelesaian
+                </Link>
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Lightbox ── */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"
+          onClick={closeLightbox}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={lightboxSrc}
+              alt="Foto"
+              className="w-full h-full object-contain rounded-lg max-h-[85vh]"
+            />
+            <button
+              onClick={closeLightbox}
+              className="absolute -top-3 -right-3 h-9 w-9 rounded-full bg-white text-black flex items-center justify-center shadow-lg text-lg font-bold"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CHECKLIST PANEL — flat list, grouped by category
+   No Collapsible. Just section headers + flat rows.
+   ═══════════════════════════════════════════════════════════════ */
+function ChecklistPanel({
+  items,
+  onPhoto,
+}: {
+  items: ReportData["items"];
+  onPhoto: (src: string) => void;
+}) {
+  const [filter, setFilter] = useState<string>("semua");
+
+  if (items.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground text-sm">
+        Tidak ada data checklist.
+      </div>
     );
+  }
+
+  const filterOptions = [
+    { id: "semua", label: "Semua" },
+    { id: "rusak", label: "Rusak" },
+    { id: "foto", label: "Ada Foto" },
+    { id: "bms", label: "BMS" },
+    { id: "rekanan", label: "Rekanan" },
+  ];
+
+  return (
+    <div className="flex flex-col gap-0">
+      {/* ── Filter Chips ── */}
+      <div className="flex overflow-x-auto hide-scrollbar gap-2 py-3 mb-1 border-b border-border/40">
+        {filterOptions.map((f) => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border",
+              filter === f.id
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-muted/30 text-muted-foreground border-border/60 hover:bg-muted",
+            )}
+          >
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {checklistCategories.map((cat) => {
+        const visibleItems = cat.items.filter((ci) => {
+          const ri = items.find((i) => i.itemId === ci.id);
+          const condition = ri?.condition;
+          const preventive = ri?.preventiveCondition;
+
+          // Skip empty preventive items unconditionally
+          if (cat.isPreventive && !condition && !preventive) return false;
+
+          if (filter === "semua") return true;
+
+          const isDamaged = condition === "RUSAK" || preventive === "NOT_OK";
+          if (filter === "rusak") return isDamaged;
+
+          const photos = ri?.images || (ri?.photoUrl ? [ri.photoUrl] : []);
+          if (filter === "foto") return photos.filter(Boolean).length > 0;
+
+          if (filter === "bms") return ri?.handler === "BMS";
+          if (filter === "rekanan") return ri?.handler === "REKANAN";
+
+          return true;
+        });
+
+        if (visibleItems.length === 0) return null;
+
+        const damagedCount = visibleItems.filter((ci) => {
+          const ri = items.find((i) => i.itemId === ci.id);
+          return (
+            ri?.condition === "RUSAK" || ri?.preventiveCondition === "NOT_OK"
+          );
+        }).length;
+
+        return (
+          <section key={cat.id}>
+            {/* Section header — flat, no card */}
+            <div className="flex items-center justify-between py-2.5 mt-3 first:mt-0">
+              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+                {cat.title}
+              </h3>
+              {damagedCount > 0 && (
+                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">
+                  {damagedCount} rusak
+                </span>
+              )}
+            </div>
+
+            {/* Items — flat divider rows */}
+            <div className="border-t border-border/40">
+              {visibleItems.map((ci) => {
+                const ri = items.find((i) => i.itemId === ci.id);
+                const condition = ri?.condition;
+                const preventive = ri?.preventiveCondition;
+                const isDamaged =
+                  condition === "RUSAK" || preventive === "NOT_OK";
+                const photos =
+                  ri?.images || (ri?.photoUrl ? [ri.photoUrl] : []);
+
+                return (
+                  <div
+                    key={ci.id}
+                    className={cn(
+                      "py-2.5 border-b border-border/40 flex gap-3",
+                      isDamaged && "bg-amber-50/50",
+                    )}
+                  >
+                    {/* Left: Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start gap-2.5">
+                        <ConditionBadge
+                          id={ci.id}
+                          condition={condition}
+                          preventive={preventive}
+                          isPreventive={!!cat.isPreventive}
+                        />
+                        <span className="text-sm text-foreground flex-1 leading-snug">
+                          {ci.name}
+                        </span>
+                      </div>
+
+                      {ri?.notes && (
+                        <p className="text-xs text-muted-foreground mt-1 ml-[38px] italic">
+                          {ri.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Right: Photos */}
+                    {isDamaged && photos.filter(Boolean).length > 0 && (
+                      <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                        {photos.filter(Boolean).map((url, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() =>
+                              onPhoto(resolvePhotoUrl(normalizePhotoUrl(url!)))
+                            }
+                            className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolvePhotoUrl(normalizePhotoUrl(url!))}
+                              alt="Foto"
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   ESTIMATIONS PANEL
+   ═══════════════════════════════════════════════════════════════ */
+function EstimationsPanel({
+  estimations,
+  total,
+}: {
+  estimations: ReportData["estimations"];
+  total: number;
+}) {
+  if (estimations.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground text-sm">
+        Tidak ada estimasi material.
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Total row */}
+      <div className="flex items-center justify-between py-3 border-b border-border/40">
+        <span className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+          Total Estimasi
+        </span>
+        <span className="text-base font-bold font-mono text-primary">
+          {fmt(total)}
+        </span>
+      </div>
+
+      {/* Item rows */}
+      {estimations.map((est, i) => (
+        <div
+          key={i}
+          className="py-3 border-b border-border/40 flex items-center justify-between"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-foreground truncate">
+              {est.materialName}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {est.quantity} {est.unit} × {fmt(est.price)}
+            </p>
+          </div>
+          <span className="text-sm font-semibold font-mono text-foreground ml-3 shrink-0">
+            {fmt(est.totalPrice)}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPLETION PANEL
+   ═══════════════════════════════════════════════════════════════ */
+function CompletionPanel({
+  report,
+  onPhoto,
+}: {
+  report: ReportData;
+  onPhoto: (src: string) => void;
+}) {
+  const selfieUrls = normalizePhotoUrls(report.startSelfieUrls)
+    .map(resolvePhotoUrl)
+    .filter(Boolean);
+  const receiptUrls = normalizePhotoUrls(report.startReceiptUrls)
+    .map(resolvePhotoUrl)
+    .filter(Boolean);
+  const addlPhotos = normalizePhotoUrls(report.completionAdditionalPhotos)
+    .map(resolvePhotoUrl)
+    .filter(Boolean);
+
+  const damagedItems = report.items.filter(
+    (i) => i.condition === "RUSAK" || i.preventiveCondition === "NOT_OK",
+  );
+
+  return (
+    <div className="flex flex-col gap-0">
+      {/* Bukti Foto Section */}
+      {(selfieUrls.length > 0 || receiptUrls.length > 0) && (
+        <section>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide py-2.5">
+            Bukti Persiapan
+          </h3>
+          <div className="border-t border-border/40">
+            {selfieUrls.length > 0 && (
+              <div className="py-3 border-b border-border/40 flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Selfie</p>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                  {selfieUrls.map((url, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onPhoto(url)}
+                      className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt="Foto"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {receiptUrls.length > 0 && (
+              <div className="py-3 border-b border-border/40 flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">
+                    Nota / Kwitansi
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                  {receiptUrls.map((url, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onPhoto(url)}
+                      className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={url}
+                        alt="Foto"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Toko Material */}
+      {report.startMaterialStores.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide py-2.5 mt-3">
+            Toko Material
+          </h3>
+          <div className="border-t border-border/40">
+            {report.startMaterialStores.map((store, i) => (
+              <div key={i} className="py-2.5 border-b border-border/40">
+                <p className="text-sm text-foreground">{store.name}</p>
+                {store.city && (
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {store.city}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Realisasi */}
+      {damagedItems.length > 0 && (
+        <section>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide py-2.5 mt-3">
+            Realisasi Pekerjaan
+          </h3>
+          <div className="border-t border-border/40">
+            {damagedItems.map((item) => {
+              const real = calculateItemRealisasiTotal(item);
+              const afterPhotos = normalizePhotoUrls(item.afterImages ?? [])
+                .map(resolvePhotoUrl)
+                .filter(Boolean);
+
+              return (
+                <div
+                  key={item.itemId}
+                  className="py-3 border-b border-border/40 flex gap-3"
+                >
+                  {/* Left: Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {item.itemName}
+                      </p>
+                      {real > 0 && (
+                        <span className="text-sm font-bold font-mono text-primary shrink-0 ml-2">
+                          {fmt(real)}
+                        </span>
+                      )}
+                    </div>
+
+                    {item.realisasiItems && item.realisasiItems.length > 0 && (
+                      <div className="mt-1.5 flex flex-col gap-0.5">
+                        {item.realisasiItems.map(
+                          (mat: RealisasiItemJson, mi: number) => (
+                            <div
+                              key={mi}
+                              className="flex items-center justify-between text-xs"
+                            >
+                              <span className="text-muted-foreground truncate mr-2">
+                                {mat.materialName}
+                                <span className="ml-1 text-muted-foreground/60">
+                                  ({mat.quantity} {mat.unit})
+                                </span>
+                              </span>
+                              <span className="text-foreground font-mono shrink-0">
+                                {fmt(mat.totalPrice)}
+                              </span>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Photos */}
+                  {afterPhotos.length > 0 && (
+                    <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                      {afterPhotos.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => onPhoto(url)}
+                          className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt="Foto"
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* Additional */}
+      {(addlPhotos.length > 0 || report.completionAdditionalNote) && (
+        <section>
+          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wide py-2.5 mt-3">
+            Tambahan
+          </h3>
+          <div className="border-t border-border/40 py-3 flex gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                Catatan Tambahan
+              </p>
+              {report.completionAdditionalNote && (
+                <p className="text-xs text-muted-foreground mt-1 italic">
+                  {report.completionAdditionalNote}
+                </p>
+              )}
+            </div>
+            {addlPhotos.length > 0 && (
+              <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                {addlPhotos.map((url, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => onPhoto(url)}
+                    className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={url}
+                      alt="Foto"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HISTORY PANEL — timeline
+   ═══════════════════════════════════════════════════════════════ */
+const HISTORY_LABELS: Record<
+  string,
+  { label: string; tone: "pos" | "neg" | "neutral" }
+> = {
+  SUBMITTED: { label: "Laporan Dikirim", tone: "pos" },
+  RESUBMITTED_ESTIMATION: { label: "Estimasi Dikirim Ulang", tone: "pos" },
+  RESUBMITTED_WORK: { label: "Pekerjaan Dikirim Ulang", tone: "pos" },
+  WORK_STARTED: { label: "Mulai Pengerjaan", tone: "pos" },
+  COMPLETION_SUBMITTED: { label: "Penyelesaian Dikirim", tone: "pos" },
+  ESTIMATION_APPROVED: { label: "Estimasi Disetujui", tone: "pos" },
+  ESTIMATION_REJECTED_REVISION: {
+    label: "Estimasi Diminta Revisi",
+    tone: "neg",
+  },
+  ESTIMATION_REJECTED: { label: "Estimasi Ditolak", tone: "neg" },
+  WORK_APPROVED: { label: "Pekerjaan Disetujui", tone: "pos" },
+  WORK_REJECTED_REVISION: { label: "Pekerjaan Diminta Revisi", tone: "neg" },
+  FINAL_APPROVED_BNM: { label: "Final Disetujui BNM", tone: "pos" },
+  FINAL_REJECTED_REVISION_BNM: { label: "Final Ditolak BNM", tone: "neg" },
+};
+
+function HistoryPanel({ activities }: { activities: ActivityEntry[] }) {
+  if (activities.length === 0) {
+    return (
+      <div className="py-10 text-center text-muted-foreground text-sm">
+        Belum ada riwayat.
+      </div>
+    );
+  }
+
+  const sorted = [...activities].reverse();
+
+  return (
+    <div className="relative mt-4 ml-3 border-l border-border/40 pl-4">
+      {sorted.map((entry, i) => {
+        const cfg = HISTORY_LABELS[entry.action] ?? {
+          label: entry.action,
+          tone: "neutral" as const,
+        };
+        const dotColor =
+          cfg.tone === "pos"
+            ? "bg-emerald-500"
+            : cfg.tone === "neg"
+              ? "bg-amber-500"
+              : "bg-muted-foreground/40";
+
+        return (
+          <div key={i} className="pb-5 last:pb-0 relative">
+            <span
+              className={cn(
+                "absolute -left-[22px] top-1 h-2.5 w-2.5 rounded-full ring-2 ring-background",
+                dotColor,
+              )}
+            />
+            <p className="text-sm font-medium text-foreground">{cfg.label}</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              {entry.actorName} · {formatJakartaDateTime(entry.createdAt)}
+            </p>
+            {entry.notes && (
+              <p className="text-xs text-muted-foreground mt-1.5 bg-muted/30 rounded-md p-2 italic leading-relaxed">
+                &ldquo;{entry.notes}&rdquo;
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PHOTO ROW — inline photo strip
+   ═══════════════════════════════════════════════════════════════ */
+function PhotoRow({
+  urls,
+  onPhoto,
+}: {
+  urls: string[];
+  onPhoto: (src: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+      {urls.map((url, i) => (
+        <button
+          key={i}
+          onClick={() => onPhoto(url)}
+          className="h-14 w-14 rounded-md overflow-hidden border border-border/40 shrink-0 active:scale-95 transition-transform"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={url}
+            alt={`Foto ${i + 1}`}
+            className="h-full w-full object-cover"
+            loading="lazy"
+          />
+        </button>
+      ))}
+    </div>
+  );
 }

@@ -43,10 +43,4 @@ export type ActionState = {
     activeDialog: string | null;
     setActiveDialog: (v: string | null) => void;
     handleSubmitCompletion: () => void;
-    handleReviewEstimation: (
-        decision: "approve" | "reject_revision" | "reject",
-    ) => void;
-    handleReviewCompletion: (decision: "approve" | "reject_revision") => void;
-    handleFinalApproval: (decision: "approve" | "reject_revision") => void;
-    checkFinalApprovalReady: () => boolean;
 };

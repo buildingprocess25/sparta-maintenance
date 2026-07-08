@@ -6,6 +6,7 @@ import {
   PlusCircle,
   Wrench,
   XCircle,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -78,6 +79,24 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
 
   const statItems: BmsMobileDashboardStatItem[] = [
     {
+      key: "all",
+      total: stats.totalReports,
+      label: "Semua Laporan",
+      icon: FileText,
+      tone: "neutral",
+      caption: "Total laporan",
+      href: "/reports?status=all",
+    },
+    {
+      key: "active",
+      total: stats.activeReports,
+      label: "Laporan Aktif",
+      icon: Clock,
+      tone: "progress",
+      caption: "Sedang berjalan",
+      href: "/reports?status=active",
+    },
+    {
       key: "need-action",
       total: stats.needsAction,
       label: "Perlu Tindakan",
@@ -87,30 +106,12 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
       href: "/reports?status=needs_action",
     },
     {
-      key: "waiting-review",
-      total: stats.waitingReview,
-      label: "Menunggu Review",
-      icon: Clock,
-      tone: "pending",
-      caption: "Diproses BMC / BNM",
-      href: "/reports?status=waiting_review",
-    },
-    {
-      key: "in-progress",
-      total: stats.inProgress,
-      label: "Dikerjakan",
-      icon: Wrench,
-      tone: "progress",
-      caption: "Pekerjaan berjalan",
-      href: "/reports?status=in_progress",
-    },
-    {
       key: "completed",
       total: stats.completed,
       label: "Selesai",
       icon: CheckCircle2,
       tone: "done",
-      caption: "Final BNM disetujui",
+      caption: "Selesai & disetujui",
       href: "/reports?status=completed",
     },
   ];

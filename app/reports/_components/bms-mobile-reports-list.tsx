@@ -46,7 +46,8 @@ const DATE_OPTIONS = [
 const QUICK_FILTERS = [
   { value: "all", label: "Semua Laporan" },
   { value: "active", label: "Laporan Aktif" },
-  { value: "completed", label: "Laporan Selesai" },
+  { value: "needs_action", label: "Perlu Tindakan" },
+  { value: "completed", label: "Selesai" },
 ];
 
 export function BmsMobileReportsList({
@@ -170,11 +171,19 @@ export function BmsMobileReportsList({
         "REVIEW_REJECTED_REVISION",
       ];
 
+      const NEEDS_ACTION_STATUSES = [
+        "ESTIMATION_APPROVED",
+        "ESTIMATION_REJECTED_REVISION",
+        "REVIEW_REJECTED_REVISION",
+      ];
+
       const resolvedStatus =
         statusFilter === "all"
           ? undefined
           : statusFilter === "active"
             ? ACTIVE_STATUSES
+            : statusFilter === "needs_action"
+              ? NEEDS_ACTION_STATUSES
             : statusFilter === "completed"
               ? ["COMPLETED"]
               : undefined;
@@ -330,7 +339,7 @@ export function BmsMobileReportsList({
         )}
 
         {/* Radio Capsule (Status Filters) */}
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+        <div className="flex flex-nowrap items-center gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
           {QUICK_FILTERS.map((filter) => {
             const isActive = statusFilter === filter.value;
             return (

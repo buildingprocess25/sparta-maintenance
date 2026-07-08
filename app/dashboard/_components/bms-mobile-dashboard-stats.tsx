@@ -13,7 +13,8 @@ export type BmsMobileDashboardStatTone =
   | "critical"
   | "pending"
   | "progress"
-  | "done";
+  | "done"
+  | "neutral";
 
 export type BmsMobileDashboardStatItem = {
   key: string;
@@ -47,6 +48,14 @@ const toneClasses: Record<
     caption: "text-destructive/75",
     shape: "bg-destructive/25",
     icon: "text-destructive/40",
+  },
+  neutral: {
+    surface: "bg-muted/50",
+    value: "text-foreground",
+    label: "text-muted-foreground",
+    caption: "text-muted-foreground/75",
+    shape: "bg-muted",
+    icon: "text-muted-foreground/30",
   },
   pending: {
     surface: "bg-amber-500/10",

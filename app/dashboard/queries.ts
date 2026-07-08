@@ -38,6 +38,7 @@ export async function getUserStats(userId: string) {
             waitingReview,
             inProgress,
             completed,
+            activeReports,
         ] = await Promise.all([
             prisma.report.count({ where: base }),
             // Things BMS must act on (start work / revise)
@@ -72,6 +73,15 @@ export async function getUserStats(userId: string) {
             prisma.report.count({
                 where: { ...base, status: "COMPLETED" },
             }),
+            // Active Reports (everything not completed)
+            prisma.report.count({
+                where: {
+                    ...base,
+                    status: {
+                        not: "COMPLETED",
+                    },
+                },
+            }),
         ]);
 
         return {
@@ -80,6 +90,7 @@ export async function getUserStats(userId: string) {
             waitingReview,
             inProgress,
             completed,
+            activeReports,
         };
     } catch (error) {
         logger.error(
