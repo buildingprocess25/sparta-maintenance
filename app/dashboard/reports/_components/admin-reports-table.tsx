@@ -569,6 +569,7 @@ export function AdminReportsTable({
                                     >
                                         <TableCell className="whitespace-nowrap align-middle">
                                             <Link
+                                                prefetch={false}
                                                 href={`/dashboard/reports/${report.reportNumber}`}
                                                 className="inline-flex items-center gap-1 font-mono font-medium text-primary underline-offset-4 hover:underline"
                                             >
