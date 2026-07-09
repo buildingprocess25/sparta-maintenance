@@ -292,7 +292,7 @@ export function ActivityList({
                                                 </p>
                                                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                                                     <MapPin className="h-3 w-3 shrink-0" />
-                                                    {item.report.branchName}
+                                                    {item.report.storeCode || item.report.branchName}
                                                 </p>
                                             </div>
                                         </div>
@@ -372,7 +372,7 @@ export function ActivityList({
                                                     </span>
                                                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                                                         <MapPin className="h-3 w-3 shrink-0" />
-                                                        {item.report.branchName}
+                                                        {item.report.storeCode || item.report.branchName}
                                                     </span>
                                                 </div>
                                             </TableCell>

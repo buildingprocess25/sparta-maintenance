@@ -104,52 +104,46 @@ export function BmsMobileActivityItem({
     : timeFormatter.format(item.createdAt);
 
   return (
-    <div className="flex items-start gap-3 p-3 bg-transparent border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors">
-      <div
-        className={cn(
-          "mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl",
-          tone.iconWrap,
-        )}
-      >
-        <Icon className={cn("size-5", tone.iconColor)} />
-      </div>
+    <Link
+      href={`/reports/${item.reportNumber}`}
+      className="group mb-2.5 block w-full rounded-xl bg-card p-3 border border-border/50 hover:bg-muted/40 transition-all"
+    >
+      <div className="flex gap-3">
 
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <Link
-              href={`/reports/${item.reportNumber}`}
-              className="min-w-0 text-sm font-medium leading-snug text-primary underline flex items-center gap-1"
+
+        {/* Content Area */}
+        <div className="flex min-w-0 flex-1 flex-col justify-center">
+          {/* Top Row: Title & Badge */}
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <h3 className="truncate text-sm font-semibold leading-tight text-foreground/95">
+              #{item.reportNumber}
+            </h3>
+            <Badge
+              variant="secondary"
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold border-transparent shadow-none shrink-0",
+                getActionBadgeClass(item.action),
+              )}
             >
-              <span className="truncate">Laporan #{item.reportNumber}</span>
-              <ArrowUpRight size={16} className="shrink-0" />
-            </Link>
-            <p className="truncate text-[11px] text-muted-foreground mt-0.5">
-              {item.report.branchName} • {item.report.storeName}
-            </p>
+              {getActivityActionLabel(item.action)}
+            </Badge>
           </div>
-          <span className="shrink-0 text-[10px] font-medium text-muted-foreground/70 mt-0.5">
-            {timeString}
-          </span>
-        </div>
 
-        <div className="flex items-center gap-2 mt-1 min-w-0">
-          <Badge
-            variant="secondary"
-            className={cn(
-              "rounded px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold border-transparent shadow-none shrink-0",
-              getActionBadgeClass(item.action),
-            )}
-          >
-            {getActivityActionLabel(item.action)}
-          </Badge>
-          <p className="truncate text-[11px] text-muted-foreground min-w-0">
-            <span className="font-semibold text-foreground/80">
+          {/* Middle Row: Context */}
+          <p className="truncate text-[11px] text-muted-foreground/80 font-medium">
+            {item.report.storeCode || item.report.branchName} •{" "}
+            {item.report.storeName}
+          </p>
+
+          {/* Bottom Row: Timestamp & Actor */}
+          <p className="mt-1 truncate text-[10px] text-muted-foreground/70">
+            {timeString} oleh{" "}
+            <span className="font-medium text-muted-foreground/90">
               {item.actor.name}
             </span>
           </p>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

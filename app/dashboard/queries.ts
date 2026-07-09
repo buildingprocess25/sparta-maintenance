@@ -510,6 +510,7 @@ export type ActivityItem = {
     actor: { name: string; NIK: string };
     report: {
         storeName: string;
+        storeCode: string | null;
         branchName: string;
         status: string;
         completedPdfPath: string | null;
@@ -539,6 +540,7 @@ async function fetchActivityLogs(
             report: {
                 select: {
                     storeName: true,
+                    storeCode: true,
                     branchName: true,
                     status: true,
                     completedPdfPath: true,
