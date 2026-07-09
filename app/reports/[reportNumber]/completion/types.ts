@@ -1,8 +1,3 @@
-/**
- * Shared types for the completion form.
- * Imported by completion-item-card, completion-checklist-step, complete-form, and the autosave hook.
- */
-
 import type { MaterialEstimationJson } from "@/types/report";
 
 // ─── Photo ───────────────────────────────────────────────────────────────────
@@ -22,13 +17,13 @@ export interface LocalPhoto {
 export interface RealisasiEntry {
     id: string; // client-only ID (cuid-like)
     materialName: string;
-    quantity: number;
+    quantity: number | "";
     unit: string;
     price: number | null; // harga aktual per satuan; null = belum diisi
 }
 
 export function realisasiTotal(entry: RealisasiEntry): number {
-    return entry.price === null ? 0 : entry.quantity * entry.price;
+    return entry.price === null || entry.quantity === "" ? 0 : entry.quantity * entry.price;
 }
 
 export function realisasiGrandTotal(entries: RealisasiEntry[]): number {
@@ -76,7 +71,7 @@ export function createInitialItemState(
         realisasiEntries: estimations.map((e) => ({
             id: `init-${e.itemId}-${Math.random().toString(36).slice(2, 7)}`,
             materialName: e.materialName,
-            quantity: e.quantity,
+            quantity: "", // Qty kosong untuk mode cepat
             unit: e.unit,
             price: null,
         })),

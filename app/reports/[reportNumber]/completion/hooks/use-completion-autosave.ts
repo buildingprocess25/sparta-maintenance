@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type {
     CompletionDraftData,
     CompletionItemState,
@@ -296,14 +296,24 @@ export function useCompletionAutosave(): UseCompletionAutosave {
         [],
     );
 
-    return {
-        addPhoto,
-        removePhoto,
-        getPhotoFile,
-        triggerSave,
-        restoreDraft,
-        clearDraft,
-    };
+    return useMemo(
+        () => ({
+            addPhoto,
+            removePhoto,
+            getPhotoFile,
+            triggerSave,
+            restoreDraft,
+            clearDraft,
+        }),
+        [
+            addPhoto,
+            removePhoto,
+            getPhotoFile,
+            triggerSave,
+            restoreDraft,
+            clearDraft,
+        ],
+    );
 }
 
 async function restorePhotosFromIds(ids: string[]): Promise<LocalPhoto[]> {

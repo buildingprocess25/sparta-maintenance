@@ -15,63 +15,63 @@ import { getReportStatusLabel } from "@/lib/report-status";
  * Can only be called by the BMS who owns the report.
  */
 export async function startWork(reportNumber: string) {
-    try {
-        const user = await requireRole("BMS");
-        const headersList = await headers();
-        await validateCSRF(headersList);
+  try {
+    const user = await requireRole("BMS");
+    const headersList = await headers();
+    await validateCSRF(headersList);
 
-        const report = await prisma.report.findUnique({
-            where: { reportNumber },
-            select: { createdByNIK: true, status: true },
-        });
+    const report = await prisma.report.findUnique({
+      where: { reportNumber },
+      select: { createdByNIK: true, status: true },
+    });
 
-        if (!report) {
-            return { error: "Laporan tidak ditemukan" };
-        }
-
-        if (report.createdByNIK !== user.NIK) {
-            return { error: "Anda tidak memiliki akses ke laporan ini" };
-        }
-
-        if (report.status !== ReportStatus.ESTIMATION_APPROVED) {
-            return {
-                error: `Laporan harus berstatus '${getReportStatusLabel("ESTIMATION_APPROVED")}' untuk memulai pengerjaan`,
-            };
-        }
-
-        await prisma.$transaction([
-            prisma.report.update({
-                where: { reportNumber },
-                data: { status: ReportStatus.IN_PROGRESS },
-            }),
-            prisma.activityLog.create({
-                data: {
-                    reportNumber,
-                    actorNIK: user.NIK,
-                    action: "WORK_STARTED",
-                    notes: null,
-                },
-            }),
-        ]);
-
-        revalidatePath(`/reports/${reportNumber}`);
-        revalidatePath("/reports");
-
-        logger.info(
-            { operation: "startWork", reportNumber, userId: user.NIK },
-            "BMS started work on report",
-        );
-
-        return { success: true };
-    } catch (error) {
-        logger.error(
-            { operation: "startWork", reportNumber },
-            "Failed to start work",
-            error,
-        );
-        return {
-            error: "Gagal memulai pengerjaan",
-            detail: getErrorDetail(error),
-        };
+    if (!report) {
+      return { error: "Laporan tidak ditemukan" };
     }
+
+    if (report.createdByNIK !== user.NIK) {
+      return { error: "Anda tidak memiliki akses ke laporan ini" };
+    }
+
+    if (report.status !== ReportStatus.ESTIMATION_APPROVED) {
+      return {
+        error: `Laporan harus berstatus '${getReportStatusLabel("ESTIMATION_APPROVED")}' untuk memulai pekerjaan`,
+      };
+    }
+
+    await prisma.$transaction([
+      prisma.report.update({
+        where: { reportNumber },
+        data: { status: ReportStatus.IN_PROGRESS },
+      }),
+      prisma.activityLog.create({
+        data: {
+          reportNumber,
+          actorNIK: user.NIK,
+          action: "WORK_STARTED",
+          notes: null,
+        },
+      }),
+    ]);
+
+    revalidatePath(`/reports/${reportNumber}`);
+    revalidatePath("/reports");
+
+    logger.info(
+      { operation: "startWork", reportNumber, userId: user.NIK },
+      "BMS started work on report",
+    );
+
+    return { success: true };
+  } catch (error) {
+    logger.error(
+      { operation: "startWork", reportNumber },
+      "Failed to start work",
+      error,
+    );
+    return {
+      error: "Gagal memulai pekerjaan",
+      detail: getErrorDetail(error),
+    };
+  }
 }

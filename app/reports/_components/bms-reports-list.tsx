@@ -344,9 +344,7 @@ export default function BmsReportsList({
                 ? "/reports/create?restore=1"
                 : report.status === "ESTIMATION_REJECTED_REVISION"
                   ? `/reports/revisi/${report.reportNumber}`
-                  : report.status === "REVIEW_REJECTED_REVISION"
-                    ? `/reports/complete?report=${report.reportNumber}`
-                    : `/reports/${report.reportNumber}`;
+                  : `/reports/${report.reportNumber}`;
         const isCompleted = report.status === "COMPLETED";
         const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
         

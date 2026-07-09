@@ -231,8 +231,8 @@ export async function submitCompletionWork(
         ]);
 
         revalidatePath(`/reports/${reportNumber}`);
+        revalidatePath(`/reports/${reportNumber}/completion`);
         revalidatePath("/reports");
-        revalidatePath("/reports/complete");
 
         dispatchNotificationEvent({
             type: "REPORT_COMPLETION_SUBMITTED",

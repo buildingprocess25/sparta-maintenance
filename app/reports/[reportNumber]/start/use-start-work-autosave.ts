@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 
 const IDB_DB_NAME = "sparta-start-work";
 const IDB_STORE_NAME = "photos";
@@ -208,11 +208,14 @@ export function useStartWorkAutosave() {
         await idbDeleteByPrefix(reportNumber).catch(console.error);
     }, []);
 
-    return {
-        addPhoto,
-        removePhoto,
-        triggerSave,
-        restoreDraft,
-        clearDraft,
-    };
+    return useMemo(
+        () => ({
+            addPhoto,
+            removePhoto,
+            triggerSave,
+            restoreDraft,
+            clearDraft,
+        }),
+        [addPhoto, removePhoto, triggerSave, restoreDraft, clearDraft],
+    );
 }

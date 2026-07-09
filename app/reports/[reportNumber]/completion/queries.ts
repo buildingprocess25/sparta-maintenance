@@ -1,60 +1,14 @@
 "server-only";
 
 import prisma from "@/lib/prisma";
-import { ReportStatus } from "@prisma/client";
 import { parseStartWorkPhotoUrls } from "@/lib/report-start-work-revision";
+import { ReportStatus } from "@prisma/client";
 import type {
     MaterialEstimationJson,
     MaterialStoreJson,
     ReportItemJson,
 } from "@/types/report";
 
-/**
- * Get reports that BMS can submit completion for.
- * Includes IN_PROGRESS and REVIEW_REJECTED_REVISION.
- */
-export async function getWorkableReports(userNIK: string, search?: string) {
-    const where: Record<string, unknown> = {
-        createdByNIK: userNIK,
-        status: {
-            in: [
-                ReportStatus.IN_PROGRESS,
-                ReportStatus.REVIEW_REJECTED_REVISION,
-            ],
-        },
-    };
-
-    if (search) {
-        where.OR = [
-            { reportNumber: { contains: search, mode: "insensitive" } },
-            { storeName: { contains: search, mode: "insensitive" } },
-        ];
-    }
-
-    const reports = await prisma.report.findMany({
-        where,
-        orderBy: { updatedAt: "desc" },
-        select: {
-            reportNumber: true,
-            storeName: true,
-            branchName: true,
-            storeCode: true,
-            status: true,
-            updatedAt: true,
-        },
-    });
-
-    return reports;
-}
-
-export type WorkableReport = Awaited<
-    ReturnType<typeof getWorkableReports>
->[number];
-
-/**
- * Get a single report for the completion form (with items and estimations).
- * Only accessible by the report creator.
- */
 export async function getReportForCompletion(
     reportNumber: string,
     userNIK: string,
@@ -69,6 +23,7 @@ export async function getReportForCompletion(
             status: true,
             items: true,
             estimations: true,
+            totalEstimation: true,
             startSelfieUrl: true,
             startReceiptUrls: true,
             startMaterialStores: true,
@@ -90,12 +45,16 @@ export async function getReportForCompletion(
 
     return {
         ...report,
+        totalEstimation: Number(report.totalEstimation),
         items: report.items as unknown as ReportItemJson[],
         estimations: report.estimations as unknown as MaterialEstimationJson[],
         startSelfieUrls: parseStartWorkPhotoUrls(report.startSelfieUrl),
         startReceiptUrls: parseStartWorkPhotoUrls(report.startReceiptUrls),
         startMaterialStores:
             report.startMaterialStores as unknown as MaterialStoreJson[],
+        completionAdditionalPhotos: parseStartWorkPhotoUrls(
+            report.completionAdditionalPhotos,
+        ),
     };
 }
 

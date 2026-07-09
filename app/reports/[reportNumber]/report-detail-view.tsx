@@ -276,7 +276,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
               <Button asChild size="lg" className="w-full">
                 <Link href={`/reports/${report.reportNumber}/start`}>
                   <WrenchIcon className="h-4 w-4 mr-2" />
-                  Mulai Pengerjaan
+                  Mulai Pekerjaan
                 </Link>
               </Button>
             )}
@@ -462,7 +462,7 @@ function ChecklistPanel({
 
                     {/* Right: Photos */}
                     {isDamaged && photos.filter(Boolean).length > 0 && (
-                      <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                      <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                         {photos.filter(Boolean).map((url, idx) => (
                           <button
                             key={idx}
@@ -584,7 +584,7 @@ function CompletionPanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">Selfie</p>
                 </div>
-                <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                   {selfieUrls.map((url, idx) => (
                     <button
                       key={idx}
@@ -610,7 +610,7 @@ function CompletionPanel({
                     Nota / Kwitansi
                   </p>
                 </div>
-                <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                   {receiptUrls.map((url, idx) => (
                     <button
                       key={idx}
@@ -640,16 +640,46 @@ function CompletionPanel({
             Toko Material
           </h3>
           <div className="border-t border-border/40">
-            {report.startMaterialStores.map((store, i) => (
-              <div key={i} className="py-2.5 border-b border-border/40">
-                <p className="text-sm text-foreground">{store.name}</p>
-                {store.city && (
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {store.city}
-                  </p>
-                )}
-              </div>
-            ))}
+            {report.startMaterialStores.map((store, i) => {
+              const storePhotos = normalizePhotoUrls(store.photoUrls ?? [])
+                .map(resolvePhotoUrl)
+                .filter(Boolean);
+
+              return (
+                <div
+                  key={i}
+                  className="py-2.5 border-b border-border/40 flex gap-3"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-foreground">{store.name}</p>
+                    {store.city && (
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {store.city}
+                      </p>
+                    )}
+                  </div>
+                  {storePhotos.length > 0 && (
+                    <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
+                      {storePhotos.map((url, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => onPhoto(url)}
+                          className="h-20 w-20 rounded-md overflow-hidden border border-border/40 shrink-0"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt="Foto toko material"
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </section>
       )}
@@ -711,7 +741,7 @@ function CompletionPanel({
 
                   {/* Right: Photos */}
                   {afterPhotos.length > 0 && (
-                    <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+                    <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                       {afterPhotos.map((url, idx) => (
                         <button
                           key={idx}
@@ -754,7 +784,7 @@ function CompletionPanel({
               )}
             </div>
             {addlPhotos.length > 0 && (
-              <div className="flex flex-col gap-1.5 shrink-0 pt-0.5">
+              <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                 {addlPhotos.map((url, idx) => (
                   <button
                     key={idx}
@@ -789,7 +819,7 @@ const HISTORY_LABELS: Record<
   SUBMITTED: { label: "Laporan Dikirim", tone: "pos" },
   RESUBMITTED_ESTIMATION: { label: "Estimasi Dikirim Ulang", tone: "pos" },
   RESUBMITTED_WORK: { label: "Pekerjaan Dikirim Ulang", tone: "pos" },
-  WORK_STARTED: { label: "Mulai Pengerjaan", tone: "pos" },
+  WORK_STARTED: { label: "Mulai Pekerjaan", tone: "pos" },
   COMPLETION_SUBMITTED: { label: "Penyelesaian Dikirim", tone: "pos" },
   ESTIMATION_APPROVED: { label: "Estimasi Disetujui", tone: "pos" },
   ESTIMATION_REJECTED_REVISION: {
