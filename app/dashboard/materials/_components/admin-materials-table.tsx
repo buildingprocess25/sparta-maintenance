@@ -221,7 +221,7 @@ export function AdminMaterialsTable({
             {/* Table */}
             <div className="bg-white border rounded-lg overflow-hidden flex flex-col">
                 <div className="overflow-x-auto">
-                    <Table className="text-xs">
+                    <Table scrollObserverRef={observerTarget} className="text-xs">
                         <TableHeader>
                             <TableRow className="bg-muted/50 hover:bg-muted/50">
                                 <TableHead className="min-w-[100px]">
@@ -317,10 +317,7 @@ export function AdminMaterialsTable({
 
                 {/* Infinite Scroll Target */}
                 {nextCursor && !isLoading && (
-                    <div
-                        ref={observerTarget}
-                        className="py-4 flex justify-center border-t"
-                    >
+                    <div className="py-4 flex justify-center border-t">
                         {isFetchingNextPage ? (
                             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                         ) : (
