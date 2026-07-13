@@ -508,7 +508,7 @@ export function AdminReportsTable({
             {/* Table */}
             <div className="overflow-hidden rounded-md border bg-white">
                 <div className="overflow-x-auto">
-                    <Table className="text-[11px] [&_td]:py-2 [&_th]:h-8 [&_th]:py-1.5">
+                    <Table scrollObserverRef={observerTarget} className="text-[11px] [&_td]:py-2 [&_th]:h-8 [&_th]:py-1.5">
                         <TableHeader className="bg-slate-50/80">
                             <TableRow>
                                 <TableHead className="w-[120px] min-w-[120px]">
@@ -655,11 +655,8 @@ export function AdminReportsTable({
                     </Table>
                 </div>
 
-                {/* Infinite scroll trigger */}
-                <div
-                    ref={observerTarget}
-                    className="h-10 flex items-center justify-center p-4"
-                >
+                {/* Infinite scroll loader */}
+                <div className="h-10 flex items-center justify-center p-4">
                     {isFetchingNextPage && (
                         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                     )}

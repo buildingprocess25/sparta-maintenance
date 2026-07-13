@@ -339,7 +339,7 @@ export function AdminUsersTable({
             {/* Table */}
             <div className="bg-white rounded-lg border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
-                    <Table className="text-xs [&_td]:py-[11px] [&_th]:py-2">
+                    <Table scrollObserverRef={observerTarget} className="text-xs [&_td]:py-[11px] [&_th]:py-2">
                         <TableHeader className="bg-slate-50">
                             <TableRow>
                                 <TableHead className="w-[110px]">NIK</TableHead>
@@ -452,10 +452,7 @@ export function AdminUsersTable({
                 </div>
 
                 {/* Infinite scroll trigger */}
-                <div
-                    ref={observerTarget}
-                    className="h-10 flex items-center justify-center"
-                >
+                <div className="h-10 flex items-center justify-center">
                     {isFetchingNextPage && (
                         <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
                     )}

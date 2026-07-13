@@ -760,6 +760,7 @@ export type AdminKpiMetric = {
     totalReports: number;
     completedReports: number;
     activeReports: number;
+    rejectedReports: number;
     inProgressReports: number;
     pendingReviewReports: number;
     revisionReports: number;
@@ -770,6 +771,7 @@ export type AdminKpiMetric = {
     activeUsers: number;
     pjumCompletedReports: number;
     unpjumCompletedReports: number;
+    unpjumNotRequiredReports: number;
     pendingPjum: number;
 };
 
@@ -1023,6 +1025,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
             totalReports: 0,
             completedReports: 0,
             activeReports: 0,
+            rejectedReports: 0,
             inProgressReports: 0,
             pendingReviewReports: 0,
             revisionReports: 0,
@@ -1033,6 +1036,7 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
             activeUsers: 0,
             pjumCompletedReports: 0,
             unpjumCompletedReports: 0,
+            unpjumNotRequiredReports: 0,
             pendingPjum: 0,
         },
         status: [],
@@ -1231,6 +1235,7 @@ async function getAdminKpiMetric(
     const [
         totalReports,
         completedReports,
+        rejectedReports,
         inProgressReports,
         pendingReviewReports,
         revisionReports,
@@ -1242,6 +1247,12 @@ async function getAdminKpiMetric(
     ] = await Promise.all([
         prisma.report.count({ where: baseWhere }),
         prisma.report.count({ where: completedWhere }),
+        prisma.report.count({
+            where: {
+                ...baseWhere,
+                status: "ESTIMATION_REJECTED",
+            },
+        }),
         prisma.report.count({
             where: {
                 ...baseWhere,
@@ -1320,6 +1331,7 @@ async function getAdminKpiMetric(
         completedReports,
         activeReports:
             inProgressReports + pendingReviewReports + revisionReports,
+        rejectedReports,
         inProgressReports,
         pendingReviewReports,
         revisionReports,
@@ -1333,6 +1345,8 @@ async function getAdminKpiMetric(
         activeUsers,
         pjumCompletedReports,
         unpjumCompletedReports,
+        unpjumNotRequiredReports:
+            completedReports - pjumCompletedReports - unpjumCompletedReports,
         pendingPjum,
     };
 }

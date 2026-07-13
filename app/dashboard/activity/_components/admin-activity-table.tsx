@@ -360,7 +360,7 @@ export function AdminActivityTable({
 
             <div className="min-w-0 overflow-hidden rounded-lg border bg-white shadow-sm">
                 <div className="w-full overflow-x-auto">
-                    <Table className="text-xs [&_td]:py-2 [&_th]:py-2">
+                    <Table scrollObserverRef={observerTarget} className="text-xs [&_td]:py-2 [&_th]:py-2">
                         <TableHeader className="bg-slate-50">
                             <TableRow>
                                 <TableHead className="min-w-[140px]">
@@ -500,7 +500,7 @@ export function AdminActivityTable({
                 </div>
             </div>
 
-            <div ref={observerTarget} className="h-6" />
+            <div className="h-6" />
             {isFetchingNextPage && (
                 <div className="flex justify-center py-2">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

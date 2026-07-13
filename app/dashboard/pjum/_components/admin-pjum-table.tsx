@@ -376,7 +376,7 @@ export function AdminPjumTable({
 
             <div className="rounded-lg border bg-background">
                 <div className="overflow-x-auto">
-                    <Table className="text-xs">
+                    <Table scrollObserverRef={observerTarget} className="text-xs">
                         <TableHeader>
                             <TableRow className="bg-muted/40 hover:bg-muted/40">
                                 <TableHead className="min-w-[210px]">
@@ -509,7 +509,7 @@ export function AdminPjumTable({
                         PJUM
                     </span>
                     {nextCursor && !isLoading ? (
-                        <div ref={observerTarget} className="h-5 min-w-5">
+                        <div className="h-5 min-w-5">
                             {isFetchingNextPage ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                             ) : null}

@@ -296,8 +296,8 @@ function PriorityReportsTable({
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto rounded-md border">
-                    <Table className="text-xs">
+                <div className="rounded-md border">
+                    <Table className="text-xs" containerClassName="max-h-[400px]">
                         <TableHeader className="bg-muted/40">
                             <TableRow>
                                 <TableHead className="min-w-[150px]">
@@ -506,8 +506,8 @@ function RecentActivity({ data }: { data: ManagerDashboardData }) {
                 </div>
             </CardHeader>
             <CardContent>
-                <div className="overflow-x-auto rounded-md border">
-                    <Table className="text-xs">
+                <div className="rounded-md border">
+                    <Table className="text-xs" containerClassName="max-h-[400px]">
                         <TableHeader className="bg-muted/40">
                             <TableRow>
                                 <TableHead>Aktivitas</TableHead>

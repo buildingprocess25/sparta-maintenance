@@ -140,10 +140,16 @@ function KpiGrid({
                         tone: "blue",
                     },
                     {
-                        label: "User aktif hari ini",
+                        label: "Ditolak",
+                        value: formatNumber(kpi.rejectedReports),
+                        href: "/dashboard/reports?status=ESTIMATION_REJECTED",
+                        tone: "slate",
+                    },
+                    {
+                        label: "User Aktif",
                         value: formatNumber(kpi.activeUsers),
                         href: "/dashboard/activity/online",
-                        tone: "blue",
+                        tone: "slate",
                     },
                 ]}
             />
@@ -172,6 +178,11 @@ function KpiGrid({
                         href: "/dashboard/reports?status=COMPLETED&pjumStatus=not_exported",
                         tone:
                             kpi.unpjumCompletedReports > 0 ? "amber" : "green",
+                    },
+                    {
+                        label: "Tanpa PJUM",
+                        value: formatNumber(kpi.unpjumNotRequiredReports),
+                        tone: "slate",
                     },
                 ]}
             />
@@ -268,7 +279,7 @@ function GroupedKpiCard({
                 ) : null}
             </div>
 
-            <div className="mt-auto grid grid-cols-3 gap-3 border-t pt-4">
+            <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-4">
                 {rows.map((row) => (
                     <KpiSubMetric key={row.label} row={row} />
                 ))}
@@ -281,11 +292,11 @@ function KpiSubMetric({ row }: { row: GroupedKpiRow }) {
     const tone = groupedKpiToneClass[row.tone ?? "slate"];
     const content = (
         <div className="min-w-0">
-            <div className="truncate text-xs text-muted-foreground">
+            <div className="truncate text-[11px] font-medium text-muted-foreground/80">
                 {row.label}
             </div>
             <div
-                className={`mt-1 inline-flex items-center gap-1 text-xl font-semibold leading-none ${tone}`}
+                className={`mt-1 inline-flex items-center gap-1 text-lg font-semibold leading-none ${tone}`}
             >
                 {row.value}
                 {row.href ? (
@@ -397,8 +408,8 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
                 ))}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border">
-                <Table className="text-xs">
+            <div className="rounded-lg border">
+                <Table className="text-xs" containerClassName="max-h-[300px]">
                     <TableHeader className="bg-muted/40">
                         <TableRow>
                             <TableHead>Status</TableHead>
@@ -636,7 +647,7 @@ function AdminRecentActivityCard({
                 </div>
             </CardHeader>
             <CardContent>
-                <Table className="text-xs">
+                <Table className="text-xs" containerClassName="max-h-[400px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Aktivitas</TableHead>
@@ -728,7 +739,7 @@ function BranchPerformanceTable({
                 </div>
             </CardHeader>
             <CardContent>
-                <Table className="text-xs">
+                <Table className="text-xs" containerClassName="max-h-[400px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Cabang</TableHead>
@@ -819,7 +830,7 @@ function AttentionTable({
                 </div>
             </CardHeader>
             <CardContent>
-                <Table className="text-xs">
+                <Table className="text-xs" containerClassName="max-h-[400px]">
                     <TableHeader>
                         <TableRow>
                             <TableHead>Laporan</TableHead>
