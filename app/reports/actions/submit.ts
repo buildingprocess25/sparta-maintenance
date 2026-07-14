@@ -35,6 +35,7 @@ export async function submitReport(data: DraftData) {
             detail: "Periksa kembali data laporan yang diisi.",
         };
     }
+    data = parsed.data;
 
     try {
         const user = await requireRole("BMS");

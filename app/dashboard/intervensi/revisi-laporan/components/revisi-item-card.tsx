@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronDown, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -19,7 +20,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { unitOptions } from "@/lib/checklist-data";
+import { resolveChecklistItemMeta, unitOptions } from "@/lib/checklist-data";
 import { LocalNotesTextarea } from "@/app/reports/(bms)/create/components/local-notes-textarea";
 import type { ReportItemJson } from "@/types/report";
 import type { RevisedItemData } from "../actions";
@@ -313,6 +314,7 @@ export function RevisiItemCard({
     state,
     onChange,
 }: RevisiItemCardProps) {
+    const itemMeta = resolveChecklistItemMeta(item);
     const previousRealisasi = item.realisasiItems ?? [];
     const previousRealisasiSubtotal = previousRealisasi.reduce(
         (s, e) => s + e.totalPrice,
@@ -347,10 +349,10 @@ export function RevisiItemCard({
             {/* Item header */}
             <div>
                 <p className="font-medium text-sm">
-                    {item.itemId}. {item.itemName}
+                    {item.itemId}. {itemMeta.itemName}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                    {item.categoryName}
+                    {itemMeta.categoryName}
                     {item.condition === "RUSAK" && (
                         <span className="ml-2 font-medium text-destructive">
                             Rusak
@@ -362,6 +364,11 @@ export function RevisiItemCard({
                         </span>
                     )}
                 </p>
+                {item.ahoTicketNumber ? (
+                    <Badge variant="outline">
+                        No. tiket AHO: {item.ahoTicketNumber}
+                    </Badge>
+                ) : null}
             </div>
 
             {/* ─── Estimasi & Realisasi ────────────────────────────────── */}

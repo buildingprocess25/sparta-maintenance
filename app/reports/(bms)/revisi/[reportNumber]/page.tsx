@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
 import { formatJakartaDateTime } from "@/lib/time";
+import { getChecklistItemMeta } from "@/lib/checklist-data";
 
 const REVISION_STATUSES = [
     "ESTIMATION_REJECTED_REVISION",
@@ -60,14 +61,15 @@ export default async function RevisiReportPage({
         updatedAt: formatJakartaDateTime(report.updatedAt),
         items: items.map((item) => ({
             itemId: item.itemId,
-            itemName: item.itemName,
-            categoryName: item.categoryName,
+            itemName: item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId,
+            categoryName: item.categoryName || getChecklistItemMeta(item.itemId)?.categoryName || "-",
             condition: item.condition,
             preventiveCondition: item.preventiveCondition,
             handler: item.handler,
             photoUrl: item.photoUrl ?? item.images?.[0] ?? null,
             images: item.images ?? [],
             notes: item.notes ?? null,
+            ahoTicketNumber: item.ahoTicketNumber ?? null,
         })),
         estimations: estimations.map((est) => ({
             itemId: est.itemId,

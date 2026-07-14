@@ -18,7 +18,7 @@ import {
   getReportStatusBadgeClass,
 } from "@/lib/report-status";
 import { formatJakartaDateTime } from "@/lib/time";
-import { checklistCategories } from "@/lib/checklist-data";
+import { checklistCategories, getChecklistItemMeta } from "@/lib/checklist-data";
 import {
   normalizePhotoUrl,
   normalizePhotoUrls,
@@ -53,7 +53,6 @@ function fmt(n: number) {
     maximumFractionDigits: 0,
   }).format(n);
 }
-
 /* ─── Condition indicator ─── */
 function ConditionBadge({
   id,
@@ -225,7 +224,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
 
         {/* ── PDF link ── */}
         {report.status === "COMPLETED" && report.completedPdfPath && (
-          <div className="px-4 pt-3">
+          <div className="px-4 pt-3 mt-4">
             <a
               href={
                 report.completedPdfPath.startsWith("https://")
@@ -324,7 +323,6 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     </div>
   );
 }
-
 /* ═══════════════════════════════════════════════════════════════
    CHECKLIST PANEL — flat list, grouped by category
    No Collapsible. Just section headers + flat rows.
@@ -453,15 +451,20 @@ function ChecklistPanel({
                         </span>
                       </div>
 
-                      {ri?.notes && (
-                        <p className="text-xs text-muted-foreground mt-1 ml-[38px] italic">
-                          {ri.notes}
-                        </p>
+                      {(ri?.notes || ri?.ahoTicketNumber) && (
+                        <div className="text-xs text-muted-foreground mt-1 ml-[38px] flex flex-col gap-1.5">
+                          {ri?.notes && <span className="italic">{ri.notes}</span>}
+                          {ri?.ahoTicketNumber && (
+                            <span className="text-[10px] font-mono bg-muted/50 border border-border/40 w-fit px-1.5 py-0.5 rounded font-medium">
+                              AHO: {ri.ahoTicketNumber}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
 
                     {/* Right: Photos */}
-                    {isDamaged && photos.filter(Boolean).length > 0 && (
+                    {photos.filter(Boolean).length > 0 && (
                       <div className="grid grid-cols-2 gap-1.5 shrink-0 pt-0.5 [direction:rtl]">
                         {photos.filter(Boolean).map((url, idx) => (
                           <button
@@ -706,7 +709,7 @@ function CompletionPanel({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {item.itemName}
+                        {item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId}
                       </p>
                       {real > 0 && (
                         <span className="text-sm font-bold font-mono text-primary shrink-0 ml-2">
@@ -878,37 +881,6 @@ function HistoryPanel({ activities }: { activities: ActivityEntry[] }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   PHOTO ROW — inline photo strip
-   ═══════════════════════════════════════════════════════════════ */
-function PhotoRow({
-  urls,
-  onPhoto,
-}: {
-  urls: string[];
-  onPhoto: (src: string) => void;
-}) {
-  return (
-    <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
-      {urls.map((url, i) => (
-        <button
-          key={i}
-          onClick={() => onPhoto(url)}
-          className="h-14 w-14 rounded-md overflow-hidden border border-border/40 shrink-0 active:scale-95 transition-transform"
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={url}
-            alt={`Foto ${i + 1}`}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        </button>
-      ))}
     </div>
   );
 }

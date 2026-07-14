@@ -271,11 +271,17 @@ function ChecklistRowDetail({
     return (
         <div className="grid gap-3 border-l-4 border-primary/40 px-3 py-3 md:grid-cols-[minmax(0,1fr)_280px]">
             <div className="flex flex-col gap-2">
-                <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-4">
+                <div className="grid gap-2 text-xs sm:grid-cols-2 lg:grid-cols-5">
                     <InfoPill
                         label="Handler"
                         value={formatHandler(row.handler)}
                     />
+                    {row.ahoTicketNumber ? (
+                        <InfoPill
+                            label="No. tiket AHO"
+                            value={row.ahoTicketNumber}
+                        />
+                    ) : null}
                     <InfoPill
                         label="Estimasi"
                         value={formatCurrencyIfPresent(

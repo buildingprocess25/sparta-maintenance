@@ -9,6 +9,7 @@ import {
 } from "@react-pdf/renderer";
 import React from "react";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
+import { resolveChecklistItemMeta } from "@/lib/checklist-data";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -302,6 +303,7 @@ function buildRevisionDocument(data: RevisionPdfData) {
 
     // Build per-item blocks
     const itemBlocks = damagedItems.map((item) => {
+        const itemMeta = resolveChecklistItemMeta(item);
         // Get realisasi rows for this item
         type RealisasiRow = {
             material: string;
@@ -351,25 +353,34 @@ function buildRevisionDocument(data: RevisionPdfData) {
                 React.createElement(
                     Text,
                     { style: s.itemTitle },
-                    item.itemName,
+                    itemMeta.itemName,
                 ),
                 React.createElement(
                     Text,
                     { style: s.itemId },
-                    `[${item.itemId}] ${item.categoryName}`,
+                    `[${item.itemId}] ${itemMeta.categoryName}`,
                 ),
             ),
 
-            // Catatan item (notes)
-            item.notes
+            // Metadata inspeksi
+            item.notes || item.ahoTicketNumber
                 ? React.createElement(
                       View,
                       { style: s.noteBox },
-                      React.createElement(
-                          Text,
-                          { style: s.noteText },
-                          `Catatan Inspeksi: ${item.notes}`,
-                      ),
+                      item.ahoTicketNumber
+                          ? React.createElement(
+                                Text,
+                                { style: s.noteText },
+                                `Nomor Tiket AHO: ${item.ahoTicketNumber}`,
+                            )
+                          : null,
+                      item.notes
+                          ? React.createElement(
+                                Text,
+                                { style: s.noteText },
+                                `Catatan Inspeksi: ${item.notes}`,
+                            )
+                          : null,
                   )
                 : null,
 

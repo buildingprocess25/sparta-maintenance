@@ -21,14 +21,15 @@ export interface MaterialStoreJson {
 
 export interface ReportItemJson {
     itemId: string; // e.g. "A1"
-    itemName: string; // e.g. "Bahu Jalan"
-    categoryName: string; // e.g. "A. Bagian Depan Bangunan"
+    itemName?: string; // e.g. "Bahu Jalan"
+    categoryName?: string; // e.g. "A. Bagian Depan Bangunan"
     condition: "BAIK" | "RUSAK" | "TIDAK_ADA" | null;
     preventiveCondition: "OK" | "NOT_OK" | "TIDAK_ADA" | null;
     handler: "BMS" | "REKANAN" | null;
     photoUrl?: string | null; // Deprecated, use images
     images?: string[]; // New standard for multiple images
     notes?: string | null;
+    ahoTicketNumber?: string | null;
 
     // === Completion data (filled by BMS during penyelesaian pekerjaan) ===
     afterImages?: string[]; // Foto setelah perbaikan

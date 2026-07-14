@@ -12,7 +12,7 @@ import {
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import type { DraftData } from "./types";
-import { draftDataSchema } from "./types";
+import { createResubmitDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 
 /**
@@ -20,14 +20,6 @@ import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
  * Updates the report content and sets status back to PENDING_APPROVAL.
  */
 export async function resubmitReport(reportNumber: string, data: DraftData) {
-    const parsed = draftDataSchema.safeParse(data);
-    if (!parsed.success) {
-        return {
-            error: "Data laporan tidak valid",
-            detail: "Periksa kembali data laporan yang diisi.",
-        };
-    }
-
     try {
         const user = await requireRole("BMS");
 
@@ -36,7 +28,7 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { createdByNIK: true, status: true },
+            select: { createdByNIK: true, status: true, items: true },
         });
 
         if (!report) {
@@ -62,6 +54,23 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
                 : "PENDING_ESTIMATION";
 
         await requireOwnership(report.createdByNIK);
+
+        const existingItemIds = new Set<string>();
+        if (Array.isArray(report.items)) {
+            for (const item of report.items) {
+                const itemId = (item as { itemId?: unknown } | null)?.itemId;
+                if (typeof itemId === "string") existingItemIds.add(itemId);
+            }
+        }
+
+        const parsed = createResubmitDataSchema(existingItemIds).safeParse(data);
+        if (!parsed.success) {
+            return {
+                error: "Data laporan tidak valid",
+                detail: "Periksa kembali data laporan yang diisi.",
+            };
+        }
+        data = parsed.data;
 
         const itemsJson = buildItemsJson(data);
         const estimationsJson = buildEstimationsJson(data);

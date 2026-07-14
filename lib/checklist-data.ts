@@ -11,8 +11,8 @@ export interface ChecklistItem {
     photoKey?: string;
     handler?: "BMS" | "Rekanan" | "";
     notes?: string;
+    ahoTicketNumber?: string;
 }
-
 export interface ChecklistCategory {
     id: string;
     title: string;
@@ -271,6 +271,36 @@ export const unitOptions = [
 
 export const ESTIMATE_UNITS = unitOptions;
 
+// ID dan label checklist menjadi referensi data laporan historis. Jangan mengubah
+// ID atau label yang sudah dipakai tanpa migrasi/versioning katalog.
 export const REPORT_CHECKLIST_ITEMS = checklistCategories.flatMap((c) =>
     c.items.map((i) => ({ ...i, categoryId: c.id, categoryTitle: c.title }))
 );
+
+/**
+ * Helper to get the canonical itemName and categoryName by itemId.
+ * Used as a fallback for existing JSON records that might not have these fields,
+ * and allows us to omit them from future JSON payloads to save space.
+ */
+export function getChecklistItemMeta(itemId: string): { itemName: string; categoryName: string } | undefined {
+    const item = REPORT_CHECKLIST_ITEMS.find((i) => i.id === itemId);
+    if (!item) return undefined;
+    return {
+        itemName: item.name,
+        categoryName: item.categoryTitle,
+    };
+}
+export function resolveChecklistItemMeta(item: {
+    itemId: string;
+    itemName?: string | null;
+    categoryName?: string | null;
+}): { itemName: string; categoryName: string } {
+    const canonical = getChecklistItemMeta(item.itemId);
+    return {
+        itemName: item.itemName?.trim() || canonical?.itemName || item.itemId,
+        categoryName:
+            item.categoryName?.trim() ||
+            canonical?.categoryName ||
+            "Tanpa kategori",
+    };
+}

@@ -77,21 +77,14 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
                     label: getReportStatusLabel(report.status) || report.status,
                     badgeClass: "bg-muted text-muted-foreground",
                 };
-
                 const isCompleted = report.status === "COMPLETED";
-                const driveUrl = report.reportFinalDriveUrl || report.completedPdfPath;
 
                 const href =
-                    isCompleted && driveUrl
-                        ? driveUrl
-                        : report.status === "DRAFT"
-                          ? "/reports/create?restore=1"
-                          : `/reports/${report.reportNumber}`;
+                    report.status === "DRAFT"
+                        ? "/reports/create?restore=1"
+                        : `/reports/${report.reportNumber}`;
 
-                const targetAttrs =
-                    isCompleted && driveUrl
-                        ? { target: "_blank", rel: "noopener noreferrer" }
-                        : {};
+                const targetAttrs = {};
 
                 const storeLabel = report.storeCode
                     ? `${report.storeCode} – ${report.storeName || "—"}`

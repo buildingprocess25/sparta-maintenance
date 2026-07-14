@@ -12,6 +12,7 @@ import {
     type ChecklistCategory,
 } from "@/lib/checklist-data";
 import { loadDraftPhoto, clearDraftPhotos } from "./draft-photo-storage";
+import { serializeChecklistItems } from "./draft-data";
 import type {
     SerializedDraft,
     StoreOption,
@@ -219,6 +220,7 @@ export function useDraft({
                             photoUrl: photoUrl || undefined,
                             photo: restoredFiles[i],
                             notes: item.notes || undefined,
+                            ahoTicketNumber: item.ahoTicketNumber || undefined,
                         });
                     });
 
@@ -300,6 +302,8 @@ export function useDraft({
                             photoKey: item.photoKey || undefined,
                             photo: restoredFiles[i],
                             notes: item.notes || undefined,
+                            ahoTicketNumber:
+                                item.ahoTicketNumber || undefined,
                         });
                     });
 
@@ -414,50 +418,9 @@ export function useDraft({
         if (debouncedChecklist.size === 0 && !debouncedStoreCode) return;
         if (isSubmitting) return;
 
-        const checklistItems = Array.from(debouncedChecklist.values()).map(
-            (item) => {
-                let categoryName = "";
-                let isPreventive = false;
-                for (const cat of activeCategories) {
-                    if (cat.items.some((i) => i.id === item.id)) {
-                        categoryName = cat.title;
-                        isPreventive = !!cat.isPreventive;
-                        break;
-                    }
-                }
-                return {
-                    itemId: item.id,
-                    itemName: item.name,
-                    categoryName,
-                    condition: isPreventive
-                        ? undefined
-                        : item.condition === "baik"
-                          ? ("BAIK" as const)
-                          : item.condition === "rusak"
-                            ? ("RUSAK" as const)
-                            : item.condition === "tidak_ada"
-                              ? ("TIDAK_ADA" as const)
-                              : undefined,
-                    preventiveCondition: isPreventive
-                        ? item.condition === "baik"
-                            ? ("OK" as const)
-                            : item.condition === "rusak"
-                              ? ("NOT_OK" as const)
-                              : item.condition === "tidak_ada"
-                                ? ("TIDAK_ADA" as const)
-                                : undefined
-                        : undefined,
-                    handler:
-                        item.handler === "BMS"
-                            ? ("BMS" as const)
-                            : item.handler === "Rekanan"
-                              ? ("REKANAN" as const)
-                              : undefined,
-                    photoUrl: item.photoUrl,
-                    photoKey: item.photoKey,
-                    notes: item.notes,
-                };
-            },
+        const checklistItems = serializeChecklistItems(
+            debouncedChecklist,
+            activeCategories,
         );
 
         const bmsEstimations: Record<
@@ -518,56 +481,11 @@ export function useDraft({
     ]);
 
     const buildDraftData = useCallback((): DraftData => {
-        const validItemIds = new Set<string>();
-        activeCategories.forEach((cat) =>
-            cat.items.forEach((item) => validItemIds.add(item.id)),
+        const checklistItems = serializeChecklistItems(
+            checklist,
+            activeCategories,
+            { activeOnly: true, completedOnly: true },
         );
-
-        const checklistItems = Array.from(checklist.values())
-            .filter((item) => item.condition && validItemIds.has(item.id))
-            .map((item) => {
-                let categoryName = "";
-                let isPreventive = false;
-                for (const cat of activeCategories) {
-                    if (cat.items.some((i) => i.id === item.id)) {
-                        categoryName = cat.title;
-                        isPreventive = !!cat.isPreventive;
-                        break;
-                    }
-                }
-                return {
-                    itemId: item.id,
-                    itemName: item.name,
-                    categoryName,
-                    condition: isPreventive
-                        ? undefined
-                        : item.condition === "baik"
-                          ? ("BAIK" as const)
-                          : item.condition === "rusak"
-                            ? ("RUSAK" as const)
-                            : item.condition === "tidak_ada"
-                              ? ("TIDAK_ADA" as const)
-                              : undefined,
-                    preventiveCondition: isPreventive
-                        ? item.condition === "baik"
-                            ? ("OK" as const)
-                            : item.condition === "rusak"
-                              ? ("NOT_OK" as const)
-                              : item.condition === "tidak_ada"
-                                ? ("TIDAK_ADA" as const)
-                                : undefined
-                        : undefined,
-                    handler:
-                        item.handler === "BMS"
-                            ? ("BMS" as const)
-                            : item.handler === "Rekanan"
-                              ? ("REKANAN" as const)
-                              : undefined,
-                    photoUrl: item.photoUrl,
-                    photoKey: item.photoKey,
-                    notes: item.notes,
-                };
-            });
 
         const bmsEstimations: Record<
             string,

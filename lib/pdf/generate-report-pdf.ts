@@ -20,6 +20,7 @@ import { resolvePhotoUrl, isGoogleDriveCdnUrl } from "@/lib/storage/photo-url";
 import { logger } from "@/lib/logger";
 import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { getChecklistItemMeta } from "@/lib/checklist-data";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -568,8 +569,9 @@ export type ReportPdfData = {
 function groupItemsByCategory(items: ReportItemJson[]) {
     const groups: Record<string, ReportItemJson[]> = {};
     for (const item of items) {
-        if (!groups[item.categoryName]) groups[item.categoryName] = [];
-        groups[item.categoryName].push(item);
+        const catName = item.categoryName || getChecklistItemMeta(item.itemId)?.categoryName || "Tanpa kategori";
+        if (!groups[catName]) groups[catName] = [];
+        groups[catName].push(item);
     }
     return groups;
 }
@@ -1369,7 +1371,7 @@ function buildReportDocument(
                     const hasIssue =
                         item.condition === "RUSAK" ||
                         item.preventiveCondition === "NOT_OK";
-                    const hasNotes = Boolean(item.handler || item.notes);
+                    const hasNotes = Boolean(item.handler || item.notes || item.ahoTicketNumber);
 
                     return React.createElement(
                         View,
@@ -1403,7 +1405,7 @@ function buildReportDocument(
                                         width: "55%",
                                     },
                                 },
-                                item.itemName,
+                                item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId,
                             ),
                             React.createElement(
                                 Text,
@@ -1452,6 +1454,23 @@ function buildReportDocument(
                                                 "Catatan: ",
                                             ),
                                             item.notes,
+                                        )
+                                      : null,
+                                  item.ahoTicketNumber
+                                      ? React.createElement(
+                                            Text,
+                                            {
+                                                style: {
+                                                    ...ckSubCell,
+                                                    flex: 1,
+                                                },
+                                            },
+                                            React.createElement(
+                                                Text,
+                                                { style: styles.tableSubLabel },
+                                                "AHO: ",
+                                            ),
+                                            item.ahoTicketNumber,
                                         )
                                       : null,
                               )
@@ -1811,7 +1830,7 @@ function buildReportDocument(
                                 React.createElement(
                                     Text,
                                     { style: styles.completionItemTitle },
-                                    item.itemName,
+                                    item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId,
                                 ),
                                 React.createElement(
                                     Text,

@@ -8,9 +8,11 @@ export type ChecklistItemData = {
     photoUrl?: string;
     photoKey?: string;
     notes?: string;
+    ahoTicketNumber?: string;
 };
 
 import { getJakartaMonthWindow, getJakartaYearWindow } from "@/lib/time";
+import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
 
 export type BmsEstimationData = {
     itemName: string;
@@ -120,52 +122,110 @@ export function resolveDateRange(
 
 import { z } from "zod/v4";
 
-const checklistItemSchema = z
-    .object({
-        itemId: z.string().min(1),
-        itemName: z.string().min(1),
-        categoryName: z.string(),
-        condition: z.enum(["BAIK", "RUSAK", "TIDAK_ADA"]).optional(),
-        preventiveCondition: z.enum(["OK", "NOT_OK", "TIDAK_ADA"]).optional(),
-        handler: z.enum(["BMS", "REKANAN"]).optional(),
-        photoUrl: z.string().optional(),
-        photoKey: z.string().optional(),
-        notes: z.string().optional(),
-    })
-    .passthrough()
-    .superRefine((item, ctx) => {
-        const isDamaged =
-            item.condition === "RUSAK" || item.preventiveCondition === "NOT_OK";
-
-        if (isDamaged && !item.notes?.trim()) {
-            ctx.addIssue({
-                code: "custom",
-                path: ["notes"],
-                message: "Catatan wajib diisi untuk item rusak",
-            });
-        }
-    });
+const canonicalChecklistItemIds = new Set(
+    REPORT_CHECKLIST_ITEMS.map((item) => item.id),
+);
 
 const bmsEstimationSchema = z
     .object({
-        itemName: z.string().min(1),
+        itemName: z.string().min(1).max(300),
         quantity: z.number().min(0),
-        unit: z.string().min(1),
+        unit: z.string().min(1).max(50),
         price: z.number().min(0),
         totalPrice: z.number().min(0),
-    })
-    .passthrough();
+    });
 
-export const draftDataSchema = z
-    .object({
-        storeCode: z.string().optional(),
-        storeName: z.string().optional(),
-        branchName: z.string().optional(),
-        checklistItems: z.array(checklistItemSchema),
-        bmsEstimations: z.record(z.string(), z.array(bmsEstimationSchema)),
-        totalEstimation: z.number().optional(),
-    })
-    .passthrough();
+function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
+    const checklistItemSchema = z
+        .object({
+            itemId: z
+                .string()
+                .min(1)
+                .refine((itemId) => allowedItemIds.has(itemId), {
+                    message: "Item checklist tidak dikenal",
+                }),
+            itemName: z.string().min(1).max(300),
+            categoryName: z.string().max(200),
+            condition: z.enum(["BAIK", "RUSAK", "TIDAK_ADA"]).optional(),
+            preventiveCondition: z
+                .enum(["OK", "NOT_OK", "TIDAK_ADA"])
+                .optional(),
+            handler: z.enum(["BMS", "REKANAN"]).optional(),
+            photoUrl: z.string().max(2048).optional(),
+            photoKey: z.string().max(500).optional(),
+            notes: z.string().max(2000).optional(),
+            ahoTicketNumber: z.string().trim().max(100).optional(),
+        })
+        .superRefine((item, ctx) => {
+            const isDamaged =
+                item.condition === "RUSAK" ||
+                item.preventiveCondition === "NOT_OK";
+
+            if (isDamaged && !item.notes?.trim()) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["notes"],
+                    message: "Catatan wajib diisi untuk item rusak",
+                });
+            }
+            if (isDamaged && !item.ahoTicketNumber?.trim()) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["ahoTicketNumber"],
+                    message: "Nomor tiket AHO wajib diisi untuk item rusak",
+                });
+            }
+        });
+
+    return z
+        .object({
+            storeCode: z.string().max(50).optional(),
+            storeName: z.string().max(300).optional(),
+            branchName: z.string().max(200).optional(),
+            checklistItems: z
+                .array(checklistItemSchema)
+                .max(Math.max(1, allowedItemIds.size)),
+            bmsEstimations: z.record(
+                z.string(),
+                z.array(bmsEstimationSchema).max(100),
+            ),
+            totalEstimation: z.number().min(0).optional(),
+        })
+        .superRefine((data, ctx) => {
+            const itemIds = new Set<string>();
+            data.checklistItems.forEach((item, index) => {
+                if (itemIds.has(item.itemId)) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["checklistItems", index, "itemId"],
+                        message: "Item checklist tidak boleh duplikat",
+                    });
+                }
+                itemIds.add(item.itemId);
+            });
+
+            for (const itemId of Object.keys(data.bmsEstimations)) {
+                if (!allowedItemIds.has(itemId)) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["bmsEstimations", itemId],
+                        message:
+                            "Estimasi mengacu ke item checklist tidak dikenal",
+                    });
+                }
+            }
+        });
+}
+
+export const draftDataSchema = buildDraftDataSchema(
+    canonicalChecklistItemIds,
+);
+
+export function createResubmitDataSchema(existingItemIds: ReadonlySet<string>) {
+    return buildDraftDataSchema(
+        new Set([...canonicalChecklistItemIds, ...existingItemIds]),
+    );
+}
 
 export const deleteDraftSchema = z.object({
     reportNumber: z.string().min(1, "Report number wajib diisi"),

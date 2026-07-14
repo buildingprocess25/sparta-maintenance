@@ -75,7 +75,6 @@ export default function CreateReportForm({
     grandTotalBms,
     buildBmsMapFromChecklist,
     addBmsEntryWithDetails,
-    updateBmsEntry,
     updateBmsEntryWithDetails,
     removeBmsEntry,
     validateStep2,
@@ -353,6 +352,9 @@ export default function CreateReportForm({
             }
             onNotesChange={(itemId, itemName, value) =>
               updateChecklistItem(itemId, itemName, "notes", value)
+            }
+            onAhoTicketNumberChange={(itemId, itemName, value) =>
+              updateChecklistItem(itemId, itemName, "ahoTicketNumber", value)
             }
             onHandlerChange={(itemId, itemName, value) =>
               updateChecklistItem(itemId, itemName, "handler", value)

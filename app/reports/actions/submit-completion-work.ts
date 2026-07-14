@@ -16,6 +16,7 @@ import type {
     RealisasiItemJson,
     MaterialStoreJson,
 } from "@/types/report";
+import { cleanReportItemsJson } from "./report-json-helpers";
 
 export interface CompletionItemInput {
     itemId: string;
@@ -196,7 +197,7 @@ export async function submitCompletionWork(
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
                     totalReal: new Prisma.Decimal(totalReal),
-                    items: updatedItems as unknown as Prisma.InputJsonValue,
+                    items: cleanReportItemsJson(updatedItems),
                     startSelfieUrl: startWorkUpdate
                         ? serializeStartWorkSelfieUrls(
                               startWorkUpdate.selfieUrls,

@@ -23,12 +23,12 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
 import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import { LocalNotesTextarea } from "./local-notes-textarea";
+import { LocalAhoInput } from "./local-aho-input";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import {
   type ChecklistItem,
   type ChecklistCondition,
   type ChecklistCategory,
-  REPORT_CHECKLIST_ITEMS,
 } from "@/lib/checklist-data";
 
 interface ChecklistStepProps {
@@ -41,6 +41,7 @@ interface ChecklistStepProps {
     value: ChecklistCondition,
   ) => void;
   onNotesChange: (itemId: string, itemName: string, value: string) => void;
+  onAhoTicketNumberChange: (itemId: string, itemName: string, value: string) => void;
   onHandlerChange: (itemId: string, itemName: string, value: string) => void;
   onOpenCamera: (itemId: string) => void;
   onPreviewPhoto: (photo: File | string) => void;
@@ -67,6 +68,7 @@ export function ChecklistStep({
   checklist,
   onConditionChange,
   onNotesChange,
+  onAhoTicketNumberChange,
   onHandlerChange,
   onOpenCamera,
   onPreviewPhoto,
@@ -473,6 +475,29 @@ export function ChecklistStep({
                                             )
                                           }
                                         />
+                                        <div className="flex flex-col gap-2">
+                                          <Label
+                                            htmlFor={`${item.id}-aho`}
+                                            className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                                          >
+                                            No Tiket AHO{" "}
+                                            <span className="text-destructive">
+                                              *
+                                            </span>
+                                          </Label>
+                                          <LocalAhoInput
+                                            id={`${item.id}-aho`}
+                                            required
+                                            initialValue={itemData?.ahoTicketNumber || ""}
+                                            onCommit={(val) =>
+                                              onAhoTicketNumberChange(
+                                                item.id,
+                                                item.name,
+                                                val,
+                                              )
+                                            }
+                                          />
+                                        </div>
                                       </div>
                                     ) : null}
                                   </div>

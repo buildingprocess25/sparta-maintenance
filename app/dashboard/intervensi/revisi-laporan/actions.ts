@@ -12,6 +12,7 @@ import { buildDriveFolderUrl } from "@/lib/google-drive/archive";
 import { logger } from "@/lib/logger";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
+import { cleanReportItemsJson } from "@/app/reports/actions/report-json-helpers";
 import type {
     MaterialEstimationJson,
     ReportItemJson,
@@ -199,7 +200,7 @@ export async function saveRealisasiRevision(
         await prisma.report.update({
             where: { reportNumber: input.reportNumber },
             data: {
-                items: updatedItems as unknown as object[],
+                items: cleanReportItemsJson(updatedItems),
                 totalReal: newTotalReal,
             },
         });

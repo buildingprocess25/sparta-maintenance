@@ -10,6 +10,7 @@ import {
     normalizePhotoUrls,
     resolvePhotoUrl,
 } from "@/lib/storage/photo-url";
+import { resolveChecklistItemMeta } from "@/lib/checklist-data";
 
 export type ConditionTone = "good" | "bad" | "neutral" | "unknown";
 
@@ -33,6 +34,7 @@ export type ChecklistRow = {
     conditionTone: ConditionTone;
     handler: string | null;
     notes: string | null;
+    ahoTicketNumber: string | null;
     beforePhotos: DetailPhoto[];
     estimationTotal: number;
     realisasiTotal: number;
@@ -190,6 +192,7 @@ export function buildReportDetailModel(
     const estimationsByItem = groupEstimations(input.estimations);
     const sortedItems = [...input.items].sort(compareReportItems);
     const checklistRows = sortedItems.map((item) => {
+        const itemMeta = resolveChecklistItemMeta(item);
         const estimations = estimationsByItem.get(item.itemId) ?? [];
         const condition = getConditionMeta(item);
         const beforePhotos = makeItemPhotos(
@@ -206,18 +209,20 @@ export function buildReportDetailModel(
             beforePhotos.length > 0 ||
             Boolean(item.handler) ||
             Boolean(item.notes?.trim()) ||
+            Boolean(item.ahoTicketNumber?.trim()) ||
             hasEstimation ||
             hasRealisasi ||
             Boolean(item.completionNotes?.trim());
 
         return {
             itemId: item.itemId,
-            itemName: item.itemName,
-            categoryName: item.categoryName || "Tanpa kategori",
+            itemName: itemMeta.itemName,
+            categoryName: itemMeta.categoryName,
             conditionLabel: condition.label,
             conditionTone: condition.tone,
             handler: item.handler,
             notes: item.notes ?? null,
+            ahoTicketNumber: item.ahoTicketNumber?.trim() || null,
             beforePhotos,
             estimationTotal,
             realisasiTotal,
@@ -275,6 +280,7 @@ function buildWorkItem(
 
     if (!shouldInclude) return null;
 
+    const itemMeta = resolveChecklistItemMeta(item);
     const condition = getConditionMeta(item);
     const repairedCondition = getRepairedConditionMeta();
     const estimationTotal = sumEstimation(estimations);
@@ -286,8 +292,8 @@ function buildWorkItem(
 
     return {
         itemId: item.itemId,
-        itemName: item.itemName,
-        categoryName: item.categoryName || "Tanpa kategori",
+        itemName: itemMeta.itemName,
+        categoryName: itemMeta.categoryName,
         conditionLabel: condition.label,
         conditionTone: condition.tone,
         handler: item.handler,
@@ -373,19 +379,20 @@ function makeItemPhotos(
     source: string,
     condition: { label: string; tone: ConditionTone },
 ): DetailPhoto[] {
+    const itemMeta = resolveChecklistItemMeta(item);
     return urls
         .map(resolvePhotoUrl)
         .filter((url) => url.length > 0)
         .map((url, index) => ({
             id: `${source}-${item.itemId}-${index}-${url}`,
             url,
-            label: `${item.itemId} - ${item.itemName}`,
+            label: `${item.itemId} - ${itemMeta.itemName}`,
             source,
             conditionLabel: condition.label,
             conditionTone: condition.tone,
             itemId: item.itemId,
-            itemName: item.itemName,
-            categoryName: item.categoryName,
+            itemName: itemMeta.itemName,
+            categoryName: itemMeta.categoryName,
         }));
 }
 

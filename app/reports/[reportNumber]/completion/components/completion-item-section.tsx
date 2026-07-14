@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   Edit2,
   MoreVertical,
-  Plus,
   PlusCircle,
   Trash2,
   ChevronDown,
@@ -37,7 +36,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { unitOptions } from "@/lib/checklist-data";
+import { unitOptions, getChecklistItemMeta } from "@/lib/checklist-data";
 import { cn } from "@/lib/utils";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 import {
@@ -122,10 +121,10 @@ export function CompletionItemSection({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 text-left">
                   <h2 className="text-sm font-semibold">
-                    {item.itemId}. {item.itemName}
+                    {item.itemId}. {item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId}
                   </h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    {item.categoryName}
+                    {item.categoryName || getChecklistItemMeta(item.itemId)?.categoryName || "-"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

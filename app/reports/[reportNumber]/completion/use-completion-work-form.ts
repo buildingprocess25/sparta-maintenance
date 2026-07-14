@@ -10,6 +10,7 @@ import {
     type ChangeEvent,
 } from "react";
 import { useRouter } from "next/navigation";
+import { getChecklistItemMeta } from "@/lib/checklist-data";
 import { toast } from "sonner";
 
 import {
@@ -17,7 +18,7 @@ import {
     type CompletionItemInput,
     type StartWorkRevisionInput,
 } from "@/app/reports/actions/submit-completion-work";
-import { getCompletionEvidenceErrors, type CompletionEvidenceError } from "@/lib/completion-evidence";
+import { getCompletionEvidenceErrors } from "@/lib/completion-evidence";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import {
@@ -418,7 +419,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
                 const state = itemStates.get(item.itemId);
                 return {
                     itemId: item.itemId,
-                    itemName: item.itemName,
+                    itemName: item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId,
                     afterPhotoCount: state?.afterPhotos.length ?? 0,
                     realisasiEntries: state?.realisasiEntries ?? [],
                     discountAmount: state?.discountAmount ?? 0,
@@ -649,7 +650,6 @@ export function useCompletionWorkForm(report: CompletionReport) {
         autosave,
         damagedItems,
         globalNotes,
-        isZeroCost,
         itemStates,
         reportNumber,
         router,
@@ -661,6 +661,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         startWorkSelfiePhotos,
         startWorkSkipPhotos,
         uploadPhoto,
+        validationErrors.length,
     ]);
 
     return {

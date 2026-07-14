@@ -181,6 +181,15 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                         scrollToItem(item.id);
                         return false;
                     }
+                    if (!item.ahoTicketNumber?.trim()) {
+                        toast.error(
+                            `Item "${item.name}" rusak wajib isi nomor tiket AHO`,
+                        );
+                        if (cat && !openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
                     if (!item.photo && !item.photoUrl) {
                         toast.error(
                             `Item "${item.name}" rusak wajib upload foto`,
@@ -235,6 +244,15 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                         if (!checkedItem.notes?.trim()) {
                             toast.error(
                                 `Item "${item.name}" rusak wajib isi catatan`,
+                            );
+                            if (!openCategories.has(cat.id))
+                                toggleCategory(cat.id);
+                            scrollToItem(item.id);
+                            return false;
+                        }
+                        if (!checkedItem.ahoTicketNumber?.trim()) {
+                            toast.error(
+                                `Item "${item.name}" rusak wajib isi nomor tiket AHO`,
                             );
                             if (!openCategories.has(cat.id))
                                 toggleCategory(cat.id);
