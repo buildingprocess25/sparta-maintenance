@@ -1,0 +1,43 @@
+name: Sync Store Master Data
+
+on:
+  schedule:
+    # Daily at 01:00 WIB (18:00 UTC).
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync-store-master-data
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync stores from Google Sheets
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_POOL_MAX: "2"
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+          GOOGLE_STORE_SPREADSHEET_ID: ${{ secrets.GOOGLE_STORE_SPREADSHEET_ID }}
+          GOOGLE_STORE_SHEET_RANGE: ${{ vars.GOOGLE_STORE_SHEET_RANGE }}
+        run: npm run sync:stores

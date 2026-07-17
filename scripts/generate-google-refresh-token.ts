@@ -7,6 +7,7 @@ const REDIRECT_URI = `http://127.0.0.1:${PORT}/oauth2/callback`;
 const SCOPES = [
     "https://mail.google.com/",
     "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets.readonly",
 ];
 
 function requiredEnv(name: string): string {
