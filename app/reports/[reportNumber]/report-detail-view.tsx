@@ -129,10 +129,12 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
     : null;
 
   /* CTA logic */
-  const canStartWork =
+  const canReviseEstimation =
     viewer.role === "BMS" &&
-    (report.status === "ESTIMATION_APPROVED" ||
-      report.status === "ESTIMATION_REJECTED_REVISION");
+    (report.status === "ESTIMATION_REJECTED_REVISION" ||
+      report.status === "REVIEW_REJECTED_REVISION");
+  const canStartWork =
+    viewer.role === "BMS" && report.status === "ESTIMATION_APPROVED";
   const canSubmitCompletion =
     viewer.role === "BMS" &&
     (report.status === "IN_PROGRESS" ||
@@ -268,9 +270,17 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
       </main>
 
       {/* ── Sticky CTA ── */}
-      {(canStartWork || canSubmitCompletion) && (
+      {(canStartWork || canSubmitCompletion || canReviseEstimation) && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border/60 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
-          <div className="mx-auto max-w-lg">
+          <div className="mx-auto max-w-lg flex flex-col gap-2">
+            {canReviseEstimation && (
+              <Button asChild size="lg" className="w-full" variant="outline">
+                <Link href={`/reports/revisi/${report.reportNumber}`} className="text-amber-600 hover:text-amber-700">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Revisi Estimasi
+                </Link>
+              </Button>
+            )}
             {canStartWork && (
               <Button asChild size="lg" className="w-full">
                 <Link href={`/reports/${report.reportNumber}/start`}>
@@ -283,7 +293,7 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
               <Button
                 asChild
                 size="lg"
-                className="w-full bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
               >
                 <Link href={`/reports/${report.reportNumber}/completion`}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />

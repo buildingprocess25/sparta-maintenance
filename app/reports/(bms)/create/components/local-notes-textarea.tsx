@@ -47,7 +47,6 @@ export function LocalNotesTextarea({
 
     return (
         <Textarea
-            autoFocus
             aria-required={required}
             placeholder={
                 required ? "Tambahkan catatan wajib..." : "Tambahkan catatan..."
