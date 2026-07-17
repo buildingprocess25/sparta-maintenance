@@ -39,7 +39,7 @@ ENV GOOGLE_DRIVE_ROOT_FOLDER_ID=build-folder-id
 
 RUN npm run build
 
-FROM node:22-bookworm-slim AS runner
+FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
