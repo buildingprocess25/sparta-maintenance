@@ -108,6 +108,7 @@ model User {
   areaNames          String[]      @default([])
   passwordHash       String?       // null = legacy user, login pakai branch name
   mustChangePassword Boolean       @default(true) // true = paksa ganti password saat login
+  spartaUserId       String?       @unique // ID user dari SPARTA Portal (nullable = belum terhubung SSO)
   deletedAt          DateTime?     @db.Timestamptz(3)
   deletedByNIK       String?
   
@@ -120,6 +121,7 @@ model User {
   pushSubscriptions     PushSubscription[]
 
   @@index([deletedAt])
+  @@index([spartaUserId])
 }
 
 model GoogleDriveFolderCache {
