@@ -8,6 +8,7 @@ import {
   Printer,
   WrenchIcon,
   CheckCircle2,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
@@ -18,7 +19,10 @@ import {
   getReportStatusBadgeClass,
 } from "@/lib/report-status";
 import { formatJakartaDateTime } from "@/lib/time";
-import { checklistCategories, getChecklistItemMeta } from "@/lib/checklist-data";
+import {
+  checklistCategories,
+  getChecklistItemMeta,
+} from "@/lib/checklist-data";
 import {
   normalizePhotoUrl,
   normalizePhotoUrls,
@@ -130,15 +134,13 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
 
   /* CTA logic */
   const canReviseEstimation =
-    viewer.role === "BMS" &&
-    (report.status === "ESTIMATION_REJECTED_REVISION" ||
-      report.status === "REVIEW_REJECTED_REVISION");
+    viewer.role === "BMS" && report.status === "ESTIMATION_REJECTED_REVISION";
   const canStartWork =
     viewer.role === "BMS" && report.status === "ESTIMATION_APPROVED";
   const canSubmitCompletion =
-    viewer.role === "BMS" &&
-    (report.status === "IN_PROGRESS" ||
-      report.status === "REVIEW_REJECTED_REVISION");
+    viewer.role === "BMS" && report.status === "IN_PROGRESS";
+  const canReviseCompletion =
+    viewer.role === "BMS" && report.status === "REVIEW_REJECTED_REVISION";
 
   return (
     <div className="min-h-svh bg-background">
@@ -270,14 +272,39 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
       </main>
 
       {/* ── Sticky CTA ── */}
-      {(canStartWork || canSubmitCompletion || canReviseEstimation) && (
+      {(canStartWork ||
+        canSubmitCompletion ||
+        canReviseEstimation ||
+        canReviseCompletion) && (
         <div className="fixed bottom-0 inset-x-0 z-40 bg-background/80 backdrop-blur-xl border-t border-border/60 p-4 pb-[calc(env(safe-area-inset-bottom)+1rem)]">
           <div className="mx-auto max-w-lg flex flex-col gap-2">
             {canReviseEstimation && (
-              <Button asChild size="lg" className="w-full" variant="outline">
-                <Link href={`/reports/revisi/${report.reportNumber}`} className="text-amber-600 hover:text-amber-700">
-                  <AlertTriangle className="h-4 w-4 mr-2" />
-                  Revisi Estimasi
+              <Button
+                asChild
+                size="lg"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white border-0"
+              >
+                <Link
+                  href={`/reports/revisi/${report.reportNumber}`}
+                  className="flex items-center justify-center w-full"
+                >
+                  Revisi Checklist & Estimasi
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Link>
+              </Button>
+            )}
+            {canReviseCompletion && (
+              <Button
+                asChild
+                size="lg"
+                className="w-full bg-orange-600 hover:bg-orange-700 text-white border-0"
+              >
+                <Link
+                  href={`/reports/${report.reportNumber}/completion`}
+                  className="flex items-center justify-center w-full"
+                >
+                  Revisi Pekerjaan
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
               </Button>
             )}
@@ -463,7 +490,9 @@ function ChecklistPanel({
 
                       {(ri?.notes || ri?.ahoTicketNumber) && (
                         <div className="text-xs text-muted-foreground mt-1 ml-[38px] flex flex-col gap-1.5">
-                          {ri?.notes && <span className="italic">{ri.notes}</span>}
+                          {ri?.notes && (
+                            <span className="italic">{ri.notes}</span>
+                          )}
                           {ri?.ahoTicketNumber && (
                             <span className="text-[10px] font-mono bg-muted/50 border border-border/40 w-fit px-1.5 py-0.5 rounded font-medium">
                               AHO: {ri.ahoTicketNumber}
@@ -719,7 +748,9 @@ function CompletionPanel({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <p className="text-sm font-medium text-foreground truncate">
-                        {item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId}
+                        {item.itemName ||
+                          getChecklistItemMeta(item.itemId)?.itemName ||
+                          item.itemId}
                       </p>
                       {real > 0 && (
                         <span className="text-sm font-bold font-mono text-primary shrink-0 ml-2">
