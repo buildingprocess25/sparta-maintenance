@@ -140,7 +140,7 @@ export function BmsEstimationStep({
     setIsEstimateDialogOpen(true);
   };
 
-  const quantityNum = parseInt(estimateDraft.quantity, 10);
+  const quantityNum = parseFloat(estimateDraft.quantity);
   const priceNum = parseInt(estimateDraft.unitPrice, 10);
   const canSaveEstimateItem =
     !!estimateDraft.checklistItemId &&
@@ -489,7 +489,8 @@ export function BmsEstimationStep({
                 <Input
                   id="estimate-quantity"
                   type="number"
-                  min={1}
+                  min={0}
+                  step="any"
                   value={estimateDraft.quantity}
                   onChange={(event) =>
                     setEstimateDraft((current) => ({

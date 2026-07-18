@@ -32,6 +32,12 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ env.REPO }}:latest
+          build-args: |
+            NEXT_PUBLIC_APP_URL=${{ vars.NEXT_PUBLIC_APP_URL }}
+            NEXT_PUBLIC_NOTIFICATIONS_ENABLED=${{ vars.NEXT_PUBLIC_NOTIFICATIONS_ENABLED }}
+            NEXT_PUBLIC_WEB_PUSH_ENABLED=${{ vars.NEXT_PUBLIC_WEB_PUSH_ENABLED }}
+            NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED=${{ vars.NEXT_PUBLIC_NOTIFICATION_GATE_REQUIRED }}
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
 
       - name: Trigger Dokploy Webhook
         run: curl -X POST ${{ secrets.DOKPLOY_WEBHOOK }}

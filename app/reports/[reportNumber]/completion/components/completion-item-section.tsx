@@ -492,6 +492,7 @@ function RealisasiEditor({
                   <Input
                     type="number"
                     min="0"
+                    step="any"
                     inputMode="decimal"
                     value={
                       draftEntry.quantity === "" ? "" : draftEntry.quantity
