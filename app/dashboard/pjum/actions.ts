@@ -13,6 +13,7 @@ import { deletePdfSnapshots } from "@/lib/pdf/snapshot-storage";
 import { getPjumPolicySettings } from "@/lib/app-settings";
 import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { getJakartaDateRange } from "@/lib/time";
+import { lockBmsPeriodForPjum } from "@/lib/balance";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -470,6 +471,9 @@ export async function createDashboardPjum(input: {
                 },
             });
         });
+
+        // Lock BMS period for the created PJUM
+        await lockBmsPeriodForPjum(bmsNIK, pjumExport.id);
 
         revalidatePath("/dashboard/pjum");
         revalidatePath(`/dashboard/pjum/${pjumExport.id}`);

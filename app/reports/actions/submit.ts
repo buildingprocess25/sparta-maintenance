@@ -14,6 +14,12 @@ import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
+import {
+    validateEstimationLimit,
+    getBmsActivePeriod,
+    hasBmsRepairItems,
+    createNewBmsPeriod,
+} from "@/lib/balance";
 
 /** Kuartal: 0=Q1, 1=Q2, 2=Q3, 3=Q4 */
 function getQuarter(d: Date): number {
@@ -102,6 +108,30 @@ export async function submitReport(data: DraftData) {
         const itemsJson = buildItemsJson({ ...data, checklistItems });
         const estimationsJson = buildEstimationsJson(data);
 
+        // ── Balance Validation ────────────────────────────────────────────────
+        // Cek apakah estimasi ini mengandung item BMS (rusak + handler BMS)
+        const hasBalanceImpact = hasBmsRepairItems(itemsJson);
+        let activePeriodId: string | null = null;
+
+        if (hasBalanceImpact) {
+            const balanceError = await validateEstimationLimit(
+                user.NIK,
+                data.totalEstimation || 0,
+            );
+            if (balanceError) {
+                return { error: balanceError };
+            }
+
+            // Pastikan ada periode aktif, buat jika belum ada
+            const period = await getBmsActivePeriod(user.NIK);
+            if (!period) {
+                const newPeriod = await createNewBmsPeriod(user.NIK);
+                activePeriodId = newPeriod.id;
+            } else {
+                activePeriodId = period.id;
+            }
+        }
+
         // Always get the store to generate the correct sequence prefix
         const store = data.storeCode
             ? await prisma.store.findUnique({
@@ -131,6 +161,7 @@ export async function submitReport(data: DraftData) {
                     estimations: estimationsJson,
                     drivePhotoFileIds:
                         drivePhotoFileIds as unknown as Prisma.InputJsonValue,
+                    balancePeriodId: activePeriodId,
                 },
             });
 

@@ -28,6 +28,7 @@ import {
     uploadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
+import { resetBmsBalanceAfterPjumApproval } from "@/lib/balance";
 
 function isGoogleDriveUrl(value: string | null | undefined): value is string {
     return (
@@ -475,6 +476,9 @@ export async function approvePjumExport(input: {
                     uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
             },
         });
+
+        // Reset BMS balance for the next period
+        await resetBmsBalanceAfterPjumApproval(pjumExport.bmsNIK, pjumExport.id);
 
         dispatchNotificationEvent({
             type: "PJUM_APPROVED",

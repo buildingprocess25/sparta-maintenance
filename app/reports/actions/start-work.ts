@@ -8,6 +8,7 @@ import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { isBmsLockedByPjum } from "@/lib/balance";
 
 /**
  * BMS starts working on an approved report.
@@ -31,6 +32,15 @@ export async function startWork(reportNumber: string) {
 
     if (report.createdByNIK !== user.NIK) {
       return { error: "Anda tidak memiliki akses ke laporan ini" };
+    }
+
+    // ── PJUM Lock Check ───────────────────────────────────────────────────────────────
+    const isLocked = await isBmsLockedByPjum(user.NIK);
+    if (isLocked) {
+      return {
+        error:
+          "Saldo operasional Anda sedang terkunci karena ada PJUM yang menunggu persetujuan BNM Manager. Harap tunggu hingga PJUM diproses sebelum memulai pekerjaan baru.",
+      };
     }
 
     if (report.status !== ReportStatus.ESTIMATION_APPROVED) {

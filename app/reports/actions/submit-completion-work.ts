@@ -17,6 +17,7 @@ import type {
     MaterialStoreJson,
 } from "@/types/report";
 import { cleanReportItemsJson } from "./report-json-helpers";
+import { calculateBmsBalance, hasBmsRepairItems } from "@/lib/balance";
 
 export interface CompletionItemInput {
     itemId: string;
@@ -61,6 +62,7 @@ export async function submitCompletionWork(
     notes?: string,
     completionFileIds: string[] = [],
     startWorkRevision?: StartWorkRevisionInput,
+    unexpectedCostNotes?: string,
 ) {
     try {
         const user = await requireRole("BMS");
@@ -191,6 +193,22 @@ export async function submitCompletionWork(
 
         const totalReal = calculateTotalRealisasiFromItems(updatedItems);
 
+        // ── Balance Overrun Check ──────────────────────────────────────────────────
+        const hasBalanceImpact = hasBmsRepairItems(updatedItems);
+        if (hasBalanceImpact) {
+            const balance = await calculateBmsBalance(report.createdByNIK);
+            if (totalReal > balance.availableBalance) {
+                // Realisasi melebihi saldo — wajib isi catatan biaya tak terduga
+                const safeCostNotes = unexpectedCostNotes?.trim();
+                if (!safeCostNotes) {
+                    return {
+                        error:
+                            "Realisasi biaya melebihi sisa saldo operasional. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
+                    };
+                }
+            }
+        }
+
         await prisma.$transaction([
             prisma.report.update({
                 where: { reportNumber },
@@ -216,6 +234,7 @@ export async function submitCompletionWork(
                             []) as unknown as Prisma.InputJsonValue,
                     completionAdditionalNote:
                         additionalDocumentation?.note?.trim() || null,
+                    unexpectedCostNotes: unexpectedCostNotes?.trim() || null,
                     // Append new Drive file IDs
                     drivePhotoFileIds:
                         mergedFileIds as unknown as Prisma.InputJsonValue,
