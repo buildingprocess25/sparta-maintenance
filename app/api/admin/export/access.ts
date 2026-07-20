@@ -16,13 +16,13 @@ export function resolveLimitedExportScope(input: {
     selectedBranches: string[];
     assignedBranches: string[];
 }): LimitedExportScopeResult {
-    const { role, requestedSheets, selectedBranches, assignedBranches } = input;
+    const { requestedSheets, selectedBranches, assignedBranches } = input;
     const requestedSheet =
         requestedSheets.length === 1 ? requestedSheets[0] : undefined;
     const isAllowedSheet =
         requestedSheet === "reports" ||
         requestedSheet === "pjum" ||
-        (role === "BMC" && requestedSheet === "preventive");
+        requestedSheet === "preventive";
 
     if (!isAllowedSheet) {
         return { ok: false, status: 403, error: "Forbidden" };

@@ -71,10 +71,10 @@ assert.deepEqual(
     resolveLimitedExportScope({
         role: "BNM_MANAGER",
         requestedSheets: ["preventive"],
-        selectedBranches: ["BRANCH A"],
+        selectedBranches: [],
         assignedBranches,
     }),
-    { ok: false, status: 403, error: "Forbidden" },
+    { ok: true, branchNames: ["BRANCH A", "BRANCH B"] },
 );
 
 console.log("limited export access assertions passed");
