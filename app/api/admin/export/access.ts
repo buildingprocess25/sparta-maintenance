@@ -28,14 +28,6 @@ export function resolveLimitedExportScope(input: {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
-    if (requestedSheet === "preventive" && selectedBranches.length !== 1) {
-        return {
-            ok: false,
-            status: 400,
-            error: "Pilih satu cabang untuk ekspor preventif",
-        };
-    }
-
     const branchNames =
         selectedBranches.length > 0
             ? selectedBranches

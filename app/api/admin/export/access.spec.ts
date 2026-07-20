@@ -64,11 +64,7 @@ assert.deepEqual(
         selectedBranches: [],
         assignedBranches,
     }),
-    {
-        ok: false,
-        status: 400,
-        error: "Pilih satu cabang untuk ekspor preventif",
-    },
+    { ok: true, branchNames: ["BRANCH A", "BRANCH B"] },
 );
 
 assert.deepEqual(

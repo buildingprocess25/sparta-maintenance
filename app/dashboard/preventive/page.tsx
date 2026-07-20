@@ -45,7 +45,7 @@ export default async function AdminPreventivePage() {
                 user.role === "ADMIN" || user.role === "BMC" ? (
                     <ExportPreventiveDialog
                         branches={branches}
-                        allowAllBranches={isAdmin}
+                        showBranchFilter={isAdmin}
                     />
                 ) : null
             }

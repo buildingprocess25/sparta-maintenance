@@ -26,28 +26,22 @@ import { getJakartaYear } from "@/lib/time";
 
 export function ExportPreventiveDialog({
     branches,
-    allowAllBranches = true,
+    showBranchFilter = true,
 }: {
     branches: string[];
-    allowAllBranches?: boolean;
+    showBranchFilter?: boolean;
 }) {
     const currentYear = getJakartaYear();
-    const defaultBranch = allowAllBranches ? "all" : (branches[0] ?? "");
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
     // Filters for export
     const [storeQuery, setStoreQuery] = useState("");
-    const [selectedBranch, setSelectedBranch] = useState<string>(defaultBranch);
+    const [selectedBranch, setSelectedBranch] = useState<string>("all");
     const [year, setYear] = useState<number>(currentYear);
     const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
 
     const handleExport = async () => {
-        if (!selectedBranch) {
-            toast.error("Silakan pilih cabang untuk diekspor");
-            return;
-        }
-
         setIsLoading(true);
         const toastId = toast.loading(
             "Menyiapkan file ekspor Checklist Preventif...",
@@ -61,7 +55,7 @@ export function ExportPreventiveDialog({
                     filter: {
                         searchQuery: storeQuery || undefined,
                         branchName:
-                            selectedBranch === "all"
+                            !showBranchFilter || selectedBranch === "all"
                                 ? undefined
                                 : [selectedBranch],
                         year: year,
@@ -87,7 +81,12 @@ export function ExportPreventiveDialog({
                 selectedQuarter === "all"
                     ? "Semua_Triwulan"
                     : `TW${selectedQuarter}`;
-            a.download = `Rekap_Preventif_${selectedBranch === "all" ? "Semua_Cabang" : selectedBranch}_Tahun_${year}_${quarterName}.xlsx`;
+            const branchName = showBranchFilter
+                ? selectedBranch === "all"
+                    ? "Semua_Cabang"
+                    : selectedBranch
+                : "Cabang_Akun";
+            a.download = `Rekap_Preventif_${branchName}_Tahun_${year}_${quarterName}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -124,29 +123,29 @@ export function ExportPreventiveDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <Label>Cabang</Label>
-                        <Select
-                            value={selectedBranch}
-                            onValueChange={setSelectedBranch}
-                        >
-                            <SelectTrigger className="w-full text-sm h-10">
-                                <SelectValue placeholder="Pilih Cabang" />
-                            </SelectTrigger>
-                            <SelectContent className="max-h-60">
-                                {allowAllBranches && (
+                    {showBranchFilter ? (
+                        <div className="grid gap-2">
+                            <Label>Cabang</Label>
+                            <Select
+                                value={selectedBranch}
+                                onValueChange={setSelectedBranch}
+                            >
+                                <SelectTrigger className="w-full text-sm h-10">
+                                    <SelectValue placeholder="Pilih Cabang" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
                                     <SelectItem value="all">
                                         Semua Cabang
                                     </SelectItem>
-                                )}
-                                {branches.map((b) => (
-                                    <SelectItem key={b} value={b}>
-                                        {b}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                                    {branches.map((b) => (
+                                        <SelectItem key={b} value={b}>
+                                            {b}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
                     <div className="grid gap-2">
                         <Label>Tahun</Label>
                         <Select
@@ -206,10 +205,7 @@ export function ExportPreventiveDialog({
                     <Button variant="outline" onClick={() => setOpen(false)}>
                         Batal
                     </Button>
-                    <Button
-                        onClick={handleExport}
-                        disabled={isLoading || !selectedBranch}
-                    >
+                    <Button onClick={handleExport} disabled={isLoading}>
                         {isLoading && (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         )}

@@ -102,7 +102,12 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             user={user}
             title="Laporan Maintenance"
             breadcrumbs={[{ label: "Laporan Maintenance" }]}
-            headerActions={<ExportReportsDialog branches={branches} />}
+            headerActions={
+                <ExportReportsDialog
+                    branches={branches}
+                    showBranchFilter={user.role === "ADMIN"}
+                />
+            }
             contentClassName="h-full"
         >
             <AdminReportsTable
