@@ -64,6 +64,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
     const [globalNotes, setGlobalNotes] = useState(
         report.completionNotes?.trim() || "",
     );
+    const [unexpectedCostNotes, setUnexpectedCostNotes] = useState("");
     const [additionalDocumentationPhotos, setAdditionalDocumentationPhotos] =
         useState<LocalPhoto[]>(() =>
             report.completionAdditionalPhotos.map((url, idx) =>
@@ -131,6 +132,9 @@ export function useCompletionWorkForm(report: CompletionReport) {
             }, 0),
         [damagedItems, itemStates],
     );
+
+    // True jika total realisasi melebihi saldo estimasi awal — warning + catatan wajib
+    const isOverBudget = grandTotal > totalEstimation && totalEstimation > 0;
 
     const buildDraftData = useCallback(
         (): CompletionDraftData => ({
@@ -460,9 +464,18 @@ export function useCompletionWorkForm(report: CompletionReport) {
             }
         }
 
+        // Catatan biaya tak terduga wajib diisi jika realisasi melebihi estimasi
+        if (isOverBudget && !unexpectedCostNotes.trim()) {
+            errs.push({
+                id: "unexpected-cost-notes",
+                message: "Catatan Biaya Tak Terduga wajib diisi karena realisasi biaya melebihi estimasi awal.",
+            });
+        }
+
         return errs;
     }, [
         damagedItems,
+        isOverBudget,
         itemStates,
         shouldReviseStartWork,
         startWorkSkipPhotos,
@@ -470,7 +483,8 @@ export function useCompletionWorkForm(report: CompletionReport) {
         startWorkSelfiePhotos.length,
         startWorkMaterialStorePhotos.length,
         startWorkReceiptPhotos.length,
-        startWorkMaterialStores
+        startWorkMaterialStores,
+        unexpectedCostNotes,
     ]);
 
     const handleSubmit = useCallback(() => {
@@ -627,6 +641,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
                 globalNotes.trim() || undefined,
                 completionFileIds,
                 startWorkRevision,
+                unexpectedCostNotes.trim() || undefined,
             );
 
             if (result.error) {
@@ -650,6 +665,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         autosave,
         damagedItems,
         globalNotes,
+        isOverBudget,
         itemStates,
         reportNumber,
         router,
@@ -660,6 +676,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         startWorkReceiptPhotos,
         startWorkSelfiePhotos,
         startWorkSkipPhotos,
+        unexpectedCostNotes,
         uploadPhoto,
         validationErrors.length,
     ]);
@@ -679,6 +696,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         handleStartWorkStoreChange,
         handleStartWorkStoreGalleryChange,
         handleSubmit,
+        isOverBudget,
         validationErrors,
         isPending,
         isRestoringDraft,
@@ -696,6 +714,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         setStartWorkReceiptPhotos,
         setStartWorkSelfiePhotos,
         setStartWorkSkipPhotos,
+        setUnexpectedCostNotes,
         shouldReviseStartWork,
         startWorkMaterialStorePhotos,
         startWorkMaterialStores,
@@ -704,6 +723,7 @@ export function useCompletionWorkForm(report: CompletionReport) {
         startWorkSkipPhotos,
         startWorkStoreGalleryInputRef,
         totalEstimation,
+        unexpectedCostNotes,
         updateItemState,
     };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, SendHorizonal, Wrench, X } from "lucide-react";
+import { AlertCircle, AlertTriangle, Loader2, SendHorizonal, Wrench, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
@@ -52,6 +52,7 @@ export function CompletionClient({
     handleStartWorkStoreChange,
     handleStartWorkStoreGalleryChange,
     handleSubmit,
+    isOverBudget,
     validationErrors,
     isPending,
     isRestoringDraft,
@@ -69,6 +70,7 @@ export function CompletionClient({
     setStartWorkReceiptPhotos,
     setStartWorkSelfiePhotos,
     setStartWorkSkipPhotos,
+    setUnexpectedCostNotes,
     shouldReviseStartWork,
     startWorkMaterialStorePhotos,
     startWorkMaterialStores,
@@ -77,6 +79,7 @@ export function CompletionClient({
     startWorkSkipPhotos,
     startWorkStoreGalleryInputRef,
     totalEstimation,
+    unexpectedCostNotes,
     updateItemState,
   } = useCompletionWorkForm(report);
 
@@ -157,6 +160,35 @@ export function CompletionClient({
             />
           </div>
         </section>
+
+        {/* ── Warning: Realisasi Melebihi Estimasi ─────────────────────── */}
+        {isOverBudget && (
+          <section
+            id="unexpected-cost-notes"
+            className="mt-4 rounded-xl border border-amber-400/60 bg-amber-50 p-4 dark:border-amber-500/40 dark:bg-amber-950/30"
+          >
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+                  ⚠️ Realisasi biaya melebihi estimasi awal!
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
+                  Total realisasi ({formatCurrency(grandTotal)}) melampaui estimasi ({formatCurrency(totalEstimation)}).
+                  Anda tetap dapat mengirim laporan, namun <strong>wajib mengisi catatan biaya tak terduga</strong> di bawah ini.
+                </p>
+                <textarea
+                  id="unexpected-cost-notes-input"
+                  className="mt-3 w-full resize-none rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-amber-400 dark:border-amber-600 dark:bg-amber-950/50"
+                  rows={3}
+                  placeholder="Jelaskan penyebab kenaikan biaya, misal: penggantian komponen tambahan, material langka, dll."
+                  value={unexpectedCostNotes}
+                  onChange={(e) => setUnexpectedCostNotes(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+        )}
 
         {shouldReviseStartWork && (
           <StartWorkRevisionSection

@@ -5,6 +5,8 @@ import { ApprovalReportsList } from "./_components/approval-reports-list";
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { BmsMobileReportsList } from "./_components/bms-mobile-reports-list";
 import type { DateRangeFilter } from "./actions/types";
+import { calculateBmsBalance } from "@/lib/balance";
+import { BmsBalanceCard } from "@/components/bms-balance-card";
 
 type ReportsPageProps = {
     searchParams: Promise<{
@@ -118,6 +120,9 @@ export default async function ReportsPage(props: ReportsPageProps) {
     }));
 
     // ── BMS → Mobile-first layout with BmsMobilePage ─────────────────────────
+    // Fetch balance info for BMS user
+    const balanceInfo = await calculateBmsBalance(user.NIK);
+
     const userInitials = user.name
         .split(" ")
         .slice(0, 2)
@@ -126,6 +131,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
 
     return (
         <BmsMobilePage navItem="reports" title="Laporan Saya" userInitials={userInitials}>
+            <BmsBalanceCard balance={balanceInfo} className="mb-4" />
             <BmsMobileReportsList
                 reports={serializedReports}
                 total={total}

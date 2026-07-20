@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import { getStoresByBranch, getDraft } from "@/app/reports/actions";
+import { calculateBmsBalance } from "@/lib/balance";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "./create-form";
 
@@ -12,9 +13,10 @@ export default async function CreateReportPage({
     const { restore } = await searchParams;
     const autoRestoreOnMount = restore === "1";
 
-    // Fetch stores
-    const [stores] = await Promise.all([
+    // Fetch stores & balance
+    const [stores, balanceInfo] = await Promise.all([
         getStoresByBranch(user.branchNames[0] || ""),
+        calculateBmsBalance(user.NIK),
     ]);
 
     return (
@@ -29,6 +31,7 @@ export default async function CreateReportPage({
             }}
             existingDraft={undefined} // No longer pulled from DB for DRAFT
             autoRestoreOnMount={autoRestoreOnMount}
+            balanceInfo={balanceInfo}
         />
     );
 }

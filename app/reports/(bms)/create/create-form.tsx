@@ -20,6 +20,9 @@ import {
   ReportWizardShell,
   type ReportWizardStep,
 } from "./components/report-wizard-shell";
+import { BmsBalanceCard } from "@/components/bms-balance-card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertTriangle, Lock } from "lucide-react";
 
 import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
@@ -41,6 +44,7 @@ export default function CreateReportForm({
   userInfo,
   editMode,
   autoRestoreOnMount,
+  balanceInfo,
 }: CreateReportFormProps) {
   const router = useRouter();
   // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
@@ -245,6 +249,11 @@ export default function CreateReportForm({
   // Store data to pass to review step
   const storeObj = stores.find((s) => s.code === selectedStoreCode);
 
+  const isLocked = balanceInfo?.isLocked ?? false;
+  const isOverbudget = balanceInfo
+    ? grandTotalBms > balanceInfo.availableBalance
+    : false;
+
   return (
     <>
       {showDraftDialog && (
@@ -316,7 +325,13 @@ export default function CreateReportForm({
             size="lg"
             className="w-full text-base shadow-sm"
             onClick={step === "review" ? handleSubmit : handleNext}
-            disabled={isSubmitting || (step === "store" && !selectedStoreCode)}
+            disabled={
+              isSubmitting ||
+              (step === "store" && !selectedStoreCode) ||
+              isLocked ||
+              (step === "estimation" && isOverbudget) ||
+              (step === "review" && isOverbudget)
+            }
           >
             {step === "review" ? (
               isEditMode ? (
@@ -332,6 +347,38 @@ export default function CreateReportForm({
           </Button>
         }
       >
+        <div className="mb-6 space-y-4">
+          {balanceInfo && (
+            <BmsBalanceCard balance={balanceInfo} compact={step !== "store"} />
+          )}
+
+          {isLocked && (
+            <Alert variant="destructive">
+              <Lock className="h-4 w-4" />
+              <AlertTitle>Saldo Terkunci</AlertTitle>
+              <AlertDescription>
+                Anda tidak dapat membuat laporan baru karena periode saldo
+                sedang terkunci oleh PJUM yang menunggu persetujuan BNM Manager.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isOverbudget && (step === "estimation" || step === "review") && (
+            <Alert
+              variant="destructive"
+              className="border-red-500 bg-red-50 text-red-900 dark:bg-red-950/50 dark:text-red-200"
+            >
+              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
+              <AlertTitle>Estimasi Melebihi Saldo!</AlertTitle>
+              <AlertDescription>
+                Total estimasi biaya (Rp {grandTotalBms.toLocaleString("id-ID")}) 
+                melebihi sisa saldo Anda (Rp {balanceInfo?.availableBalance.toLocaleString("id-ID")}). 
+                Silakan kurangi estimasi atau hubungi BMC.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
         {step === "store" && (
           <StoreStep
             stores={stores}

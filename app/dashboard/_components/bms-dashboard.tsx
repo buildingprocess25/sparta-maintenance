@@ -28,7 +28,7 @@ import {
 } from "./bms-mobile-dashboard-stats";
 import { BmsWelcomeCard } from "./bms-welcome-card";
 import { BmsMobileActivityItem } from "@/components/bms-mobile/bms-activity-item";
-
+import { calculateBmsBalance } from "@/lib/balance";
 
 
 function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
@@ -65,9 +65,10 @@ function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
 }
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
-  const [stats, activities] = await Promise.all([
+  const [stats, activities, balanceInfo] = await Promise.all([
     getUserStats(user.NIK),
     getBMSActivity(user.NIK),
+    calculateBmsBalance(user.NIK),
   ]);
   const formattedDate = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",
@@ -125,7 +126,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
         .map((w: string) => w[0]?.toUpperCase() ?? "")
         .join("")}
     >
-      <BmsWelcomeCard name={user.name} />
+      <BmsWelcomeCard name={user.name} balance={balanceInfo} />
 
       <Button asChild size="lg" className="h-12 w-full">
         <Link href="/reports/create">

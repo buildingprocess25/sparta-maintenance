@@ -54,6 +54,8 @@ export type SerializedDraft = {
     }[];
 };
 
+import type { BmsBalanceInfo } from "@/lib/balance";
+
 export interface CreateReportFormProps {
     stores: StoreOption[];
     userBranchName: string;
@@ -68,4 +70,5 @@ export interface CreateReportFormProps {
     editMode?: { reportNumber: string };
     /** Auto-restore the existingDraft on mount without showing the dialog (used for draft edit). */
     autoRestoreOnMount?: boolean;
+    balanceInfo?: BmsBalanceInfo;
 }

@@ -331,13 +331,23 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                         condition = "tidak_ada";
                     }
 
+                    const isBroken = condition === "rusak";
+                    const isGood = condition === "baik";
+
                     next.set(item.id, {
                         id: item.id,
                         name: item.name,
                         condition,
-                        handler: condition === "rusak" ? "BMS" : "",
-                        photoUrl: condition === "rusak" || condition === "baik" ? "https://example.com/dummy.jpg" : undefined,
-                        notes: condition === "rusak" ? "Dummy notes" : undefined,
+                        handler: isBroken ? "BMS" : "",
+                        photoUrl: isBroken || isGood
+                            ? `https://picsum.photos/seed/${item.id.replace(/[^a-zA-Z0-9]/g, "")}/400/300`
+                            : undefined,
+                        notes: isBroken
+                            ? "Catatan perbaikan item rusak oleh tim BMS (Dev Mode)"
+                            : undefined,
+                        ahoTicketNumber: isBroken
+                            ? `AHO-${Math.floor(100000 + Math.random() * 900000)}`
+                            : undefined,
                     });
                 }
             }
