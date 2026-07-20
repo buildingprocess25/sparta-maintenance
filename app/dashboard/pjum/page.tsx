@@ -81,10 +81,16 @@ export default async function AdminPjumPage({
                 user.role === "BMC" ? (
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <CreatePjumDialog bmsUsers={bmsUsers} />
-                        <ExportPjumDialog branches={branches} />
+                        <ExportPjumDialog
+                            branches={branches}
+                            showBranchFilter={false}
+                        />
                     </div>
                 ) : (
-                    <ExportPjumDialog branches={branches} />
+                    <ExportPjumDialog
+                        branches={branches}
+                        showBranchFilter={user.role === "ADMIN"}
+                    />
                 )
             }
             contentClassName="h-full"
