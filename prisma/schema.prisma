@@ -89,6 +89,12 @@ enum NotificationType {
   REPORT_INTERVENTION_CREATED
 }
 
+enum BmsBalancePeriodStatus {
+  ACTIVE        // Periode berjalan, BMS bisa buat laporan
+  LOCKED_PJUM   // BMC buat PJUM, BMS tidak bisa buat laporan baru hingga BNM approve/reject
+  CLOSED        // Periode selesai (BNM approved PJUM, saldo direset)
+}
+
 enum NotificationEntityType {
   REPORT
   PJUM
@@ -179,6 +185,13 @@ model Report {
   completionAdditionalNote   String? // one note for additional completion documentation set
   finishedAt           DateTime?     @db.Timestamptz(3) // final BNM approval time when report reaches COMPLETED
 
+  // Biaya tak terduga — wajib diisi jika totalReal > sisa saldo pada periode aktif BMS
+  unexpectedCostNotes  String?
+
+  // Referensi ke periode saldo BMS yang aktif saat laporan ini dibuat
+  balancePeriodId      String?
+  balancePeriod        BmsBalancePeriod? @relation(fields: [balancePeriodId], references: [id])
+
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt       DateTime?     @db.Timestamptz(3)
 
@@ -213,6 +226,36 @@ model Report {
   @@index([branchName, status, updatedAt])
   @@index([branchName, status, pjumExportedAt])
   @@index([branchName, areaName, status])
+}
+
+// =========================================
+// BMS BALANCE PERIOD
+// =========================================
+
+model BmsBalancePeriod {
+  id              String                  @id @default(uuid())
+  bmsNIK          String
+
+  // Saldo awal per periode (default Rp 1.000.000)
+  initialBalance  Decimal                 @default(1000000) @db.Decimal(15, 2)
+
+  // Status periode
+  status          BmsBalancePeriodStatus  @default(ACTIVE)
+
+  // Relasi ke PJUM yang memicu LOCK / CLOSE pada periode ini
+  pjumExportId    String?
+
+  // Timestamp
+  startedAt       DateTime                @default(now()) @db.Timestamptz(3)
+  closedAt        DateTime?               @db.Timestamptz(3)
+  createdAt       DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime                @updatedAt     @db.Timestamptz(3)
+
+  // Relasi ke laporan yang masuk dalam periode ini
+  reports         Report[]
+
+  @@index([bmsNIK, status])
+  @@index([bmsNIK, createdAt])
 }
 
 model ApprovalLog {

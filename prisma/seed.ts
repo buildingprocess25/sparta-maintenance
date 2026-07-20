@@ -55,6 +55,13 @@ const users = [
         role: "BMC" as const,
         branchNames: ["HEAD OFFICE"],
     },
+    {
+        NIK: "11223",
+        email: "bnm@admin.com",
+        name: "BNM Manager",
+        role: "BNM_MANAGER" as const,
+        branchNames: ["HEAD OFFICE"],
+    },
 ];
 
 const mockItems = [
@@ -233,8 +240,26 @@ async function seed() {
         console.log(`   ✅ ${r.reportNumber} — ${r.status}`);
     }
 
+    // Buat periode saldo awal untuk BMS (Rp 1.000.000)
+    console.log(`\n🌱 Seeding BmsBalancePeriod...`);
+    const existingPeriod = await prisma.bmsBalancePeriod.findFirst({
+        where: { bmsNIK: bmsUser.NIK, status: { in: ["ACTIVE", "LOCKED_PJUM"] } },
+    });
+    if (!existingPeriod) {
+        await prisma.bmsBalancePeriod.create({
+            data: {
+                bmsNIK: bmsUser.NIK,
+                initialBalance: 1000000,
+                status: "ACTIVE",
+            },
+        });
+        console.log(`   ✅ Periode saldo Rp 1.000.000 dibuat untuk ${bmsUser.email}`);
+    } else {
+        console.log(`   ⏭️  Periode saldo sudah ada (${existingPeriod.status}), dilewati`);
+    }
+
     console.log(
-        `\n✅ Seeding selesai! ${users.length} users + ${stores.length} toko + ${reportSeeds.length} laporan.`,
+        `\n✅ Seeding selesai! ${users.length} users + ${stores.length} toko + ${reportSeeds.length} laporan + 1 periode saldo.`,
     );
 }
 
