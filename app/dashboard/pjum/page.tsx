@@ -78,11 +78,14 @@ export default async function AdminPjumPage({
             title="PJUM"
             breadcrumbs={[{ label: "Dokumen PJUM" }]}
             headerActions={
-                user.role === "ADMIN" ? (
+                user.role === "BMC" ? (
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                        <CreatePjumDialog bmsUsers={bmsUsers} />
+                        <ExportPjumDialog branches={branches} />
+                    </div>
+                ) : (
                     <ExportPjumDialog branches={branches} />
-                ) : user.role === "BMC" ? (
-                    <CreatePjumDialog bmsUsers={bmsUsers} />
-                ) : null
+                )
             }
             contentClassName="h-full"
         >
