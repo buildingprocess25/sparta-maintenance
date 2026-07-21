@@ -129,6 +129,7 @@ export type RawReportDetailInput = {
     startMaterialStores: MaterialStoreJson[];
     completionAdditionalPhotos: string[];
     completionAdditionalNote: string | null;
+    unexpectedCostNotes: string | null;
     completedPdfPath: string | null;
     reportFinalDriveUrl: string | null;
     revisedPdfDriveUrl: string | null;

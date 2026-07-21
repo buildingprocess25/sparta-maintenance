@@ -193,17 +193,17 @@ export async function submitCompletionWork(
 
         const totalReal = calculateTotalRealisasiFromItems(updatedItems);
 
-        // ── Balance Overrun Check ──────────────────────────────────────────────────
+        // ── Realisasi Over Estimation Check ──────────────────────────────────────────
         const hasBalanceImpact = hasBmsRepairItems(updatedItems);
         if (hasBalanceImpact) {
-            const balance = await calculateBmsBalance(report.createdByNIK);
-            if (totalReal > balance.availableBalance) {
-                // Realisasi melebihi saldo — wajib isi catatan biaya tak terduga
+            const estimationNum = new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
+            if (totalReal > estimationNum && estimationNum > 0) {
+                // Realisasi melebihi estimasi awal — wajib isi catatan biaya tak terduga
                 const safeCostNotes = unexpectedCostNotes?.trim();
                 if (!safeCostNotes) {
                     return {
                         error:
-                            "Realisasi biaya melebihi sisa saldo operasional. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
+                            "Realisasi biaya melebihi estimasi awal. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
                     };
                 }
             }

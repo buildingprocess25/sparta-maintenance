@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type PointerEvent, type WheelEvent } from "react";
 import {
+    AlertTriangle,
     ArrowRightLeft,
     ImageIcon,
     Package,
@@ -114,6 +115,7 @@ export function WorkCostTab({
                         reviewGate.markReceiptComparisonOpened();
                         setCompareOpen(true);
                     }}
+                    unexpectedCostNotes={report.unexpectedCostNotes}
                 />
             ) : null}
 
@@ -146,6 +148,7 @@ function WorkCostToolsSection({
     stores,
     completionAdditionalPhotos,
     completionAdditionalNote,
+    unexpectedCostNotes,
     onPhotoClick,
     onCompareClick,
 }: {
@@ -155,6 +158,7 @@ function WorkCostToolsSection({
     stores: ReportMaterialStoreRow[];
     completionAdditionalPhotos: DetailPhoto[];
     completionAdditionalNote: string | null;
+    unexpectedCostNotes: string | null;
     onPhotoClick: (photo: DetailPhoto) => void;
     onCompareClick: () => void;
 }) {
@@ -162,6 +166,9 @@ function WorkCostToolsSection({
 
     return (
         <div className="flex flex-wrap items-stretch gap-3">
+            {unexpectedCostNotes ? (
+                <UnexpectedCostSection notes={unexpectedCostNotes} />
+            ) : null}
             {canCompareWithReceipt ? (
                 <QuickActionsSection
                     receiptCount={receiptCount}
@@ -224,6 +231,20 @@ function QuickActionsSection({
                     Bandingkan dengan Nota
                 </Button>
             </div>
+        </section>
+    );
+}
+
+function UnexpectedCostSection({ notes }: { notes: string }) {
+    return (
+        <section className="w-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 sm:w-[320px]">
+            <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-orange-800">
+                <AlertTriangle className="size-4" />
+                <h2>Biaya Tak Terduga</h2>
+            </div>
+            <p className="whitespace-pre-wrap text-xs leading-relaxed text-orange-900">
+                {notes}
+            </p>
         </section>
     );
 }

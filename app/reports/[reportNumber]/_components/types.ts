@@ -29,6 +29,7 @@ export type ReportData = {
     startMaterialStores: MaterialStoreJson[];
     completionAdditionalPhotos: string[];
     completionAdditionalNote: string | null;
+    unexpectedCostNotes: string | null;
     // Final PDF snapshot Drive URL/path.
     completedPdfPath: string | null;
 };

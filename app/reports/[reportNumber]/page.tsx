@@ -62,6 +62,7 @@ async function getBmsReportDetail(
             startMaterialStores: true,
             completionAdditionalPhotos: true,
             completionAdditionalNote: true,
+            unexpectedCostNotes: true,
             completedPdfPath: true,
             reportFinalDriveUrl: true,
             createdBy: {
@@ -115,6 +116,7 @@ async function getBmsReportDetail(
             report.completionAdditionalPhotos,
         ),
         completionAdditionalNote: report.completionAdditionalNote,
+        unexpectedCostNotes: report.unexpectedCostNotes,
         completedPdfPath: report.reportFinalDriveUrl ?? report.completedPdfPath,
     };
 }

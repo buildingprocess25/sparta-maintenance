@@ -849,6 +849,19 @@ function CompletionPanel({
           </div>
         </section>
       )}
+
+      {/* Catatan Biaya Tak Terduga */}
+      {report.unexpectedCostNotes && (
+        <section className="mt-4 p-4 rounded-md border border-orange-200 bg-orange-50">
+          <div className="flex items-center gap-2 mb-1.5 text-orange-800 font-semibold text-sm">
+            <AlertTriangle className="w-4 h-4" />
+            <span>Catatan Biaya Tak Terduga (Overbudget)</span>
+          </div>
+          <p className="text-sm text-orange-900 leading-relaxed whitespace-pre-wrap">
+            {report.unexpectedCostNotes}
+          </p>
+        </section>
+      )}
     </div>
   );
 }
