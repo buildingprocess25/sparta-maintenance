@@ -40,27 +40,31 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - 1. BMS membuat laporan dan estimasi.
 
-- 2. Saat submit estimasi, sistem cek total estimasi handler BMS.
+- 2. Saat submit estimasi, sistem cek total estimasi handler BMS terhadap sisa saldo.
 
 - 3. Jika estimasi melebihi saldo tersedia, submit ditolak.
 
-- 4. Jika estimasi aman, laporan berjalan seperti biasa.
+- 4. Jika estimasi aman, laporan disimpan dan biaya estimasi langsung di-*reserve* (membekukan saldo) sejak status `PENDING_ESTIMATION`. Ini mencegah BMS melakukan spam-submit beberapa laporan yang akumulasinya melampaui limit.
 
-- 5. Saat BMS klik Mulai Pekerjaan, biaya estimasi dianggap memakai saldo periode aktif.
+- 5. Jika BMC menolak estimasi secara permanen (`ESTIMATION_REJECTED`), saldo yang di-reserve akan otomatis terlepas (kembali tersedia).
 
-- 6. Saat BMS submit penyelesaian, sistem hitung realisasi.
+- 6. Jika BMC meminta revisi estimasi (`ESTIMATION_REJECTED_REVISION`), saldo tetap di-reserve sampai BMS resubmit atau laporan ditolak permanen.
 
-- 7. Jika realisasi lebih besar dari saldo tersedia, BMS tetap bisa submit dengan catatan wajib.
+- 7. BMS klik Mulai Pekerjaan setelah estimasi di-approve BMC. Saldo tetap ter-reserve.
 
-- 8. BMC membuat PJUM untuk minggu berjalan.
+- 8. Saat BMS submit penyelesaian, sistem hitung realisasi.
 
-- 9. Jika masih ada laporan periode itu yang belum selesai, PJUM tidak bisa dibuat.
+- 9. Jika realisasi lebih besar dari saldo tersedia, BMS tetap bisa submit dengan catatan biaya tak terduga wajib diisi.
 
-- 10. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
+- 10. BMC membuat PJUM untuk minggu berjalan.
 
-- 11. Jika PJUM approved, saldo reset ke Rp 1.000.000.
+- 11. Jika masih ada laporan periode itu yang belum selesai, PJUM tidak bisa dibuat.
 
-- 12. Jika PJUM rejected, saldo reset dibatalkan.
+- 12. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
+
+- 13. Jika PJUM approved, saldo reset ke Rp 1.000.000.
+
+- 14. Jika PJUM rejected, saldo reset dibatalkan.
 
 
 ## Case Bisnis
@@ -68,8 +72,10 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 | Case | Aturan |
 | --- | --- |
 | Estimasi lebih besar dari saldo | Blokir submit estimasi. |
+| Submit estimasi aman | Saldo langsung di-reserve sejak `PENDING_ESTIMATION`. |
+| Estimasi ditolak permanen oleh BMC | Saldo yang di-reserve dikembalikan (otomatis). |
 | Estimasi aman, realisasi membengkak | Izinkan submit penyelesaian dengan catatan wajib. |
-| Ada laporan mulai kerja tapi belum selesai PJUM tidak bisa dibuat. |   |
+| Ada laporan mulai kerja tapi belum selesai | PJUM tidak bisa dibuat. |
 | PJUM sedang Review BNM | BMS tidak bisa mulai pekerjaan baru. |
 | PJUM rejected BNM | Reset saldo dibatalkan. |
 | Laporan ditolak permanen setelah mulai kerja | Saldo laporan dikembalikan. |
@@ -79,3 +85,4 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 ## Periode Saldo
 
 Periode saldo aktif dimulai dari tanggal saldo terakhir reset atau dari awal default jika belum pernah PJUM approved. Setelah PJUM approved, periode baru dimulai dari waktu approval tersebut. Ini lebih cocok daripada kalender mingguan kaku karena user ingin PJUM menjadi trigger reset saldo.
+

@@ -120,6 +120,8 @@ export async function calculateBmsBalance(
             totalRealized += real;
         } else if (
             [
+                "PENDING_ESTIMATION",
+                "ESTIMATION_REJECTED_REVISION",
                 "ESTIMATION_APPROVED",
                 "IN_PROGRESS",
                 "PENDING_REVIEW",
@@ -127,10 +129,25 @@ export async function calculateBmsBalance(
                 "REVIEW_REJECTED_REVISION",
             ].includes(report.status)
         ) {
-            // Estimasi reserved untuk laporan yang sedang berjalan
-            totalEstimatedInProgress += new Prisma.Decimal(
-                report.totalEstimation.toString(),
-            ).toNumber();
+            // Estimasi di-reserve sejak submit (PENDING_ESTIMATION) untuk
+            // mencegah BMS spam-submit beberapa laporan yang akumulasinya
+            // melampaui limit. Saldo otomatis kembali jika BMC menolak
+            // permanen (ESTIMATION_REJECTED) karena status itu tidak
+            // termasuk di sini.
+            
+            // Jika laporan berada di fase penyelesaian (sudah di-submit aktualnya),
+            // gunakan totalReal. Jika belum, gunakan totalEstimation awal.
+            const hasRealization = [
+                "PENDING_REVIEW", 
+                "APPROVED_BMC", 
+                "REVIEW_REJECTED_REVISION"
+            ].includes(report.status) && report.totalReal !== null;
+
+            const reservedCost = hasRealization 
+                ? new Prisma.Decimal(report.totalReal!.toString()).toNumber()
+                : new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
+
+            totalEstimatedInProgress += reservedCost;
         }
     }
 
@@ -264,7 +281,7 @@ export function hasBmsRepairItems(items: unknown): boolean {
         (item) =>
             item &&
             typeof item === "object" &&
-            (item as Record<string, unknown>).condition === "rusak" &&
+            (item as Record<string, unknown>).condition === "RUSAK" &&
             (item as Record<string, unknown>).handler === "BMS",
     );
 }
