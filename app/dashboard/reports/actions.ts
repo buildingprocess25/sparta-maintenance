@@ -13,7 +13,9 @@ import { getJakartaDateRange } from "@/lib/time";
 import { requiresPjum } from "@/lib/realisasi";
 import { hasCompletePreventiveEvidence } from "@/lib/report-preventive";
 import {
+    assertRetentionMutationApplied,
     isDeleteConfirmationValid,
+    ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "@/lib/report-retention";
 
@@ -429,6 +431,7 @@ export async function archiveAdminReport(
                     reportNumber: true,
                     status: true,
                     items: true,
+                    pjumExportedAt: true,
                     branchName: true,
                     storeCode: true,
                     storeName: true,
@@ -470,25 +473,40 @@ export async function archiveAdminReport(
                 return { error: detachments.error };
             }
 
-            if (detachments.deleteIds.length > 0) {
-                await tx.pjumExport.deleteMany({
-                    where: { id: { in: detachments.deleteIds } },
+            for (const id of detachments.deleteIds) {
+                const deletion = await tx.pjumExport.deleteMany({
+                    where: {
+                        id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: { has: reportNumber },
+                    },
                 });
+                assertRetentionMutationApplied(deletion.count);
             }
             for (const update of detachments.updates) {
-                await tx.pjumExport.update({
-                    where: { id: update.id },
+                const detachment = await tx.pjumExport.updateMany({
+                    where: {
+                        id: update.id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: { has: reportNumber },
+                    },
                     data: { reportNumbers: { set: update.reportNumbers } },
                 });
+                assertRetentionMutationApplied(detachment.count);
             }
 
-            await tx.report.update({
-                where: { reportNumber },
+            const archive = await tx.report.updateMany({
+                where: {
+                    reportNumber,
+                    status: report.status,
+                    pjumExportedAt: report.pjumExportedAt,
+                },
                 data: {
                     status: "ARCHIVED_PREVENTIVE",
                     pjumExportedAt: null,
                 },
             });
+            assertRetentionMutationApplied(archive.count);
 
             await tx.activityLog.create({
                 data: {
@@ -532,6 +550,10 @@ export async function archiveAdminReport(
 
         return { success: true };
     } catch (error) {
+        if (error instanceof ReportRetentionConflictError) {
+            return { error: error.message };
+        }
+
         logger.error(
             {
                 operation: "archiveAdminReport",
@@ -574,6 +596,8 @@ export async function deleteAdminReport(
                 where: { reportNumber },
                 select: {
                     reportNumber: true,
+                    status: true,
+                    pjumExportedAt: true,
                     branchName: true,
                     storeCode: true,
                     storeName: true,
@@ -605,21 +629,38 @@ export async function deleteAdminReport(
                 return { error: detachments.error };
             }
 
-            if (detachments.deleteIds.length > 0) {
-                await tx.pjumExport.deleteMany({
-                    where: { id: { in: detachments.deleteIds } },
+            for (const id of detachments.deleteIds) {
+                const deletion = await tx.pjumExport.deleteMany({
+                    where: {
+                        id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: { has: reportNumber },
+                    },
                 });
+                assertRetentionMutationApplied(deletion.count);
             }
             for (const update of detachments.updates) {
-                await tx.pjumExport.update({
-                    where: { id: update.id },
+                const detachment = await tx.pjumExport.updateMany({
+                    where: {
+                        id: update.id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: { has: reportNumber },
+                    },
                     data: { reportNumbers: { set: update.reportNumbers } },
                 });
+                assertRetentionMutationApplied(detachment.count);
             }
 
             await tx.approvalLog.deleteMany({ where: { reportNumber } });
             await tx.activityLog.deleteMany({ where: { reportNumber } });
-            await tx.report.delete({ where: { reportNumber } });
+            const deletion = await tx.report.deleteMany({
+                where: {
+                    reportNumber,
+                    status: report.status,
+                    pjumExportedAt: report.pjumExportedAt,
+                },
+            });
+            assertRetentionMutationApplied(deletion.count);
 
             return { success: true as const, report };
         });
@@ -654,6 +695,10 @@ export async function deleteAdminReport(
 
         return { success: true };
     } catch (error) {
+        if (error instanceof ReportRetentionConflictError) {
+            return { error: error.message };
+        }
+
         logger.error(
             {
                 operation: "deleteAdminReport",

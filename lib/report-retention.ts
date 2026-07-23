@@ -4,6 +4,17 @@ type RelatedPjum = {
     reportNumbers: string[];
 };
 
+export class ReportRetentionConflictError extends Error {
+    constructor() {
+        super("Data laporan atau PJUM berubah. Muat ulang halaman dan coba lagi");
+        this.name = "ReportRetentionConflictError";
+    }
+}
+
+export function assertRetentionMutationApplied(count: number): void {
+    if (count !== 1) throw new ReportRetentionConflictError();
+}
+
 export function isDeleteConfirmationValid(
     reportNumber: string,
     confirmation: string,

@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import {
+    assertRetentionMutationApplied,
     isDeleteConfirmationValid,
+    ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "./report-retention";
 
@@ -39,6 +41,12 @@ assert.deepEqual(
         deleteIds: ["empty-after-detach"],
         updates: [{ id: "retained", reportNumbers: ["RPT-002"] }],
     },
+);
+
+assert.doesNotThrow(() => assertRetentionMutationApplied(1));
+assert.throws(
+    () => assertRetentionMutationApplied(0),
+    ReportRetentionConflictError,
 );
 
 console.log("report retention assertions passed");
