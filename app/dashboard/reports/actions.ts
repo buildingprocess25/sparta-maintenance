@@ -593,7 +593,7 @@ export async function archiveAdminReport(
 
 export async function deleteAdminReport(
     reportNumber: string,
-    confirmationReportNumber: string = "",
+    confirmationReportNumber: string,
 ): Promise<{ success?: true; error?: string }> {
     const correlationId = crypto.randomUUID();
     const start = performance.now();
