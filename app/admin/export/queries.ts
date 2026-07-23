@@ -9,8 +9,10 @@ import {
     getJakartaDateRange,
     getJakartaQuarterKey,
     getJakartaQuarterWindow,
+    getJakartaYear,
     getJakartaYearWindow,
 } from "@/lib/time";
+import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -528,7 +530,7 @@ export async function fetchPreventiveExportRows(
     filter: ExportFilter,
 ): Promise<PreventiveExportRow[]> {
     try {
-        const year = filter.year || new Date().getFullYear();
+        const year = filter.year || getJakartaYear();
         const quarter = normalizePreventiveQuarter(filter.preventiveQuarter);
         const { start, endExclusive } = getPreventiveExportWindow(year, quarter);
         const selectedBranchNames = await resolvePreventiveBranchFilter(
@@ -566,7 +568,10 @@ export async function fetchPreventiveExportRows(
         }
 
         const reportPredicates: Prisma.Sql[] = [
-            Prisma.sql`r."status" = 'COMPLETED'::"ReportStatus"`,
+            completePreventiveEvidenceSql({
+                statusColumn: Prisma.sql`r."status"`,
+                itemsColumn: Prisma.sql`r."items"`,
+            }),
             Prisma.sql`r."createdAt" >= ${start}`,
             Prisma.sql`r."createdAt" < ${endExclusive}`,
         ];
@@ -596,12 +601,6 @@ export async function fetchPreventiveExportRows(
             FROM "Report" r
             LEFT JOIN "User" u ON u."NIK" = r."createdByNIK"
             WHERE ${Prisma.join(reportPredicates, " AND ")}
-              AND EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(r."items") AS item
-                WHERE item->>'itemId' LIKE 'I%'
-                   OR item->>'preventiveCondition' IS NOT NULL
-              )
             ORDER BY r."createdAt" DESC
         `;
 
