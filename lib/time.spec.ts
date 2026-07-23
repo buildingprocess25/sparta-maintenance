@@ -6,12 +6,14 @@ import {
     getJakartaDayRange,
     getJakartaDayKey,
     getJakartaMonthKey,
+    getNextJakartaQuarterStart,
     getJakartaQuarterKey,
     getJakartaQuarterWindow,
     getJakartaStartOfRecentDays,
     getJakartaStartOfRecentMonths,
     getJakartaWeekStartKey,
     getJakartaYearWindow,
+    isSameJakartaQuarter,
     toExcelJakartaSerial,
 } from "./time";
 
@@ -31,6 +33,19 @@ assert.equal(toExcelJakartaSerial(new Date("2026-06-30T17:00:00.000Z")), 46204);
 assert.equal(getJakartaDayKey(new Date("2026-06-30T17:00:00.000Z")), "2026-07-01");
 assert.equal(getJakartaMonthKey(new Date("2026-06-30T17:00:00.000Z")), "2026-07");
 assert.equal(getJakartaCurrentQuarter(new Date("2026-06-30T17:00:00.000Z")), 3);
+assert.equal(
+    isSameJakartaQuarter(
+        new Date("2026-03-31T16:59:59.000Z"),
+        new Date("2026-03-31T17:00:00.000Z"),
+    ),
+    false,
+);
+assert.equal(
+    getNextJakartaQuarterStart(
+        new Date("2026-03-31T16:59:59.000Z"),
+    ).toISOString(),
+    "2026-03-31T17:00:00.000Z",
+);
 assert.equal(getJakartaWeekStartKey(new Date("2026-07-05T16:59:59.000Z")), "2026-06-29");
 assert.equal(getJakartaWeekStartKey(new Date("2026-07-05T17:00:00.000Z")), "2026-07-06");
 assert.equal(getJakartaStartOfRecentDays(3, new Date("2026-07-02T01:00:00.000Z")).toISOString(), "2026-06-29T17:00:00.000Z");

@@ -77,4 +77,24 @@ assert.deepEqual(
     { ok: true, branchNames: ["BRANCH A", "BRANCH B"] },
 );
 
+assert.deepEqual(
+    resolveLimitedExportScope({
+        role: "BMC",
+        requestedSheets: ["preventive"],
+        selectedBranches: [],
+        assignedBranches: [],
+    }),
+    { ok: false, status: 403, error: "Forbidden" },
+);
+
+assert.deepEqual(
+    resolveLimitedExportScope({
+        role: "BNM_MANAGER",
+        requestedSheets: ["preventive"],
+        selectedBranches: [],
+        assignedBranches: [],
+    }),
+    { ok: false, status: 403, error: "Forbidden" },
+);
+
 console.log("limited export access assertions passed");

@@ -32,6 +32,11 @@ export function resolveLimitedExportScope(input: {
         selectedBranches.length > 0
             ? selectedBranches
             : assignedBranches.filter((branchName) => branchName.trim());
+
+    if (branchNames.length === 0) {
+        return { ok: false, status: 403, error: "Forbidden" };
+    }
+
     const hasUnauthorizedBranch = branchNames.some(
         (branchName) => !assignedBranches.includes(branchName),
     );

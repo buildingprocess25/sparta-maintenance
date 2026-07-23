@@ -14,18 +14,7 @@ import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
-
-/** Kuartal: 0=Q1, 1=Q2, 2=Q3, 3=Q4 */
-function getQuarter(d: Date): number {
-    return Math.floor(d.getMonth() / 3);
-}
-
-function isSameQuarterDate(d1: Date, d2: Date): boolean {
-    return (
-        d1.getFullYear() === d2.getFullYear() &&
-        getQuarter(d1) === getQuarter(d2)
-    );
-}
+import { isSameJakartaQuarter } from "@/lib/time";
 
 export async function submitReport(data: DraftData) {
     const parsed = draftDataSchema.safeParse(data);
@@ -49,7 +38,7 @@ export async function submitReport(data: DraftData) {
         if (data.storeCode) {
             const lastDateStr = await getLastCategoryIDate(data.storeCode);
             if (lastDateStr) {
-                isCoolingDown = isSameQuarterDate(
+                isCoolingDown = isSameJakartaQuarter(
                     new Date(lastDateStr),
                     new Date(),
                 );

@@ -3,24 +3,10 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { getLastCategoryIDate } from "@/app/reports/actions";
-
-/** Kuartal: 0=Q1(Jan-Mar), 1=Q2(Apr-Jun), 2=Q3(Jul-Sep), 3=Q4(Okt-Des) */
-function getQuarter(d: Date): number {
-    return Math.floor(d.getMonth() / 3);
-}
-
-function isSameQuarter(d1: Date, d2: Date): boolean {
-    return (
-        d1.getFullYear() === d2.getFullYear() &&
-        getQuarter(d1) === getQuarter(d2)
-    );
-}
-
-function getNextQuarterStart(d: Date): Date {
-    const q = getQuarter(d);
-    const y = d.getFullYear();
-    return q === 3 ? new Date(y + 1, 0, 1) : new Date(y, (q + 1) * 3, 1);
-}
+import {
+    getNextJakartaQuarterStart,
+    isSameJakartaQuarter,
+} from "@/lib/time";
 import {
     checklistCategories,
     type ChecklistItem,
@@ -76,10 +62,10 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                 if (lastDate) {
                     const lastSubmission = new Date(lastDate);
                     const now = new Date();
-                    const cooling = isSameQuarter(lastSubmission, now);
+                    const cooling = isSameJakartaQuarter(lastSubmission, now);
                     setIsCategoryICoolingDown(cooling);
                     setCategoryIAvailableDate(
-                        cooling ? getNextQuarterStart(now) : null,
+                        cooling ? getNextJakartaQuarterStart(now) : null,
                     );
                 } else {
                     setIsCategoryICoolingDown(false);
