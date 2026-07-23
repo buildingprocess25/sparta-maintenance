@@ -13,6 +13,12 @@ export const REPORT_STATUS_LABELS = {
 
 export type ReportStatusKey = keyof typeof REPORT_STATUS_LABELS;
 
+export const ARCHIVED_PREVENTIVE_STATUS = "ARCHIVED_PREVENTIVE" as const;
+export const OPERATIONAL_EXCLUDED_REPORT_STATUSES = [
+    "DRAFT",
+    ARCHIVED_PREVENTIVE_STATUS,
+] as const;
+
 export const REPORT_STATUS_ORDER: ReportStatusKey[] = [
     "PENDING_ESTIMATION",
     "ESTIMATION_APPROVED",
@@ -63,10 +69,14 @@ export function isReportStatusKey(status: string): status is ReportStatusKey {
 }
 
 export function getReportStatusLabel(status: string): string {
+    if (status === ARCHIVED_PREVENTIVE_STATUS) return "Archived Preventive";
     return isReportStatusKey(status) ? REPORT_STATUS_LABELS[status] : status;
 }
 
 export function getReportStatusBadgeClass(status: string): string {
+    if (status === ARCHIVED_PREVENTIVE_STATUS) {
+        return "bg-slate-200 text-slate-800 hover:bg-slate-200/80";
+    }
     return isReportStatusKey(status)
         ? REPORT_STATUS_BADGE_CLASS[status]
         : "bg-slate-100 text-slate-700 hover:bg-slate-100/80";

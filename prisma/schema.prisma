@@ -22,22 +22,23 @@ enum UserRole {
 }
 
 enum PjumStatus {
-  PENDING_APPROVAL    // BMC submitted, menunggu BnM Manager
-  APPROVED            // BnM Manager menyetujui
-  REJECTED            // BnM Manager menolak
+  PENDING_APPROVAL // BMC submitted, menunggu BnM Manager
+  APPROVED // BnM Manager menyetujui
+  REJECTED // BnM Manager menolak
 }
 
 enum ReportStatus {
   DRAFT
-  PENDING_ESTIMATION          // BMS submitted, waiting BMC estimation review
-  ESTIMATION_APPROVED         // BMC approved estimation, BMS can start work
+  PENDING_ESTIMATION // BMS submitted, waiting BMC estimation review
+  ESTIMATION_APPROVED // BMC approved estimation, BMS can start work
   ESTIMATION_REJECTED_REVISION // BMC rejected estimation, BMS must revise
-  ESTIMATION_REJECTED         // BMC permanently rejected (report closed)
-  IN_PROGRESS                 // BMS is working on the report
-  PENDING_REVIEW              // BMS finished, waiting BMC completion review
-  APPROVED_BMC                // BMC approved completion, waiting BnM final review
-  REVIEW_REJECTED_REVISION    // BMC rejected work, BMS must revise
-  COMPLETED                   // Final approved by BnM Manager
+  ESTIMATION_REJECTED // BMC permanently rejected (report closed)
+  IN_PROGRESS // BMS is working on the report
+  PENDING_REVIEW // BMS finished, waiting BMC completion review
+  APPROVED_BMC // BMC approved completion, waiting BnM final review
+  REVIEW_REJECTED_REVISION // BMC rejected work, BMS must revise
+  COMPLETED // Final approved by BnM Manager
+  ARCHIVED_PREVENTIVE
 }
 
 enum ItemCondition {
@@ -57,19 +58,20 @@ enum HandlerType {
 }
 
 enum ActivityAction {
-  SUBMITTED                   // BMS submitted initial report
-  RESUBMITTED_ESTIMATION      // BMS resubmitted after estimation rejection/revision
-  RESUBMITTED_WORK            // BMS resubmitted after work rejection/revision
-  WORK_STARTED                // BMS started work on approved report
-  COMPLETION_SUBMITTED        // BMS submitted work completion for review
-  ESTIMATION_APPROVED         // BMC approved estimation
+  SUBMITTED // BMS submitted initial report
+  RESUBMITTED_ESTIMATION // BMS resubmitted after estimation rejection/revision
+  RESUBMITTED_WORK // BMS resubmitted after work rejection/revision
+  WORK_STARTED // BMS started work on approved report
+  COMPLETION_SUBMITTED // BMS submitted work completion for review
+  ESTIMATION_APPROVED // BMC approved estimation
   ESTIMATION_REJECTED_REVISION // BMC rejected estimation, requested revision
-  ESTIMATION_REJECTED         // BMC permanently rejected report
-  WORK_APPROVED               // BMC approved work completion (forwarded to BnM)
-  WORK_REJECTED_REVISION      // BMC rejected work completion, requested revision
-  FINAL_APPROVED_BNM          // BnM Manager gave final approval
+  ESTIMATION_REJECTED // BMC permanently rejected report
+  WORK_APPROVED // BMC approved work completion (forwarded to BnM)
+  WORK_REJECTED_REVISION // BMC rejected work completion, requested revision
+  FINAL_APPROVED_BNM // BnM Manager gave final approval
   FINAL_REJECTED_REVISION_BNM // BnM Manager rejected and returned for revision
-  ADMIN_REALISASI_REVISED     // Admin merevisi data realisasi laporan
+  ADMIN_REALISASI_REVISED // Admin merevisi data realisasi laporan
+  ADMIN_ARCHIVED_PREVENTIVE
 }
 
 enum NotificationType {
@@ -100,22 +102,22 @@ enum NotificationEntityType {
 // =========================================
 
 model User {
-  NIK                String        @id
-  email              String        @unique
+  NIK                String    @id
+  email              String    @unique
   name               String
-  role               UserRole      @default(BMS)
-  branchNames        String[]      // Satu BMS punya 1 branch, BMC bisa 1-N branches
-  areaNames          String[]      @default([])
-  passwordHash       String?       // null = legacy user, login pakai branch name
-  mustChangePassword Boolean       @default(true) // true = paksa ganti password saat login
-  spartaUserId       String?       @unique // ID user dari SPARTA Portal (nullable = belum terhubung SSO)
-  deletedAt          DateTime?     @db.Timestamptz(3)
+  role               UserRole  @default(BMS)
+  branchNames        String[] // Satu BMS punya 1 branch, BMC bisa 1-N branches
+  areaNames          String[]  @default([])
+  passwordHash       String? // null = legacy user, login pakai branch name
+  mustChangePassword Boolean   @default(true) // true = paksa ganti password saat login
+  spartaUserId       String?   @unique // ID user dari SPARTA Portal (nullable = belum terhubung SSO)
+  deletedAt          DateTime? @db.Timestamptz(3)
   deletedByNIK       String?
-  
-  reports       Report[]      @relation("CreatedReports")
-  approvals     ApprovalLog[]
-  activities    ActivityLog[]
-  presence      UserPresence?
+
+  reports               Report[]           @relation("CreatedReports")
+  approvals             ApprovalLog[]
+  activities            ActivityLog[]
+  presence              UserPresence?
   notificationsReceived Notification[]     @relation("ReceivedNotifications")
   notificationsSent     Notification[]     @relation("SentNotifications")
   pushSubscriptions     PushSubscription[]
@@ -125,23 +127,23 @@ model User {
 }
 
 model GoogleDriveFolderCache {
-  id         String   @id @default(uuid())
-  cacheKey   String   @unique
-  folderId   String
-  createdAt  DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt  DateTime @updatedAt     @db.Timestamptz(3)
+  id        String   @id @default(uuid())
+  cacheKey  String   @unique
+  folderId  String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 }
 
 model Store {
-  code       String   @id @unique 
-  name       String                 
-  branchName String                 
+  code       String  @id @unique
+  name       String
+  branchName String
   areaName   String?
   brand      String?
-  isActive   Boolean  @default(true)
-  
-  reports    Report[]
-  
+  isActive   Boolean @default(true)
+
+  reports Report[]
+
   @@index([branchName])
   @@index([areaName])
   @@index([branchName, code])
@@ -149,59 +151,59 @@ model Store {
 }
 
 model Report {
-  reportNumber  String        @id @unique 
-  branchName    String        
-  areaName      String?
-  storeName     String        @default("")
-  
-  storeCode     String?       
-  store         Store?        @relation(fields: [storeCode], references: [code])
-  
-  status        ReportStatus  @default(DRAFT)
-  totalEstimation Decimal     @default(0) @db.Decimal(15, 2)
-  totalReal     Decimal?      @db.Decimal(15, 2)
-  
-  createdByNIK  String
-  createdBy     User          @relation("CreatedReports", fields: [createdByNIK], references: [NIK])
-  
+  reportNumber String  @id @unique
+  branchName   String
+  areaName     String?
+  storeName    String  @default("")
+
+  storeCode String?
+  store     Store?  @relation(fields: [storeCode], references: [code])
+
+  status          ReportStatus @default(DRAFT)
+  totalEstimation Decimal      @default(0) @db.Decimal(15, 2)
+  totalReal       Decimal?     @db.Decimal(15, 2)
+
+  createdByNIK String
+  createdBy    User   @relation("CreatedReports", fields: [createdByNIK], references: [NIK])
+
   // JSONB columns — replaces ReportItem[] and MaterialEstimation[]
-  items         Json          @default("[]")
-  estimations   Json          @default("[]")
-  
+  items       Json @default("[]")
+  estimations Json @default("[]")
+
   // Start-work data (captured when BMS clicks "Mulai Pekerjaan")
-  startSelfieUrl       String?   // selfie photo(s) taken by BMS at start (JSON array or single URL)
-  startReceiptUrls     Json      @default("[]")  // nota/receipt photos taken at start
-  startMaterialStores  Json      @default("[]")  // toko material + kota yang diinput BMS saat start-work
+  startSelfieUrl      String? // selfie photo(s) taken by BMS at start (JSON array or single URL)
+  startReceiptUrls    Json    @default("[]") // nota/receipt photos taken at start
+  startMaterialStores Json    @default("[]") // toko material + kota yang diinput BMS saat start-work
 
   // Completion data
-  completionNotes      String?   // notes during completion
-  completionAdditionalPhotos Json @default("[]") // additional completion documentation photos
+  completionNotes            String? // notes during completion
+  completionAdditionalPhotos Json      @default("[]") // additional completion documentation photos
   completionAdditionalNote   String? // one note for additional completion documentation set
-  finishedAt           DateTime?     @db.Timestamptz(3) // final BNM approval time when report reaches COMPLETED
+  finishedAt                 DateTime? @db.Timestamptz(3) // final BNM approval time when report reaches COMPLETED
 
   // PJUM — tracks when this report was included in a PJUM export
-  pjumExportedAt       DateTime?     @db.Timestamptz(3)
+  pjumExportedAt DateTime? @db.Timestamptz(3)
 
   // Final workflow PDF snapshot path in Google Drive (stored as Drive URL/path)
-  completedPdfPath          String?
+  completedPdfPath String?
 
   // Google Drive CDN file IDs — for new photos uploaded after Google Drive CDN feature.
   // Stores all Drive file IDs for photos uploaded via the new CDN flow.
-  drivePhotoFileIds         Json      @default("[]")
+  drivePhotoFileIds Json @default("[]")
 
   // Final archival pointer in Google Drive (uploaded at PJUM final approval)
-  reportFinalDriveUrl       String?
+  reportFinalDriveUrl String?
 
   // Revision PDF — generated by Admin when realisasi data needs correction.
   // Stored in the same Drive folder as the main report PDF.
-  revisedPdfDriveUrl        String?   // webViewLink of the revision PDF file
-  revisedPdfFolderUrl       String?   // Drive folder URL (for button "Buka Folder")
-  
-  logs          ApprovalLog[]
-  activities    ActivityLog[]
+  revisedPdfDriveUrl  String? // webViewLink of the revision PDF file
+  revisedPdfFolderUrl String? // Drive folder URL (for button "Buka Folder")
 
-  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime      @updatedAt     @db.Timestamptz(3)
+  logs       ApprovalLog[]
+  activities ActivityLog[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([createdByNIK])
   @@index([status])
@@ -216,33 +218,33 @@ model Report {
 }
 
 model ApprovalLog {
-  id            String    @id @default(uuid())
-  reportNumber  String
-  approverNIK   String    
-  
-  status        ReportStatus 
-  notes         String?      
-  
-  report        Report    @relation(fields: [reportNumber], references: [reportNumber])
-  approver      User      @relation(fields: [approverNIK], references: [NIK])
-  
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  id           String @id @default(uuid())
+  reportNumber String
+  approverNIK  String
+
+  status ReportStatus
+  notes  String?
+
+  report   Report @relation(fields: [reportNumber], references: [reportNumber])
+  approver User   @relation(fields: [approverNIK], references: [NIK])
+
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([reportNumber])
 }
 
 model ActivityLog {
-  id            String         @id @default(uuid())
-  reportNumber  String
-  actorNIK      String
+  id           String @id @default(uuid())
+  reportNumber String
+  actorNIK     String
 
-  action        ActivityAction
-  notes         String?
+  action ActivityAction
+  notes  String?
 
-  report        Report    @relation(fields: [reportNumber], references: [reportNumber])
-  actor         User      @relation(fields: [actorNIK], references: [NIK])
+  report Report @relation(fields: [reportNumber], references: [reportNumber])
+  actor  User   @relation(fields: [actorNIK], references: [NIK])
 
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([reportNumber])
   @@index([actorNIK])
@@ -250,32 +252,32 @@ model ActivityLog {
 }
 
 model UserPresence {
-  userId    String   @id
-  lastSeen  DateTime @db.Timestamptz(3)
+  userId   String   @id
+  lastSeen DateTime @db.Timestamptz(3)
 
-  user      User     @relation(fields: [userId], references: [NIK])
+  user User @relation(fields: [userId], references: [NIK])
 
   @@index([lastSeen])
 }
 
 model Notification {
-  id            String                 @id @default(uuid())
-  recipientNIK  String
-  actorNIK      String?
-  type          NotificationType
-  title         String
-  body          String
-  href          String
-  entityType    NotificationEntityType
-  entityId      String
-  reportNumber  String?
-  pjumExportId  String?
-  metadata      Json                   @default("{}")
-  readAt        DateTime?              @db.Timestamptz(3)
-  createdAt     DateTime               @default(now()) @db.Timestamptz(3)
+  id           String                 @id @default(uuid())
+  recipientNIK String
+  actorNIK     String?
+  type         NotificationType
+  title        String
+  body         String
+  href         String
+  entityType   NotificationEntityType
+  entityId     String
+  reportNumber String?
+  pjumExportId String?
+  metadata     Json                   @default("{}")
+  readAt       DateTime?              @db.Timestamptz(3)
+  createdAt    DateTime               @default(now()) @db.Timestamptz(3)
 
-  recipient     User                   @relation("ReceivedNotifications", fields: [recipientNIK], references: [NIK])
-  actor         User?                  @relation("SentNotifications", fields: [actorNIK], references: [NIK])
+  recipient User  @relation("ReceivedNotifications", fields: [recipientNIK], references: [NIK])
+  actor     User? @relation("SentNotifications", fields: [actorNIK], references: [NIK])
 
   @@index([recipientNIK, readAt, createdAt])
   @@index([recipientNIK, createdAt])
@@ -295,44 +297,44 @@ model PushSubscription {
   disabledAt  DateTime? @db.Timestamptz(3)
   lastUsedAt  DateTime? @db.Timestamptz(3)
   createdAt   DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime  @updatedAt     @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
 
-  user        User      @relation(fields: [userNIK], references: [NIK])
+  user User @relation(fields: [userNIK], references: [NIK])
 
   @@index([userNIK, disabledAt])
 }
 
 model PjumExport {
-  id              String      @id @default(uuid())
-  status          PjumStatus  @default(PENDING_APPROVAL)
+  id     String     @id @default(uuid())
+  status PjumStatus @default(PENDING_APPROVAL)
 
   // Filter context
-  bmsNIK          String
-  branchName      String
-  areaNames       String[]    @default([])
-  weekNumber      Int
-  fromDate        DateTime    @db.Timestamptz(3)
-  toDate          DateTime    @db.Timestamptz(3)
+  bmsNIK     String
+  branchName String
+  areaNames  String[] @default([])
+  weekNumber Int
+  fromDate   DateTime @db.Timestamptz(3)
+  toDate     DateTime @db.Timestamptz(3)
 
   // Report numbers included in this PJUM
-  reportNumbers   String[]
+  reportNumbers String[]
 
   // BMC who created
-  createdByNIK    String
+  createdByNIK String
 
   // BnM Manager who approved
-  approvedByNIK   String?
-  approvedAt      DateTime?   @db.Timestamptz(3)
+  approvedByNIK String?
+  approvedAt    DateTime? @db.Timestamptz(3)
 
   // Rejection notes
-  rejectionNotes  String?
+  rejectionNotes String?
 
   // PDF snapshot path and final archival URL
-  pjumPdfPath      String?
+  pjumPdfPath       String?
   pjumFinalDriveUrl String?
 
-  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
-  updatedAt       DateTime    @updatedAt     @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@index([status])
   @@index([branchName])
@@ -341,8 +343,8 @@ model PjumExport {
 }
 
 model AppSetting {
-  key       String   @id       // e.g. "maintenance_enabled"
-  value     String             // stored as string; parse at read time
+  key       String   @id // e.g. "maintenance_enabled"
+  value     String // stored as string; parse at read time
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
-  updatedBy String?            // NIK admin who last changed this
+  updatedBy String? // NIK admin who last changed this
 }

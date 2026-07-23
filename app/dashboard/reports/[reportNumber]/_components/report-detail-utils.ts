@@ -222,6 +222,7 @@ export function formatActivityAction(action: string) {
         FINAL_APPROVED_BNM: "Disetujui final BNM",
         FINAL_REJECTED_REVISION_BNM: "Final perlu revisi",
         ADMIN_REALISASI_REVISED: "Realisasi direvisi admin",
+        ADMIN_ARCHIVED_PREVENTIVE: "Admin mengarsipkan laporan sebagai Preventive",
     };
     return labels[action] ?? action;
 }
