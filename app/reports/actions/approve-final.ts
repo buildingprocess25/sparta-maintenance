@@ -75,7 +75,7 @@ export async function approveFinal(
 
         await prisma.$transaction([
             prisma.report.update({
-                where: { reportNumber },
+                where: { reportNumber, status: ReportStatus.APPROVED_BMC },
                 data: {
                     status: newStatus,
                     ...(decision === "approve" &&

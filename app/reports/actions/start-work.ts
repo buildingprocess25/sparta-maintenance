@@ -41,7 +41,7 @@ export async function startWork(reportNumber: string) {
 
     await prisma.$transaction([
       prisma.report.update({
-        where: { reportNumber },
+        where: { reportNumber, status: ReportStatus.ESTIMATION_APPROVED },
         data: { status: ReportStatus.IN_PROGRESS },
       }),
       prisma.activityLog.create({

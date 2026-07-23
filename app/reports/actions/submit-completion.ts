@@ -47,7 +47,7 @@ export async function submitCompletion(reportNumber: string, notes?: string) {
 
         await prisma.$transaction([
             prisma.report.update({
-                where: { reportNumber },
+                where: { reportNumber, status: report.status },
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
                 },

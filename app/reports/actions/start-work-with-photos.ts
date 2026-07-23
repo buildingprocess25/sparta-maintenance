@@ -126,7 +126,7 @@ export async function startWorkWithPhotos(
 
     await prisma.$transaction([
       prisma.report.update({
-        where: { reportNumber },
+        where: { reportNumber, status: ReportStatus.ESTIMATION_APPROVED },
         data: {
           status: ReportStatus.IN_PROGRESS,
           startSelfieUrl: selfieUrlValue || null,

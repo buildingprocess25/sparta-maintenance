@@ -28,17 +28,29 @@ export function resolveLimitedExportScope(input: {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
+    const normalizedSelectedBranches = selectedBranches
+        .map((branchName) => branchName.trim())
+        .filter(Boolean);
+    const normalizedAssignedBranches = assignedBranches
+        .map((branchName) => branchName.trim())
+        .filter(Boolean);
     const branchNames =
         selectedBranches.length > 0
-            ? selectedBranches
-            : assignedBranches.filter((branchName) => branchName.trim());
+            ? normalizedSelectedBranches
+            : normalizedAssignedBranches;
 
-    if (branchNames.length === 0) {
+    if (
+        branchNames.length === 0 ||
+        branchNames.some(
+            (branchName) =>
+                branchName === "all" || branchName === "HEAD OFFICE",
+        )
+    ) {
         return { ok: false, status: 403, error: "Forbidden" };
     }
 
     const hasUnauthorizedBranch = branchNames.some(
-        (branchName) => !assignedBranches.includes(branchName),
+        (branchName) => !normalizedAssignedBranches.includes(branchName),
     );
 
     if (hasUnauthorizedBranch) {

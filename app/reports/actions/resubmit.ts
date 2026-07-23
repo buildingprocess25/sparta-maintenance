@@ -82,7 +82,7 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
             });
 
             await tx.report.update({
-                where: { reportNumber },
+                where: { reportNumber, status: currentStatus },
                 data: {
                     storeCode: data.storeCode || null,
                     storeName: data.storeName || "",

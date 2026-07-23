@@ -91,7 +91,10 @@ export async function reviewEstimation(
 
         await prisma.$transaction([
             prisma.report.update({
-                where: { reportNumber },
+                where: {
+                    reportNumber,
+                    status: ReportStatus.PENDING_ESTIMATION,
+                },
                 data: { status: newStatus },
             }),
             prisma.approvalLog.create({

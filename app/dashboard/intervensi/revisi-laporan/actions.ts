@@ -198,7 +198,10 @@ export async function saveRealisasiRevision(
         const newTotalReal = calculateTotalRealisasiFromItems(updatedItems);
 
         await prisma.report.update({
-            where: { reportNumber: input.reportNumber },
+            where: {
+                reportNumber: input.reportNumber,
+                status: "COMPLETED",
+            },
             data: {
                 items: cleanReportItemsJson(updatedItems),
                 totalReal: newTotalReal,
@@ -382,7 +385,7 @@ export async function applyRealisasiRevision(
 
         // ── 7. Save to DB ────────────────────────────────────────────────────
         await prisma.report.update({
-            where: { reportNumber },
+            where: { reportNumber, status: "COMPLETED" },
             data: {
                 revisedPdfDriveUrl: revisedPdfUrl,
                 revisedPdfFolderUrl: folderUrl,
