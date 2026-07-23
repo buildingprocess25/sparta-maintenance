@@ -40,6 +40,16 @@ assert.deepEqual(
         ok: true,
         deleteIds: ["empty-after-detach"],
         updates: [{ id: "retained", reportNumbers: ["RPT-002"] }],
+        snapshots: [
+            {
+                id: "empty-after-detach",
+                reportNumbers: ["RPT-001"],
+            },
+            {
+                id: "retained",
+                reportNumbers: ["RPT-001", "RPT-002"],
+            },
+        ],
     },
 );
 

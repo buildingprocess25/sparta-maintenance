@@ -472,23 +472,41 @@ export async function archiveAdminReport(
             if (!detachments.ok) {
                 return { error: detachments.error };
             }
+            const pjumSnapshots = new Map(
+                detachments.snapshots.map(({ id, reportNumbers }) => [
+                    id,
+                    reportNumbers,
+                ]),
+            );
 
             for (const id of detachments.deleteIds) {
+                const reportNumbers = pjumSnapshots.get(id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
                 const deletion = await tx.pjumExport.deleteMany({
                     where: {
                         id,
                         status: { not: "APPROVED" },
-                        reportNumbers: { has: reportNumber },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
                     },
                 });
                 assertRetentionMutationApplied(deletion.count);
             }
             for (const update of detachments.updates) {
+                const reportNumbers = pjumSnapshots.get(update.id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
                 const detachment = await tx.pjumExport.updateMany({
                     where: {
                         id: update.id,
                         status: { not: "APPROVED" },
-                        reportNumbers: { has: reportNumber },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
                     },
                     data: { reportNumbers: { set: update.reportNumbers } },
                 });
@@ -628,23 +646,41 @@ export async function deleteAdminReport(
             if (!detachments.ok) {
                 return { error: detachments.error };
             }
+            const pjumSnapshots = new Map(
+                detachments.snapshots.map(({ id, reportNumbers }) => [
+                    id,
+                    reportNumbers,
+                ]),
+            );
 
             for (const id of detachments.deleteIds) {
+                const reportNumbers = pjumSnapshots.get(id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
                 const deletion = await tx.pjumExport.deleteMany({
                     where: {
                         id,
                         status: { not: "APPROVED" },
-                        reportNumbers: { has: reportNumber },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
                     },
                 });
                 assertRetentionMutationApplied(deletion.count);
             }
             for (const update of detachments.updates) {
+                const reportNumbers = pjumSnapshots.get(update.id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
                 const detachment = await tx.pjumExport.updateMany({
                     where: {
                         id: update.id,
                         status: { not: "APPROVED" },
-                        reportNumbers: { has: reportNumber },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
                     },
                     data: { reportNumbers: { set: update.reportNumbers } },
                 });

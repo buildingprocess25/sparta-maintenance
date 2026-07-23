@@ -31,6 +31,7 @@ export function resolvePjumDetachments(
           ok: true;
           deleteIds: string[];
           updates: Array<{ id: string; reportNumbers: string[] }>;
+          snapshots: Array<{ id: string; reportNumbers: string[] }>;
       } {
     if (pjums.some((pjum) => pjum.status === "APPROVED")) {
         return {
@@ -54,5 +55,10 @@ export function resolvePjumDetachments(
         }
     }
 
-    return { ok: true, deleteIds, updates };
+    return {
+        ok: true,
+        deleteIds,
+        updates,
+        snapshots: pjums.map(({ id, reportNumbers }) => ({ id, reportNumbers })),
+    };
 }
