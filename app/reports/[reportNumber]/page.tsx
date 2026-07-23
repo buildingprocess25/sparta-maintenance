@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/authorization";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import { parseMaterialStores } from "@/lib/report-material-stores";
 import { parseStartWorkPhotoUrls } from "@/lib/report-start-work-revision";
 import type {
@@ -45,6 +46,7 @@ async function getBmsReportDetail(
         where: {
             reportNumber,
             createdByNIK: bmsNIK,
+            status: { not: ARCHIVED_PREVENTIVE_STATUS },
         },
         select: {
             reportNumber: true,

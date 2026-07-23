@@ -13,6 +13,7 @@ import {
     getJakartaYearWindow,
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -119,8 +120,13 @@ type PreventiveExportReportRow = {
 
 function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     const where: Prisma.ReportWhereInput = {
-        // Exclude DRAFT-only records from export
-        status: { not: "DRAFT" },
+        AND: [
+            {
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
+            },
+        ],
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
     };
 

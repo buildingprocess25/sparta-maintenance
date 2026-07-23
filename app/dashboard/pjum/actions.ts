@@ -13,6 +13,7 @@ import { deletePdfSnapshots } from "@/lib/pdf/snapshot-storage";
 import { getPjumPolicySettings } from "@/lib/app-settings";
 import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { getJakartaDateRange } from "@/lib/time";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 
 export type AdminPjumFilters = {
     search?: string;
@@ -129,7 +130,9 @@ async function getDashboardPjumReportsInRange(params: {
                     finishedAt: { not: null, gte: fromDate, lte: toDate },
                 },
                 {
-                    status: { not: "COMPLETED" },
+                    status: {
+                        notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
+                    },
                     createdAt: { gte: fromDate, lte: toDate },
                 },
             ],

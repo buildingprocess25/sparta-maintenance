@@ -7,7 +7,10 @@ import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
-import { isReportStatusKey } from "@/lib/report-status";
+import {
+    ARCHIVED_PREVENTIVE_STATUS,
+    isReportStatusKey,
+} from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { getJakartaDateRange } from "@/lib/time";
 import { requiresPjum } from "@/lib/realisasi";
@@ -164,7 +167,9 @@ export async function getAdminReports(
                 ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
                 : { branchName: { in: scopedBranchNames } };
 
-        const andFilters: Prisma.ReportWhereInput[] = [];
+        const andFilters: Prisma.ReportWhereInput[] = [
+            { status: { not: ARCHIVED_PREVENTIVE_STATUS } },
+        ];
 
         // Search: reportNumber, storeName, storeCode, BMS NIK, BMS name
         if (filters.search) {

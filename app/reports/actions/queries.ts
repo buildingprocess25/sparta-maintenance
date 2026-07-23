@@ -8,6 +8,7 @@ import { resolveDateRange } from "./types";
 import { Prisma } from "@prisma/client";
 import { isRecordedPreventiveReport } from "@/lib/report-preventive";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import {
     getJakartaCurrentQuarter,
     getJakartaQuarterWindow,
@@ -67,22 +68,24 @@ export async function getMyReports(filters: ReportFilters = {}) {
     const skip = (page - 1) * limit;
 
     // Include COMPLETED by default so BMS can see their full report history
-    const statusList = status
-        ? Array.isArray(status)
-            ? status
-            : [status]
-        : [
-              "DRAFT",
-              "PENDING_ESTIMATION",
-              "ESTIMATION_APPROVED",
-              "ESTIMATION_REJECTED_REVISION",
-              "ESTIMATION_REJECTED",
-              "IN_PROGRESS",
-              "PENDING_REVIEW",
-              "APPROVED_BMC",
-              "REVIEW_REJECTED_REVISION",
-              "COMPLETED",
-          ];
+    const statusList = (
+        status
+            ? Array.isArray(status)
+                ? status
+                : [status]
+            : [
+                  "DRAFT",
+                  "PENDING_ESTIMATION",
+                  "ESTIMATION_APPROVED",
+                  "ESTIMATION_REJECTED_REVISION",
+                  "ESTIMATION_REJECTED",
+                  "IN_PROGRESS",
+                  "PENDING_REVIEW",
+                  "APPROVED_BMC",
+                  "REVIEW_REJECTED_REVISION",
+                  "COMPLETED",
+              ]
+    ).filter((value) => value !== ARCHIVED_PREVENTIVE_STATUS);
 
     const where: Record<string, unknown> = {
         createdByNIK: user.NIK,

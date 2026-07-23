@@ -1,6 +1,7 @@
 import "server-only";
 
 import prisma from "@/lib/prisma";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 import type { SearchedReport } from "./revisi-laporan-client";
 
@@ -10,8 +11,11 @@ export async function getRevisionReport(
     const normalizedReportNumber = reportNumber.trim();
     if (!normalizedReportNumber) return null;
 
-    const found = await prisma.report.findUnique({
-        where: { reportNumber: normalizedReportNumber },
+    const found = await prisma.report.findFirst({
+        where: {
+            reportNumber: normalizedReportNumber,
+            status: { not: ARCHIVED_PREVENTIVE_STATUS },
+        },
         include: {
             createdBy: { select: { name: true, NIK: true } },
             store: { select: { name: true, code: true } },

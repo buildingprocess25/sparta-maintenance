@@ -4,7 +4,11 @@ import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
-import { getReportStatusLabel } from "@/lib/report-status";
+import {
+    ARCHIVED_PREVENTIVE_STATUS,
+    getReportStatusLabel,
+    OPERATIONAL_EXCLUDED_REPORT_STATUSES,
+} from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { requiresPjum } from "@/lib/realisasi";
 import {
@@ -30,7 +34,10 @@ import {
  */
 export async function getUserStats(userId: string) {
     try {
-        const base = { createdByNIK: userId };
+        const base = {
+            createdByNIK: userId,
+            status: { not: ARCHIVED_PREVENTIVE_STATUS },
+        };
 
         const [
             totalReports,
@@ -78,7 +85,7 @@ export async function getUserStats(userId: string) {
                 where: {
                     ...base,
                     status: {
-                        not: "COMPLETED",
+                        notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
                     },
                 },
             }),
@@ -112,7 +119,9 @@ export async function getBMCStats(branchNames: string[]) {
     try {
         const base = {
             branchName: { in: branchNames },
-            status: { not: "DRAFT" as const },
+            status: {
+                notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+            },
         };
 
         const [totalReports, needsReview, inProgress, completed] =
@@ -182,7 +191,9 @@ export async function getBNMStats(branchNames: string[]) {
                 prisma.report.count({
                     where: {
                         branchName: { in: branchNames },
-                        status: { not: "DRAFT" },
+                        status: {
+                            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                        },
                     },
                 }),
             ]);
@@ -347,7 +358,9 @@ export async function getManagerDashboardData({
     const priorityStatuses = getManagerPriorityStatuses(role);
     const reportBase = {
         branchName: { in: visibleBranches },
-        status: { not: "DRAFT" as const },
+        status: {
+            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        },
     };
     const completedBase = {
         branchName: { in: visibleBranches },
@@ -527,7 +540,16 @@ async function fetchActivityLogs(
     limit: number,
 ): Promise<ActivityItem[]> {
     const rows = await prisma.activityLog.findMany({
-        where,
+        where: {
+            AND: [
+                where ?? {},
+                {
+                    report: {
+                        status: { not: ARCHIVED_PREVENTIVE_STATUS },
+                    },
+                },
+            ],
+        },
         orderBy: { createdAt: "desc" },
         take: limit,
         select: {
@@ -1131,7 +1153,9 @@ async function getAdminStatusDistribution(
         by: ["status"],
         where: {
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: { not: "DRAFT" },
+            status: {
+                notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+            },
             createdAt: { 
                 gte: window.start,
                 ...(window.end ? { lt: window.end } : {})
@@ -1217,7 +1241,9 @@ async function getAdminKpiMetric(
 ): Promise<AdminKpiMetric> {
     const baseWhere = {
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        status: { not: "DRAFT" as const },
+        status: {
+            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        },
         createdAt: { 
             gte: window.start,
             ...(window.end ? { lt: window.end } : {})
@@ -1398,7 +1424,9 @@ async function getAdminBranchPerformance(
             by: ["branchName"],
             where: {
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: { not: "DRAFT" },
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
                 createdAt: { 
                     gte: window.start,
                     ...(window.end ? { lt: window.end } : {})
