@@ -15,8 +15,7 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-
-export const BMS_INITIAL_BALANCE = new Prisma.Decimal(1_000_000);
+import { getBmsInitialBalance } from "@/lib/app-settings";
 
 export type BmsBalanceInfo = {
     periodId: string | null;
@@ -55,10 +54,11 @@ export async function createNewBmsPeriod(
     bmsNIK: string,
     pjumExportId?: string,
 ) {
+    const initialBalanceVal = await getBmsInitialBalance();
     return prisma.bmsBalancePeriod.create({
         data: {
             bmsNIK,
-            initialBalance: BMS_INITIAL_BALANCE,
+            initialBalance: new Prisma.Decimal(initialBalanceVal),
             status: "ACTIVE",
             pjumExportId: pjumExportId ?? null,
         },
@@ -80,13 +80,14 @@ export async function calculateBmsBalance(
 
     if (!period) {
         // Belum ada periode aktif — kembalikan saldo penuh sebagai default
+        const initialBalanceVal = await getBmsInitialBalance();
         return {
             periodId: null,
             periodStatus: null,
-            initialBalance: BMS_INITIAL_BALANCE.toNumber(),
+            initialBalance: initialBalanceVal,
             totalEstimated: 0,
             totalRealized: 0,
-            availableBalance: BMS_INITIAL_BALANCE.toNumber(),
+            availableBalance: initialBalanceVal,
             isLocked: false,
         };
     }
@@ -231,6 +232,7 @@ export async function resetBmsBalanceAfterPjumApproval(
     pjumExportId: string,
 ) {
     const period = await getBmsActivePeriod(bmsNIK);
+    const initialBalanceVal = await getBmsInitialBalance();
 
     return prisma.$transaction(async (tx) => {
         if (period) {
@@ -246,7 +248,7 @@ export async function resetBmsBalanceAfterPjumApproval(
         return tx.bmsBalancePeriod.create({
             data: {
                 bmsNIK,
-                initialBalance: BMS_INITIAL_BALANCE,
+                initialBalance: new Prisma.Decimal(initialBalanceVal),
                 status: "ACTIVE",
                 pjumExportId,
             },

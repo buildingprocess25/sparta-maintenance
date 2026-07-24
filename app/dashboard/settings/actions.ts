@@ -36,6 +36,7 @@ type UpdateOperationalSettingsInput = {
     pjumPendingStaleDays: number;
     pjumWeeklyAdvanceAmount: number;
     pjumPeriodDays: number;
+    bmsInitialBalance: number;
 };
 
 function normalizePositiveInteger(value: unknown, label: string) {
@@ -95,6 +96,15 @@ export async function updateOperationalSettings(
                     normalizePositiveInteger(
                         input.pjumPeriodDays,
                         "Periode PJUM",
+                    ),
+                ),
+            },
+            {
+                key: SETTING_KEYS.BMS_INITIAL_BALANCE,
+                value: String(
+                    normalizePositiveInteger(
+                        input.bmsInitialBalance,
+                        "Limit Saldo Operasional BMS",
                     ),
                 ),
             },

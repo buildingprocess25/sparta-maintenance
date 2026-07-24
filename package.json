@@ -20,10 +20,12 @@
         "prune:stores": "tsx scripts/prune-stores-by-branch.ts",
         "create-user": "tsx scripts/create-user.ts",
         "fix:store-branch": "tsx scripts/fix-store-branch-from-xlsx.ts",
+        "init:bms-balance": "tsx scripts/init-bms-balance-periods.ts",
         "export:preventive-photos": "tsx scripts/export-preventive-photos.ts",
         "db:generate": "prisma generate",
         "db:studio": "prisma studio",
         "db:seed": "tsx prisma/seed.ts",
+        "db:reset-transactions": "tsx prisma/reset-transactions.ts",
         "postinstall": "prisma generate",
         "knip": "knip"
     },
