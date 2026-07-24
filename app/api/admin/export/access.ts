@@ -63,3 +63,24 @@ export function resolveLimitedExportScope(input: {
 
     return { ok: true, branchNames };
 }
+
+export function resolveBranchFilterScope(
+    selectedBranches: string[],
+    mode: "admin-hierarchy" | "exact",
+    parentMap: Map<string, string>
+) {
+    if (mode === "exact") {
+        return selectedBranches.filter(b => b !== "HEAD OFFICE");
+    }
+
+    const resolved = new Set(selectedBranches);
+
+    for (const [branch, parent] of parentMap.entries()) {
+        if (selectedBranches.includes(parent)) {
+            resolved.add(branch);
+        }
+    }
+
+    resolved.delete("HEAD OFFICE");
+    return Array.from(resolved);
+}

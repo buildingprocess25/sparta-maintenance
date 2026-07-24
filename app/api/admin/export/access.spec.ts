@@ -142,3 +142,37 @@ for (const unsafeBranch of ["all", "HEAD OFFICE"]) {
 }
 
 console.log("limited export access assertions passed");
+
+import { resolveBranchFilterScope } from "./access";
+
+const EXCLUDED_ADMIN_BRANCH_NAME = "HEAD OFFICE"; // Match the constant
+
+const parentMap = new Map([
+    ["CHILD A", "BRANCH A"],
+    ["CHILD B", "BRANCH A"],
+    ["CHILD C", "BRANCH B"],
+]);
+
+// exact mode must NOT expand hierarchy
+assert.deepEqual(
+    resolveBranchFilterScope(["BRANCH A"], "exact", parentMap),
+    ["BRANCH A"]
+);
+
+// admin-hierarchy mode must expand hierarchy
+assert.deepEqual(
+    resolveBranchFilterScope(["BRANCH A"], "admin-hierarchy", parentMap).sort(),
+    ["BRANCH A", "CHILD A", "CHILD B"].sort()
+);
+
+// both modes must exclude EXCLUDED_ADMIN_BRANCH_NAME
+assert.deepEqual(
+    resolveBranchFilterScope([EXCLUDED_ADMIN_BRANCH_NAME], "exact", parentMap),
+    []
+);
+assert.deepEqual(
+    resolveBranchFilterScope([EXCLUDED_ADMIN_BRANCH_NAME], "admin-hierarchy", parentMap),
+    []
+);
+
+console.log("branch filter scope assertions passed");

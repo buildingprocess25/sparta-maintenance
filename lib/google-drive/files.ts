@@ -164,3 +164,18 @@ export async function uploadPdfToDrive(params: {
         webContentLink: created.data.webContentLink ?? null,
     };
 }
+
+/**
+ * Deletes a file from Google Drive by its ID.
+ */
+export async function deleteFileFromDrive(fileId: string): Promise<void> {
+    try {
+        const { drive } = getGoogleDriveClient();
+        await drive.files.delete({
+            fileId,
+            supportsAllDrives: true,
+        });
+    } catch (error) {
+        console.warn(`[deleteFileFromDrive] Failed to delete file ${fileId} from drive, file may already be deleted or inaccessible`, error);
+    }
+}

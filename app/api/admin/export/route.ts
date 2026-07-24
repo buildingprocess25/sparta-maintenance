@@ -367,6 +367,7 @@ export async function POST(request: NextRequest) {
 
   // ─ Fetch data ────────────────────────────────────────────────────────────
   try {
+    const branchResolutionMode = user.role === "ADMIN" ? "admin-hierarchy" : "exact";
     const [reportRows, materialRows, pjumRows, preventiveRows] =
       await Promise.all([
         requestedSheets.includes("reports")
@@ -379,7 +380,7 @@ export async function POST(request: NextRequest) {
           ? fetchPjumExportRows(filter)
           : Promise.resolve([]),
         requestedSheets.includes("preventive")
-          ? fetchPreventiveExportRows(filter)
+          ? fetchPreventiveExportRows(filter, branchResolutionMode)
           : Promise.resolve([]),
       ]);
 

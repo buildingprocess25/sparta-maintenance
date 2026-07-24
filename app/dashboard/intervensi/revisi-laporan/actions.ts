@@ -7,6 +7,7 @@ import { generateRevisionPdf } from "@/lib/pdf/generate-revision-pdf";
 import {
     uploadPdfToDrive,
     ensureDriveFolderPath,
+    deleteFileFromDrive,
 } from "@/lib/google-drive/files";
 import { buildDriveFolderUrl } from "@/lib/google-drive/archive";
 import { logger } from "@/lib/logger";
@@ -384,13 +385,22 @@ export async function applyRealisasiRevision(
             `https://drive.google.com/file/d/${revisionUploaded.fileId}/view`;
 
         // ── 7. Save to DB ────────────────────────────────────────────────────
-        await prisma.report.update({
-            where: { reportNumber, status: "COMPLETED" },
-            data: {
-                revisedPdfDriveUrl: revisedPdfUrl,
-                revisedPdfFolderUrl: folderUrl,
-            },
-        });
+        try {
+            await prisma.report.update({
+                where: { reportNumber, status: "COMPLETED" },
+                data: {
+                    revisedPdfDriveUrl: revisedPdfUrl,
+                    revisedPdfFolderUrl: folderUrl,
+                },
+            });
+        } catch (dbError) {
+            logger.error(
+                { operation: "applyRealisasiRevision", reportNumber, error: dbError },
+                "Gagal update DB setelah upload PDF ke Drive. Reverting Drive upload.",
+            );
+            await deleteFileFromDrive(revisionUploaded.fileId);
+            throw new Error("Gagal menyimpan URL PDF revisi ke database. Status report mungkin sudah berubah.");
+        }
 
         dispatchNotificationEvent({
             type: "REPORT_INTERVENTION_CREATED",

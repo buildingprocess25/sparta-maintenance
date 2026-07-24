@@ -513,27 +513,22 @@ function normalizeBranchFilter(branchName: ExportFilter["branchName"]) {
     return filtered.length > 0 ? filtered : null;
 }
 
+import { resolveBranchFilterScope } from "../../api/admin/export/access";
+
 async function resolvePreventiveBranchFilter(
     branchName: ExportFilter["branchName"],
+    mode: "admin-hierarchy" | "exact",
 ) {
     const selectedBranches = normalizeBranchFilter(branchName);
     if (!selectedBranches) return null;
 
     const hierarchy = await getAdminBranchHierarchy();
-    const resolved = new Set(selectedBranches);
-
-    for (const [branch, parent] of hierarchy.parentMap.entries()) {
-        if (selectedBranches.includes(parent)) {
-            resolved.add(branch);
-        }
-    }
-
-    resolved.delete(EXCLUDED_ADMIN_BRANCH_NAME);
-    return Array.from(resolved);
+    return resolveBranchFilterScope(selectedBranches, mode, hierarchy.parentMap);
 }
 
 export async function fetchPreventiveExportRows(
     filter: ExportFilter,
+    branchResolutionMode: "admin-hierarchy" | "exact",
 ): Promise<PreventiveExportRow[]> {
     try {
         const year = filter.year || getJakartaYear();
@@ -541,6 +536,7 @@ export async function fetchPreventiveExportRows(
         const { start, endExclusive } = getPreventiveExportWindow(year, quarter);
         const selectedBranchNames = await resolvePreventiveBranchFilter(
             filter.branchName,
+            branchResolutionMode,
         );
 
         const whereStore: Prisma.StoreWhereInput = {
