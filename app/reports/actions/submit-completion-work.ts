@@ -211,7 +211,7 @@ export async function submitCompletionWork(
 
         await prisma.$transaction([
             prisma.report.update({
-                where: { reportNumber },
+                where: { reportNumber, status: report.status },
                 data: {
                     status: ReportStatus.PENDING_REVIEW,
                     totalReal: new Prisma.Decimal(totalReal),

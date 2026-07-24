@@ -9,8 +9,11 @@ import {
     getJakartaDateRange,
     getJakartaQuarterKey,
     getJakartaQuarterWindow,
+    getJakartaYear,
     getJakartaYearWindow,
 } from "@/lib/time";
+import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -117,8 +120,13 @@ type PreventiveExportReportRow = {
 
 function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     const where: Prisma.ReportWhereInput = {
-        // Exclude DRAFT-only records from export
-        status: { not: "DRAFT" },
+        AND: [
+            {
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
+            },
+        ],
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
     };
 
@@ -505,34 +513,30 @@ function normalizeBranchFilter(branchName: ExportFilter["branchName"]) {
     return filtered.length > 0 ? filtered : null;
 }
 
+import { resolveBranchFilterScope } from "../../api/admin/export/access";
+
 async function resolvePreventiveBranchFilter(
     branchName: ExportFilter["branchName"],
+    mode: "admin-hierarchy" | "exact",
 ) {
     const selectedBranches = normalizeBranchFilter(branchName);
     if (!selectedBranches) return null;
 
     const hierarchy = await getAdminBranchHierarchy();
-    const resolved = new Set(selectedBranches);
-
-    for (const [branch, parent] of hierarchy.parentMap.entries()) {
-        if (selectedBranches.includes(parent)) {
-            resolved.add(branch);
-        }
-    }
-
-    resolved.delete(EXCLUDED_ADMIN_BRANCH_NAME);
-    return Array.from(resolved);
+    return resolveBranchFilterScope(selectedBranches, mode, hierarchy.parentMap);
 }
 
 export async function fetchPreventiveExportRows(
     filter: ExportFilter,
+    branchResolutionMode: "admin-hierarchy" | "exact",
 ): Promise<PreventiveExportRow[]> {
     try {
-        const year = filter.year || new Date().getFullYear();
+        const year = filter.year || getJakartaYear();
         const quarter = normalizePreventiveQuarter(filter.preventiveQuarter);
         const { start, endExclusive } = getPreventiveExportWindow(year, quarter);
         const selectedBranchNames = await resolvePreventiveBranchFilter(
             filter.branchName,
+            branchResolutionMode,
         );
 
         const whereStore: Prisma.StoreWhereInput = {
@@ -566,7 +570,10 @@ export async function fetchPreventiveExportRows(
         }
 
         const reportPredicates: Prisma.Sql[] = [
-            Prisma.sql`r."status" = 'COMPLETED'::"ReportStatus"`,
+            completePreventiveEvidenceSql({
+                statusColumn: Prisma.sql`r."status"`,
+                itemsColumn: Prisma.sql`r."items"`,
+            }),
             Prisma.sql`r."createdAt" >= ${start}`,
             Prisma.sql`r."createdAt" < ${endExclusive}`,
         ];
@@ -596,12 +603,6 @@ export async function fetchPreventiveExportRows(
             FROM "Report" r
             LEFT JOIN "User" u ON u."NIK" = r."createdByNIK"
             WHERE ${Prisma.join(reportPredicates, " AND ")}
-              AND EXISTS (
-                SELECT 1
-                FROM jsonb_array_elements(r."items") AS item
-                WHERE item->>'itemId' LIKE 'I%'
-                   OR item->>'preventiveCondition' IS NOT NULL
-              )
             ORDER BY r."createdAt" DESC
         `;
 

@@ -10,6 +10,7 @@ import {
   type ExportFilter,
 } from "@/app/admin/export/queries";
 import { toExcelJakartaSerial } from "@/lib/time";
+import { resolveLimitedExportScope } from "./access";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
 
@@ -342,50 +343,31 @@ export async function POST(request: NextRequest) {
     body.fileName ?? `sparta-export-${new Date().toISOString().slice(0, 10)}`;
 
   if (user.role === "BMC" || user.role === "BNM_MANAGER") {
-    const isReportsOnly =
-      requestedSheets.length === 1 && requestedSheets[0] === "reports";
-    const isBmcPreventiveOnly =
-      user.role === "BMC" &&
-      requestedSheets.length === 1 &&
-      requestedSheets[0] === "preventive";
-
-    if (!isReportsOnly && !isBmcPreventiveOnly) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-
     const selectedBranches = Array.isArray(filter.branchName)
       ? filter.branchName
       : filter.branchName
         ? [filter.branchName]
         : [];
+    const access = resolveLimitedExportScope({
+      role: user.role,
+      requestedSheets,
+      selectedBranches,
+      assignedBranches: user.branchNames,
+    });
 
-    if (isBmcPreventiveOnly && selectedBranches.length !== 1) {
+    if (!access.ok) {
       return NextResponse.json(
-        { error: "Pilih satu cabang untuk ekspor preventif" },
-        { status: 400 },
+        { error: access.error },
+        { status: access.status },
       );
     }
 
-    const requestedBranches =
-      selectedBranches.length > 0
-        ? selectedBranches
-        : user.branchNames.filter((branchName) => branchName.trim());
-
-    const unauthorizedBranch = requestedBranches.find(
-      (branchName) => !user.branchNames.includes(branchName),
-    );
-    if (unauthorizedBranch) {
-      return NextResponse.json(
-        { error: "Anda tidak punya akses ke cabang ini" },
-        { status: 403 },
-      );
-    }
-
-    filter.branchName = requestedBranches;
+    filter.branchName = access.branchNames;
   }
 
   // ─ Fetch data ────────────────────────────────────────────────────────────
   try {
+    const branchResolutionMode = user.role === "ADMIN" ? "admin-hierarchy" : "exact";
     const [reportRows, materialRows, pjumRows, preventiveRows] =
       await Promise.all([
         requestedSheets.includes("reports")
@@ -398,7 +380,7 @@ export async function POST(request: NextRequest) {
           ? fetchPjumExportRows(filter)
           : Promise.resolve([]),
         requestedSheets.includes("preventive")
-          ? fetchPreventiveExportRows(filter)
+          ? fetchPreventiveExportRows(filter, branchResolutionMode)
           : Promise.resolve([]),
       ]);
 

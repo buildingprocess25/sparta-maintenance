@@ -23,7 +23,13 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 
-export function ExportPjumDialog({ branches }: { branches: string[] }) {
+export function ExportPjumDialog({
+    branches,
+    showBranchFilter = true,
+}: {
+    branches: string[];
+    showBranchFilter?: boolean;
+}) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
@@ -45,7 +51,7 @@ export function ExportPjumDialog({ branches }: { branches: string[] }) {
                     filter: {
                         bmsQuery: bmsQuery || undefined,
                         branchName:
-                            selectedBranches.length === 0
+                            !showBranchFilter || selectedBranches.length === 0
                                 ? undefined
                                 : selectedBranches,
                         fromDate: fromDate || undefined,
@@ -119,58 +125,62 @@ export function ExportPjumDialog({ branches }: { branches: string[] }) {
                             />
                         </div>
                     </div>
-                    <div className="grid gap-2">
-                        <Label>Cabang</Label>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    role="combobox"
-                                    className="w-full justify-between font-normal text-sm px-3 h-10"
-                                >
-                                    {selectedBranches.length === 0
-                                        ? "Semua Cabang"
-                                        : selectedBranches.length === 1
-                                          ? selectedBranches[0]
-                                          : `${selectedBranches.length} Cabang Dipilih`}
-                                    <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="max-h-75 overflow-y-auto">
-                                <DropdownMenuCheckboxItem
-                                    checked={selectedBranches.length === 0}
-                                    onCheckedChange={(checked) => {
-                                        if (checked) setSelectedBranches([]);
-                                    }}
-                                >
-                                    Semua Cabang
-                                </DropdownMenuCheckboxItem>
-                                {branches.map((b) => (
-                                    <DropdownMenuCheckboxItem
-                                        key={b}
-                                        checked={selectedBranches.includes(b)}
-                                        onCheckedChange={(checked) => {
-                                            if (checked) {
-                                                setSelectedBranches([
-                                                    ...selectedBranches,
-                                                    b,
-                                                ]);
-                                            } else {
-                                                setSelectedBranches(
-                                                    selectedBranches.filter(
-                                                        (sb) => sb !== b,
-                                                    ),
-                                                );
-                                            }
-                                        }}
-                                        onSelect={(e) => e.preventDefault()}
+                    {showBranchFilter ? (
+                        <div className="grid gap-2">
+                            <Label>Cabang</Label>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        role="combobox"
+                                        className="w-full justify-between font-normal text-sm px-3 h-10"
                                     >
-                                        {b}
+                                        {selectedBranches.length === 0
+                                            ? "Semua Cabang"
+                                            : selectedBranches.length === 1
+                                              ? selectedBranches[0]
+                                              : `${selectedBranches.length} Cabang Dipilih`}
+                                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent className="max-h-75 overflow-y-auto">
+                                    <DropdownMenuCheckboxItem
+                                        checked={selectedBranches.length === 0}
+                                        onCheckedChange={(checked) => {
+                                            if (checked) setSelectedBranches([]);
+                                        }}
+                                    >
+                                        Semua Cabang
                                     </DropdownMenuCheckboxItem>
-                                ))}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                    </div>
+                                    {branches.map((b) => (
+                                        <DropdownMenuCheckboxItem
+                                            key={b}
+                                            checked={selectedBranches.includes(
+                                                b,
+                                            )}
+                                            onCheckedChange={(checked) => {
+                                                if (checked) {
+                                                    setSelectedBranches([
+                                                        ...selectedBranches,
+                                                        b,
+                                                    ]);
+                                                } else {
+                                                    setSelectedBranches(
+                                                        selectedBranches.filter(
+                                                            (sb) => sb !== b,
+                                                        ),
+                                                    );
+                                                }
+                                            }}
+                                            onSelect={(e) => e.preventDefault()}
+                                        >
+                                            {b}
+                                        </DropdownMenuCheckboxItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    ) : null}
                     <div className="grid gap-2">
                         <Label>Nama / NIK BMS</Label>
                         <Input

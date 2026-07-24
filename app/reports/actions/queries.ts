@@ -2,10 +2,18 @@
 
 import prisma from "@/lib/prisma";
 import { resolveReportTotalRealisasi } from "@/lib/realisasi";
-import type { ReportItemJson } from "@/types/report";
 import { requireAuth, requireRole } from "@/lib/authorization";
 import type { ReportFilters, DateRangeFilter } from "./types";
 import { resolveDateRange } from "./types";
+import { Prisma } from "@prisma/client";
+import { isRecordedPreventiveReport } from "@/lib/report-preventive";
+import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
+import {
+    getJakartaCurrentQuarter,
+    getJakartaQuarterWindow,
+    getJakartaYear,
+} from "@/lib/time";
 
 export async function getStoresByBranch(branchName: string) {
     const user = await requireAuth();
@@ -26,33 +34,24 @@ export async function getStoresByBranch(branchName: string) {
         },
     });
 
-    // Determine the current quarter date range
-    const now = new Date();
-    const quarter = Math.floor(now.getMonth() / 3);
-    const quarterStart = new Date(now.getFullYear(), quarter * 3, 1);
-    const quarterEnd = new Date(now.getFullYear(), (quarter + 1) * 3, 1);
+    const year = getJakartaYear();
+    const quarter = getJakartaCurrentQuarter();
+    const { start, endExclusive } = getJakartaQuarterWindow(year, quarter);
 
     // Fetch all non-DRAFT reports for this branch in the current quarter
     const reportsThisQuarter = await prisma.report.findMany({
         where: {
             branchName,
             status: { not: "DRAFT" },
-            createdAt: { gte: quarterStart, lt: quarterEnd },
+            createdAt: { gte: start, lt: endExclusive },
         },
-        select: { storeCode: true, items: true },
+        select: { storeCode: true, status: true, items: true },
     });
 
-    // Build a set of store codes that have preventive (category I) reports
     const storesWithPreventive = new Set<string>();
     for (const report of reportsThisQuarter) {
-        const items = report.items as ReportItemJson[] | null;
-        if (items && Array.isArray(items)) {
-            const hasCategoryI = items.some((item) =>
-                item.itemId.startsWith("I"),
-            );
-            if (hasCategoryI && report.storeCode) {
-                storesWithPreventive.add(report.storeCode);
-            }
+        if (report.storeCode && isRecordedPreventiveReport(report)) {
+            storesWithPreventive.add(report.storeCode);
         }
     }
 
@@ -69,22 +68,24 @@ export async function getMyReports(filters: ReportFilters = {}) {
     const skip = (page - 1) * limit;
 
     // Include COMPLETED by default so BMS can see their full report history
-    const statusList = status
-        ? Array.isArray(status)
-            ? status
-            : [status]
-        : [
-              "DRAFT",
-              "PENDING_ESTIMATION",
-              "ESTIMATION_APPROVED",
-              "ESTIMATION_REJECTED_REVISION",
-              "ESTIMATION_REJECTED",
-              "IN_PROGRESS",
-              "PENDING_REVIEW",
-              "APPROVED_BMC",
-              "REVIEW_REJECTED_REVISION",
-              "COMPLETED",
-          ];
+    const statusList = (
+        status
+            ? Array.isArray(status)
+                ? status
+                : [status]
+            : [
+                  "DRAFT",
+                  "PENDING_ESTIMATION",
+                  "ESTIMATION_APPROVED",
+                  "ESTIMATION_REJECTED_REVISION",
+                  "ESTIMATION_REJECTED",
+                  "IN_PROGRESS",
+                  "PENDING_REVIEW",
+                  "APPROVED_BMC",
+                  "REVIEW_REJECTED_REVISION",
+                  "COMPLETED",
+              ]
+    ).filter((value) => value !== ARCHIVED_PREVENTIVE_STATUS);
 
     const where: Record<string, unknown> = {
         createdByNIK: user.NIK,
@@ -163,32 +164,19 @@ export async function getMyReports(filters: ReportFilters = {}) {
 export async function getLastCategoryIDate(storeCode: string) {
     await requireAuth();
 
-    const reports = await prisma.report.findMany({
-        where: {
-            storeCode: storeCode,
-            status: { not: "DRAFT" },
-        },
-        orderBy: { createdAt: "desc" },
-        select: {
-            createdAt: true,
-            items: true,
-        },
-        take: 10,
-    });
+    const [report] = await prisma.$queryRaw<Array<{ createdAt: Date }>>`
+        SELECT r."createdAt"
+        FROM "Report" r
+        WHERE r."storeCode" = ${storeCode}
+          AND ${completePreventiveEvidenceSql({
+              statusColumn: Prisma.sql`r."status"`,
+              itemsColumn: Prisma.sql`r."items"`,
+          })}
+        ORDER BY r."createdAt" DESC
+        LIMIT 1
+    `;
 
-    for (const report of reports) {
-        const items = report.items as ReportItemJson[] | null;
-        if (items && Array.isArray(items)) {
-            const hasCategoryI = items.some((item) =>
-                item.itemId.startsWith("I"),
-            );
-            if (hasCategoryI) {
-                return report.createdAt.toISOString();
-            }
-        }
-    }
-
-    return null;
+    return report?.createdAt.toISOString() ?? null;
 }
 
 export async function getApprovalReports(params: {

@@ -154,6 +154,20 @@ export function getJakartaQuarterWindow(year: number, quarter: 1 | 2 | 3 | 4) {
     };
 }
 
+export function isSameJakartaQuarter(left: Date | string, right: Date | string) {
+    return (
+        getJakartaYear(left) === getJakartaYear(right) &&
+        getJakartaCurrentQuarter(left) === getJakartaCurrentQuarter(right)
+    );
+}
+
+export function getNextJakartaQuarterStart(value: Date | string = new Date()) {
+    return getJakartaQuarterWindow(
+        getJakartaYear(value),
+        getJakartaCurrentQuarter(value),
+    ).endExclusive;
+}
+
 export function getJakartaQuarterKey(value: Date | string) {
     return `q${getJakartaCurrentQuarter(value)}` as
         | "q1"

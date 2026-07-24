@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import {
     AlertTriangle,
+    Archive,
     ClipboardList,
     GalleryHorizontal,
     History,
@@ -12,7 +13,7 @@ import {
     Trash2,
 } from "lucide-react";
 
-import { deleteAdminReport } from "../../actions";
+import { archiveAdminReport, deleteAdminReport } from "../../actions";
 import { Badge } from "@/components/ui/badge";
 import {
     AlertDialog,
@@ -25,7 +26,9 @@ import {
     AlertDialogMedia,
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { hasCompletePreventiveEvidence } from "@/lib/report-preventive";
 import type { DetailPhoto, ReportDetailModel } from "../_lib/detail-data";
 import { ActionsTab } from "./actions-tab";
 import { ApprovalReviewTour } from "./approval-review-tour";
@@ -55,7 +58,14 @@ export function ReportDetailWorkbench({
 }: Props) {
     const router = useRouter();
     const reviewGate = useReportApprovalReviewGate();
-    const canDeleteReport = viewerRole === "ADMIN";
+    const isAdmin = viewerRole === "ADMIN";
+    const isArchived = report.status === "ARCHIVED_PREVENTIVE";
+    const hasPreventiveEvidence = hasCompletePreventiveEvidence(report.items);
+    const canArchive =
+        isAdmin &&
+        hasPreventiveEvidence &&
+        report.status !== "DRAFT" &&
+        !isArchived;
     const didAutoFocusReview = useRef(false);
     const [activeTab, setActiveTab] = useState(
         reviewGate.enabled && !reviewGate.isReviewComplete
@@ -65,17 +75,40 @@ export function ReportDetailWorkbench({
     const [selectedPhoto, setSelectedPhoto] = useState<DetailPhoto | null>(
         null,
     );
+    const [archiveOpen, setArchiveOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [deleteConfirmation, setDeleteConfirmation] = useState("");
 
     function handlePhotoSelect(photo: DetailPhoto) {
         reviewGate.markPhotoOpened(photo.id);
         setSelectedPhoto(photo);
     }
+    const [isArchiving, startArchiveTransition] = useTransition();
     const [isDeleting, startDeleteTransition] = useTransition();
+
+    function handleArchive() {
+        startArchiveTransition(async () => {
+            const result = await archiveAdminReport(report.reportNumber);
+            if (result.error) {
+                toast.error("Gagal mengarsipkan laporan", {
+                    description: result.error,
+                });
+                return;
+            }
+
+            toast.success("Laporan berhasil diarsipkan");
+            setArchiveOpen(false);
+            router.push("/dashboard/preventive");
+            router.refresh();
+        });
+    }
 
     function handleDelete() {
         startDeleteTransition(async () => {
-            const result = await deleteAdminReport(report.reportNumber);
+            const result = await deleteAdminReport(
+                report.reportNumber,
+                deleteConfirmation,
+            );
             if (result.error) {
                 toast.error("Gagal menghapus laporan", {
                     description: result.error,
@@ -165,7 +198,7 @@ export function ReportDetailWorkbench({
                                 <History data-icon="inline-start" />
                                 Riwayat Aktivitas
                             </TabsTrigger>
-                            {canDeleteReport ? (
+                            {isAdmin ? (
                                 <TabsTrigger
                                     value="actions"
                                     className="h-8 flex-none px-3 text-xs"
@@ -204,10 +237,13 @@ export function ReportDetailWorkbench({
                         <HistoryTab report={report} />
                     </TabsContent>
 
-                    {canDeleteReport ? (
+                    {isAdmin ? (
                         <TabsContent value="actions" className="mt-0">
                             <ActionsTab
                                 report={report}
+                                canArchive={canArchive}
+                                hasPreventiveEvidence={hasPreventiveEvidence}
+                                onArchiveClick={() => setArchiveOpen(true)}
                                 onDeleteClick={() => setDeleteOpen(true)}
                             />
                         </TabsContent>
@@ -262,7 +298,46 @@ export function ReportDetailWorkbench({
                 />
             ) : null}
 
-            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialog open={archiveOpen} onOpenChange={setArchiveOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogMedia>
+                            <Archive />
+                        </AlertDialogMedia>
+                        <AlertDialogTitle>
+                            Arsipkan laporan ini?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Laporan {report.reportNumber} tidak lagi muncul
+                            dalam proses operasional. Bukti Preventive tetap
+                            tersimpan dan toko tetap tercatat sudah Preventive.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={isArchiving}>
+                            Batal
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={isArchiving}
+                            onClick={(event) => {
+                                event.preventDefault();
+                                handleArchive();
+                            }}
+                        >
+                            <Archive data-icon="inline-start" />
+                            {isArchiving ? "Mengarsipkan..." : "Arsipkan"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+                open={deleteOpen}
+                onOpenChange={(open) => {
+                    setDeleteOpen(open);
+                    if (!open) setDeleteConfirmation("");
+                }}
+            >
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogMedia className="bg-destructive/10 text-destructive">
@@ -270,19 +345,48 @@ export function ReportDetailWorkbench({
                         </AlertDialogMedia>
                         <AlertDialogTitle>Hapus laporan ini?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Laporan {report.reportNumber} akan dihapus bersama
-                            checklist, estimasi, realisasi, approval log,
-                            aktivitas, dan relasi PJUM terkait.
+                            Data laporan {report.reportNumber} akan dihapus
+                            permanen dari database. File di Google Drive tidak
+                            ikut dihapus.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
+                    {hasPreventiveEvidence ? (
+                        <p className="text-sm font-medium text-destructive">
+                            Toko dapat kehilangan status sudah Preventive.
+                        </p>
+                    ) : null}
+                    <div className="grid gap-2">
+                        <label
+                            htmlFor="delete-report-confirmation"
+                            className="text-sm font-medium"
+                        >
+                            Ketik {report.reportNumber} untuk mengonfirmasi
+                        </label>
+                        <Input
+                            id="delete-report-confirmation"
+                            value={deleteConfirmation}
+                            onChange={(event) =>
+                                setDeleteConfirmation(event.target.value)
+                            }
+                            placeholder={report.reportNumber}
+                            autoComplete="off"
+                            disabled={isDeleting}
+                        />
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>
                             Batal
                         </AlertDialogCancel>
                         <AlertDialogAction
                             variant="destructive"
-                            disabled={isDeleting}
-                            onClick={handleDelete}
+                            disabled={
+                                isDeleting ||
+                                deleteConfirmation !== report.reportNumber
+                            }
+                            onClick={(event) => {
+                                event.preventDefault();
+                                handleDelete();
+                            }}
                         >
                             <Trash2 data-icon="inline-start" />
                             {isDeleting ? "Menghapus..." : "Hapus permanen"}

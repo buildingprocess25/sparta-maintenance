@@ -1,4 +1,4 @@
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { getPjumStatusLabel } from "@/lib/pjum-status";
@@ -8,9 +8,15 @@ import { InfoPill } from "./shared-ui";
 
 export function ActionsTab({
     report,
+    canArchive,
+    hasPreventiveEvidence,
+    onArchiveClick,
     onDeleteClick,
 }: {
     report: ReportDetailModel;
+    canArchive: boolean;
+    hasPreventiveEvidence: boolean;
+    onArchiveClick: () => void;
     onDeleteClick: () => void;
 }) {
     return (
@@ -25,20 +31,44 @@ export function ActionsTab({
                 </p>
             </div>
             <div className="flex flex-col gap-4 p-4">
+                {canArchive ? (
+                    <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="max-w-2xl">
+                            <h3 className="text-sm font-semibold">
+                                Arsipkan laporan operasional
+                            </h3>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Laporan tidak lagi muncul di proses
+                                operasional, tetapi bukti Preventive tetap
+                                tersimpan dan tercatat.
+                            </p>
+                        </div>
+                        <Button variant="outline" onClick={onArchiveClick}>
+                            <Archive data-icon="inline-start" />
+                            Arsipkan laporan
+                        </Button>
+                    </div>
+                ) : null}
                 <div className="flex flex-col gap-3 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="max-w-2xl">
                         <h3 className="text-sm font-semibold">
-                            Hapus laporan operasional
+                            Hapus laporan permanen
                         </h3>
                         <p className="mt-1 text-xs text-muted-foreground">
-                            Menghapus laporan {report.reportNumber}, termasuk
-                            checklist, estimasi, realisasi, approval log,
-                            riwayat aktivitas, dan relasi PJUM.
+                            Menghapus data laporan {report.reportNumber} dari
+                            database secara permanen. File di Google Drive
+                            tidak ikut dihapus.
                         </p>
+                        {hasPreventiveEvidence ? (
+                            <p className="mt-2 text-xs font-medium text-destructive">
+                                Toko dapat kehilangan status sudah Preventive
+                                setelah laporan dihapus.
+                            </p>
+                        ) : null}
                     </div>
                     <Button variant="destructive" onClick={onDeleteClick}>
                         <Trash2 data-icon="inline-start" />
-                        Hapus laporan
+                        Hapus permanen
                     </Button>
                 </div>
                 <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">

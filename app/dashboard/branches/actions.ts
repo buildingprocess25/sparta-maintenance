@@ -10,7 +10,11 @@ import {
     getBranchStuckThresholdDate,
 } from "@/lib/admin-branches";
 import { logger } from "@/lib/logger";
-import { getReportStatusLabel } from "@/lib/report-status";
+import {
+    ARCHIVED_PREVENTIVE_STATUS,
+    getReportStatusLabel,
+    OPERATIONAL_EXCLUDED_REPORT_STATUSES,
+} from "@/lib/report-status";
 import { requiresPjum } from "@/lib/realisasi";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import type { Prisma } from "@prisma/client";
@@ -218,7 +222,9 @@ async function getAdminBranchOverview(
         prisma.report.count({
             where: {
                 branchName,
-                status: { not: "DRAFT" },
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
                 createdAt: periodDateFilter,
             },
         }),
@@ -262,7 +268,14 @@ async function getAdminBranchOverview(
             },
         }),
         prisma.activityLog.findFirst({
-            where: { report: { branchName, status: { not: "DRAFT" } } },
+            where: {
+                report: {
+                    branchName,
+                    status: {
+                        notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                    },
+                },
+            },
             orderBy: { createdAt: "desc" },
             select: { createdAt: true },
         }),
@@ -362,7 +375,9 @@ export async function getAdminBranchesData(
                 by: ["branchName"],
                 where: {
                     branchName: { in: branchNames },
-                    status: { not: "DRAFT" },
+                    status: {
+                        notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                    },
                     createdAt: periodDateFilter,
                 },
                 _count: { _all: true },
@@ -419,7 +434,10 @@ export async function getAdminBranchesData(
                 FROM "ActivityLog" a
                 INNER JOIN "Report" r ON r."reportNumber" = a."reportNumber"
                 WHERE r."branchName" = ANY(${branchNames}::text[])
-                  AND r."status" <> 'DRAFT'::"ReportStatus"
+                  AND r."status" NOT IN (
+                      'DRAFT'::"ReportStatus",
+                      'ARCHIVED_PREVENTIVE'::"ReportStatus"
+                  )
                 GROUP BY r."branchName"
             `,
         ]);
@@ -599,7 +617,9 @@ export async function getAdminBranchDetail(
             by: ["status"],
             where: {
                 branchName,
-                status: { not: "DRAFT" },
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
                 createdAt: periodDateFilter,
             },
             _count: { _all: true },
@@ -663,7 +683,12 @@ export async function getAdminBranchDetail(
             },
         }),
         prisma.activityLog.findMany({
-            where: { report: { branchName } },
+            where: {
+                report: {
+                    branchName,
+                    status: { not: ARCHIVED_PREVENTIVE_STATUS },
+                },
+            },
             orderBy: { createdAt: "desc" },
             take: 8,
             select: {

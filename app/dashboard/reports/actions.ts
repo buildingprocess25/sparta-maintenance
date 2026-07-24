@@ -2,14 +2,25 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getAuthUser } from "@/lib/authorization";
+import { getAuthUser, validateCSRF } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { revalidatePath } from "next/cache";
-import { isReportStatusKey } from "@/lib/report-status";
+import { headers } from "next/headers";
+import {
+    ARCHIVED_PREVENTIVE_STATUS,
+    isReportStatusKey,
+} from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { getJakartaDateRange } from "@/lib/time";
 import { requiresPjum } from "@/lib/realisasi";
+import { hasCompletePreventiveEvidence } from "@/lib/report-preventive";
+import {
+    assertRetentionMutationApplied,
+    isDeleteConfirmationValid,
+    ReportRetentionConflictError,
+    resolvePjumDetachments,
+} from "@/lib/report-retention";
 
 export type AdminReportFilters = {
     search?: string;
@@ -156,7 +167,9 @@ export async function getAdminReports(
                 ? { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }
                 : { branchName: { in: scopedBranchNames } };
 
-        const andFilters: Prisma.ReportWhereInput[] = [];
+        const andFilters: Prisma.ReportWhereInput[] = [
+            { status: { not: ARCHIVED_PREVENTIVE_STATUS } },
+        ];
 
         // Search: reportNumber, storeName, storeCode, BMS NIK, BMS name
         if (filters.search) {
@@ -402,103 +415,338 @@ export async function getAdminReports(
     }
 }
 
-export async function deleteAdminReport(reportNumber: string) {
+export async function archiveAdminReport(
+    reportNumber: string,
+): Promise<{ success?: true; error?: string }> {
     const correlationId = crypto.randomUUID();
     const start = performance.now();
 
     try {
         const user = await getAuthUser();
-        if (
-            !user ||
-            (user.role !== "ADMIN" &&
-                user.role !== "BMC" &&
-                user.role !== "BNM_MANAGER")
-        ) {
-            throw new Error("Unauthorized");
+        await validateCSRF(await headers());
+
+        if (!user || user.role !== "ADMIN") {
+            return { error: "Hanya Admin yang dapat mengarsipkan laporan" };
         }
 
-        const report = await prisma.report.findUnique({
-            where: { reportNumber },
-            select: {
-                reportNumber: true,
-                branchName: true,
-                storeName: true,
-            },
-        });
+        const result = await prisma.$transaction(async (tx) => {
+            const report = await tx.report.findUnique({
+                where: { reportNumber },
+                select: {
+                    reportNumber: true,
+                    status: true,
+                    items: true,
+                    pjumExportedAt: true,
+                    branchName: true,
+                    storeCode: true,
+                    storeName: true,
+                },
+            });
 
-        if (!report) {
-            return { error: "Laporan tidak ditemukan" };
-        }
-
-        if (
-            user.role !== "ADMIN" &&
-            !user.branchNames.includes(report.branchName)
-        ) {
-            return { error: "Laporan ini bukan dari cabang Anda" };
-        }
-
-        if (
-            user.role === "ADMIN" &&
-            report.branchName === EXCLUDED_ADMIN_BRANCH_NAME
-        ) {
-            return {
-                error: "Laporan HEAD OFFICE tidak dapat dihapus dari dashboard admin",
-            };
-        }
-
-        await prisma.$transaction(async (tx) => {
-            await tx.approvalLog.deleteMany({ where: { reportNumber } });
-            await tx.activityLog.deleteMany({ where: { reportNumber } });
+            if (!report) {
+                return { error: "Laporan tidak ditemukan" };
+            }
+            if (report.branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+                return {
+                    error: "Laporan HEAD OFFICE tidak dapat diarsipkan dari dashboard admin",
+                };
+            }
+            if (report.status === "DRAFT") {
+                return { error: "Laporan draft tidak dapat diarsipkan" };
+            }
+            if (report.status === "ARCHIVED_PREVENTIVE") {
+                return { error: "Laporan sudah diarsipkan" };
+            }
+            if (!hasCompletePreventiveEvidence(report.items)) {
+                return { error: "Bukti Preventive laporan belum lengkap" };
+            }
 
             const relatedPjums = await tx.pjumExport.findMany({
                 where: { reportNumbers: { has: reportNumber } },
-                select: { id: true, reportNumbers: true },
+                select: {
+                    id: true,
+                    status: true,
+                    reportNumbers: true,
+                },
             });
+            const detachments = resolvePjumDetachments(
+                reportNumber,
+                relatedPjums,
+            );
 
-            for (const pjum of relatedPjums) {
-                const nextReportNumbers = pjum.reportNumbers.filter(
-                    (item) => item !== reportNumber,
-                );
+            if (!detachments.ok) {
+                return { error: detachments.error };
+            }
+            const pjumSnapshots = new Map(
+                detachments.snapshots.map(({ id, reportNumbers }) => [
+                    id,
+                    reportNumbers,
+                ]),
+            );
 
-                if (nextReportNumbers.length === 0) {
-                    await tx.pjumExport.delete({ where: { id: pjum.id } });
-                } else {
-                    await tx.pjumExport.update({
-                        where: { id: pjum.id },
-                        data: { reportNumbers: { set: nextReportNumbers } },
-                    });
-                }
+            for (const id of detachments.deleteIds) {
+                const reportNumbers = pjumSnapshots.get(id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
+                const deletion = await tx.pjumExport.deleteMany({
+                    where: {
+                        id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
+                    },
+                });
+                assertRetentionMutationApplied(deletion.count);
+            }
+            for (const update of detachments.updates) {
+                const reportNumbers = pjumSnapshots.get(update.id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
+                const detachment = await tx.pjumExport.updateMany({
+                    where: {
+                        id: update.id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
+                    },
+                    data: { reportNumbers: { set: update.reportNumbers } },
+                });
+                assertRetentionMutationApplied(detachment.count);
             }
 
-            await tx.report.delete({ where: { reportNumber } });
+            const archive = await tx.report.updateMany({
+                where: {
+                    reportNumber,
+                    status: report.status,
+                    pjumExportedAt: report.pjumExportedAt,
+                },
+                data: {
+                    status: "ARCHIVED_PREVENTIVE",
+                    pjumExportedAt: null,
+                },
+            });
+            assertRetentionMutationApplied(archive.count);
+
+            await tx.activityLog.create({
+                data: {
+                    reportNumber,
+                    actorNIK: user.NIK,
+                    action: "ADMIN_ARCHIVED_PREVENTIVE",
+                    notes: `Status sebelumnya: ${report.status}`,
+                },
+            });
+
+            return { success: true as const, report };
         });
 
-        revalidatePath("/dashboard/reports");
-        revalidatePath("/dashboard/materials");
-        revalidatePath("/dashboard/pjum");
-        revalidatePath("/dashboard/preventive");
-        revalidatePath("/dashboard");
-        revalidatePath(`/reports/${reportNumber}`);
-        revalidatePath(`/dashboard/reports/${reportNumber}`);
+        if ("error" in result) {
+            return result;
+        }
 
-        const durationMs = Math.round(performance.now() - start);
+        [
+            "/dashboard/reports",
+            "/dashboard/materials",
+            "/dashboard/pjum",
+            "/dashboard/preventive",
+            "/dashboard",
+            `/reports/${reportNumber}`,
+            `/dashboard/reports/${reportNumber}`,
+        ].forEach((path) => revalidatePath(path));
+
+        logger.info(
+            {
+                operation: "archiveAdminReport",
+                correlationId,
+                durationMs: Math.round(performance.now() - start),
+                reportNumber,
+                userId: user.NIK,
+                branchName: result.report.branchName,
+                storeCode: result.report.storeCode,
+                storeName: result.report.storeName,
+            },
+            "Archived admin report successfully",
+        );
+
+        return { success: true };
+    } catch (error) {
+        if (error instanceof ReportRetentionConflictError) {
+            return { error: error.message };
+        }
+
+        logger.error(
+            {
+                operation: "archiveAdminReport",
+                correlationId,
+                durationMs: Math.round(performance.now() - start),
+                reportNumber,
+            },
+            "Failed to archive admin report",
+            error,
+        );
+        return { error: "Gagal mengarsipkan laporan" };
+    }
+}
+
+export async function deleteAdminReport(
+    reportNumber: string,
+    confirmationReportNumber: string,
+): Promise<{ success?: true; error?: string }> {
+    const correlationId = crypto.randomUUID();
+    const start = performance.now();
+
+    try {
+        const user = await getAuthUser();
+        await validateCSRF(await headers());
+
+        if (!user || user.role !== "ADMIN") {
+            return { error: "Hanya Admin yang dapat menghapus laporan" };
+        }
+        if (
+            !isDeleteConfirmationValid(
+                reportNumber,
+                confirmationReportNumber,
+            )
+        ) {
+            return { error: "Konfirmasi nomor laporan tidak sesuai" };
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const report = await tx.report.findUnique({
+                where: { reportNumber },
+                select: {
+                    reportNumber: true,
+                    status: true,
+                    pjumExportedAt: true,
+                    branchName: true,
+                    storeCode: true,
+                    storeName: true,
+                },
+            });
+            if (!report) {
+                return { error: "Laporan tidak ditemukan" };
+            }
+            if (report.branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+                return {
+                    error: "Laporan HEAD OFFICE tidak dapat dihapus dari dashboard admin",
+                };
+            }
+
+            const relatedPjums = await tx.pjumExport.findMany({
+                where: { reportNumbers: { has: reportNumber } },
+                select: {
+                    id: true,
+                    status: true,
+                    reportNumbers: true,
+                },
+            });
+            const detachments = resolvePjumDetachments(
+                reportNumber,
+                relatedPjums,
+            );
+
+            if (!detachments.ok) {
+                return { error: detachments.error };
+            }
+            const pjumSnapshots = new Map(
+                detachments.snapshots.map(({ id, reportNumbers }) => [
+                    id,
+                    reportNumbers,
+                ]),
+            );
+
+            for (const id of detachments.deleteIds) {
+                const reportNumbers = pjumSnapshots.get(id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
+                const deletion = await tx.pjumExport.deleteMany({
+                    where: {
+                        id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
+                    },
+                });
+                assertRetentionMutationApplied(deletion.count);
+            }
+            for (const update of detachments.updates) {
+                const reportNumbers = pjumSnapshots.get(update.id);
+                if (!reportNumbers) throw new ReportRetentionConflictError();
+
+                const detachment = await tx.pjumExport.updateMany({
+                    where: {
+                        id: update.id,
+                        status: { not: "APPROVED" },
+                        reportNumbers: {
+                            equals: reportNumbers,
+                            has: reportNumber,
+                        },
+                    },
+                    data: { reportNumbers: { set: update.reportNumbers } },
+                });
+                assertRetentionMutationApplied(detachment.count);
+            }
+
+            await tx.approvalLog.deleteMany({ where: { reportNumber } });
+            await tx.activityLog.deleteMany({ where: { reportNumber } });
+            const deletion = await tx.report.deleteMany({
+                where: {
+                    reportNumber,
+                    status: report.status,
+                    pjumExportedAt: report.pjumExportedAt,
+                },
+            });
+            assertRetentionMutationApplied(deletion.count);
+
+            return { success: true as const, report };
+        });
+
+        if ("error" in result) {
+            return result;
+        }
+
+        [
+            "/dashboard/reports",
+            "/dashboard/materials",
+            "/dashboard/pjum",
+            "/dashboard/preventive",
+            "/dashboard",
+            `/reports/${reportNumber}`,
+            `/dashboard/reports/${reportNumber}`,
+        ].forEach((path) => revalidatePath(path));
+
         logger.info(
             {
                 operation: "deleteAdminReport",
                 correlationId,
-                durationMs,
+                durationMs: Math.round(performance.now() - start),
                 reportNumber,
                 userId: user.NIK,
-                branchName: report.branchName,
+                branchName: result.report.branchName,
+                storeCode: result.report.storeCode,
+                storeName: result.report.storeName,
             },
             "Deleted admin report successfully",
         );
 
         return { success: true };
     } catch (error) {
-        const durationMs = Math.round(performance.now() - start);
+        if (error instanceof ReportRetentionConflictError) {
+            return { error: error.message };
+        }
+
         logger.error(
-            { operation: "deleteAdminReport", correlationId, durationMs, reportNumber },
+            {
+                operation: "deleteAdminReport",
+                correlationId,
+                durationMs: Math.round(performance.now() - start),
+                reportNumber,
+            },
             "Failed to delete admin report",
             error,
         );

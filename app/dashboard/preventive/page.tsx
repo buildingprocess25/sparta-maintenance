@@ -42,12 +42,10 @@ export default async function AdminPreventivePage() {
             title="Checklist Preventif"
             breadcrumbs={[{ label: "Checklist Preventif" }]}
             headerActions={
-                user.role === "ADMIN" || user.role === "BMC" ? (
-                    <ExportPreventiveDialog
-                        branches={branches}
-                        allowAllBranches={isAdmin}
-                    />
-                ) : null
+                <ExportPreventiveDialog
+                    branches={branches}
+                    showBranchFilter={isAdmin}
+                />
             }
             contentClassName="h-full gap-0 p-0 lg:p-0"
         >

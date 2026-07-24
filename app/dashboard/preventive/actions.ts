@@ -16,6 +16,7 @@ import {
     getJakartaYear,
     getJakartaYearWindow,
 } from "@/lib/time";
+import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -284,7 +285,10 @@ export async function getAdminPreventive(
         const allStoreCodes = allStores.map((s) => s.code);
         const storeMap = new Map(allStores.map((store) => [store.code, store]));
         const reportPredicates: Prisma.Sql[] = [
-            Prisma.sql`r."status" = 'COMPLETED'::"ReportStatus"`,
+            completePreventiveEvidenceSql({
+                statusColumn: Prisma.sql`r."status"`,
+                itemsColumn: Prisma.sql`r."items"`,
+            }),
             Prisma.sql`r."createdAt" >= ${yearStart}`,
             Prisma.sql`r."createdAt" < ${yearEnd}`,
         ];
@@ -332,12 +336,6 @@ export async function getAdminPreventive(
                       FROM "Report" r
                       LEFT JOIN "User" u ON u."NIK" = r."createdByNIK"
                       WHERE ${Prisma.join(reportPredicates, " AND ")}
-                        AND EXISTS (
-                          SELECT 1
-                          FROM jsonb_array_elements(r."items") AS item
-                          WHERE item->>'itemId' LIKE 'I%'
-                             OR item->>'preventiveCondition' IS NOT NULL
-                        )
                       ORDER BY r."createdAt" DESC
                   `;
 
@@ -554,34 +552,44 @@ export async function getAdminPreventive(
 export async function getReportYears() {
     try {
         const user = await getAuthUser();
-        if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        if (
+            !user ||
+            (user.role !== "ADMIN" &&
+                user.role !== "BMC" &&
+                user.role !== "BNM_MANAGER")
+        ) {
             throw new Error("Unauthorized");
         }
 
-        const firstReport = await prisma.report.findFirst({
-            where: {
-                ...getBranchScope(user),
-                status: "COMPLETED",
-            },
-            orderBy: { createdAt: "asc" },
-            select: { createdAt: true },
-        });
+        const branchPredicate =
+            user.role === "ADMIN"
+                ? Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`
+                : user.branchNames.length > 0
+                  ? Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`
+                  : Prisma.sql`FALSE`;
+        const [range] = await prisma.$queryRaw<
+            Array<{
+                firstCreatedAt: Date | null;
+                lastCreatedAt: Date | null;
+            }>
+        >`
+            SELECT
+                MIN(r."createdAt") AS "firstCreatedAt",
+                MAX(r."createdAt") AS "lastCreatedAt"
+            FROM "Report" r
+            WHERE ${completePreventiveEvidenceSql({
+                statusColumn: Prisma.sql`r."status"`,
+                itemsColumn: Prisma.sql`r."items"`,
+            })}
+              AND ${branchPredicate}
+        `;
 
-        const lastReport = await prisma.report.findFirst({
-            where: {
-                ...getBranchScope(user),
-                status: "COMPLETED",
-            },
-            orderBy: { createdAt: "desc" },
-            select: { createdAt: true },
-        });
-
-        if (!firstReport || !lastReport) {
+        if (!range?.firstCreatedAt || !range.lastCreatedAt) {
             return [getJakartaYear()];
         }
 
-        const startYear = getJakartaYear(firstReport.createdAt);
-        const endYear = getJakartaYear(lastReport.createdAt);
+        const startYear = getJakartaYear(range.firstCreatedAt);
+        const endYear = getJakartaYear(range.lastCreatedAt);
         const years: number[] = [];
 
         for (let y = endYear; y >= startYear; y--) {

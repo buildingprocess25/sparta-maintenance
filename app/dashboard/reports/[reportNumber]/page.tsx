@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
+import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import { AdminDashboardShell } from "../../_components/admin/admin-dashboard-shell";
 import { getAdminReportDetail } from "./queries";
 import { ReportApprovalReviewGateProvider } from "./_components/report-approval-review-gate";
@@ -78,6 +79,13 @@ function canAccessDashboardReport(
     report: DashboardReportDetail,
 ) {
     if (user.role === "ADMIN") return true;
+
+    if (
+        report.status === ARCHIVED_PREVENTIVE_STATUS &&
+        user.role === "BMS"
+    ) {
+        return false;
+    }
 
     if (user.role === "BMC") {
         return user.branchNames.includes(report.branchName);
