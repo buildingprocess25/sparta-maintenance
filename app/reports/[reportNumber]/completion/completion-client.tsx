@@ -24,19 +24,21 @@ import { CompletionItemSection } from "./components/completion-item-section";
 import { StartWorkRevisionSection } from "./components/start-work-revision-section";
 import { SummaryMetric } from "./components/summary-metric";
 import { useCompletionWorkForm } from "./use-completion-work-form";
+import type { BmsBalanceInfo } from "@/lib/balance";
+import { BmsBalanceCard } from "@/components/bms-balance-card";
 
 type CompletionClientProps = {
   report: CompletionReport;
   userNIK: string;
   userName: string;
-  bmsBalance: number;
+  bmsBalanceInfo: BmsBalanceInfo;
 };
 
 export function CompletionClient({
   report,
   userNIK,
   userName,
-  bmsBalance,
+  bmsBalanceInfo,
 }: CompletionClientProps) {
   const isHeaderVisible = useBmsMobileHeaderVisibility();
   const {
@@ -83,7 +85,7 @@ export function CompletionClient({
     totalEstimation,
     unexpectedCostNotes,
     updateItemState,
-  } = useCompletionWorkForm(report, bmsBalance);
+  } = useCompletionWorkForm(report, bmsBalanceInfo.availableBalance);
 
   const onSubmitClick = () => {
     if (validationErrors.length > 0) {
@@ -146,6 +148,7 @@ export function CompletionClient({
       </div>
 
       <main className="mx-auto flex w-full max-w-lg flex-col px-4 pb-32 pt-[116px]">
+        <BmsBalanceCard balance={bmsBalanceInfo} compact={true} className="mb-4" />
         <section className="border-b border-border/40 pb-4">
           <div className="grid grid-cols-3 gap-2">
             <SummaryMetric
@@ -176,7 +179,7 @@ export function CompletionClient({
                   ⚠️ Realisasi biaya melebihi sisa saldo!
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-                  Total realisasi ({formatCurrency(grandTotal)}) melampaui sisa saldo ({formatCurrency(bmsBalance)}).
+                  Total realisasi ({formatCurrency(grandTotal)}) melampaui sisa saldo ({formatCurrency(bmsBalanceInfo.availableBalance)}).
                   Anda tetap dapat mengirim laporan, namun <strong>wajib mengisi catatan biaya tak terduga</strong> di bawah ini.
                 </p>
                 <textarea
