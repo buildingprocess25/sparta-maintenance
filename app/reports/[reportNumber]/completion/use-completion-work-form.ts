@@ -46,7 +46,7 @@ type CameraTarget =
     | { target: "startSelfie" | "startStore" | "startReceipt" }
     | null;
 
-export function useCompletionWorkForm(report: CompletionReport) {
+export function useCompletionWorkForm(report: CompletionReport, bmsBalance: number) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { uploadPhoto } = usePhotoUpload();
@@ -133,8 +133,8 @@ export function useCompletionWorkForm(report: CompletionReport) {
         [damagedItems, itemStates],
     );
 
-    // True jika total realisasi melebihi saldo estimasi awal — warning + catatan wajib
-    const isOverBudget = grandTotal > totalEstimation && totalEstimation > 0;
+    // True jika total realisasi melebihi sisa saldo — warning + catatan wajib
+    const isOverBudget = grandTotal > bmsBalance;
 
     const buildDraftData = useCallback(
         (): CompletionDraftData => ({
@@ -464,11 +464,11 @@ export function useCompletionWorkForm(report: CompletionReport) {
             }
         }
 
-        // Catatan biaya tak terduga wajib diisi jika realisasi melebihi estimasi
+        // Catatan biaya tak terduga wajib diisi jika realisasi melebihi sisa saldo
         if (isOverBudget && !unexpectedCostNotes.trim()) {
             errs.push({
                 id: "unexpected-cost-notes",
-                message: "Catatan Biaya Tak Terduga wajib diisi karena realisasi biaya melebihi estimasi awal.",
+                message: "Catatan Biaya Tak Terduga wajib diisi karena realisasi biaya melebihi sisa saldo.",
             });
         }
 
