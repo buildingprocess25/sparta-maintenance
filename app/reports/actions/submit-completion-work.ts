@@ -196,14 +196,14 @@ export async function submitCompletionWork(
         // ── Realisasi Over Estimation Check ──────────────────────────────────────────
         const hasBalanceImpact = hasBmsRepairItems(updatedItems);
         if (hasBalanceImpact) {
-            const estimationNum = new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
-            if (totalReal > estimationNum && estimationNum > 0) {
-                // Realisasi melebihi estimasi awal — wajib isi catatan biaya tak terduga
+            const balance = await calculateBmsBalance(user.NIK);
+            if (totalReal > balance.availableBalance) {
+                // Realisasi melebihi sisa saldo — wajib isi catatan biaya tak terduga
                 const safeCostNotes = unexpectedCostNotes?.trim();
                 if (!safeCostNotes) {
                     return {
                         error:
-                            "Realisasi biaya melebihi estimasi awal. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
+                            "Realisasi biaya melebihi sisa saldo. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
                     };
                 }
             }
