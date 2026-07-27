@@ -29,12 +29,14 @@ type CompletionClientProps = {
   report: CompletionReport;
   userNIK: string;
   userName: string;
+  bmsBalance: number;
 };
 
 export function CompletionClient({
   report,
   userNIK,
   userName,
+  bmsBalance,
 }: CompletionClientProps) {
   const isHeaderVisible = useBmsMobileHeaderVisibility();
   const {
@@ -81,7 +83,7 @@ export function CompletionClient({
     totalEstimation,
     unexpectedCostNotes,
     updateItemState,
-  } = useCompletionWorkForm(report);
+  } = useCompletionWorkForm(report, bmsBalance);
 
   const onSubmitClick = () => {
     if (validationErrors.length > 0) {
@@ -161,7 +163,7 @@ export function CompletionClient({
           </div>
         </section>
 
-        {/* ── Warning: Realisasi Melebihi Estimasi ─────────────────────── */}
+        {/* ── Warning: Realisasi Melebihi Saldo ─────────────────────── */}
         {isOverBudget && (
           <section
             id="unexpected-cost-notes"
@@ -171,10 +173,10 @@ export function CompletionClient({
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
-                  ⚠️ Realisasi biaya melebihi estimasi awal!
+                  ⚠️ Realisasi biaya melebihi sisa saldo!
                 </p>
                 <p className="mt-0.5 text-xs leading-relaxed text-amber-700 dark:text-amber-400">
-                  Total realisasi ({formatCurrency(grandTotal)}) melampaui estimasi ({formatCurrency(totalEstimation)}).
+                  Total realisasi ({formatCurrency(grandTotal)}) melampaui sisa saldo ({formatCurrency(bmsBalance)}).
                   Anda tetap dapat mengirim laporan, namun <strong>wajib mengisi catatan biaya tak terduga</strong> di bawah ini.
                 </p>
                 <textarea

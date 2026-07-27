@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { CompletionClient } from "./completion-client";
 import { getReportForCompletion } from "./queries";
+import { calculateBmsBalance } from "@/lib/balance";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,14 @@ export default async function CompletionByReportPage({ params }: Props) {
     const report = await getReportForCompletion(reportNumber, user.NIK);
     if (!report) notFound();
 
+    const balanceInfo = await calculateBmsBalance(user.NIK);
+
     return (
         <CompletionClient
             report={report}
             userNIK={user.NIK}
             userName={user.name}
+            bmsBalance={balanceInfo.availableBalance}
         />
     );
 }
