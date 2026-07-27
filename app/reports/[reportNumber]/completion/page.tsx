@@ -31,7 +31,7 @@ export default async function CompletionByReportPage({ params }: Props) {
             report={report}
             userNIK={user.NIK}
             userName={user.name}
-            bmsBalance={balanceInfo.availableBalance}
+            bmsBalanceInfo={balanceInfo}
         />
     );
 }
