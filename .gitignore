@@ -25,10 +25,6 @@
 /backup
 
 # .agent
-.agents
-.claude
-.cursor
-.github/skills
 .vscode/mcp.json
 
 # misc
