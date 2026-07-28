@@ -155,29 +155,18 @@ export function CompletionClient({ report, userNIK, userName, bmsBalanceInfo }: 
 
         {/* ── Warning: Realisasi Melebihi Saldo ─────────────────────── */}
         {isOverBudget && (
-          <section id="unexpected-cost-notes" className="mt-4 space-y-3">
-            {/* Status banner */}
-            <div className="flex items-center gap-3 rounded-xl border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-3 dark:from-amber-950/40 dark:to-orange-950/30">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50">
-                <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
-              </div>
+          <section id="unexpected-cost-notes" className="border-b border-border/40 py-5">
+            <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-50/50 px-3 py-3 dark:border-amber-500/10 dark:bg-amber-500/10">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">Batas Terlampaui</p>
-                <p className="mt-0.5 text-[11px] leading-relaxed text-amber-700/80 dark:text-amber-400/70">
-                  Selisih <span className="font-bold text-amber-800 dark:text-amber-300">{formatCurrency(grandTotal - maxAvailableBudget)}</span> di atas batas. Laporan tetap bisa dikirim dengan mengisi catatan di bawah.
+                <p className="mt-0.5 text-xs leading-relaxed text-amber-700/90 dark:text-amber-400/90">
+                  Selisih <span className="font-semibold text-amber-800 dark:text-amber-300">{formatCurrency(grandTotal - maxAvailableBudget)}</span>. Laporan tetap bisa dikirim dengan menyertakan alasan di bawah.
                 </p>
               </div>
             </div>
 
-            {/* Input card */}
-            <div
-              className={cn(
-                "rounded-xl border bg-card p-4 shadow-sm transition-all duration-300",
-                isNoteHighlighted
-                  ? "border-amber-400 ring-2 ring-amber-400/40 dark:border-amber-500 dark:ring-amber-500/30"
-                  : "border-border",
-              )}
-            >
+            <div className="px-1">
               <div className="mb-2 flex items-center justify-between">
                 <label htmlFor="unexpected-cost-notes-input" className="text-xs font-semibold text-foreground">
                   Catatan Biaya Tak Terduga
@@ -187,7 +176,12 @@ export function CompletionClient({ report, userNIK, userName, bmsBalanceInfo }: 
               </div>
               <textarea
                 id="unexpected-cost-notes-input"
-                className="w-full resize-none rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-amber-400/60 dark:focus:ring-amber-500/40"
+                className={cn(
+                  "w-full resize-none rounded-md border bg-transparent px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none transition-all duration-300",
+                  isNoteHighlighted
+                    ? "border-amber-400 ring-2 ring-amber-400/40 dark:border-amber-500 dark:ring-amber-500/30"
+                    : "border-input focus:ring-2 focus:ring-ring/50 focus:border-ring"
+                )}
                 rows={4}
                 maxLength={500}
                 placeholder="Jelaskan alasan kenaikan biaya di sini..."

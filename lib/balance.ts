@@ -153,10 +153,8 @@ export async function calculateBmsBalance(
     }
 
     const initialBalance = new Prisma.Decimal(period.initialBalance.toString()).toNumber();
-    const availableBalance = Math.max(
-        0,
-        initialBalance - totalRealized - totalEstimatedInProgress,
-    );
+    const availableBalance =
+        initialBalance - totalRealized - totalEstimatedInProgress;
 
     return {
         periodId: period.id,
