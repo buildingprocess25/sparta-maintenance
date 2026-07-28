@@ -20,6 +20,7 @@ import {
   ReportWizardShell,
   type ReportWizardStep,
 } from "./components/report-wizard-shell";
+import { BmsReportTour } from "./components/bms-report-tour";
 
 import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
@@ -247,6 +248,8 @@ export default function CreateReportForm({
 
   return (
     <>
+      <BmsReportTour activeStep={step} isEditMode={isEditMode} />
+
       {showDraftDialog && (
         <DraftDialog
           open={showDraftDialog}
