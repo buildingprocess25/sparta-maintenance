@@ -22,5 +22,11 @@ assert.match(
 );
 assert.match(tourSource, /scrollIntoView\(\{\s*block: "center"/);
 assert.match(tourSource, /skipScroll: true/);
+assert.match(tourSource, /currentStep\?\.id !== "add-item"/);
+assert.match(tourSource, /setStepIndex\(stepIndex \+ 1\)/);
+assert.match(
+    stepsSource,
+    /estimationSteps\.map\(\(step\) => \(\{ \.\.\.step, disableOverlay: true \}\)\)/,
+);
 
 console.log("bms report tour runtime assertions passed");
