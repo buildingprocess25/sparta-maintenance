@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { getBmsReportTourSteps } from "./bms-report-tour-steps";
+import { getBmsReportTourSteps, getBmsInputTourSteps } from "./bms-report-tour-steps";
 
 // Test step order for create mode (isEditMode = false)
 const createSteps = getBmsReportTourSteps(false);
@@ -31,6 +31,22 @@ assert.equal(
 assert.equal(
     createSteps.find((s) => s.wizardStep === "review")?.target,
     "[data-tour='bms-report-submit']",
+);
+
+assert.deepEqual(
+    getBmsInputTourSteps({ activeStep: "checklist", isRepairOnlyMode: false })
+        .map((step) => step.id),
+    ["condition", "handler", "photo", "notes", "aho"],
+);
+assert.deepEqual(
+    getBmsInputTourSteps({ activeStep: "checklist", isRepairOnlyMode: true })
+        .map((step) => step.id),
+    ["handler", "photo", "notes", "aho"],
+);
+assert.deepEqual(
+    getBmsInputTourSteps({ activeStep: "estimation", isRepairOnlyMode: false })
+        .map((step) => step.id),
+    ["add-item", "estimate-item", "estimate-name", "estimate-quantity", "estimate-price", "estimate-save", "estimate-actions", "estimate-edit", "estimate-delete"],
 );
 
 console.log("bms-report-tour-steps spec tests passed");
