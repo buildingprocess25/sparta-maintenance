@@ -197,13 +197,18 @@ export async function submitCompletionWork(
         const hasBalanceImpact = hasBmsRepairItems(updatedItems);
         if (hasBalanceImpact) {
             const balance = await calculateBmsBalance(user.NIK);
-            if (totalReal > balance.availableBalance) {
-                // Realisasi melebihi sisa saldo — wajib isi catatan biaya tak terduga
+            const reportTotalEstimation = report.totalEstimation
+                ? new Prisma.Decimal(report.totalEstimation.toString()).toNumber()
+                : 0;
+            const maxAvailableBudget = balance.availableBalance + reportTotalEstimation;
+
+            if (totalReal > maxAvailableBudget) {
+                // Realisasi melebihi batas maksimal — wajib isi catatan biaya tak terduga
                 const safeCostNotes = unexpectedCostNotes?.trim();
                 if (!safeCostNotes) {
                     return {
                         error:
-                            "Realisasi biaya melebihi sisa saldo. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
+                            "Realisasi biaya melebihi batas maksimal. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
                     };
                 }
             }

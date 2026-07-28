@@ -46,7 +46,7 @@ type CameraTarget =
     | { target: "startSelfie" | "startStore" | "startReceipt" }
     | null;
 
-export function useCompletionWorkForm(report: CompletionReport, bmsBalance: number) {
+export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudget: number) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const { uploadPhoto } = usePhotoUpload();
@@ -133,8 +133,8 @@ export function useCompletionWorkForm(report: CompletionReport, bmsBalance: numb
         [damagedItems, itemStates],
     );
 
-    // True jika total realisasi melebihi sisa saldo — warning + catatan wajib
-    const isOverBudget = grandTotal > bmsBalance;
+    // True jika total realisasi melebihi batas maksimal — warning + catatan wajib
+    const isOverBudget = grandTotal > maxAvailableBudget;
 
     const buildDraftData = useCallback(
         (): CompletionDraftData => ({

@@ -18,9 +18,10 @@ type BmsBalanceCardProps = {
   className?: string;
   /** Compact mode for inline use (e.g. in report list/header) */
   compact?: boolean;
+  compactLabel?: string;
 };
 
-export function BmsBalanceCard({ balance, className, compact = false }: BmsBalanceCardProps) {
+export function BmsBalanceCard({ balance, className, compact = false, compactLabel }: BmsBalanceCardProps) {
   const usedAmount = balance.totalRealized + balance.totalEstimated;
   const usagePercent = balance.initialBalance > 0 ? Math.min(100, Math.round((usedAmount / balance.initialBalance) * 100)) : 0;
 
@@ -44,7 +45,7 @@ export function BmsBalanceCard({ balance, className, compact = false }: BmsBalan
         )}
       >
         {isLocked ? <Lock className="size-4 shrink-0" /> : <Wallet className="size-4 shrink-0" />}
-        <span className="font-medium">{isLocked ? "Saldo Terkunci (PJUM)" : `Sisa Saldo: ${formatCurrency(balance.availableBalance)}`}</span>
+        <span className="font-medium">{isLocked ? "Saldo Terkunci (PJUM)" : `${compactLabel || "Sisa Saldo:"} ${formatCurrency(balance.availableBalance)}`}</span>
       </div>
     );
   }
