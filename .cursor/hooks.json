@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      {
+        "command": "node \"C:\\\\Users\\\\akmal\\\\.cursor\\\\skills\\\\impeccable\\\\scripts\\\\hook-before-edit.mjs\"",
+        "timeout": 5
+      },
+      {
+        "command": "node \".cursor/skills/impeccable/scripts/hook-before-edit.mjs\"",
+        "timeout": 5
+      }
+    ]
+  }
+}
