@@ -4,23 +4,26 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
     Joyride,
     STATUS,
+    EVENTS,
+    ACTIONS,
     type EventData,
 } from "react-joyride";
 
 import { ReportTourTooltip } from "@/components/reports/report-tour-tooltip";
 import { getTodayJakartaDateKey } from "@/lib/time";
 import {
-    type BmsWizardStep,
-    getBmsReportTourSteps,
+    getBmsInputTourSteps,
 } from "./bms-report-tour-steps";
 
 type BmsReportTourProps = {
-    activeStep: BmsWizardStep;
+    activeStep: "store" | "checklist" | "estimation" | "review";
     isEditMode: boolean;
+    isRepairOnlyMode: boolean;
 };
 
-export function BmsReportTour({ activeStep, isEditMode }: BmsReportTourProps) {
+export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsReportTourProps) {
     const [run, setRun] = useState(false);
+    const [stepIndex, setStepIndex] = useState(0);
     const hasAutoRun = useRef(false);
     const dontShowTodayRef = useRef(false);
     const dismissedThisSession = useRef(false);
@@ -28,20 +31,22 @@ export function BmsReportTour({ activeStep, isEditMode }: BmsReportTourProps) {
         ? "bms-report-tour:v1:revision"
         : "bms-report-tour:v1:create";
 
-    const steps = useMemo(
-        () => getBmsReportTourSteps(isEditMode),
-        [isEditMode],
+    const allSteps = useMemo(
+        () => getBmsInputTourSteps({ activeStep, isRepairOnlyMode }),
+        [activeStep, isRepairOnlyMode],
     );
 
-    const activeTourSteps = useMemo(() => {
-        const step = steps.find((s) => s.wizardStep === activeStep);
-        return step ? [step] : [];
-    }, [steps, activeStep]);
+    const currentStep = allSteps[stepIndex];
+
+    useEffect(() => {
+        setStepIndex(0);
+        setRun(false);
+    }, [activeStep]);
 
     useEffect(() => {
         hasAutoRun.current = false;
 
-        if (dismissedThisSession.current || activeTourSteps.length === 0) {
+        if (dismissedThisSession.current || !currentStep || run) {
             return;
         }
 
@@ -56,7 +61,7 @@ export function BmsReportTour({ activeStep, isEditMode }: BmsReportTourProps) {
                 return;
             }
 
-            const target = activeTourSteps[0].target;
+            const target = currentStep.target;
             if (typeof target === "string" && document.querySelector(target)) {
                 hasAutoRun.current = true;
                 setRun(true);
@@ -70,7 +75,7 @@ export function BmsReportTour({ activeStep, isEditMode }: BmsReportTourProps) {
         }, 100);
 
         return () => window.clearInterval(interval);
-    }, [activeStep, activeTourSteps, storageKey]);
+    }, [currentStep, storageKey, run]);
 
     useEffect(() => {
         if (!run) {
@@ -87,27 +92,27 @@ export function BmsReportTour({ activeStep, isEditMode }: BmsReportTourProps) {
     }, [run]);
 
     function handleEvent(data: EventData) {
-        if (data.status === STATUS.SKIPPED) {
-            dismissedThisSession.current = true;
-        }
-
-        if (data.status !== STATUS.FINISHED && data.status !== STATUS.SKIPPED) {
+        if (data.type === EVENTS.STEP_AFTER && data.action === ACTIONS.NEXT) {
+            setRun(false);
+            setStepIndex((index) => index + 1);
             return;
         }
-
-        if (dontShowTodayRef.current || getVisibleCheckboxChecked()) {
-            window.localStorage.setItem(storageKey, getTodayKey());
+        if (data.status === STATUS.SKIPPED || data.status === STATUS.FINISHED) {
+            dismissedThisSession.current = true;
+            if (dontShowTodayRef.current || getVisibleCheckboxChecked()) {
+                window.localStorage.setItem(storageKey, getTodayKey());
+            }
+            setRun(false);
         }
-        setRun(false);
     }
 
-    if (activeTourSteps.length === 0) return null;
+    if (!currentStep) return null;
 
     return (
         <Joyride
             run={run}
             scrollToFirstStep={false}
-            steps={activeTourSteps}
+            steps={currentStep ? [currentStep] : []}
             options={{
                 blockTargetInteraction: false,
                 buttons: ["skip", "primary"],
