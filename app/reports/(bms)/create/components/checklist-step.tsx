@@ -311,6 +311,7 @@ export function ChecklistStep({
                                   </div>
 
                                   <RadioGroup
+                                    data-tour="bms-checklist-condition"
                                     value={condition}
                                     onValueChange={(value) =>
                                       onConditionChange(
@@ -387,6 +388,7 @@ export function ChecklistStep({
                                           </span>
                                         </p>
                                         <RadioGroup
+                                          data-tour="bms-checklist-handler"
                                           value={handler}
                                           onValueChange={(val) =>
                                             onHandlerChange(
@@ -422,7 +424,7 @@ export function ChecklistStep({
                                       </div>
                                     ) : null}
 
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-2" data-tour="bms-checklist-photo">
                                       <p className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">
                                         Foto Bukti{" "}
                                         <span className="text-destructive">
@@ -456,27 +458,29 @@ export function ChecklistStep({
 
                                     {isBroken ? (
                                       <div className="flex flex-col gap-2">
-                                        <Label
-                                          htmlFor={`${item.id}-note`}
-                                          className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
-                                        >
-                                          Catatan{" "}
-                                          <span className="text-destructive">
-                                            *
-                                          </span>
-                                        </Label>
-                                        <LocalNotesTextarea
-                                          required={true}
-                                          initialValue={itemData?.notes || ""}
-                                          onCommit={(val) =>
-                                            onNotesChange(
-                                              item.id,
-                                              item.name,
-                                              val,
-                                            )
-                                          }
-                                        />
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-notes">
+                                          <Label
+                                            htmlFor={`${item.id}-note`}
+                                            className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                                          >
+                                            Catatan{" "}
+                                            <span className="text-destructive">
+                                              *
+                                            </span>
+                                          </Label>
+                                          <LocalNotesTextarea
+                                            required={true}
+                                            initialValue={itemData?.notes || ""}
+                                            onCommit={(val) =>
+                                              onNotesChange(
+                                                item.id,
+                                                item.name,
+                                                val,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-aho">
                                           <Label
                                             htmlFor={`${item.id}-aho`}
                                             className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"

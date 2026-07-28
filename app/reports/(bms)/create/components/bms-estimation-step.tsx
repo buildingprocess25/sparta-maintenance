@@ -329,7 +329,7 @@ export function BmsEstimationStep({
                                       </TableCell>
                                       <TableCell className="px-1 py-2 text-right">
                                         <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
+                                          <DropdownMenuTrigger asChild data-tour="bms-estimation-actions">
                                             <Button
                                               type="button"
                                               variant="ghost"
@@ -345,6 +345,7 @@ export function BmsEstimationStep({
                                             className="w-[120px]"
                                           >
                                             <DropdownMenuItem
+                                              data-tour="bms-estimation-edit"
                                               onClick={() =>
                                                 handleEditEstimateDialogOpen(
                                                   checklistItem.id,
@@ -356,6 +357,7 @@ export function BmsEstimationStep({
                                               Edit
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
+                                              data-tour="bms-estimation-delete"
                                               className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                               onClick={() =>
                                                 onRemoveBmsEntry(
@@ -382,6 +384,7 @@ export function BmsEstimationStep({
                   </div>
 
                   <Button
+                    data-tour="bms-estimation-add"
                     type="button"
                     variant="outline"
                     className="h-12 bg-background"
@@ -442,6 +445,7 @@ export function BmsEstimationStep({
                 }
               >
                 <SelectTrigger
+                  data-tour="bms-estimation-item"
                   id="estimate-checklist-item"
                   className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
                 >
@@ -467,6 +471,7 @@ export function BmsEstimationStep({
                 Nama Barang yang Dibeli
               </Label>
               <Input
+                data-tour="bms-estimation-name"
                 id="estimate-item-name"
                 value={estimateDraft.itemName}
                 onChange={(event) =>
@@ -488,6 +493,7 @@ export function BmsEstimationStep({
                   Jumlah
                 </Label>
                 <Input
+                  data-tour="bms-estimation-quantity"
                   id="estimate-quantity"
                   type="number"
                   min={0}
@@ -550,6 +556,7 @@ export function BmsEstimationStep({
                   Rp
                 </span>
                 <Input
+                  data-tour="bms-estimation-price"
                   id="estimate-unit-price"
                   type="number"
                   min={0}
@@ -578,6 +585,7 @@ export function BmsEstimationStep({
               Batal
             </Button>
             <Button
+              data-tour="bms-estimation-save"
               type="button"
               onClick={handleEstimateItemSave}
               disabled={!canSaveEstimateItem}
