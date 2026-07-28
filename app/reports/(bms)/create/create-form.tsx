@@ -364,18 +364,15 @@ export default function CreateReportForm({
           )}
 
           {isOverbudget && (step === "estimation" || step === "review") && (
-            <Alert
-              variant="destructive"
-              className="border-red-500 bg-red-50 text-red-900 dark:bg-red-950/50 dark:text-red-200"
-            >
-              <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400" />
-              <AlertTitle>Estimasi Melebihi Saldo!</AlertTitle>
-              <AlertDescription>
-                Total estimasi biaya (Rp {grandTotalBms.toLocaleString("id-ID")}) 
-                melebihi sisa saldo Anda (Rp {balanceInfo?.availableBalance.toLocaleString("id-ID")}). 
-                Silakan kurangi estimasi atau hubungi BMC.
-              </AlertDescription>
-            </Alert>
+            <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" />
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-semibold leading-none">Estimasi Melebihi Batas</p>
+                <p className="text-[13px] leading-snug opacity-90">
+                  Biaya <span className="font-medium">Rp {grandTotalBms.toLocaleString("id-ID")}</span> melampaui sisa saldo aktif. Kurangi estimasi atau hubungi koordinator.
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
