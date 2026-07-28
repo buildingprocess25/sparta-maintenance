@@ -20,3 +20,16 @@ trusting an older note.
 
 Never include secrets, credentials, raw SQL output, personal data, or
 production records.
+
+## Local Commit Enforcement
+
+Run this once after cloning the repository:
+
+```powershell
+npm run setup:git-hooks
+```
+
+It configures `.githooks/pre-commit` for every local branch. Normal commits
+with substantive changes are blocked unless a dated task note is staged. A
+deliberate `git commit --no-verify` bypasses any local Git hook; do not use it
+to avoid the task-note rule.
