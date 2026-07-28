@@ -231,6 +231,7 @@ export function BmsEstimationStep({
             <Card
               size="sm"
               className="bg-primary/5 shadow-sm ring-1 ring-primary/15"
+              data-tour="bms-report-estimation"
             >
               <CardContent>
                 <div className="flex flex-col gap-4">

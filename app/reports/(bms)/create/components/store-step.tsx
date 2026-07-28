@@ -104,6 +104,7 @@ export function StoreStep({
       </section>
 
       <section
+        data-tour="bms-report-store"
         className={cn(
           "sticky z-40 -mx-4 px-4 pt-2 pb-0 bg-background/95 backdrop-blur-md transition-all duration-300",
           isHeaderVisible ? "top-[60px]" : "top-0",

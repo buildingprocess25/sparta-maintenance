@@ -320,6 +320,7 @@ export default function CreateReportForm({
             className="w-full text-base shadow-sm"
             onClick={step === "review" ? handleSubmit : handleNext}
             disabled={isSubmitting || (step === "store" && !selectedStoreCode)}
+            data-tour={step === "review" ? "bms-report-submit" : undefined}
           >
             {step === "review" ? (
               isEditMode ? (
