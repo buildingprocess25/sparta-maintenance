@@ -1,9 +1,5 @@
 import assert from "node:assert/strict";
-import {
-    getBmsReportTourSteps,
-    type BmsReportTourStep,
-    type BmsWizardStep,
-} from "./bms-report-tour-steps";
+import { getBmsReportTourSteps } from "./bms-report-tour-steps";
 
 // Test step order for create mode (isEditMode = false)
 const createSteps = getBmsReportTourSteps(false);
