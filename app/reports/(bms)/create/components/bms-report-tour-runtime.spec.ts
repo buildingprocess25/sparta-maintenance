@@ -16,5 +16,11 @@ assert.match(tourSource, /stepIndex=\{stepIndex\}/);
 assert.match(tourSource, /data\.action === ACTIONS\.PREV/);
 assert.doesNotMatch(tourSource, /setStepIndex\(0\)/);
 assert.doesNotMatch(tourSource, /attempts >= 50/);
+assert.match(
+    tourSource,
+    /nextIndex < 0 \|\| nextIndex >= allSteps\.length\) \{\s*dismissedThisSession\.current = true;/,
+);
+assert.match(tourSource, /scrollIntoView\(\{\s*block: "center"/);
+assert.match(tourSource, /skipScroll: true/);
 
 console.log("bms report tour runtime assertions passed");

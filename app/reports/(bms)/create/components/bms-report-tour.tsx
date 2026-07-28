@@ -31,7 +31,10 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
         : "bms-report-tour:v1:create";
 
     const allSteps = useMemo(
-        () => getBmsInputTourSteps({ activeStep, isRepairOnlyMode }),
+        () =>
+            getBmsInputTourSteps({ activeStep, isRepairOnlyMode }).map(
+                (step) => ({ ...step, skipScroll: true }),
+            ),
         [activeStep, isRepairOnlyMode],
     );
 
@@ -48,7 +51,14 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
 
         const interval = window.setInterval(() => {
             const target = currentStep.target;
-            if (typeof target === "string" && document.querySelector(target)) {
+            const targetElement =
+                typeof target === "string" && document.querySelector(target);
+
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    block: "center",
+                    inline: "nearest",
+                });
                 setRun(true);
                 window.clearInterval(interval);
             }
@@ -80,6 +90,10 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
                 stepIndex + (data.action === ACTIONS.NEXT ? 1 : -1);
 
             if (nextIndex < 0 || nextIndex >= allSteps.length) {
+                dismissedThisSession.current = true;
+                if (dontShowTodayRef.current || getVisibleCheckboxChecked()) {
+                    window.localStorage.setItem(storageKey, getTodayKey());
+                }
                 setRun(false);
                 return;
             }
