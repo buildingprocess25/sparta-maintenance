@@ -415,7 +415,10 @@ export function BmsEstimationStep({
         open={isEstimateDialogOpen}
         onOpenChange={setIsEstimateDialogOpen}
       >
-        <DialogContent>
+        <DialogContent
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {estimateDraft.entryId

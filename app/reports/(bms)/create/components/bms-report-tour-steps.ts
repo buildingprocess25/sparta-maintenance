@@ -72,7 +72,7 @@ export function getBmsInputTourSteps({ activeStep, isRepairOnlyMode }: {
     }
 
     if (activeStep === "estimation") {
-        const estimationSteps: BmsInputTourStep[] = [
+        return [
             {
                 id: "add-item",
                 wizardStep: "estimation",
@@ -155,8 +155,6 @@ export function getBmsInputTourSteps({ activeStep, isRepairOnlyMode }: {
                 skipBeacon: true,
             }
         ];
-
-        return estimationSteps.map((step) => ({ ...step, disableOverlay: true }));
     }
     
     return [];

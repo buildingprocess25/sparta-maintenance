@@ -41,28 +41,6 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
     const currentStep = allSteps[stepIndex];
 
     useEffect(() => {
-        if (!run || currentStep?.id !== "add-item") {
-            return;
-        }
-
-        const nextStep = allSteps[stepIndex + 1];
-        const nextTarget = nextStep?.target;
-        if (typeof nextTarget !== "string") {
-            return;
-        }
-
-        const interval = window.setInterval(() => {
-            if (document.querySelector(nextTarget)) {
-                setRun(false);
-                setStepIndex(stepIndex + 1);
-                window.clearInterval(interval);
-            }
-        }, 100);
-
-        return () => window.clearInterval(interval);
-    }, [allSteps, currentStep, run, stepIndex]);
-
-    useEffect(() => {
         if (dismissedThisSession.current || !currentStep || run) {
             return;
         }
