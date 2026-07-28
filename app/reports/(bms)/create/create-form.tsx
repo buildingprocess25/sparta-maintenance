@@ -248,7 +248,9 @@ export default function CreateReportForm({
 
   return (
     <>
-      <BmsReportTour activeStep={step} isEditMode={isEditMode} />
+      {!showDraftDialog && (
+        <BmsReportTour activeStep={step} isEditMode={isEditMode} />
+      )}
 
       {showDraftDialog && (
         <DraftDialog
