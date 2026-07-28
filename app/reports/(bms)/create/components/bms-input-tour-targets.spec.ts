@@ -11,8 +11,8 @@ const checklistTargets = [
 ];
 
 const estimationTargets = [
-    "bms-estimation-add", "bms-estimation-item", "bms-estimation-name", 
-    "bms-estimation-quantity", "bms-estimation-price", "bms-estimation-save", 
+    "bms-estimation-add", "bms-estimation-item", "bms-estimation-name",
+    "bms-estimation-quantity", "bms-estimation-price", "bms-estimation-save",
     "bms-estimation-actions", "bms-estimation-edit", "bms-estimation-delete"
 ];
 

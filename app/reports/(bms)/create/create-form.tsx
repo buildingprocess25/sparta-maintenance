@@ -249,7 +249,12 @@ export default function CreateReportForm({
   return (
     <>
       {!showDraftDialog && (
-        <BmsReportTour activeStep={step} isEditMode={isEditMode} isRepairOnlyMode={isRepairOnlyMode} />
+        <BmsReportTour
+          key={`${isEditMode ? "revision" : "create"}:${step}:${isRepairOnlyMode}`}
+          activeStep={step}
+          isEditMode={isEditMode}
+          isRepairOnlyMode={isRepairOnlyMode}
+        />
       )}
 
       {showDraftDialog && (

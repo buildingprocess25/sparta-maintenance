@@ -17,7 +17,7 @@ export function getBmsInputTourSteps({ activeStep, isRepairOnlyMode }: {
 }): BmsInputTourStep[] {
     if (activeStep === "checklist") {
         const steps: BmsInputTourStep[] = [];
-        
+
         if (!isRepairOnlyMode) {
             steps.push({
                 id: "condition",
@@ -29,7 +29,7 @@ export function getBmsInputTourSteps({ activeStep, isRepairOnlyMode }: {
                 skipBeacon: true,
             });
         }
-        
+
         steps.push(
             {
                 id: "handler",
@@ -62,15 +62,15 @@ export function getBmsInputTourSteps({ activeStep, isRepairOnlyMode }: {
                 id: "aho",
                 wizardStep: "checklist",
                 target: "[data-tour='bms-checklist-aho']",
-                title: "Persetujuan AHO",
-                content: "Tandai jika item ini memerlukan persetujuan dari AHO.",
+                title: "Nomor Tiket AHO",
+                content: "Masukkan nomor tiket AHO untuk item rusak ini.",
                 placement: "bottom",
                 skipBeacon: true,
             }
         );
         return steps;
     }
-    
+
     if (activeStep === "estimation") {
         return [
             {

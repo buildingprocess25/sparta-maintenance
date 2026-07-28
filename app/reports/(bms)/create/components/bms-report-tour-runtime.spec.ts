@@ -6,10 +6,15 @@ const tourSource = readFileSync(join(process.cwd(), "app/reports/(bms)/create/co
 const formSource = readFileSync(join(process.cwd(), "app/reports/(bms)/create/create-form.tsx"), "utf-8");
 const stepsSource = readFileSync(join(process.cwd(), "app/reports/(bms)/create/components/bms-report-tour-steps.ts"), "utf-8");
 
-assert.match(tourSource, /steps=\{currentStep \? \[currentStep\] : \[\]\}/);
+assert.match(tourSource, /steps=\{allSteps\}/);
 assert.match(tourSource, /getBmsInputTourSteps\(\{\s*activeStep,\s*isRepairOnlyMode/);
 assert.match(formSource, /isRepairOnlyMode=\{isRepairOnlyMode\}/);
 assert.doesNotMatch(stepsSource, /wizardStep:\s*"store"/);
 assert.doesNotMatch(stepsSource, /wizardStep:\s*"review"/);
+assert.match(tourSource, /continuous/);
+assert.match(tourSource, /stepIndex=\{stepIndex\}/);
+assert.match(tourSource, /data\.action === ACTIONS\.PREV/);
+assert.doesNotMatch(tourSource, /setStepIndex\(0\)/);
+assert.doesNotMatch(tourSource, /attempts >= 50/);
 
 console.log("bms report tour runtime assertions passed");

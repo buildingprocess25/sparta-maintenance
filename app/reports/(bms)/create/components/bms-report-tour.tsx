@@ -24,7 +24,6 @@ type BmsReportTourProps = {
 export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsReportTourProps) {
     const [run, setRun] = useState(false);
     const [stepIndex, setStepIndex] = useState(0);
-    const hasAutoRun = useRef(false);
     const dontShowTodayRef = useRef(false);
     const dismissedThisSession = useRef(false);
     const storageKey = isEditMode
@@ -39,37 +38,18 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
     const currentStep = allSteps[stepIndex];
 
     useEffect(() => {
-        setStepIndex(0);
-        setRun(false);
-    }, [activeStep]);
-
-    useEffect(() => {
-        hasAutoRun.current = false;
-
         if (dismissedThisSession.current || !currentStep || run) {
             return;
         }
 
-        let attempts = 0;
+        if (window.localStorage.getItem(storageKey) === getTodayKey()) {
+            return;
+        }
 
         const interval = window.setInterval(() => {
-            attempts += 1;
-
-            if (window.localStorage.getItem(storageKey) === getTodayKey()) {
-                hasAutoRun.current = true;
-                window.clearInterval(interval);
-                return;
-            }
-
             const target = currentStep.target;
             if (typeof target === "string" && document.querySelector(target)) {
-                hasAutoRun.current = true;
                 setRun(true);
-                window.clearInterval(interval);
-                return;
-            }
-
-            if (attempts >= 50) {
                 window.clearInterval(interval);
             }
         }, 100);
@@ -92,9 +72,20 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
     }, [run]);
 
     function handleEvent(data: EventData) {
-        if (data.type === EVENTS.STEP_AFTER && data.action === ACTIONS.NEXT) {
+        if (
+            data.type === EVENTS.STEP_AFTER &&
+            (data.action === ACTIONS.NEXT || data.action === ACTIONS.PREV)
+        ) {
+            const nextIndex =
+                stepIndex + (data.action === ACTIONS.NEXT ? 1 : -1);
+
+            if (nextIndex < 0 || nextIndex >= allSteps.length) {
+                setRun(false);
+                return;
+            }
+
             setRun(false);
-            setStepIndex((index) => index + 1);
+            setStepIndex(nextIndex);
             return;
         }
         if (data.status === STATUS.SKIPPED || data.status === STATUS.FINISHED) {
@@ -111,8 +102,10 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
     return (
         <Joyride
             run={run}
+            continuous
             scrollToFirstStep={false}
-            steps={currentStep ? [currentStep] : []}
+            stepIndex={stepIndex}
+            steps={allSteps}
             options={{
                 blockTargetInteraction: false,
                 buttons: ["skip", "primary"],
