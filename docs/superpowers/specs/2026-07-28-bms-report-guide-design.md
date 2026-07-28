@@ -49,12 +49,12 @@ is `store`. It guides a BMS user through these existing steps:
    handled damaged items.
 4. **Review dan submit** — verify the report summary, then submit it to BMC.
 
-The tour owns only its own display state. When it advances from one step to
-the next, it requests the existing wizard to move to the corresponding screen;
-the normal validation remains authoritative. The tour never bypasses a missing
-store, checklist evidence, or estimation validation. If the user changes the
-wizard step manually or validation blocks progression, the tour follows the
-currently rendered target instead of mutating report data.
+The tour owns only its own display state. It renders one tooltip for the
+wizard step the user has reached through the normal form navigation; its
+controls close that tooltip but never move the wizard. The normal validation
+remains authoritative, and the tour never bypasses a missing store, checklist
+evidence, or estimation validation. If validation blocks progression, the
+next guide step is not shown because its target is not rendered.
 
 ## UI and state
 
@@ -63,6 +63,8 @@ currently rendered target instead of mutating report data.
   controls needed by the tour.
 - Reuse the current overlay, back/next/skip controls, tooltip layout,
   accessibility handling, and body-scroll locking.
+- Allow interaction with the highlighted form control while a BMS tooltip is
+  open. This differs deliberately from the read-only BMC/BNM approval tour.
 - Start automatically once the first BMS target is present; do not add a
   dashboard shortcut or persistent guide button in this scope.
 - Use a BMS-specific localStorage key that scopes the daily dismissal to the
