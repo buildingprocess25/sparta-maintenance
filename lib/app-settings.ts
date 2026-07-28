@@ -24,7 +24,6 @@ export const SETTING_KEYS = {
     PJUM_PENDING_STALE_DAYS: "pjum_pending_stale_days",
     PJUM_WEEKLY_ADVANCE_AMOUNT: "pjum_weekly_advance_amount",
     PJUM_PERIOD_DAYS: "pjum_period_days",
-    BMS_INITIAL_BALANCE: "bms_initial_balance",
 } as const;
 
 export const DEFAULT_REPORT_SLA_DAYS: Partial<Record<ReportStatusKey, number>> =
@@ -78,7 +77,7 @@ export const DEFAULT_PJUM_POLICY_SETTINGS = {
     periodDays: 7,
 };
 
-export const DEFAULT_BMS_INITIAL_BALANCE = 1_000_000;
+
 
 // ----------------------------------------------------------------------------
 // In-memory overrides (Bridge)
@@ -216,6 +215,6 @@ export async function getPjumPolicySettings() {
 }
 
 export async function getBmsInitialBalance(): Promise<number> {
-    const setting = await getAppSetting(SETTING_KEYS.BMS_INITIAL_BALANCE);
-    return parsePositiveInteger(setting, DEFAULT_BMS_INITIAL_BALANCE);
+    const setting = await getAppSetting(SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT);
+    return parsePositiveInteger(setting, DEFAULT_PJUM_POLICY_SETTINGS.weeklyAdvanceAmount);
 }

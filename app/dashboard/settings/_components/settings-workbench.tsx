@@ -41,7 +41,6 @@ type PjumPolicyForm = {
     pendingStaleDays: string;
     weeklyAdvanceAmount: string;
     periodDays: string;
-    bmsInitialBalance: string;
 };
 
 type SettingsWorkbenchProps = {
@@ -91,7 +90,6 @@ export function SettingsWorkbench({
         pendingStaleDays: String(initialPjumPolicy.pendingStaleDays),
         weeklyAdvanceAmount: String(initialPjumPolicy.weeklyAdvanceAmount),
         periodDays: String(initialPjumPolicy.periodDays),
-        bmsInitialBalance: String(initialPjumPolicy.bmsInitialBalance),
     }));
 
     const reportSlaRows = useMemo(
@@ -117,7 +115,6 @@ export function SettingsWorkbench({
                     10,
                 ),
                 pjumPeriodDays: Number.parseInt(pjumPolicy.periodDays, 10),
-                bmsInitialBalance: Number.parseInt(pjumPolicy.bmsInitialBalance, 10),
             });
 
             if (result.success) {
@@ -288,25 +285,7 @@ export function SettingsWorkbench({
                                 />
                             }
                         />
-                        <SettingsRow
-                            label="Limit Saldo BMS"
-                            helper={`Preview: ${formatRp(
-                                pjumPolicy.bmsInitialBalance,
-                            )}`}
-                            control={
-                                <NumberControl
-                                    value={pjumPolicy.bmsInitialBalance}
-                                    suffix="rupiah"
-                                    wide
-                                    onChange={(value) =>
-                                        setPjumPolicy((current) => ({
-                                            ...current,
-                                            bmsInitialBalance: value,
-                                        }))
-                                    }
-                                />
-                            }
-                        />
+
                         <SettingsRow
                             label="Periode PJUM"
                             helper="Default periode kerja yang dibaca sebagai satu siklus PJUM."

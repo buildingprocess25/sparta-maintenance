@@ -5,7 +5,6 @@ import {
     getAppSetting,
     getPjumPolicySettings,
     getReportSlaDays,
-    getBmsInitialBalance,
     SETTING_KEYS,
 } from "@/lib/app-settings";
 import { SettingsWorkbench } from "./_components/settings-workbench";
@@ -17,11 +16,10 @@ export default async function SettingsPage() {
     if (!user) redirect("/login");
     if (user.role !== "ADMIN") redirect("/dashboard");
 
-    const [maintenanceSetting, reportSlaDays, pjumPolicy, bmsInitialBalance] = await Promise.all([
+    const [maintenanceSetting, reportSlaDays, pjumPolicy] = await Promise.all([
         getAppSetting(SETTING_KEYS.MAINTENANCE_ENABLED),
         getReportSlaDays(),
         getPjumPolicySettings(),
-        getBmsInitialBalance(),
     ]);
     const initialEnabled =
         maintenanceSetting === "true" ||
@@ -45,7 +43,7 @@ export default async function SettingsPage() {
                 initialMaintenanceEnabled={initialEnabled}
                 isEnvOverridden={isEnvOverridden}
                 initialReportSlaDays={reportSlaDays}
-                initialPjumPolicy={{ ...pjumPolicy, bmsInitialBalance }}
+                initialPjumPolicy={pjumPolicy}
             />
         </AdminDashboardShell>
     );
