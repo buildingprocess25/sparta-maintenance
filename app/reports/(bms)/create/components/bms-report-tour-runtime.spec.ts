@@ -15,6 +15,8 @@ assert.doesNotMatch(stepsSource, /wizardStep:\s*"review"/);
 assert.match(tourSource, /continuous/);
 assert.match(tourSource, /stepIndex=\{stepIndex\}/);
 assert.match(tourSource, /data\.action === ACTIONS\.PREV/);
+assert.match(tourSource, /blockTargetInteraction: true/);
+assert.match(tourSource, /window\.dispatchEvent\(new Event\("bms-estimation-tour-open"\)\)/);
 assert.doesNotMatch(tourSource, /setStepIndex\(0\)/);
 assert.doesNotMatch(tourSource, /attempts >= 50/);
 assert.match(
@@ -25,7 +27,11 @@ assert.match(tourSource, /scrollIntoView\(\{\s*block: "center"/);
 assert.match(tourSource, /skipScroll: true/);
 assert.doesNotMatch(tourSource, /currentStep\?\.id !== "add-item"/);
 assert.doesNotMatch(stepsSource, /disableOverlay: true/);
+assert.match(estimationSource, /<Dialog\s+modal=\{false\}/);
+assert.match(estimationSource, /<DialogPortal>\s*<div\s+aria-hidden\s+className="fixed inset-0 z-40 bg-black\/10/);
+assert.match(estimationSource, /window\.addEventListener\("bms-estimation-tour-open", handleEstimateDialogOpen\)/);
 assert.match(estimationSource, /onPointerDownOutside=\{\(event\) => event\.preventDefault\(\)\}/);
+assert.match(estimationSource, /onInteractOutside=\{\(event\) => event\.preventDefault\(\)\}/);
 assert.match(estimationSource, /onEscapeKeyDown=\{\(event\) => event\.preventDefault\(\)\}/);
 
 console.log("bms report tour runtime assertions passed");

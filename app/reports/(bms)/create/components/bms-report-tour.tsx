@@ -86,6 +86,10 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
             data.type === EVENTS.STEP_AFTER &&
             (data.action === ACTIONS.NEXT || data.action === ACTIONS.PREV)
         ) {
+            if (data.action === ACTIONS.NEXT && currentStep?.id === "add-item") {
+                window.dispatchEvent(new Event("bms-estimation-tour-open"));
+            }
+
             const nextIndex =
                 stepIndex + (data.action === ACTIONS.NEXT ? 1 : -1);
 
@@ -121,7 +125,7 @@ export function BmsReportTour({ activeStep, isEditMode, isRepairOnlyMode }: BmsR
             stepIndex={stepIndex}
             steps={allSteps}
             options={{
-                blockTargetInteraction: false,
+                blockTargetInteraction: true,
                 buttons: ["skip", "primary"],
                 closeButtonAction: "skip",
                 overlayClickAction: false,

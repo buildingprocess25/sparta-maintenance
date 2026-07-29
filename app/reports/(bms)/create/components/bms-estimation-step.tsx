@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   FileCheck2,
   PlusCircle,
@@ -28,6 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -107,7 +108,7 @@ export function BmsEstimationStep({
     0,
   );
 
-  const handleEstimateDialogOpen = () => {
+  const handleEstimateDialogOpen = useCallback(() => {
     setEstimateDraft({
       entryId: undefined,
       checklistItemId: bmsItemsList[0]?.id || "",
@@ -117,7 +118,16 @@ export function BmsEstimationStep({
       unitPrice: "0",
     });
     setIsEstimateDialogOpen(true);
-  };
+  }, [bmsItemsList]);
+
+  useEffect(() => {
+    window.addEventListener("bms-estimation-tour-open", handleEstimateDialogOpen);
+    return () =>
+      window.removeEventListener(
+        "bms-estimation-tour-open",
+        handleEstimateDialogOpen,
+      );
+  }, [handleEstimateDialogOpen]);
 
   const handleEditEstimateDialogOpen = (
     itemId: string,
@@ -412,11 +422,19 @@ export function BmsEstimationStep({
       )}
 
       <Dialog
+        modal={false}
         open={isEstimateDialogOpen}
         onOpenChange={setIsEstimateDialogOpen}
       >
+        <DialogPortal>
+          <div
+            aria-hidden
+            className="fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-xs"
+          />
+        </DialogPortal>
         <DialogContent
           onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
           <DialogHeader>
