@@ -1,7 +1,8 @@
 import Image from "next/image";
-import { Lock } from "lucide-react";
+import { ChevronRight, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BmsBalanceInfo } from "@/lib/balance";
+import { BalanceHistoryDrawer } from "./balance-history-drawer";
 
 type BmsWelcomeCardProps = {
   name: string;
@@ -77,6 +78,8 @@ export function BmsWelcomeCard({ name, balance, className }: BmsWelcomeCardProps
             <span className="text-[10px] text-primary-foreground/50">dari {formatCurrency(balance.initialBalance)}</span>
           </div>
         )}
+
+        <BalanceHistoryDrawer balanceInfo={balance} />
       </div>
 
       {/* ── 3D Character ── */}
