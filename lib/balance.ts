@@ -16,6 +16,17 @@
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getBmsInitialBalance } from "@/lib/app-settings";
+import type { ReportStatusKey } from "@/lib/report-status";
+
+export type BmsBalanceHistoryItem = {
+    reportNumber: string;
+    storeName: string;
+    storeCode: string;
+    status: ReportStatusKey;
+    createdAt: Date;
+    consumedAmount: number;
+    type: "ESTIMATED" | "REALIZED";
+};
 
 export type BmsBalanceInfo = {
     periodId: string | null;
@@ -284,4 +295,93 @@ export function hasBmsRepairItems(items: unknown): boolean {
             (item as Record<string, unknown>).condition === "RUSAK" &&
             (item as Record<string, unknown>).handler === "BMS",
     );
+}
+
+/**
+ * Mengambil history riwayat penggunaan saldo untuk periode aktif BMS.
+ * Format yang di-return adalah list report yang sedang berjalan atau sudah selesai
+ * beserta nominal uang yang memotong saldo.
+ */
+export async function getBmsBalanceHistory(
+    bmsNIK: string,
+): Promise<BmsBalanceHistoryItem[]> {
+    const period = await getBmsActivePeriod(bmsNIK);
+
+    if (!period) return [];
+
+    const reports = await prisma.report.findMany({
+        where: {
+            balancePeriodId: period.id,
+            createdByNIK: bmsNIK,
+        },
+        select: {
+            reportNumber: true,
+            status: true,
+            totalEstimation: true,
+            totalReal: true,
+            createdAt: true,
+            items: true,
+            store: {
+                select: {
+                    name: true,
+                    code: true,
+                }
+            }
+        },
+        orderBy: { createdAt: "desc" },
+    });
+
+    const history: BmsBalanceHistoryItem[] = [];
+
+    for (const report of reports) {
+        const hasBmsWork = hasBmsRepairItems(report.items);
+        if (!hasBmsWork) continue;
+
+        if (report.status === "COMPLETED") {
+            const real = report.totalReal
+                ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
+                : new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
+            history.push({
+                reportNumber: report.reportNumber,
+                storeName: report.store.name,
+                storeCode: report.store.code,
+                status: report.status as ReportStatusKey,
+                createdAt: report.createdAt,
+                consumedAmount: real,
+                type: "REALIZED",
+            });
+        } else if (
+            [
+                "PENDING_ESTIMATION",
+                "ESTIMATION_REJECTED_REVISION",
+                "ESTIMATION_APPROVED",
+                "IN_PROGRESS",
+                "PENDING_REVIEW",
+                "APPROVED_BMC",
+                "REVIEW_REJECTED_REVISION",
+            ].includes(report.status)
+        ) {
+            const hasRealization = [
+                "PENDING_REVIEW", 
+                "APPROVED_BMC", 
+                "REVIEW_REJECTED_REVISION"
+            ].includes(report.status) && report.totalReal !== null;
+
+            const reservedCost = hasRealization 
+                ? new Prisma.Decimal(report.totalReal!.toString()).toNumber()
+                : new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
+
+            history.push({
+                reportNumber: report.reportNumber,
+                storeName: report.store.name,
+                storeCode: report.store.code,
+                status: report.status as ReportStatusKey,
+                createdAt: report.createdAt,
+                consumedAmount: reservedCost,
+                type: "ESTIMATED",
+            });
+        }
+    }
+
+    return history;
 }
