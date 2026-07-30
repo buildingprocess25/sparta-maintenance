@@ -66,7 +66,7 @@ export function summarizePreventiveBranches<
 }
 
 export function getPreventiveCompletionForTab(tab: string): PreventiveCompletion {
-    if (tab === "completed") return "completed";
+    if (tab === "quarter") return "completed";
     if (tab === "pending") return "pending";
     return "all";
 }

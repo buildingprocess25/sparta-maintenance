@@ -3,6 +3,7 @@ import {
     splitPreventiveRows,
     summarizePreventiveBranches,
     paginatePreventiveRows,
+    getPreventiveCompletionForTab,
 } from "./preventive-dashboard";
 
 const rows = [
@@ -37,3 +38,12 @@ assert.deepEqual(paginatePreventiveRows(pendingRows, null, 1), { rows: [rows[0]]
 assert.deepEqual(paginatePreventiveRows(pendingRows, "A001", 1), { rows: [rows[2]], nextCursor: null });
 
 console.log("paginatePreventiveRows paging assertions passed");
+
+// Task 3: getPreventiveCompletionForTab assertions
+assert.equal(getPreventiveCompletionForTab("quarter"), "completed");
+assert.equal(getPreventiveCompletionForTab("pending"), "pending");
+assert.equal(getPreventiveCompletionForTab("matrix"), "all");
+assert.equal(getPreventiveCompletionForTab("branches"), "all");
+assert.equal(getPreventiveCompletionForTab("history"), "all");
+
+console.log("getPreventiveCompletionForTab assertions passed");

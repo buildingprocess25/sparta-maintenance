@@ -61,6 +61,10 @@ import {
     PreventiveRow,
     getAdminPreventive,
 } from "../actions";
+import {
+    getPreventiveCompletionForTab,
+    PreventiveCompletion,
+} from "../preventive-dashboard";
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
     { value: 1, label: "Triwulan 1", period: "Jan-Mar" },
@@ -69,7 +73,6 @@ const quarterOptions: { value: PreventiveQuarter; label: string; period: string 
     { value: 4, label: "Triwulan 4", period: "Okt-Des" },
 ];
 
-const PENDING_PAGE_SIZE = 30;
 const HISTORY_PAGE_SIZE = 30;
 
 function getCurrentQuarter(): PreventiveQuarter {
@@ -234,6 +237,7 @@ export function AdminPreventiveTable({
     actions?: ReactNode;
 }) {
     const currentYear = getJakartaYear();
+    const [activeTab, setActiveTab] = useState("quarter");
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialData.nextCursor,
@@ -241,9 +245,6 @@ export function AdminPreventiveTable({
     const [totalCount, setTotalCount] = useState(initialData.totalCount);
     const [summary, setSummary] =
         useState<AdminPreventiveResult["summary"] | null>(initialData.summary);
-    const [pendingRows, setPendingRows] = useState<PreventiveRow[]>(
-        initialData.pendingRows,
-    );
     const [branchSummaries, setBranchSummaries] = useState<
         AdminPreventiveResult["branchSummaries"]
     >(initialData.branchSummaries);
@@ -260,11 +261,8 @@ export function AdminPreventiveTable({
         useState<PreventiveQuarter>(initialData.summary.quarter || getCurrentQuarter());
 
     const observer = useRef<IntersectionObserver | null>(null);
-    const pendingObserver = useRef<IntersectionObserver | null>(null);
     const historyObserver = useRef<IntersectionObserver | null>(null);
     const didHydrateRef = useRef(false);
-    const [visiblePendingCount, setVisiblePendingCount] =
-        useState(PENDING_PAGE_SIZE);
     const [visibleHistoryCount, setVisibleHistoryCount] =
         useState(HISTORY_PAGE_SIZE);
 
@@ -286,8 +284,6 @@ export function AdminPreventiveTable({
             setNextCursor(result.nextCursor);
             setTotalCount(result.totalCount);
             setSummary(result.summary);
-            setPendingRows(result.pendingRows);
-            setVisiblePendingCount(PENDING_PAGE_SIZE);
             setBranchSummaries(result.branchSummaries);
             setLatestReports(result.latestReports);
             setVisibleHistoryCount(HISTORY_PAGE_SIZE);
@@ -304,6 +300,8 @@ export function AdminPreventiveTable({
                 branchName,
                 year,
                 quarter,
+                completion: getPreventiveCompletionForTab(activeTab),
+                search: tableSearch.trim() || undefined,
             });
             applyResult(result, true);
         } catch (error) {
@@ -317,6 +315,8 @@ export function AdminPreventiveTable({
         branchName,
         year,
         quarter,
+        activeTab,
+        tableSearch,
         applyResult,
     ]);
 
@@ -343,12 +343,16 @@ export function AdminPreventiveTable({
         }
 
         const timer = setTimeout(async () => {
+            setData([]);
+            setNextCursor(null);
             setIsLoading(true);
             try {
                 const result = await getAdminPreventive(null, 30, {
                     branchName,
                     year,
                     quarter,
+                    completion: getPreventiveCompletionForTab(activeTab),
+                    search: tableSearch.trim() || undefined,
                 });
                 applyResult(result);
             } catch (error) {
@@ -359,10 +363,9 @@ export function AdminPreventiveTable({
         }, 350);
 
         return () => clearTimeout(timer);
-    }, [branchName, year, quarter, applyResult]);
+    }, [branchName, year, quarter, activeTab, tableSearch, applyResult]);
 
     useEffect(() => {
-        setVisiblePendingCount(PENDING_PAGE_SIZE);
         setVisibleHistoryCount(HISTORY_PAGE_SIZE);
     }, [tableSearch]);
 
@@ -371,14 +374,7 @@ export function AdminPreventiveTable({
         [quarter],
     );
 
-    const filteredRows = useMemo(
-        () => data.filter((row) => matchesStoreSearch(row, tableSearch)),
-        [data, tableSearch],
-    );
-    const filteredPendingRows = useMemo(
-        () => pendingRows.filter((row) => matchesStoreSearch(row, tableSearch)),
-        [pendingRows, tableSearch],
-    );
+    const filteredRows = data;
     const filteredHistoryRows = useMemo(
         () =>
             latestReports.filter((row) =>
@@ -389,18 +385,6 @@ export function AdminPreventiveTable({
             ),
         [latestReports, tableSearch],
     );
-    const completedRows = filteredRows.filter((row) =>
-        getQuarterInfo(row, quarter),
-    );
-    const pendingRowsInPage = filteredRows.filter(
-        (row) => !getQuarterInfo(row, quarter),
-    );
-    const pendingRowsToRender = filteredPendingRows.slice(
-        0,
-        visiblePendingCount,
-    );
-    const hasMorePendingRows =
-        visiblePendingCount < filteredPendingRows.length;
     const historyRowsToRender = filteredHistoryRows.slice(
         0,
         visibleHistoryCount,
@@ -409,27 +393,6 @@ export function AdminPreventiveTable({
         visibleHistoryCount < filteredHistoryRows.length;
     const lowestBranch = branchSummaries[0];
     const showLowestBranchMetric = showBranchControls && branchName === "all";
-
-    const lastPendingRowRef = useCallback(
-        (node: HTMLTableRowElement) => {
-            if (!hasMorePendingRows) return;
-            if (pendingObserver.current) pendingObserver.current.disconnect();
-
-            pendingObserver.current = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                    setVisiblePendingCount((current) =>
-                        Math.min(
-                            current + PENDING_PAGE_SIZE,
-                            filteredPendingRows.length,
-                        ),
-                    );
-                }
-            });
-
-            if (node) pendingObserver.current.observe(node);
-        },
-        [hasMorePendingRows, filteredPendingRows.length],
-    );
 
     const lastHistoryRowRef = useCallback(
         (node: HTMLTableRowElement) => {
@@ -615,7 +578,7 @@ export function AdminPreventiveTable({
                 </div>
             </div>
 
-            <Tabs defaultValue="quarter" className="gap-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
                 <div className="sticky top-15 z-30 border-b bg-background/95 px-4 pt-2 backdrop-blur supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-6">
                     <div className="flex flex-col gap-2 pb-1 lg:flex-row lg:items-center lg:justify-between">
                         <div className="max-w-none overflow-x-auto overflow-y-hidden pb-1">
@@ -778,7 +741,7 @@ export function AdminPreventiveTable({
                             </Table>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                            Menampilkan {filteredRows.length} dari {totalCount} toko. Dalam halaman ini: {completedRows.length} selesai, {pendingRowsInPage.length} belum.
+                            Menampilkan {filteredRows.length} dari {summary?.completed ?? totalCount} toko.
                         </p>
                     </TabsContent>
 
@@ -800,7 +763,7 @@ export function AdminPreventiveTable({
                                                 <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
-                                    ) : filteredPendingRows.length === 0 ? (
+                                    ) : filteredRows.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4}>
                                                 <EmptyTable
@@ -811,17 +774,17 @@ export function AdminPreventiveTable({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        pendingRowsToRender.map((row, index) => {
+                                        filteredRows.map((row, index) => {
                                             const isLast =
                                                 index ===
-                                                pendingRowsToRender.length - 1;
+                                                filteredRows.length - 1;
 
                                             return (
                                             <TableRow
                                                 key={row.storeCode}
                                                 ref={
                                                     isLast
-                                                        ? lastPendingRowRef
+                                                        ? lastRowRef
                                                         : null
                                                 }
                                             >
@@ -844,23 +807,23 @@ export function AdminPreventiveTable({
                                             );
                                         })
                                     )}
-                                    {hasMorePendingRows ? (
+                                    {isFetchingMore ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
                                                 className="h-12 text-center text-xs text-muted-foreground"
                                             >
-                                                Memuat data berikutnya...
+                                                <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
                                     ) : null}
                                 </TableBody>
                             </Table>
                         </div>
-                        {filteredPendingRows.length > 0 ? (
+                        {filteredRows.length > 0 ? (
                             <p className="mt-2 text-xs text-muted-foreground">
-                                Menampilkan {pendingRowsToRender.length} dari{" "}
-                                {filteredPendingRows.length} toko belum checklist.
+                                Menampilkan {filteredRows.length} dari{" "}
+                                {summary?.pending ?? totalCount} toko belum checklist.
                             </p>
                         ) : null}
                     </TabsContent>
