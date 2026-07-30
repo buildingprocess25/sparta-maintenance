@@ -84,7 +84,7 @@ export function BmsWelcomeCard({ name, balance, className }: BmsWelcomeCardProps
 
       {/* ── 3D Character ── */}
       <div className="pointer-events-none absolute -bottom-24 -right-14 top-0 h-[155%] w-[75%] max-w-[250px]">
-        <Image src="/assets/dashboard.png" alt="Dashboard Character" fill className="object-contain object-top drop-shadow-xl" priority />
+        <Image src="/assets/dashboard.png" alt="Dashboard Character" fill sizes="(max-width: 768px) 100vw, 50vw" className="object-contain object-top drop-shadow-xl" priority />
       </div>
     </div>
   );
