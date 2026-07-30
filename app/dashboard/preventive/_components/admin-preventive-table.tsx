@@ -63,7 +63,6 @@ import {
 } from "../actions";
 import {
     getPreventiveCompletionForTab,
-    PreventiveCompletion,
 } from "../preventive-dashboard";
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
@@ -343,8 +342,6 @@ export function AdminPreventiveTable({
         }
 
         const timer = setTimeout(async () => {
-            setData([]);
-            setNextCursor(null);
             setIsLoading(true);
             try {
                 const result = await getAdminPreventive(null, 30, {
@@ -365,10 +362,7 @@ export function AdminPreventiveTable({
         return () => clearTimeout(timer);
     }, [branchName, year, quarter, activeTab, tableSearch, applyResult]);
 
-    useEffect(() => {
-        setVisibleHistoryCount(HISTORY_PAGE_SIZE);
-    }, [tableSearch]);
-
+    // History state reset moved to search input onChange
     const selectedQuarter = useMemo(
         () => quarterOptions.find((item) => item.value === quarter),
         [quarter],
@@ -578,7 +572,17 @@ export function AdminPreventiveTable({
                 </div>
             </div>
 
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-0">
+            <Tabs 
+                value={activeTab} 
+                onValueChange={(val) => {
+                    if (val !== activeTab) {
+                        setData([]);
+                        setNextCursor(null);
+                        setActiveTab(val);
+                    }
+                }} 
+                className="gap-0"
+            >
                 <div className="sticky top-15 z-30 border-b bg-background/95 px-4 pt-2 backdrop-blur supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-6">
                     <div className="flex flex-col gap-2 pb-1 lg:flex-row lg:items-center lg:justify-between">
                         <div className="max-w-none overflow-x-auto overflow-y-hidden pb-1">
@@ -625,9 +629,10 @@ export function AdminPreventiveTable({
                                 placeholder="Cari kode / nama toko"
                                 className="h-8 bg-background pl-8 text-xs"
                                 value={tableSearch}
-                                onChange={(event) =>
-                                    setTableSearch(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setTableSearch(event.target.value);
+                                    setVisibleHistoryCount(HISTORY_PAGE_SIZE);
+                                }}
                             />
                         </div>
                     </div>
