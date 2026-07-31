@@ -578,6 +578,7 @@ export function AdminPreventiveTable({
                     if (val !== activeTab) {
                         setData([]);
                         setNextCursor(null);
+                        setIsLoading(true);
                         setActiveTab(val);
                     }
                 }}
@@ -855,7 +856,13 @@ export function AdminPreventiveTable({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRows.length === 0 ? (
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-28 text-center">
+                                                <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : filteredRows.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={7}>
                                                 <EmptyTable

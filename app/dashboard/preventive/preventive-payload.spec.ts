@@ -13,5 +13,13 @@ const tableSource = readFileSync(
 assert.doesNotMatch(actionsSource, /pendingRows:\s*PreventiveRow\[\]/);
 assert.doesNotMatch(actionsSource, /\n\s+pendingRows,\n/);
 assert.doesNotMatch(tableSource, /[^\S\r\n]+$/m);
+assert.match(
+    tableSource,
+    /setData\(\[\]\);\s+setNextCursor\(null\);\s+setIsLoading\(true\);\s+setActiveTab\(val\);/,
+);
+assert.match(
+    tableSource,
+    /<TabsContent value="matrix" className="mt-0">[\s\S]*?\{isLoading \? \(/,
+);
 
 console.log("preventive payload assertions passed");
