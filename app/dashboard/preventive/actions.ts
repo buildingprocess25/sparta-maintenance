@@ -108,7 +108,6 @@ type PreventiveReportRow = {
 
 export type AdminPreventiveResult = {
     rows: PreventiveRow[];
-    pendingRows: PreventiveRow[];
     branchSummaries: PreventiveBranchSummary[];
     latestReports: PreventiveHistoryItem[];
     summary: PreventiveSummary;
@@ -433,7 +432,6 @@ export async function getAdminPreventive(
 
         return {
             rows,
-            pendingRows,
             branchSummaries,
             latestReports,
             summary: {

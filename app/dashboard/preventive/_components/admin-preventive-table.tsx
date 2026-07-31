@@ -572,15 +572,15 @@ export function AdminPreventiveTable({
                 </div>
             </div>
 
-            <Tabs 
-                value={activeTab} 
+            <Tabs
+                value={activeTab}
                 onValueChange={(val) => {
                     if (val !== activeTab) {
                         setData([]);
                         setNextCursor(null);
                         setActiveTab(val);
                     }
-                }} 
+                }}
                 className="gap-0"
             >
                 <div className="sticky top-15 z-30 border-b bg-background/95 px-4 pt-2 backdrop-blur supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-6">
