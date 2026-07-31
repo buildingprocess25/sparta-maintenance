@@ -142,8 +142,8 @@ export function StoreFormDialog({ branchNames, areaNamesByBranch, editStore, tri
             >
                 <DialogTrigger asChild>
                     {trigger ?? (
-                        <Button 
-                            size="sm" 
+                        <Button
+                            size="sm"
                             className="gap-1.5"
                             disabled={!hasWritableBranch}
                             title={

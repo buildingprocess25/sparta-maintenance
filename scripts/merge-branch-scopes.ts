@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import prisma from "../lib/prisma";
 
-import { LEGACY_BRANCH_MERGES } from "../lib/branch-merges";
+import {
+    getPostMergeRepairAreaName,
+    LEGACY_BRANCH_MERGES,
+} from "../lib/branch-merges";
 
 const OLD_BRANCHES = [...LEGACY_BRANCH_MERGES.keys()];
 const STORE_AREA_CSV = "backup/branch-area-backup.csv";
@@ -121,7 +124,7 @@ async function repairPostMergeEntries(execute: boolean) {
             where: { code: store.code },
             data: {
                 branchName: LEGACY_BRANCH_MERGES.get(oldBranchName)!,
-                areaName: store.areaName || oldBranchName,
+                areaName: getPostMergeRepairAreaName(store.areaName, oldBranchName),
             },
         });
     }
@@ -132,7 +135,7 @@ async function repairPostMergeEntries(execute: boolean) {
             where: { reportNumber: report.reportNumber },
             data: {
                 branchName: LEGACY_BRANCH_MERGES.get(oldBranchName)!,
-                areaName: report.areaName || oldBranchName,
+                areaName: getPostMergeRepairAreaName(report.areaName, oldBranchName),
             },
         });
     }
@@ -146,16 +149,17 @@ async function repairPostMergeEntries(execute: boolean) {
         });
     }
 
-    await refreshPjumAreas();
+    await refreshPjumAreas(pjumExports.map((pjumExport) => pjumExport.id));
     console.log("Repair post-merge selesai.");
 }
 
-async function refreshPjumAreas() {
+async function refreshPjumAreas(pjumExportIds?: string[]) {
     logProgress("Updating PJUM areas...");
     let cursor: string | undefined;
     let updatedPjumExports = 0;
     while (true) {
         const pjumExports = await prisma.pjumExport.findMany({
+            where: pjumExportIds ? { id: { in: pjumExportIds } } : undefined,
             take: PJUM_PAGE_SIZE,
             ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
             orderBy: { id: "asc" },

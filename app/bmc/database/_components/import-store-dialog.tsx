@@ -165,9 +165,9 @@ export function ImportStoreDialog({ branchNames }: Props) {
             }}
         >
             <DialogTrigger asChild>
-                <Button 
-                    size="sm" 
-                    variant="outline" 
+                <Button
+                    size="sm"
+                    variant="outline"
                     className="gap-1.5"
                     disabled={!hasWritableBranch}
                     title={

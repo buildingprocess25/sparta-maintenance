@@ -26,6 +26,12 @@ export function getLegacyBranchMessage(branchName: string) {
     return `Cabang ${normalized} sudah digabung ke ${canonical}. Pilih ${canonical}, lalu isi Cabang Lama.`;
 }
 
+export function getPostMergeRepairAreaName(
+    areaName: string | null,
+    legacyBranchName: string,
+) {
+    return areaName?.trim() || legacyBranchName;
+}
 export function getWritableBranchNames(branchNames: string[]) {
     return [
         ...new Set(
