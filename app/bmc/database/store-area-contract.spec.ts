@@ -12,3 +12,23 @@ assert.match(actions, /Cabang lama tidak valid untuk cabang ini/);
 assert.match(actions, /areaName:\s*normalizedAreaName/);
 
 console.log("store area contract assertions passed");
+
+const page = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+const table = readFileSync(
+    new URL("./_components/store-table.tsx", import.meta.url),
+    "utf8",
+);
+const dialog = readFileSync(
+    new URL("./_components/store-form-dialog.tsx", import.meta.url),
+    "utf8",
+);
+
+assert.match(page, /getStoreAreaNamesByBranches/);
+assert.match(page, /areaNamesByBranch={areaNamesByBranch}/);
+assert.match(table, /areaName:\s*string\s*\|\s*null/);
+assert.match(table, /areaNamesByBranch/);
+assert.match(dialog, /Cabang Lama/);
+assert.match(dialog, /getStoreAreaOptions/);
+assert.match(dialog, /setAreaName\(null\)/);
+assert.match(dialog, /areaName,/);
+console.log("store area UI assertions passed");

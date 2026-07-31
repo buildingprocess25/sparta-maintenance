@@ -24,21 +24,24 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Plus, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { createStore, updateStore } from "../actions";
+import { getStoreAreaOptions, type AreaNamesByBranch } from "../store-area-options";
 
 type StoreRow = {
     code: string;
     name: string;
     branchName: string;
+    areaName: string | null;
     isActive: boolean;
 };
 
 type Props = {
     branchNames: string[];
+    areaNamesByBranch: AreaNamesByBranch;
     editStore?: StoreRow;
     trigger?: React.ReactNode;
 };
 
-export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
+export function StoreFormDialog({ branchNames, areaNamesByBranch, editStore, trigger }: Props) {
     const isEdit = !!editStore;
     const hasSingleBranch = branchNames.length === 1;
     const [open, setOpen] = useState(false);
@@ -50,6 +53,14 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
         editStore?.branchName ?? branchNames[0] ?? "",
     );
     const [isActive, setIsActive] = useState(editStore?.isActive ?? true);
+    const [areaName, setAreaName] = useState<string | null>(
+        editStore?.areaName ?? null,
+    );
+    const areaOptions = getStoreAreaOptions(
+        areaNamesByBranch,
+        branch,
+        editStore?.areaName,
+    );
 
     function resetForm() {
         if (!isEdit) {
@@ -57,6 +68,7 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
             setName("");
             setBranch(branchNames[0] ?? "");
             setIsActive(true);
+            setAreaName(null);
         }
     }
 
@@ -80,12 +92,14 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                 ? await updateStore(code, {
                       name: name.trim(),
                       branchName: editStore?.branchName ?? branch,
+                      areaName,
                       isActive,
                   })
                 : await createStore({
                       code: code.trim().toUpperCase(),
                       name: name.trim(),
                       branchName: branch,
+                      areaName,
                       isActive,
                   });
 
@@ -176,7 +190,10 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                                 <Label htmlFor="store-branch">Cabang</Label>
                                 <Select
                                     value={branch}
-                                    onValueChange={setBranch}
+                                    onValueChange={(value) => {
+                                        setBranch(value);
+                                        setAreaName(null);
+                                    }}
                                 >
                                     <SelectTrigger id="store-branch">
                                         <SelectValue placeholder="Pilih cabang" />
@@ -185,6 +202,30 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                                         {branchNames.map((b) => (
                                             <SelectItem key={b} value={b}>
                                                 {b}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
+                        {areaOptions.length > 0 && (
+                            <div className="space-y-2">
+                                <Label htmlFor="store-legacy-area">Cabang Lama</Label>
+                                <Select
+                                    value={areaName ?? "__none__"}
+                                    onValueChange={(value) =>
+                                        setAreaName(value === "__none__" ? null : value)
+                                    }
+                                >
+                                    <SelectTrigger id="store-legacy-area">
+                                        <SelectValue placeholder="Pilih cabang lama (opsional)" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">Tidak ada</SelectItem>
+                                        {areaOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                                {option}
                                             </SelectItem>
                                         ))}
                                     </SelectContent>

@@ -39,17 +39,20 @@ import {
 import { Store, Pencil, Search, X } from "lucide-react";
 import { StoreFormDialog } from "./store-form-dialog";
 import { ImportStoreDialog } from "./import-store-dialog";
+import type { AreaNamesByBranch } from "../store-area-options";
 
 type StoreRow = {
     code: string;
     name: string;
     branchName: string;
+    areaName: string | null;
     isActive: boolean;
 };
 
 type Props = {
     stores: StoreRow[];
     branchNames: string[];
+    areaNamesByBranch: AreaNamesByBranch;
     totalCount: number;
     currentPage: number;
     totalPages: number;
@@ -62,6 +65,7 @@ type Props = {
 export function StoreTable({
     stores,
     branchNames,
+    areaNamesByBranch,
     totalCount,
     currentPage,
     totalPages,
@@ -182,7 +186,10 @@ export function StoreTable({
                         {totalCount} toko ditemukan
                     </p>
                     <ImportStoreDialog branchNames={branchNames} />
-                    <StoreFormDialog branchNames={branchNames} />
+                    <StoreFormDialog
+                        branchNames={branchNames}
+                        areaNamesByBranch={areaNamesByBranch}
+                    />
                 </div>
             </div>
 
@@ -247,6 +254,7 @@ export function StoreTable({
                                         <div className="flex items-center justify-end gap-1">
                                             <StoreFormDialog
                                                 branchNames={branchNames}
+                                                areaNamesByBranch={areaNamesByBranch}
                                                 editStore={store}
                                                 trigger={
                                                     <Button
