@@ -44,6 +44,7 @@ type Props = {
 export function StoreFormDialog({ branchNames, areaNamesByBranch, editStore, trigger }: Props) {
     const isEdit = !!editStore;
     const hasSingleBranch = branchNames.length === 1;
+    const hasWritableBranch = branchNames.length > 0;
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -141,7 +142,16 @@ export function StoreFormDialog({ branchNames, areaNamesByBranch, editStore, tri
             >
                 <DialogTrigger asChild>
                     {trigger ?? (
-                        <Button size="sm" className="gap-1.5">
+                        <Button 
+                            size="sm" 
+                            className="gap-1.5"
+                            disabled={!hasWritableBranch}
+                            title={
+                                hasWritableBranch
+                                    ? undefined
+                                    : "Tidak ada cabang utama yang dapat dikelola"
+                            }
+                        >
                             <Plus className="h-4 w-4" />
                             Tambah Toko
                         </Button>

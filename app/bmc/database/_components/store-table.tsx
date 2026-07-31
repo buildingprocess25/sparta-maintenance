@@ -40,6 +40,7 @@ import { Store, Pencil, Search, X } from "lucide-react";
 import { StoreFormDialog } from "./store-form-dialog";
 import { ImportStoreDialog } from "./import-store-dialog";
 import type { AreaNamesByBranch } from "../store-area-options";
+import { getWritableBranchNames } from "@/lib/branch-merges";
 
 type StoreRow = {
     code: string;
@@ -74,6 +75,8 @@ export function StoreTable({
     const router = useRouter();
     const pathname = usePathname();
     const currentSearchParams = useSearchParams();
+
+    const writableBranchNames = getWritableBranchNames(branchNames);
 
     // Local state for search
     const [searchTerm, setSearchTerm] = useState(searchParams.sSearch || "");
@@ -185,9 +188,9 @@ export function StoreTable({
                     <p className="text-sm text-muted-foreground hidden lg:block">
                         {totalCount} toko ditemukan
                     </p>
-                    <ImportStoreDialog branchNames={branchNames} />
+                    <ImportStoreDialog branchNames={writableBranchNames} />
                     <StoreFormDialog
-                        branchNames={branchNames}
+                        branchNames={writableBranchNames}
                         areaNamesByBranch={areaNamesByBranch}
                     />
                 </div>
@@ -253,7 +256,7 @@ export function StoreTable({
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <StoreFormDialog
-                                                branchNames={branchNames}
+                                                branchNames={writableBranchNames}
                                                 areaNamesByBranch={areaNamesByBranch}
                                                 editStore={store}
                                                 trigger={

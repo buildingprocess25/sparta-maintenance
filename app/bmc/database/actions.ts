@@ -10,6 +10,11 @@ import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { getStoreAreaNamesByBranches } from "./queries";
 import { resolveStoreAreaName } from "./store-area-validation";
+import { getLegacyBranchMessage } from "@/lib/branch-merges";
+
+function getLegacyStoreBranchError(branchName: string) {
+    return getLegacyBranchMessage(branchName);
+}
 
 function getBmcDatabaseErrorDetail(error: unknown): string {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -286,6 +291,9 @@ async function resolveStoreAreaNameForBranch(
 export async function createStore(payload: StorePayload) {
     const startTime = Date.now();
     try {
+        const legacyBranchMessage = getLegacyStoreBranchError(payload.branchName);
+        if (legacyBranchMessage) return { error: legacyBranchMessage };
+
         const user = await requireRole("BMC");
         const headersList = await headers();
         await validateCSRF(headersList);
@@ -343,6 +351,9 @@ export async function updateStore(
 ) {
     const startTime = Date.now();
     try {
+        const legacyBranchMessage = getLegacyStoreBranchError(payload.branchName);
+        if (legacyBranchMessage) return { error: legacyBranchMessage };
+
         const user = await requireRole("BMC");
         const headersList = await headers();
         await validateCSRF(headersList);
@@ -514,6 +525,12 @@ export async function importStores(formData: FormData) {
 
         // Determine target branch
         const branchName = targetBranch?.trim() || user.branchNames[0];
+
+        const legacyBranchMessage = getLegacyStoreBranchError(branchName);
+        if (legacyBranchMessage) {
+            return { ...result, errors: [legacyBranchMessage] };
+        }
+
         if (!branchName || !user.branchNames.includes(branchName)) {
             return {
                 ...result,
