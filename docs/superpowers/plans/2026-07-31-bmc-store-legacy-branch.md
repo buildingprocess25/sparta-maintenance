@@ -549,4 +549,3 @@ git commit -m "docs: record legacy area verification"
 - Spec coverage: Tasks 1–3 cover dependent options, create/edit behavior, orphan preservation, canonical branch integrity, and server validation. Task 4 covers manual acceptance, task-note governance, and explicit deferrals.
 - No migration, historical cleanup, import format change, new dependency, or automatic mapping is included.
 - Type consistency: `AreaNamesByBranch`, `getStoreAreaOptions`, and optional `areaName` are defined before every consuming task.
-

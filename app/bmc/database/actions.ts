@@ -9,7 +9,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { getStoreAreaNamesByBranches } from "./queries";
-import { getStoreAreaOptions } from "./store-area-options";
+import { resolveStoreAreaName } from "./store-area-validation";
 
 function getBmcDatabaseErrorDetail(error: unknown): string {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -269,26 +269,18 @@ type StorePayload = {
     isActive?: boolean;
 };
 
-async function resolveStoreAreaName(
+async function resolveStoreAreaNameForBranch(
     branchName: string,
     areaName: string | null | undefined,
     currentAreaName?: string | null,
 ) {
-    const normalizedAreaName = areaName?.trim() || null;
-    if (!normalizedAreaName) return { areaName: null };
-
     const areaNamesByBranch = await getStoreAreaNamesByBranches([branchName]);
-    const options = getStoreAreaOptions(
+    return resolveStoreAreaName(
         areaNamesByBranch,
         branchName,
+        areaName,
         currentAreaName,
     );
-
-    if (!options.includes(normalizedAreaName)) {
-        return { error: "Cabang lama tidak valid untuk cabang ini" };
-    }
-
-    return { areaName: normalizedAreaName };
 }
 
 export async function createStore(payload: StorePayload) {
@@ -302,11 +294,11 @@ export async function createStore(payload: StorePayload) {
             return { error: "Anda tidak punya akses ke cabang ini" };
         }
 
-        const areaResult = await resolveStoreAreaName(
+        const areaResult = await resolveStoreAreaNameForBranch(
             payload.branchName,
             payload.areaName,
         );
-        if (areaResult.error) {
+        if (!areaResult.valid) {
             return { error: areaResult.error };
         }
         const normalizedAreaName = areaResult.areaName;
@@ -369,12 +361,12 @@ export async function updateStore(
             return { error: "Toko ini bukan dari cabang Anda" };
         }
 
-        const areaResult = await resolveStoreAreaName(
+        const areaResult = await resolveStoreAreaNameForBranch(
             existing.branchName,
             payload.areaName,
             existing.areaName,
         );
-        if (areaResult.error) {
+        if (!areaResult.valid) {
             return { error: areaResult.error };
         }
         const normalizedAreaName = areaResult.areaName;

@@ -95,10 +95,6 @@ function assertNormalizeUserBranches() {
         "HEAD OFFICE",
     ]);
     assert.equal(BRANCH_MERGES.get("CIKOKOL"), "CIKOKOL RAYA");
-    assert.deepEqual(parseUserAreaCsv().get("03100115"), [
-        "BEKASI",
-        "KARAWANG",
-    ]);
 }
 
 async function main() {

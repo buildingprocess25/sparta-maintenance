@@ -31,4 +31,3 @@ The plan uses one shared pure helper because server data loading and the client 
 ## Remaining Work and Risks
 
 Implementation has not started. Existing incorrect user branch scopes or store branch values need a separate admin-approved mapping task; they are intentionally not inferred or changed by this plan.
-
