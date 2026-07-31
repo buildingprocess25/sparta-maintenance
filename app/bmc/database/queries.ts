@@ -3,6 +3,10 @@
 import "server-only";
 import prisma from "@/lib/prisma";
 import { UserRole, Prisma } from "@prisma/client";
+import {
+    AreaNamesByBranch,
+    groupAreaNamesByBranch,
+} from "./store-area-options";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -114,6 +118,7 @@ export async function getStoresByBranches(
                 code: true,
                 name: true,
                 branchName: true,
+                areaName: true,
                 isActive: true,
             },
             orderBy: { name: "asc" },
@@ -130,4 +135,23 @@ export async function getStoresByBranches(
         limit,
         totalPages: Math.max(1, Math.ceil(total / limit)),
     };
+}
+
+export async function getStoreAreaNamesByBranches(
+    branchNames: string[],
+): Promise<AreaNamesByBranch> {
+    if (branchNames.length === 0) return {};
+
+    const rows = await prisma.store.findMany({
+        where: {
+            branchName: { in: branchNames },
+            areaName: { not: null },
+        },
+        select: {
+            branchName: true,
+            areaName: true,
+        },
+    });
+
+    return groupAreaNamesByBranch(branchNames, rows);
 }

@@ -8,6 +8,8 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { getStoreAreaNamesByBranches } from "./queries";
+import { getStoreAreaOptions } from "./store-area-options";
 
 function getBmcDatabaseErrorDetail(error: unknown): string {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -263,8 +265,31 @@ type StorePayload = {
     code: string;
     name: string;
     branchName: string;
+    areaName?: string | null;
     isActive?: boolean;
 };
+
+async function resolveStoreAreaName(
+    branchName: string,
+    areaName: string | null | undefined,
+    currentAreaName?: string | null,
+) {
+    const normalizedAreaName = areaName?.trim() || null;
+    if (!normalizedAreaName) return { areaName: null };
+
+    const areaNamesByBranch = await getStoreAreaNamesByBranches([branchName]);
+    const options = getStoreAreaOptions(
+        areaNamesByBranch,
+        branchName,
+        currentAreaName,
+    );
+
+    if (!options.includes(normalizedAreaName)) {
+        return { error: "Cabang lama tidak valid untuk cabang ini" };
+    }
+
+    return { areaName: normalizedAreaName };
+}
 
 export async function createStore(payload: StorePayload) {
     const startTime = Date.now();
@@ -277,9 +302,21 @@ export async function createStore(payload: StorePayload) {
             return { error: "Anda tidak punya akses ke cabang ini" };
         }
 
+        const areaResult = await resolveStoreAreaName(
+            payload.branchName,
+            payload.areaName,
+        );
+        if (areaResult.error) {
+            return { error: areaResult.error };
+        }
+        const normalizedAreaName = areaResult.areaName;
+
         await prisma.store.create({
             data: {
-                ...payload,
+                code: payload.code,
+                name: payload.name,
+                branchName: payload.branchName,
+                areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
             },
         });
@@ -318,23 +355,36 @@ export async function updateStore(
         const headersList = await headers();
         await validateCSRF(headersList);
 
-        if (!user.branchNames.includes(payload.branchName)) {
-            return { error: "Anda tidak punya akses ke cabang ini" };
-        }
-
         const existing = await prisma.store.findUnique({
             where: { code },
-            select: { branchName: true },
+            select: { branchName: true, areaName: true },
         });
         if (!existing) return { error: "Toko tidak ditemukan" };
+
+        if (payload.branchName !== existing.branchName) {
+            return { error: "Cabang toko tidak dapat diubah" };
+        }
+
         if (!user.branchNames.includes(existing.branchName)) {
             return { error: "Toko ini bukan dari cabang Anda" };
         }
 
+        const areaResult = await resolveStoreAreaName(
+            existing.branchName,
+            payload.areaName,
+            existing.areaName,
+        );
+        if (areaResult.error) {
+            return { error: areaResult.error };
+        }
+        const normalizedAreaName = areaResult.areaName;
+
         await prisma.store.update({
             where: { code },
             data: {
-                ...payload,
+                name: payload.name,
+                branchName: existing.branchName,
+                areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
             },
         });
