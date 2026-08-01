@@ -227,6 +227,7 @@ export function AdminPreventiveTable({
     availableYears,
     defaultBranch,
     showBranchControls = true,
+    showBrandFilter = false,
     actions,
 }: {
     initialData: AdminPreventiveResult;
