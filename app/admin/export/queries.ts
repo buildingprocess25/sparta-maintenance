@@ -14,7 +14,7 @@ import {
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
-import { StoreBrandFilter, getReportBrandWhere } from "@/lib/store-brand-filter";
+import { StoreBrandFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -560,6 +560,17 @@ export async function fetchPreventiveExportRows(
                 { code: { contains: filter.searchQuery, mode: "insensitive" } },
                 { name: { contains: filter.searchQuery, mode: "insensitive" } },
             ];
+        }
+
+        if (filter.brand && filter.brand !== "ALL") {
+            const brandWhere = getStoreBrandWhere(filter.brand);
+            if (brandWhere) {
+                if (whereStore.AND) {
+                    (whereStore.AND as Prisma.StoreWhereInput[]).push(brandWhere);
+                } else {
+                    whereStore.AND = [brandWhere];
+                }
+            }
         }
 
         const stores = await prisma.store.findMany({

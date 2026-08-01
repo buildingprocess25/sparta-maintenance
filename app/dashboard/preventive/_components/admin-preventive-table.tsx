@@ -64,6 +64,7 @@ import {
 import {
     getPreventiveCompletionForTab,
 } from "../preventive-dashboard";
+import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
     { value: 1, label: "Triwulan 1", period: "Jan-Mar" },
@@ -255,6 +256,7 @@ export function AdminPreventiveTable({
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [tableSearch, setTableSearch] = useState("");
     const [branchName, setBranchName] = useState<string>(defaultBranch);
+    const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
     const [year, setYear] = useState<number>(initialData.summary.year || currentYear);
     const [quarter, setQuarter] =
         useState<PreventiveQuarter>(initialData.summary.quarter || getCurrentQuarter());
@@ -297,6 +299,7 @@ export function AdminPreventiveTable({
         try {
             const result = await getAdminPreventive(nextCursor, 30, {
                 branchName,
+                brand,
                 year,
                 quarter,
                 completion: getPreventiveCompletionForTab(activeTab),
@@ -312,6 +315,7 @@ export function AdminPreventiveTable({
         nextCursor,
         isFetchingMore,
         branchName,
+        brand,
         year,
         quarter,
         activeTab,
@@ -346,6 +350,7 @@ export function AdminPreventiveTable({
             try {
                 const result = await getAdminPreventive(null, 30, {
                     branchName,
+                    brand,
                     year,
                     quarter,
                     completion: getPreventiveCompletionForTab(activeTab),
@@ -360,7 +365,7 @@ export function AdminPreventiveTable({
         }, 350);
 
         return () => clearTimeout(timer);
-    }, [branchName, year, quarter, activeTab, tableSearch, applyResult]);
+    }, [branchName, brand, year, quarter, activeTab, tableSearch, applyResult]);
 
     // History state reset moved to search input onChange
     const selectedQuarter = useMemo(
@@ -446,27 +451,44 @@ export function AdminPreventiveTable({
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
                             {showBranchControls ? (
-                                <Select
-                                    value={branchName}
-                                    onValueChange={setBranchName}
-                                >
-                                    <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[190px]">
-                                        <SelectValue placeholder="Semua Cabang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            Semua Cabang
-                                        </SelectItem>
-                                        {branches.map((branch) => (
-                                            <SelectItem
-                                                key={branch}
-                                                value={branch}
-                                            >
-                                                {branch}
+                                <>
+                                    <Select
+                                        value={brand}
+                                        onValueChange={(val) => setBrand(val as StoreBrandFilter)}
+                                    >
+                                        <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[140px]">
+                                            <SelectValue placeholder="Semua Brand" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {STORE_BRAND_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <Select
+                                        value={branchName}
+                                        onValueChange={setBranchName}
+                                    >
+                                        <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[190px]">
+                                            <SelectValue placeholder="Semua Cabang" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">
+                                                Semua Cabang
                                             </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                            {branches.map((branch) => (
+                                                <SelectItem
+                                                    key={branch}
+                                                    value={branch}
+                                                >
+                                                    {branch}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </>
                             ) : null}
                             <Select
                                 value={quarter.toString()}
