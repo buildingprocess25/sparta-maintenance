@@ -234,6 +234,7 @@ export function AdminPreventiveTable({
     availableYears: number[];
     defaultBranch: string;
     showBranchControls?: boolean;
+    showBrandFilter?: boolean;
     actions?: ReactNode;
 }) {
     const currentYear = getJakartaYear();
@@ -450,8 +451,7 @@ export function AdminPreventiveTable({
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
-                            {showBranchControls ? (
-                                <>
+                            {showBrandFilter ? (
                                     <Select
                                         value={brand}
                                         onValueChange={(val) => setBrand(val as StoreBrandFilter)}
@@ -467,6 +467,8 @@ export function AdminPreventiveTable({
                                             ))}
                                         </SelectContent>
                                     </Select>
+                            ) : null}
+                            {showBranchControls ? (
                                     <Select
                                         value={branchName}
                                         onValueChange={setBranchName}
@@ -488,7 +490,6 @@ export function AdminPreventiveTable({
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                </>
                             ) : null}
                             <Select
                                 value={quarter.toString()}

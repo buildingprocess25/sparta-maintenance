@@ -28,9 +28,11 @@ import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-fi
 export function ExportPreventiveDialog({
     branches,
     showBranchFilter = true,
+    showBrandFilter = false,
 }: {
     branches: string[];
     showBranchFilter?: boolean;
+    showBrandFilter?: boolean;
 }) {
     const currentYear = getJakartaYear();
     const [open, setOpen] = useState(false);
@@ -149,7 +151,7 @@ export function ExportPreventiveDialog({
                             </Select>
                         </div>
                     ) : null}
-                    {showBranchFilter ? (
+                    {showBrandFilter ? (
                         <div className="grid gap-2">
                             <Label>Brand</Label>
                             <Select

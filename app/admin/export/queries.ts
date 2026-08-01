@@ -565,8 +565,10 @@ export async function fetchPreventiveExportRows(
         if (filter.brand && filter.brand !== "ALL") {
             const brandWhere = getStoreBrandWhere(filter.brand);
             if (brandWhere) {
-                if (whereStore.AND) {
-                    (whereStore.AND as Prisma.StoreWhereInput[]).push(brandWhere);
+                if (Array.isArray(whereStore.AND)) {
+                    whereStore.AND.push(brandWhere);
+                } else if (whereStore.AND) {
+                    whereStore.AND = [whereStore.AND, brandWhere];
                 } else {
                     whereStore.AND = [brandWhere];
                 }

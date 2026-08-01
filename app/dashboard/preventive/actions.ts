@@ -223,8 +223,10 @@ export async function getAdminPreventive(
         if (filters.brand && filters.brand !== "ALL") {
             const brandWhere = getStoreBrandWhere(filters.brand);
             if (brandWhere) {
-                if (where.AND) {
-                    (where.AND as Prisma.StoreWhereInput[]).push(brandWhere);
+                if (Array.isArray(where.AND)) {
+                    where.AND.push(brandWhere);
+                } else if (where.AND) {
+                    where.AND = [where.AND, brandWhere];
                 } else {
                     where.AND = [brandWhere];
                 }
