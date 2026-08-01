@@ -21,6 +21,7 @@ import {
     ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "@/lib/report-retention";
+import { StoreBrandFilter, getReportBrandWhere } from "@/lib/store-brand-filter";
 
 export type AdminReportFilters = {
     search?: string;
@@ -31,6 +32,7 @@ export type AdminReportFilters = {
     fromDate?: string;
     toDate?: string;
     pjumStatus?: string;
+    brand?: StoreBrandFilter;
 };
 
 const ACTIVE_REPORT_STATUSES = [
@@ -275,6 +277,13 @@ export async function getAdminReports(
             };
         }
 
+        if (filters.brand && filters.brand !== "ALL") {
+            const brandWhere = getReportBrandWhere(filters.brand);
+            if (brandWhere) {
+                andFilters.push(brandWhere);
+            }
+        }
+
         if (andFilters.length > 0) {
             where.AND = andFilters;
         }
@@ -288,7 +297,7 @@ export async function getAdminReports(
                 where.reportNumber = { in: reportNumbers };
             }
         }
-        
+
         // Count total reports for the given filters
         const totalCount = await prisma.report.count({ where });
         const overdueCount = await prisma.report.count({

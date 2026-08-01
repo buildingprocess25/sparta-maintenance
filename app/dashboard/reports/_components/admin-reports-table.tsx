@@ -20,6 +20,7 @@ import {
     Loader2,
     ReceiptText,
     Search,
+    Store,
 } from "lucide-react";
 import { getAdminReports, AdminReportFilters } from "../actions";
 import { toast } from "sonner";
@@ -27,6 +28,7 @@ import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
+import { STORE_BRAND_OPTIONS, normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 import {
     createFilter,
     Filters,
@@ -179,6 +181,7 @@ export function AdminReportsTable({
     initialPjumStatus = "all",
     initialBranchName = "all",
     initialAreaName = "all",
+    initialBrand = "ALL",
 }: {
     initialData: ReportItem[];
     initialNextCursor: string | null;
@@ -190,6 +193,7 @@ export function AdminReportsTable({
     initialPjumStatus?: string;
     initialBranchName?: string;
     initialAreaName?: string;
+    initialBrand?: string;
 }) {
     const initialQuickFilter = resolveInitialQuickFilter({
         initialScope,
@@ -228,6 +232,9 @@ export function AdminReportsTable({
             !initialAreaName || initialAreaName === "all"
                 ? null
                 : createFilter<string>("areaName", "is", [initialAreaName]),
+            normalizeStoreBrandFilter(initialBrand) === "ALL"
+                ? null
+                : createFilter<string>("brand", "is", [normalizeStoreBrandFilter(initialBrand)]),
         ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
@@ -262,6 +269,14 @@ export function AdminReportsTable({
                       },
                   ]
                 : []),
+            {
+                key: "brand",
+                label: "Brand",
+                type: "select",
+                placeholder: "Pilih brand",
+                icon: <Store className="h-3.5 w-3.5" />,
+                options: STORE_BRAND_OPTIONS,
+            },
             {
                 key: "status",
                 label: "Status",
@@ -308,6 +323,7 @@ export function AdminReportsTable({
     const fromDate = String(getFilterValue("fromDate"));
     const toDate = String(getFilterValue("toDate"));
     const pjumStatus = String(getFilterValue("pjumStatus"));
+    const brand = normalizeStoreBrandFilter(String(getFilterValue("brand")));
     const hasActiveFilter =
         searchValue.length > 0 ||
         activeFilters.length > 0 ||
@@ -320,6 +336,7 @@ export function AdminReportsTable({
                 branchName: branchName || undefined,
                 areaName: areaName || undefined,
                 status: status || undefined,
+                brand: brand !== "ALL" ? brand : undefined,
                 scope:
                     quickFilter !== "all" &&
                     quickFilter !== "completed" &&
@@ -375,6 +392,7 @@ export function AdminReportsTable({
             fromDate,
             toDate,
             pjumStatus,
+            brand,
             quickFilter,
         ],
     );
@@ -415,6 +433,7 @@ export function AdminReportsTable({
         fromDate,
         toDate,
         pjumStatus,
+        brand,
         quickFilter,
         loadData,
     ]);
