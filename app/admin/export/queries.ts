@@ -14,6 +14,7 @@ import {
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
+import { StoreBrandFilter, getReportBrandWhere } from "@/lib/store-brand-filter";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ export type ExportFilter = {
     searchQuery?: string;
     year?: number;
     preventiveQuarter?: "all" | 1 | 2 | 3 | 4;
+    brand?: StoreBrandFilter;
 };
 
 // ─── Sheet 1: Report rows ─────────────────────────────────────────────────────
@@ -141,6 +143,13 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
                 ...(start ? { gte: start } : {}),
                 ...(endExclusive ? { lt: endExclusive } : {}),
             };
+        }
+    }
+
+    if (filter.brand && filter.brand !== "ALL") {
+        const brandWhere = getReportBrandWhere(filter.brand);
+        if (brandWhere) {
+            (where.AND as Prisma.ReportWhereInput[]).push(brandWhere);
         }
     }
 

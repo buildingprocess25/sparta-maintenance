@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
+import { StoreBrandFilter, STORE_BRAND_OPTIONS } from "@/lib/store-brand-filter";
 
 const STATUS_OPTIONS = [
     { value: "all", label: "Semua Status" },
@@ -50,6 +51,7 @@ export function ExportReportsDialog({
     const [bmsQuery, setBmsQuery] = useState("");
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [status, setStatus] = useState("all");
+    const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
 
@@ -69,6 +71,7 @@ export function ExportReportsDialog({
                                 ? undefined
                                 : selectedBranches,
                         status: status === "all" ? undefined : status,
+                        brand: brand === "ALL" ? undefined : brand,
                         fromDate: fromDate || undefined,
                         toDate: toDate || undefined,
                     },
@@ -178,6 +181,24 @@ export function ExportReportsDialog({
                             </DropdownMenu>
                         </div>
                     ) : null}
+                    <div className="grid gap-2">
+                        <Label>Brand</Label>
+                        <Select value={brand} onValueChange={(v) => setBrand(v as StoreBrandFilter)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Semua Brand" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {STORE_BRAND_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                        key={opt.value}
+                                        value={opt.value}
+                                    >
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     <div className="grid gap-2">
                         <Label>Status</Label>
                         <Select value={status} onValueChange={setStatus}>
