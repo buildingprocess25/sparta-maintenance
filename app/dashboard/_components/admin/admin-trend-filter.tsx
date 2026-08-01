@@ -46,9 +46,11 @@ function getMonthLabel(val: string): string {
 
 export function AdminTrendPeriodFilter({
   initialPeriod,
+  initialBrand = "ALL",
   basePath = "/dashboard",
 }: {
   initialPeriod: string;
+  initialBrand?: string;
   basePath?: string;
 }) {
   const router = useRouter();
@@ -57,16 +59,20 @@ export function AdminTrendPeriodFilter({
   const parsed = parsePeriodValue(initialPeriod);
   const [periodVal, setPeriodVal] = useState(parsed.selectVal);
   const [year, setYear] = useState(parsed.year);
+  const [brandVal, setBrandVal] = useState(initialBrand);
 
   const isMonthMode = periodVal !== "ytd";
 
   const navigate = useCallback(
-    (nextPeriodVal: string, nextYear: string) => {
+    (nextPeriodVal: string, nextYear: string, nextBrandVal: string) => {
       const params = new URLSearchParams();
       if (nextPeriodVal !== "ytd") {
         params.set("period", `${nextPeriodVal}-${nextYear}`);
       } else {
         params.set("period", "ytd");
+      }
+      if (nextBrandVal !== "ALL") {
+        params.set("brand", nextBrandVal);
       }
       startTransition(() => {
         router.push(`${basePath}?${params.toString()}`);
@@ -77,14 +83,14 @@ export function AdminTrendPeriodFilter({
 
   function handlePeriodChange(value: string) {
     setPeriodVal(value);
-    navigate(value, year);
+    navigate(value, year, brandVal);
   }
 
   function handleYearBlur(e: React.FocusEvent<HTMLInputElement>) {
     const y = e.target.value.trim();
     if (/^\d{4}$/.test(y)) {
       setYear(y);
-      navigate(periodVal, y);
+      navigate(periodVal, y, brandVal);
     }
   }
 
@@ -94,8 +100,24 @@ export function AdminTrendPeriodFilter({
     }
   }
 
+  function handleBrandChange(value: string) {
+    setBrandVal(value);
+    navigate(periodVal, year, value);
+  }
+
   return (
     <div className="flex items-center gap-2">
+      <Select value={brandVal} onValueChange={handleBrandChange}>
+        <SelectTrigger className="h-8 w-32 text-xs">
+          <SelectValue placeholder="Pilih Brand" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          <SelectItem value="ALL" className="text-xs">Semua Brand</SelectItem>
+          <SelectItem value="ALFAMART" className="text-xs">Alfamart</SelectItem>
+          <SelectItem value="LAWSON" className="text-xs">Lawson</SelectItem>
+        </SelectContent>
+      </Select>
+
       <Select value={periodVal} onValueChange={handlePeriodChange}>
         <SelectTrigger className="h-8 w-40 text-xs">
           <SelectValue>

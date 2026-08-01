@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { StoreBrandFilter } from "@/lib/store-brand-filter";
 import {
     Activity,
     ArrowUpRight,
@@ -114,9 +115,14 @@ function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
 function KpiGrid({
     kpi,
     pjum,
+    breakdown,
 }: {
     kpi: AdminKpiMetric;
     pjum: Awaited<ReturnType<typeof getAdminCommandCenterData>>["pjum"];
+    breakdown?: {
+        alfamart: { kpi: AdminKpiMetric; pjum: any };
+        lawson: { kpi: AdminKpiMetric; pjum: any };
+    };
 }) {
     return (
         <div className="grid gap-4 lg:grid-cols-3">
@@ -152,6 +158,14 @@ function KpiGrid({
                         tone: "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: formatNumber(breakdown.alfamart.kpi.totalReports),
+                              lawson: formatNumber(breakdown.lawson.kpi.totalReports),
+                          }
+                        : undefined
+                }
             />
             <GroupedKpiCard
                 title="Penyelesaian"
@@ -185,6 +199,14 @@ function KpiGrid({
                         tone: "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: `${breakdown.alfamart.kpi.completionRate}%`,
+                              lawson: `${breakdown.lawson.kpi.completionRate}%`,
+                          }
+                        : undefined
+                }
             />
             <GroupedKpiCard
                 title="Realisasi & PJUM"
@@ -212,6 +234,14 @@ function KpiGrid({
                         tone: pjum.pending > 0 ? "amber" : "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: formatShortRp(breakdown.alfamart.kpi.totalRealisasi),
+                              lawson: formatShortRp(breakdown.lawson.kpi.totalRealisasi),
+                          }
+                        : undefined
+                }
             />
         </div>
     );
@@ -243,6 +273,7 @@ function GroupedKpiCard({
     href,
     rows,
     progress,
+    breakdown,
 }: {
     title: string;
     icon: React.ElementType;
@@ -251,6 +282,7 @@ function GroupedKpiCard({
     href: string;
     rows: GroupedKpiRow[];
     progress?: number;
+    breakdown?: { alfamart: string; lawson: string };
 }) {
     return (
         <section className="flex h-full flex-col rounded-lg border bg-background p-4 shadow-sm">
@@ -267,6 +299,12 @@ function GroupedKpiCard({
                         {value}
                         <ArrowUpRight className="h-4 w-4" />
                     </Link>
+                    {breakdown && (
+                        <div className="mt-1 flex items-center gap-3 text-xs font-medium">
+                            <span className="text-blue-600">Alfamart: {breakdown.alfamart}</span>
+                            <span className="text-red-600">Lawson: {breakdown.lawson}</span>
+                        </div>
+                    )}
                     <p className="mt-1 text-xs text-muted-foreground">
                         {helper}
                     </p>
@@ -353,7 +391,13 @@ const SLA_STATUS_GUIDE = [
     },
 ] as const;
 
-function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
+function StatusDistributionKpis({
+    status,
+    breakdown,
+}: {
+    status: AdminStatusDatum[];
+    breakdown?: { alfamart: number; lawson: number };
+}) {
     const visibleStatus = status.filter((item) => item.slaDays !== null);
     const totalActive = visibleStatus.reduce(
         (sum, item) => sum + item.count,
@@ -374,6 +418,12 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
                     <div className="mt-1 text-3xl font-semibold tracking-tight">
                         {formatNumber(totalActive)}
                     </div>
+                    {breakdown && (
+                        <div className="mt-1 flex items-center gap-3 text-xs font-medium">
+                            <span className="text-blue-600">Alfamart: {breakdown.alfamart}</span>
+                            <span className="text-red-600">Lawson: {breakdown.lawson}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Badge
@@ -894,12 +944,15 @@ function AttentionTable({
 export async function AdminNewDashboard({
     user,
     period,
+    brand,
 }: {
     user: AuthUser;
     period?: string;
+    brand?: StoreBrandFilter;
 }) {
     const selectedPeriod = normalizePeriod(period);
-    const data = await getAdminCommandCenterData(selectedPeriod);
+    const selectedBrand = brand ?? "ALL";
+    const data = await getAdminCommandCenterData(selectedPeriod, selectedBrand);
 
     return (
         <AdminDashboardShell
@@ -908,11 +961,11 @@ export async function AdminNewDashboard({
             breadcrumbs={[{ label: "Dashboard" }]}
             contentClassName="md:p-6"
             headerActions={
-                <AdminTrendPeriodFilter initialPeriod={selectedPeriod} />
+                <AdminTrendPeriodFilter initialPeriod={selectedPeriod} initialBrand={selectedBrand} />
             }
         >
             <DashboardHeader kpi={data.kpi} />
-            <KpiGrid kpi={data.kpi} pjum={data.pjum} />
+            <KpiGrid kpi={data.kpi} pjum={data.pjum} breakdown={data.brandBreakdown} />
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
                 <div className="space-y-4">
@@ -925,7 +978,7 @@ export async function AdminNewDashboard({
                             batas waktu operasional.
                         </p>
                     </div>
-                    <StatusDistributionKpis status={data.status} />
+                    <StatusDistributionKpis status={data.status} breakdown={data.brandBreakdown ? { alfamart: data.brandBreakdown.alfamart.kpi.activeReports, lawson: data.brandBreakdown.lawson.kpi.activeReports } : undefined} />
                 </div>
                 <SlaStatusGuide />
             </section>
