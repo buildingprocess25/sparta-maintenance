@@ -852,8 +852,11 @@ export type AdminPjumSummary = {
 
 export type AdminCommandCenterDataBreakdown = {
     kpi: AdminKpiMetric;
+    status: AdminStatusDatum[];
     branches: AdminBranchPerformanceDatum[];
     trends: AdminTrendDatum[];
+    stuckReports: AdminAttentionReport[];
+    pjum: AdminPjumSummary;
 };
 
 export type AdminCommandCenterData = {
@@ -1508,8 +1511,10 @@ async function getAdminBranchPerformance(
             row.branchName,
             hierarchy,
         );
-        getBranchAccumulator(branchMap, parentBranch).totalReports +=
-            row._count._all;
+        const acc = branchMap.get(parentBranch);
+        if (acc) {
+            acc.totalReports += row._count._all;
+        }
     }
 
     for (const row of completedRows) {
@@ -1517,9 +1522,11 @@ async function getAdminBranchPerformance(
             row.branchName,
             hierarchy,
         );
-        const current = getBranchAccumulator(branchMap, parentBranch);
-        current.completedReports += row._count._all;
-        current.totalRealisasi += Number(row._sum.totalReal ?? 0);
+        const acc = branchMap.get(parentBranch);
+        if (acc) {
+            acc.completedReports += row._count._all;
+            acc.totalRealisasi += Number(row._sum.totalReal ?? 0);
+        }
     }
 
     return Array.from(branchMap.values())
@@ -1745,20 +1752,40 @@ export async function getAdminCommandCenterData(
             ]);
             const [
                 alfamartKpi, lawsonKpi,
+                alfamartStatus, lawsonStatus,
                 alfamartBranches, lawsonBranches,
-                alfamartTrends, lawsonTrends
+                alfamartTrends, lawsonTrends,
+                alfamartStuckReports, lawsonStuckReports
             ] = await Promise.all([
                 getAdminKpiMetric(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART"),
                 getAdminKpiMetric(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON"),
+                getAdminStatusDistribution(trendWindow, slaDaysByStatus, "ALFAMART"),
+                getAdminStatusDistribution(trendWindow, slaDaysByStatus, "LAWSON"),
                 getAdminBranchPerformance(trendWindow, hierarchy, "ALFAMART", alfamartVisibleBranches),
                 getAdminBranchPerformance(trendWindow, hierarchy, "LAWSON", lawsonVisibleBranches),
                 getAdminBranchTrend(period, hierarchy, "ALFAMART", alfamartVisibleBranches),
                 getAdminBranchTrend(period, hierarchy, "LAWSON", lawsonVisibleBranches),
+                getAdminStuckReports(slaDaysByStatus, "ALFAMART"),
+                getAdminStuckReports(slaDaysByStatus, "LAWSON"),
             ]);
 
             brandBreakdown = {
-                alfamart: { kpi: alfamartKpi, branches: alfamartBranches, trends: alfamartTrends },
-                lawson: { kpi: lawsonKpi, branches: lawsonBranches, trends: lawsonTrends },
+                alfamart: { 
+                    kpi: alfamartKpi, 
+                    status: alfamartStatus,
+                    branches: alfamartBranches, 
+                    trends: alfamartTrends,
+                    stuckReports: alfamartStuckReports,
+                    pjum: alfamartPjum
+                },
+                lawson: { 
+                    kpi: lawsonKpi, 
+                    status: lawsonStatus,
+                    branches: lawsonBranches, 
+                    trends: lawsonTrends,
+                    stuckReports: lawsonStuckReports,
+                    pjum: lawsonPjum
+                },
             };
         }
         return {
