@@ -2,8 +2,10 @@ import test from 'node:test';
 import * as assert from 'node:assert';
 import {
   normalizeStoreBrandFilter,
+  parseStoreBrandFilter,
   getStoreBrandWhere,
   getReportBrandWhere,
+  getVisibleBrandBranchNames,
 } from './store-brand-filter';
 
 test('normalizeStoreBrandFilter', () => {
@@ -15,6 +17,12 @@ test('normalizeStoreBrandFilter', () => {
   assert.strictEqual(normalizeStoreBrandFilter('invalid'), 'ALL');
 });
 
+test('parseStoreBrandFilter rejects invalid request values', () => {
+  assert.strictEqual(parseStoreBrandFilter(undefined), 'ALL');
+  assert.strictEqual(parseStoreBrandFilter('lawson'), 'LAWSON');
+  assert.strictEqual(parseStoreBrandFilter('other'), null);
+  assert.strictEqual(parseStoreBrandFilter({ brand: 'LAWSON' }), null);
+});
 test('getStoreBrandWhere', () => {
   assert.strictEqual(getStoreBrandWhere('ALL'), undefined);
   
@@ -60,3 +68,19 @@ test('getReportBrandWhere', () => {
     }
   });
 });
+
+test('getVisibleBrandBranchNames keeps all branches only for ALL', () => {
+  assert.deepStrictEqual(
+    getVisibleBrandBranchNames('ALL', ['A', 'B'], ['B']),
+    new Set(['A', 'B']),
+  );
+  assert.deepStrictEqual(
+    getVisibleBrandBranchNames('LAWSON', ['A', 'B'], ['B']),
+    new Set(['B']),
+  );
+  assert.deepStrictEqual(
+    getVisibleBrandBranchNames('ALFAMART', ['A', 'B'], []),
+    new Set(),
+  );
+});
+

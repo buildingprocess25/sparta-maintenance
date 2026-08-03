@@ -8,13 +8,17 @@ export const STORE_BRAND_OPTIONS = [
   { value: 'LAWSON', label: 'Lawson' },
 ];
 
-export function normalizeStoreBrandFilter(value?: string | null): StoreBrandFilter {
-  if (!value) return 'ALL';
+export function parseStoreBrandFilter(value: unknown): StoreBrandFilter | null {
+  if (value === undefined || value === null || value === '') return 'ALL';
+  if (typeof value !== 'string') return null;
   const upper = value.toUpperCase();
-  if (upper === 'ALFAMART' || upper === 'LAWSON') {
-    return upper as StoreBrandFilter;
-  }
-  return 'ALL';
+  return upper === 'ALL' || upper === 'ALFAMART' || upper === 'LAWSON'
+    ? upper
+    : null;
+}
+
+export function normalizeStoreBrandFilter(value?: string | null): StoreBrandFilter {
+  return parseStoreBrandFilter(value) ?? 'ALL';
 }
 
 export function getStoreBrandWhere(brandFilter: StoreBrandFilter): Prisma.StoreWhereInput | undefined {
@@ -35,6 +39,14 @@ export function getStoreBrandWhere(brandFilter: StoreBrandFilter): Prisma.StoreW
   return undefined;
 }
 
+export function buildPjumBrandWhere(
+  baseWhere: Prisma.PjumExportWhereInput,
+  brandFilter: StoreBrandFilter,
+  reportNumbers: string[],
+): Prisma.PjumExportWhereInput {
+  if (brandFilter === "ALL") return baseWhere;
+  return { ...baseWhere, reportNumbers: { hasSome: reportNumbers } };
+}
 export function getReportBrandWhere(brandFilter: StoreBrandFilter): Prisma.ReportWhereInput | undefined {
   if (brandFilter === 'ALL') {
     return undefined;
@@ -45,3 +57,12 @@ export function getReportBrandWhere(brandFilter: StoreBrandFilter): Prisma.Repor
     store: getStoreBrandWhere(brandFilter)
   };
 }
+
+export function getVisibleBrandBranchNames(
+  brand: StoreBrandFilter,
+  allBranchNames: Iterable<string>,
+  ownedBranchNames: Iterable<string>,
+) {
+  return new Set(brand === 'ALL' ? allBranchNames : ownedBranchNames);
+}
+
