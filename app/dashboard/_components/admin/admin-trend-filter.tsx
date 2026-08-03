@@ -44,13 +44,34 @@ function getMonthLabel(val: string): string {
   return MONTH_OPTIONS.find((o) => o.value === val)?.label ?? val;
 }
 
+export function buildAdminTrendFilterHref({
+  basePath,
+  period,
+  year,
+  brand,
+  showBrandFilter,
+}: {
+  basePath: string;
+  period: string;
+  year: string;
+  brand: string;
+  showBrandFilter: boolean;
+}) {
+  const params = new URLSearchParams();
+  params.set("period", period === "ytd" ? "ytd" : `${period}-${year}`);
+  if (showBrandFilter && brand !== "ALL") params.set("brand", brand);
+  return `${basePath}?${params.toString()}`;
+}
+
 export function AdminTrendPeriodFilter({
   initialPeriod,
   initialBrand = "ALL",
+  showBrandFilter = false,
   basePath = "/dashboard",
 }: {
   initialPeriod: string;
   initialBrand?: string;
+  showBrandFilter?: boolean;
   basePath?: string;
 }) {
   const router = useRouter();
@@ -65,20 +86,19 @@ export function AdminTrendPeriodFilter({
 
   const navigate = useCallback(
     (nextPeriodVal: string, nextYear: string, nextBrandVal: string) => {
-      const params = new URLSearchParams();
-      if (nextPeriodVal !== "ytd") {
-        params.set("period", `${nextPeriodVal}-${nextYear}`);
-      } else {
-        params.set("period", "ytd");
-      }
-      if (nextBrandVal !== "ALL") {
-        params.set("brand", nextBrandVal);
-      }
       startTransition(() => {
-        router.push(`${basePath}?${params.toString()}`);
+        router.push(
+          buildAdminTrendFilterHref({
+            basePath,
+            period: nextPeriodVal,
+            year: nextYear,
+            brand: nextBrandVal,
+            showBrandFilter,
+          }),
+        );
       });
     },
-    [basePath, router],
+    [basePath, router, showBrandFilter],
   );
 
   function handlePeriodChange(value: string) {
@@ -107,16 +127,18 @@ export function AdminTrendPeriodFilter({
 
   return (
     <div className="flex items-center gap-2">
-      <Select value={brandVal} onValueChange={handleBrandChange}>
-        <SelectTrigger className="h-8 w-32 text-xs">
-          <SelectValue placeholder="Pilih Brand" />
-        </SelectTrigger>
-        <SelectContent align="end">
-          <SelectItem value="ALL" className="text-xs">Semua Brand</SelectItem>
-          <SelectItem value="ALFAMART" className="text-xs">Alfamart</SelectItem>
-          <SelectItem value="LAWSON" className="text-xs">Lawson</SelectItem>
-        </SelectContent>
-      </Select>
+      {showBrandFilter ? (
+        <Select value={brandVal} onValueChange={handleBrandChange}>
+          <SelectTrigger className="h-8 w-32 text-xs">
+            <SelectValue placeholder="Pilih Brand" />
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="ALL" className="text-xs">Semua Brand</SelectItem>
+            <SelectItem value="ALFAMART" className="text-xs">Alfamart</SelectItem>
+            <SelectItem value="LAWSON" className="text-xs">Lawson</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : null}
 
       <Select value={periodVal} onValueChange={handlePeriodChange}>
         <SelectTrigger className="h-8 w-40 text-xs">

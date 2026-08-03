@@ -40,9 +40,11 @@ const STATUS_OPTIONS = [
 export function ExportReportsDialog({
     branches,
     showBranchFilter = true,
+    showBrandFilter = false,
 }: {
     branches: string[];
     showBranchFilter?: boolean;
+    showBrandFilter?: boolean;
 }) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -71,7 +73,10 @@ export function ExportReportsDialog({
                                 ? undefined
                                 : selectedBranches,
                         status: status === "all" ? undefined : status,
-                        brand: brand === "ALL" ? undefined : brand,
+                        brand:
+                            showBrandFilter && brand !== "ALL"
+                                ? brand
+                                : undefined,
                         fromDate: fromDate || undefined,
                         toDate: toDate || undefined,
                     },
@@ -181,24 +186,26 @@ export function ExportReportsDialog({
                             </DropdownMenu>
                         </div>
                     ) : null}
-                    <div className="grid gap-2">
-                        <Label>Brand</Label>
-                        <Select value={brand} onValueChange={(v) => setBrand(v as StoreBrandFilter)}>
-                            <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Semua Brand" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {STORE_BRAND_OPTIONS.map((opt) => (
-                                    <SelectItem
-                                        key={opt.value}
-                                        value={opt.value}
-                                    >
-                                        {opt.label}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
+                    {showBrandFilter ? (
+                        <div className="grid gap-2">
+                            <Label>Brand</Label>
+                            <Select value={brand} onValueChange={(v) => setBrand(v as StoreBrandFilter)}>
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Semua Brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {STORE_BRAND_OPTIONS.map((opt) => (
+                                        <SelectItem
+                                            key={opt.value}
+                                            value={opt.value}
+                                        >
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
                     <div className="grid gap-2">
                         <Label>Status</Label>
                         <Select value={status} onValueChange={setStatus}>

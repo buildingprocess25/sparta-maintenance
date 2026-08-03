@@ -21,7 +21,7 @@ import {
     ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "@/lib/report-retention";
-import { StoreBrandFilter, getReportBrandWhere } from "@/lib/store-brand-filter";
+import { StoreBrandFilter, getReportBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export type AdminReportFilters = {
     search?: string;
@@ -162,6 +162,9 @@ export async function getAdminReports(
             throw new Error("Unauthorized");
         }
 
+        const brand = parseStoreBrandFilter(filters.brand);
+        if (brand === null) throw new Error("Invalid brand filter");
+
         const slaDaysByStatus = await getReportSlaDays();
 
         const where: Prisma.ReportWhereInput =
@@ -277,8 +280,8 @@ export async function getAdminReports(
             };
         }
 
-        if (filters.brand && filters.brand !== "ALL") {
-            const brandWhere = getReportBrandWhere(filters.brand);
+        if (brand !== "ALL") {
+            const brandWhere = getReportBrandWhere(brand);
             if (brandWhere) {
                 andFilters.push(brandWhere);
             }

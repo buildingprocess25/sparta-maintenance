@@ -2,6 +2,7 @@ import "server-only";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import { type StoreBrandFilter, getReportBrandWhere } from "@/lib/store-brand-filter";
 import {
     DEFAULT_PJUM_POLICY_SETTINGS,
     getPjumPolicySettings,
@@ -166,6 +167,7 @@ function averageMapValues(map?: Map<string, number>): number {
 export async function getRealisasiPageData(
     periodRaw: string = "ytd",
     branchFilter?: string,
+    brand: StoreBrandFilter = "ALL",
 ): Promise<RealisasiPageData> {
     const empty: RealisasiPageData = {
         kpi: {
@@ -206,6 +208,7 @@ export async function getRealisasiPageData(
 
         // Base where clause — COMPLETED and PJUM-exported with finishedAt in period
         const baseWhere = {
+            ...getReportBrandWhere(brand),
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED" as const,
             pjumExportedAt: { not: null },
@@ -406,7 +409,7 @@ export async function getRealisasiPageData(
         return { kpi, monthly, branches };
     } catch (error) {
         logger.error(
-            { operation: "getRealisasiPageData", period: periodRaw, branchFilter },
+            { operation: "getRealisasiPageData", period: periodRaw, branchFilter, brand },
             "Failed to fetch realisasi page data",
             error,
         );

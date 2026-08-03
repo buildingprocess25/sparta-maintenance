@@ -7,12 +7,8 @@ import {
     ArrowUpRight,
     BarChart3,
     CheckCircle2,
-    Clock3,
-    FileText,
     ListChecks,
-    ReceiptText,
     Store,
-    Users,
 } from "lucide-react";
 import { getAuthUser } from "@/lib/authorization";
 import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
@@ -39,12 +35,13 @@ import {
 } from "../../activity/activity-format";
 import { getReportStatusBadgeClass } from "@/lib/report-status";
 import { cn } from "@/lib/utils";
+import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
     params: Promise<{ branchName: string }>;
-    searchParams: Promise<{ period?: string | string[] }>;
+    searchParams: Promise<{ period?: string | string[]; brand?: string }>
 };
 
 function normalizePeriod(value?: string | string[]) {
@@ -92,7 +89,10 @@ export default async function AdminBranchDetailPage({
         searchParams,
     ]);
     const period = normalizePeriod(search.period);
-    const detail = await getAdminBranchDetail(branchName, period);
+    const brand = user.role === "ADMIN"
+        ? normalizeStoreBrandFilter(search.brand)
+        : "ALL";
+    const detail = await getAdminBranchDetail(branchName, period, brand);
     if (!detail) notFound();
 
     const branch = detail.branch;
@@ -108,6 +108,8 @@ export default async function AdminBranchDetailPage({
             headerActions={
                 <AdminTrendPeriodFilter
                     initialPeriod={period}
+                    initialBrand={brand}
+                    showBrandFilter={user.role === "ADMIN"}
                     basePath={`/dashboard/branches/${encodeURIComponent(
                         branch.branchName,
                     )}`}

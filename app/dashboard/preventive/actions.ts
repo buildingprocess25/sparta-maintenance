@@ -19,7 +19,7 @@ import {
     getJakartaYearWindow,
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
-import { type StoreBrandFilter, getStoreBrandWhere } from "@/lib/store-brand-filter";
+import { type StoreBrandFilter, getStoreBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -202,6 +202,9 @@ export async function getAdminPreventive(
             throw new Error("Unauthorized");
         }
 
+        const brand = parseStoreBrandFilter(filters.brand);
+        if (brand === null) throw new Error("Invalid brand filter");
+
         const where: Prisma.StoreWhereInput = {
             ...getBranchScope(user),
         };
@@ -220,8 +223,8 @@ export async function getAdminPreventive(
             where.branchName = filters.branchName;
         }
 
-        if (filters.brand && filters.brand !== "ALL") {
-            const brandWhere = getStoreBrandWhere(filters.brand);
+        if (brand !== "ALL") {
+            const brandWhere = getStoreBrandWhere(brand);
             if (brandWhere) {
                 if (Array.isArray(where.AND)) {
                     where.AND.push(brandWhere);

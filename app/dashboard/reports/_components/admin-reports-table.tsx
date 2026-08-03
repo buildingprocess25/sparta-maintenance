@@ -182,6 +182,7 @@ export function AdminReportsTable({
     initialBranchName = "all",
     initialAreaName = "all",
     initialBrand = "ALL",
+    showBrandFilter = false,
 }: {
     initialData: ReportItem[];
     initialNextCursor: string | null;
@@ -194,6 +195,7 @@ export function AdminReportsTable({
     initialBranchName?: string;
     initialAreaName?: string;
     initialBrand?: string;
+    showBrandFilter?: boolean;
 }) {
     const initialQuickFilter = resolveInitialQuickFilter({
         initialScope,
@@ -232,9 +234,10 @@ export function AdminReportsTable({
             !initialAreaName || initialAreaName === "all"
                 ? null
                 : createFilter<string>("areaName", "is", [initialAreaName]),
-            normalizeStoreBrandFilter(initialBrand) === "ALL"
-                ? null
-                : createFilter<string>("brand", "is", [normalizeStoreBrandFilter(initialBrand)]),
+            showBrandFilter && normalizeStoreBrandFilter(initialBrand) !== "ALL"
+                ? createFilter<string>("brand", "is", [normalizeStoreBrandFilter(initialBrand)])
+                : null,
+
         ].filter((filter): filter is Filter<string> => filter !== null),
     );
 
@@ -269,14 +272,16 @@ export function AdminReportsTable({
                       },
                   ]
                 : []),
-            {
-                key: "brand",
-                label: "Brand",
-                type: "select",
-                placeholder: "Pilih brand",
-                icon: <Store className="h-3.5 w-3.5" />,
-                options: STORE_BRAND_OPTIONS,
-            },
+            ...(showBrandFilter
+                ? [{
+                    key: "brand",
+                    label: "Brand",
+                    type: "select" as const,
+                    placeholder: "Pilih brand",
+                    icon: <Store className="h-3.5 w-3.5" />,
+                    options: STORE_BRAND_OPTIONS,
+                }]
+                : []),
             {
                 key: "status",
                 label: "Status",
@@ -306,7 +311,7 @@ export function AdminReportsTable({
                 icon: <CalendarDays className="h-3.5 w-3.5" />,
             },
         ],
-        [branches, areaNames],
+        [branches, areaNames, showBrandFilter],
     );
 
     const getFilterValue = useCallback(
@@ -336,7 +341,7 @@ export function AdminReportsTable({
                 branchName: branchName || undefined,
                 areaName: areaName || undefined,
                 status: status || undefined,
-                brand: brand !== "ALL" ? brand : undefined,
+                brand: showBrandFilter && brand !== "ALL" ? brand : undefined,
                 scope:
                     quickFilter !== "all" &&
                     quickFilter !== "completed" &&
@@ -393,6 +398,7 @@ export function AdminReportsTable({
             toDate,
             pjumStatus,
             brand,
+            showBrandFilter,
             quickFilter,
         ],
     );
@@ -434,6 +440,7 @@ export function AdminReportsTable({
         toDate,
         pjumStatus,
         brand,
+        showBrandFilter,
         quickFilter,
         loadData,
     ]);

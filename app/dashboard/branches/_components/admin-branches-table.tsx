@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import type { AdminBranchesData, AdminBranchRow } from "../actions";
 import { cn } from "@/lib/utils";
+import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 
 type BranchViewFilter = "all" | "attention" | "unpjum" | "strong";
 
@@ -76,8 +77,9 @@ function formatDate(date: Date | string | null) {
     return formatJakartaDate(date);
 }
 
-function branchDetailHref(branchName: string) {
-    return `/dashboard/branches/${encodeURIComponent(branchName)}`;
+function branchDetailHref(branchName: string, brand: StoreBrandFilter) {
+    const href = `/dashboard/branches/${encodeURIComponent(branchName)}`;
+    return brand === "ALL" ? href : `${href}?brand=${brand}`;
 }
 
 function getHealthLabel(branch: AdminBranchRow) {
@@ -100,7 +102,13 @@ function getHealthClass(branch: AdminBranchRow) {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
-export function AdminBranchesTable({ data }: { data: AdminBranchesData }) {
+export function AdminBranchesTable({
+    data,
+    brand,
+}: {
+    data: AdminBranchesData;
+    brand: StoreBrandFilter;
+}) {
     const [viewFilter, setViewFilter] = useState<BranchViewFilter>("all");
 
     const filteredBranches = useMemo(() => {
@@ -160,6 +168,7 @@ export function AdminBranchesTable({ data }: { data: AdminBranchesData }) {
                         description="Cabang dengan stuck/open tertinggi"
                         icon={AlertTriangle}
                     rows={rankings.attention}
+                    brand={brand}
                     emptyLabel="Tidak ada cabang prioritas."
                     valueClassName="bg-red-50 text-red-700"
                     value={(branch) =>
@@ -173,6 +182,7 @@ export function AdminBranchesTable({ data }: { data: AdminBranchesData }) {
                         description="Laporan selesai yang belum masuk PJUM"
                         icon={ReceiptText}
                     rows={rankings.unpjum}
+                    brand={brand}
                     emptyLabel="Tidak ada completed belum PJUM."
                     valueClassName="bg-amber-50 text-amber-700"
                     value={(branch) =>
@@ -186,6 +196,7 @@ export function AdminBranchesTable({ data }: { data: AdminBranchesData }) {
                         description="Cabang dengan biaya realisasi tertinggi"
                         icon={CheckCircle2}
                     rows={rankings.realisasi}
+                    brand={brand}
                     emptyLabel="Belum ada realisasi pada periode ini."
                     valueClassName="bg-emerald-50 text-emerald-700"
                         value={(branch) => formatShortRp(branch.totalRealisasi)}
@@ -280,6 +291,7 @@ export function AdminBranchesTable({ data }: { data: AdminBranchesData }) {
                                             <BranchRow
                                                 key={branch.branchName}
                                                 branch={branch}
+                                                brand={brand}
                                             />
                                         ))
                                     )}
@@ -313,7 +325,13 @@ function SectionTitle({
     );
 }
 
-function BranchRow({ branch }: { branch: AdminBranchRow }) {
+function BranchRow({
+    branch,
+    brand,
+}: {
+    branch: AdminBranchRow;
+    brand: StoreBrandFilter;
+}) {
     return (
         <TableRow
             className={cn(
@@ -323,7 +341,7 @@ function BranchRow({ branch }: { branch: AdminBranchRow }) {
         >
             <TableCell>
                 <Link
-                    href={branchDetailHref(branch.branchName)}
+                    href={branchDetailHref(branch.branchName, brand)}
                     className="inline-flex items-center gap-1 font-semibold text-primary underline-offset-4 hover:underline"
                 >
                     {branch.branchName}
@@ -440,6 +458,7 @@ function RankingPanel({
     emptyLabel,
     value,
     valueClassName,
+    brand,
 }: {
     title: string;
     description: string;
@@ -448,6 +467,7 @@ function RankingPanel({
     emptyLabel: string;
     value: (branch: AdminBranchRow) => string;
     valueClassName: string;
+    brand: StoreBrandFilter;
 }) {
     return (
         <section className="rounded-lg border bg-background">
@@ -471,7 +491,7 @@ function RankingPanel({
                     rows.map((branch, index) => (
                         <Link
                             key={branch.branchName}
-                            href={branchDetailHref(branch.branchName)}
+                            href={branchDetailHref(branch.branchName, brand)}
                             className="flex items-center justify-between gap-3 px-3 py-2 text-xs hover:bg-muted/40"
                         >
                             <div className="min-w-0">
