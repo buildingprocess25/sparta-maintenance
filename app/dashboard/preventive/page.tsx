@@ -45,6 +45,7 @@ export default async function AdminPreventivePage() {
                 <ExportPreventiveDialog
                     branches={branches}
                     showBranchFilter={isAdmin}
+                    showBrandFilter={isAdmin}
                 />
             }
             contentClassName="h-full gap-0 p-0 lg:p-0"
@@ -55,6 +56,7 @@ export default async function AdminPreventivePage() {
                 availableYears={years}
                 defaultBranch={defaultBranch}
                 showBranchControls={isAdmin}
+                showBrandFilter={isAdmin}
             />
         </AdminDashboardShell>
     );

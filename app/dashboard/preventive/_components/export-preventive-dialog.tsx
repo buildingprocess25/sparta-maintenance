@@ -23,13 +23,16 @@ import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { getJakartaYear } from "@/lib/time";
+import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
 
 export function ExportPreventiveDialog({
     branches,
     showBranchFilter = true,
+    showBrandFilter = false,
 }: {
     branches: string[];
     showBranchFilter?: boolean;
+    showBrandFilter?: boolean;
 }) {
     const currentYear = getJakartaYear();
     const [open, setOpen] = useState(false);
@@ -37,6 +40,7 @@ export function ExportPreventiveDialog({
 
     // Filters for export
     const [storeQuery, setStoreQuery] = useState("");
+    const [selectedBrand, setSelectedBrand] = useState<StoreBrandFilter>("ALL");
     const [selectedBranch, setSelectedBranch] = useState<string>("all");
     const [year, setYear] = useState<number>(currentYear);
     const [selectedQuarter, setSelectedQuarter] = useState<string>("all");
@@ -58,6 +62,7 @@ export function ExportPreventiveDialog({
                             !showBranchFilter || selectedBranch === "all"
                                 ? undefined
                                 : [selectedBranch],
+                        brand: selectedBrand,
                         year: year,
                         preventiveQuarter:
                             selectedQuarter === "all"
@@ -140,6 +145,26 @@ export function ExportPreventiveDialog({
                                     {branches.map((b) => (
                                         <SelectItem key={b} value={b}>
                                             {b}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
+                    {showBrandFilter ? (
+                        <div className="grid gap-2">
+                            <Label>Brand</Label>
+                            <Select
+                                value={selectedBrand}
+                                onValueChange={(val) => setSelectedBrand(val as StoreBrandFilter)}
+                            >
+                                <SelectTrigger className="w-full text-sm h-10">
+                                    <SelectValue placeholder="Pilih Brand" />
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                    {STORE_BRAND_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>

@@ -11,6 +11,7 @@ import {
 } from "@/app/admin/export/queries";
 import { toExcelJakartaSerial } from "@/lib/time";
 import { resolveLimitedExportScope } from "./access";
+import { parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
 
@@ -329,6 +330,11 @@ export async function POST(request: NextRequest) {
   }
 
   const filter: ExportFilter = body.filter ?? {};
+  const brand = parseStoreBrandFilter(filter.brand);
+  if (brand === null) {
+    return NextResponse.json({ error: "Invalid brand filter" }, { status: 400 });
+  }
+  filter.brand = brand;
   const preventiveQuarter = normalizePreventiveQuarter(
     filter.preventiveQuarter,
   );

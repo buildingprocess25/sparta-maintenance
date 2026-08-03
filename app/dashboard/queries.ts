@@ -11,6 +11,7 @@ import {
 } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { requiresPjum } from "@/lib/realisasi";
+import { StoreBrandFilter, buildPjumBrandWhere, getReportBrandWhere, getVisibleBrandBranchNames, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import {
     formatJakartaDate,
     getJakartaDayKey,
@@ -849,6 +850,10 @@ export type AdminPjumSummary = {
     rejected: number;
 };
 
+export type AdminCommandCenterDataBreakdown = {
+    kpi: AdminKpiMetric;
+};
+
 export type AdminCommandCenterData = {
     kpi: AdminKpiMetric;
     status: AdminStatusDatum[];
@@ -858,6 +863,10 @@ export type AdminCommandCenterData = {
     stuckReports: AdminAttentionReport[];
     pjum: AdminPjumSummary;
     recentActivity: ActivityItem[];
+    brandBreakdown?: {
+        alfamart: AdminCommandCenterDataBreakdown;
+        lawson: AdminCommandCenterDataBreakdown;
+    };
 };
 
 export type AdminBranchHierarchy = {
@@ -1148,15 +1157,17 @@ function resolveAdminParentBranch(
 async function getAdminStatusDistribution(
     window: { start: Date; end?: Date },
     slaDaysByStatus: Partial<Record<string, number>>,
+    brand: StoreBrandFilter,
 ): Promise<AdminStatusDatum[]> {
     const statusRows = await prisma.report.groupBy({
         by: ["status"],
         where: {
+            ...getReportBrandWhere(brand),
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: {
                 notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
             },
-            createdAt: { 
+            createdAt: {
                 gte: window.start,
                 ...(window.end ? { lt: window.end } : {})
             },
@@ -1181,6 +1192,7 @@ async function getAdminStatusDistribution(
 
             const count = await prisma.report.count({
                 where: {
+                    ...getReportBrandWhere(brand),
                     NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                     status: status as never,
                     createdAt: {
@@ -1209,16 +1221,25 @@ async function getAdminStatusDistribution(
     })).filter((item) => item.count > 0);
 }
 
-async function getAdminPjumSummary(window: { start: Date; end?: Date }): Promise<AdminPjumSummary> {
+async function getAdminPjumSummary(window: { start: Date; end?: Date }, brand: StoreBrandFilter): Promise<AdminPjumSummary> {
+    const baseWhere: Prisma.PjumExportWhereInput = {
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        createdAt: {
+            gte: window.start,
+            ...(window.end ? { lt: window.end } : {})
+        },
+    };
+    const brandReportNumbers = brand === "ALL"
+        ? []
+        : (await prisma.report.findMany({
+            where: getReportBrandWhere(brand),
+            select: { reportNumber: true },
+        })).map((report) => report.reportNumber);
+    const pjumWhere = buildPjumBrandWhere(baseWhere, brand, brandReportNumbers);
+
     const pjumRows = await prisma.pjumExport.groupBy({
         by: ["status"],
-        where: {
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            createdAt: { 
-                gte: window.start,
-                ...(window.end ? { lt: window.end } : {})
-            },
-        },
+        where: pjumWhere,
         _count: { _all: true },
     });
 
@@ -1238,18 +1259,21 @@ async function getAdminKpiMetric(
     window: { start: Date; end?: Date },
     activeUsers: number,
     pendingPjum: number,
+    brand: StoreBrandFilter,
 ): Promise<AdminKpiMetric> {
     const baseWhere = {
+        ...getReportBrandWhere(brand),
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: {
             notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
         },
-        createdAt: { 
+        createdAt: {
             gte: window.start,
             ...(window.end ? { lt: window.end } : {})
         },
     };
     const completedWhere = {
+        ...getReportBrandWhere(brand),
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: "COMPLETED" as const,
         finishedAt: { 
@@ -1415,19 +1439,41 @@ async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
         .length;
 }
 
+async function getBrandOwnedBranchNames(
+  brand: StoreBrandFilter,
+  hierarchy: AdminBranchHierarchy,
+) {
+  if (brand === "ALL") {
+    return new Set(hierarchy.options.map((option) => option.name));
+  }
+  const rows = await prisma.store.findMany({
+    where: { ...getStoreBrandWhere(brand), isActive: true },
+    select: { branchName: true },
+    distinct: ['branchName'],
+  });
+  return getVisibleBrandBranchNames(
+    brand,
+    hierarchy.options.map((option) => option.name),
+    rows.map((row) => resolveAdminParentBranch(row.branchName, hierarchy)),
+  );
+}
+
 async function getAdminBranchPerformance(
     window: { start: Date; end?: Date },
     hierarchy: AdminBranchHierarchy,
+    brand: StoreBrandFilter,
+    visibleBranchNames: Set<string>,
 ): Promise<AdminBranchPerformanceDatum[]> {
     const [totalRows, completedRows] = await Promise.all([
         prisma.report.groupBy({
             by: ["branchName"],
             where: {
+                ...getReportBrandWhere(brand),
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: {
                     notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
                 },
-                createdAt: { 
+                createdAt: {
                     gte: window.start,
                     ...(window.end ? { lt: window.end } : {})
                 },
@@ -1437,6 +1483,7 @@ async function getAdminBranchPerformance(
         prisma.report.groupBy({
             by: ["branchName"],
             where: {
+                ...getReportBrandWhere(brand),
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: "COMPLETED",
                 pjumExportedAt: { not: null },
@@ -1452,7 +1499,9 @@ async function getAdminBranchPerformance(
 
     const branchMap = new Map<string, AdminBranchAccumulator>();
     for (const option of hierarchy.options) {
-        getBranchAccumulator(branchMap, option.name);
+        if (visibleBranchNames.has(option.name)) {
+            getBranchAccumulator(branchMap, option.name);
+        }
     }
 
     for (const row of totalRows) {
@@ -1460,8 +1509,10 @@ async function getAdminBranchPerformance(
             row.branchName,
             hierarchy,
         );
-        getBranchAccumulator(branchMap, parentBranch).totalReports +=
-            row._count._all;
+        const acc = branchMap.get(parentBranch);
+        if (acc) {
+            acc.totalReports += row._count._all;
+        }
     }
 
     for (const row of completedRows) {
@@ -1469,9 +1520,11 @@ async function getAdminBranchPerformance(
             row.branchName,
             hierarchy,
         );
-        const current = getBranchAccumulator(branchMap, parentBranch);
-        current.completedReports += row._count._all;
-        current.totalRealisasi += Number(row._sum.totalReal ?? 0);
+        const acc = branchMap.get(parentBranch);
+        if (acc) {
+            acc.completedReports += row._count._all;
+            acc.totalRealisasi += Number(row._sum.totalReal ?? 0);
+        }
     }
 
     return Array.from(branchMap.values())
@@ -1506,10 +1559,13 @@ async function getAdminBranchPerformance(
 async function getAdminBranchTrend(
     period: AdminTrendPeriod,
     hierarchy: AdminBranchHierarchy,
+    brand: StoreBrandFilter,
+    visibleBranchNames: Set<string>,
 ): Promise<AdminTrendDatum[]> {
     const trendWindow = getTrendWindow(period);
     const trendRows = await prisma.report.findMany({
         where: {
+            ...getReportBrandWhere(brand),
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             status: "COMPLETED",
             pjumExportedAt: { not: null },
@@ -1527,18 +1583,20 @@ async function getAdminBranchTrend(
     });
 
     const trendMap = new Map(
-        hierarchy.options.map((branch) => [
-            branch.name,
-            {
-                label: branch.name,
-                branchName: branch.name,
-                completed: 0,
-                realisasi: 0,
-                avgRealisasi: 0,
-                avgBmsWeeklyRealisasi: 0,
-                bmsWeekTotals: new Map<string, number>(),
-            },
-        ]),
+        hierarchy.options
+            .filter((branch) => visibleBranchNames.has(branch.name))
+            .map((branch) => [
+                branch.name,
+                {
+                    label: branch.name,
+                    branchName: branch.name,
+                    completed: 0,
+                    realisasi: 0,
+                    avgRealisasi: 0,
+                    avgBmsWeeklyRealisasi: 0,
+                    bmsWeekTotals: new Map<string, number>(),
+                },
+            ]),
     );
 
     for (const row of trendRows) {
@@ -1600,6 +1658,7 @@ function mapAdminAttentionReport(report: {
 
 async function getAdminStuckReports(
     slaDaysByStatus: Partial<Record<string, number>>,
+    brand: StoreBrandFilter,
 ): Promise<AdminAttentionReport[]> {
     const now = new Date();
     const slaEntries = Object.entries(slaDaysByStatus) as [
@@ -1609,6 +1668,7 @@ async function getAdminStuckReports(
 
     const stuckReports = await prisma.report.findMany({
         where: {
+            ...getReportBrandWhere(brand),
             NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
             OR: slaEntries.map(([status, days]) => {
                 const threshold = new Date(now);
@@ -1652,6 +1712,7 @@ async function getAdminStuckReports(
  */
 export async function getAdminCommandCenterData(
     period: AdminTrendPeriod = "ytd",
+    brand: StoreBrandFilter = "ALL",
 ): Promise<AdminCommandCenterData> {
     const trendWindow = getTrendWindow(period);
     const empty = getEmptyAdminCommandCenterData();
@@ -1662,19 +1723,37 @@ export async function getAdminCommandCenterData(
             await Promise.all([
             getAdminVisibleTodayActiveUserCount(),
             getAdminBranchHierarchy(),
-            getAdminStatusDistribution(trendWindow, slaDaysByStatus),
-            getAdminPjumSummary(trendWindow),
+            getAdminStatusDistribution(trendWindow, slaDaysByStatus, brand),
+            getAdminPjumSummary(trendWindow, brand),
             getGlobalActivity(8),
         ]);
 
+        const visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
+
         const [kpi, branches, trends, stuckReports] =
             await Promise.all([
-            getAdminKpiMetric(trendWindow, activeUsers, pjum.pending),
-            getAdminBranchPerformance(trendWindow, hierarchy),
-            getAdminBranchTrend(period, hierarchy),
-            getAdminStuckReports(slaDaysByStatus),
+            getAdminKpiMetric(trendWindow, activeUsers, pjum.pending, brand),
+            getAdminBranchPerformance(trendWindow, hierarchy, brand, visibleBranchNames),
+            getAdminBranchTrend(period, hierarchy, brand, visibleBranchNames),
+            getAdminStuckReports(slaDaysByStatus, brand),
         ]);
 
+        let brandBreakdown = undefined;
+        if (brand === "ALL") {
+            const [alfamartPjum, lawsonPjum] = await Promise.all([
+                getAdminPjumSummary(trendWindow, "ALFAMART"),
+                getAdminPjumSummary(trendWindow, "LAWSON"),
+            ]);
+            const [alfamartKpi, lawsonKpi] = await Promise.all([
+                getAdminKpiMetric(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART"),
+                getAdminKpiMetric(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON"),
+            ]);
+
+            brandBreakdown = {
+                alfamart: { kpi: alfamartKpi },
+                lawson: { kpi: lawsonKpi },
+            };
+        }
         return {
             kpi,
             status,
@@ -1684,6 +1763,7 @@ export async function getAdminCommandCenterData(
             stuckReports,
             pjum,
             recentActivity,
+            brandBreakdown,
         };
     } catch (error) {
         logger.error(
@@ -1738,7 +1818,9 @@ const MONTH_LABELS = [
 /**
  * Returns detailed avg realisasi breakdown — per branch and per month (YTD).
  */
-export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
+export async function getAdminRealisasiDetail(
+    brand: StoreBrandFilter = "ALL"
+): Promise<AdminRealisasiDetail> {
     const ytdStart = getYtdStart();
     const empty: AdminRealisasiDetail = {
         globalAvg: 0,
@@ -1751,6 +1833,7 @@ export async function getAdminRealisasiDetail(): Promise<AdminRealisasiDetail> {
     try {
         const rows = await prisma.report.findMany({
             where: {
+                ...getReportBrandWhere(brand),
                 NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
                 status: "COMPLETED",
                 totalReal: { not: null },

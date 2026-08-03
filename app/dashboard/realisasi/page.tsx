@@ -5,11 +5,12 @@ import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getRealisasiPageData } from "./queries";
 import { RealisasiContent } from "./_components/realisasi-content";
 import { RealisasiFilter } from "./_components/realisasi-filter";
+import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-    searchParams: Promise<{ period?: string; branch?: string }>;
+    searchParams: Promise<{ period?: string; branch?: string; brand?: string }>;
 };
 
 export default async function RealisasiPage({ searchParams }: Props) {
@@ -20,9 +21,10 @@ export default async function RealisasiPage({ searchParams }: Props) {
     const params = await searchParams;
     const periodRaw = params.period ?? "ytd";
     const branchFilter = params.branch ?? "all";
+    const brand = normalizeStoreBrandFilter(params.brand);
 
     const [data, allBranches] = await Promise.all([
-        getRealisasiPageData(periodRaw, branchFilter),
+        getRealisasiPageData(periodRaw, branchFilter, brand),
         fetchAllBranchNames(),
     ]);
 
@@ -38,6 +40,7 @@ export default async function RealisasiPage({ searchParams }: Props) {
                 <RealisasiFilter
                     initialPeriod={periodRaw}
                     initialBranch={branchFilter}
+                    initialBrand={brand}
                     branches={allBranches}
                 />
             }

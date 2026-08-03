@@ -4,11 +4,12 @@ import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell"
 import { AdminTrendPeriodFilter } from "../_components/admin/admin-trend-filter";
 import { AdminBranchesTable } from "./_components/admin-branches-table";
 import { getAdminBranchesData } from "./actions";
+import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-    searchParams: Promise<{ period?: string | string[] }>;
+    searchParams: Promise<{ period?: string | string[]; brand?: string }>
 };
 
 function normalizePeriod(value?: string | string[]) {
@@ -26,7 +27,10 @@ export default async function AdminBranchesPage({ searchParams }: Props) {
 
     const params = await searchParams;
     const period = normalizePeriod(params.period);
-    const data = await getAdminBranchesData(period);
+    const brand = user.role === "ADMIN"
+        ? normalizeStoreBrandFilter(params.brand)
+        : "ALL";
+    const data = await getAdminBranchesData(period, brand);
 
     return (
         <AdminDashboardShell
@@ -36,12 +40,14 @@ export default async function AdminBranchesPage({ searchParams }: Props) {
             headerActions={
                 <AdminTrendPeriodFilter
                     initialPeriod={period}
+                    initialBrand={brand}
+                    showBrandFilter={user.role === "ADMIN"}
                     basePath="/dashboard/branches"
                 />
             }
             contentClassName="h-full"
         >
-            <AdminBranchesTable data={data} />
+            <AdminBranchesTable data={data} brand={brand} />
         </AdminDashboardShell>
     );
 }
