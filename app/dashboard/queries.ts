@@ -1,4 +1,4 @@
-import "server-only";
+// import "server-only";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
@@ -1285,10 +1285,7 @@ async function getAdminKpiMetric(
     const [
         totalReports,
         completedReports,
-        rejectedReports,
-        inProgressReports,
-        pendingReviewReports,
-        revisionReports,
+        statusCounts,
         pjumCompletedReports,
         unpjumCompletedReports,
         totalRealisasi,
@@ -1297,36 +1294,10 @@ async function getAdminKpiMetric(
     ] = await Promise.all([
         prisma.report.count({ where: baseWhere }),
         prisma.report.count({ where: completedWhere }),
-        prisma.report.count({
-            where: {
-                ...baseWhere,
-                status: "ESTIMATION_REJECTED",
-            },
-        }),
-        prisma.report.count({
-            where: {
-                ...baseWhere,
-                status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
-            },
-        }),
-        prisma.report.count({
-            where: {
-                ...baseWhere,
-                status: {
-                    in: ["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"],
-                },
-            },
-        }),
-        prisma.report.count({
-            where: {
-                ...baseWhere,
-                status: {
-                    in: [
-                        "ESTIMATION_REJECTED_REVISION",
-                        "REVIEW_REJECTED_REVISION",
-                    ],
-                },
-            },
+        prisma.report.groupBy({
+            by: ["status"],
+            where: baseWhere,
+            _count: { _all: true },
         }),
         prisma.report.count({
             where: {
@@ -1376,6 +1347,18 @@ async function getAdminKpiMetric(
         );
     }
 
+    let rejectedReports = 0;
+    let inProgressReports = 0;
+    let pendingReviewReports = 0;
+    let revisionReports = 0;
+    
+    for (const row of statusCounts) {
+        if (row.status === "ESTIMATION_REJECTED") rejectedReports += row._count._all;
+        if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
+        if (["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+        if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
+    }
+
     return {
         totalReports,
         completedReports,
@@ -1401,6 +1384,86 @@ async function getAdminKpiMetric(
     };
 }
 
+async function getAdminBrandBreakdownKpi(
+    window: { start: Date; end?: Date },
+    activeUsers: number,
+    pendingPjum: number,
+    brand: StoreBrandFilter,
+): Promise<AdminKpiMetric> {
+    const baseWhere = {
+        ...getReportBrandWhere(brand),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: {
+            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        },
+        createdAt: {
+            gte: window.start,
+            ...(window.end ? { lt: window.end } : {})
+        },
+    };
+    const completedWhere = {
+        ...getReportBrandWhere(brand),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: "COMPLETED" as const,
+        finishedAt: { 
+            gte: window.start,
+            ...(window.end ? { lt: window.end } : {})
+        },
+    };
+
+    const [
+        totalReports,
+        completedReports,
+        statusCounts,
+        totalRealisasi,
+    ] = await Promise.all([
+        prisma.report.count({ where: baseWhere }),
+        prisma.report.count({ where: completedWhere }),
+        prisma.report.groupBy({
+            by: ["status"],
+            where: baseWhere,
+            _count: { _all: true },
+        }),
+        prisma.report.aggregate({
+            where: {
+                ...completedWhere,
+                pjumExportedAt: { not: null },
+                totalReal: { not: null },
+            },
+            _sum: { totalReal: true },
+        }),
+    ]);
+
+    let inProgressReports = 0;
+    let pendingReviewReports = 0;
+    let revisionReports = 0;
+    
+    for (const row of statusCounts) {
+        if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
+        if (["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+        if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
+    }
+
+    return {
+        totalReports,
+        completedReports,
+        activeReports: inProgressReports + pendingReviewReports + revisionReports,
+        rejectedReports: 0,
+        inProgressReports: 0,
+        pendingReviewReports: 0,
+        revisionReports: 0,
+        completionRate: totalReports > 0 ? Math.round((completedReports / totalReports) * 100) : 0,
+        totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+        avgRealisasi: 0,
+        avgBmsWeeklyRealisasi: 0,
+        activeUsers,
+        pjumCompletedReports: 0,
+        unpjumCompletedReports: 0,
+        unpjumNotRequiredReports: 0,
+        pendingPjum,
+    };
+}
+
 function getBranchAccumulator(
     map: Map<string, AdminBranchAccumulator>,
     branchName: string,
@@ -1419,13 +1482,27 @@ function getBranchAccumulator(
 }
 
 async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
-    const rows = await prisma.report.findMany({
+    const withTotalReal = await prisma.report.count({
         where: {
             AND: [
                 where,
                 {
                     status: "COMPLETED",
                     pjumExportedAt: null,
+                    totalReal: { gt: 0 },
+                },
+            ],
+        }
+    });
+
+    const others = await prisma.report.findMany({
+        where: {
+            AND: [
+                where,
+                {
+                    status: "COMPLETED",
+                    pjumExportedAt: null,
+                    OR: [{ totalReal: null }, { totalReal: 0 }],
                 },
             ],
         },
@@ -1435,8 +1512,8 @@ async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
         },
     });
 
-    return rows.filter((report) => requiresPjum(report.totalReal, report.items))
-        .length;
+    const othersCount = others.filter((report) => requiresPjum(report.totalReal, report.items)).length;
+    return withTotalReal + othersCount;
 }
 
 async function getBrandOwnedBranchNames(
@@ -1661,47 +1738,47 @@ async function getAdminStuckReports(
     brand: StoreBrandFilter,
 ): Promise<AdminAttentionReport[]> {
     const now = new Date();
-    const slaEntries = Object.entries(slaDaysByStatus) as [
-        string,
-        number,
-    ][];
+    const slaEntries = Object.entries(slaDaysByStatus).filter(
+        ([status, days]) => status !== "COMPLETED" && days! > 0
+    ) as [string, number][];
 
-    const stuckReports = await prisma.report.findMany({
-        where: {
-            ...getReportBrandWhere(brand),
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            OR: slaEntries.map(([status, days]) => {
-                const threshold = new Date(now);
-                threshold.setDate(threshold.getDate() - days);
+    const stuckReportsPromises = slaEntries.map(async ([status, days]) => {
+        const threshold = new Date(now);
+        threshold.setDate(threshold.getDate() - days);
 
-                return {
-                    status: status as never,
-                    createdAt: { lt: threshold },
-                    activities: {
-                        none: {
-                            createdAt: { gte: threshold },
-                        },
+        return prisma.report.findMany({
+            where: {
+                ...getReportBrandWhere(brand),
+                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+                status: status as never,
+                createdAt: { lt: threshold },
+                activities: {
+                    none: {
+                        createdAt: { gte: threshold },
                     },
-                };
-            }),
-        },
-        orderBy: [{ updatedAt: "asc" }],
-        take: 8,
-        select: {
-            reportNumber: true,
-            storeName: true,
-            branchName: true,
-            status: true,
-            createdAt: true,
-            updatedAt: true,
-            createdBy: { select: { name: true } },
-            activities: {
-                orderBy: { createdAt: "desc" },
-                take: 1,
-                select: { createdAt: true },
+                },
             },
-        },
+            orderBy: [{ updatedAt: "asc" }],
+            take: 8,
+            select: {
+                reportNumber: true,
+                storeName: true,
+                branchName: true,
+                status: true,
+                createdAt: true,
+                updatedAt: true,
+                createdBy: { select: { name: true } },
+                activities: {
+                    orderBy: { createdAt: "desc" },
+                    take: 1,
+                    select: { createdAt: true },
+                },
+            },
+        });
     });
+
+    const results = await Promise.all(stuckReportsPromises);
+    const stuckReports = results.flat().sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime()).slice(0, 8);
 
     return stuckReports.map(mapAdminAttentionReport);
 }
@@ -1745,8 +1822,8 @@ export async function getAdminCommandCenterData(
                 getAdminPjumSummary(trendWindow, "LAWSON"),
             ]);
             const [alfamartKpi, lawsonKpi] = await Promise.all([
-                getAdminKpiMetric(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART"),
-                getAdminKpiMetric(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON"),
+                getAdminBrandBreakdownKpi(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART"),
+                getAdminBrandBreakdownKpi(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON"),
             ]);
 
             brandBreakdown = {
