@@ -65,6 +65,9 @@ export function AdminStoreFormDialog({
     const areaOptions = areaNamesByBranch[branch] || [];
     const isAffected = areaOptions.length > 0;
 
+    const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
+    const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
+
     function resetForm() {
         if (!isEdit) {
             setCode("");
@@ -83,6 +86,13 @@ export function AdminStoreFormDialog({
         if (!code.trim()) missingFields.push("Kode Toko");
         if (!name.trim()) missingFields.push("Nama Toko");
         if (!branch) missingFields.push("Cabang");
+
+        if (codeError) {
+            toast.error("Kode toko tidak valid", {
+                description: codeError,
+            });
+            return;
+        }
 
         if (missingFields.length > 0) {
             toast.error("Data toko belum lengkap", {
@@ -179,6 +189,11 @@ export function AdminStoreFormDialog({
                                 maxLength={10}
                                 required
                             />
+                            {codeError && (
+                                <p className="text-[0.8rem] font-medium text-destructive">
+                                    {codeError}
+                                </p>
+                            )}
                         </div>
 
                         {/* Nama Toko */}

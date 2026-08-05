@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { z } from "zod";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
@@ -359,6 +360,11 @@ export async function adminCreateStore(payload: AdminStorePayload) {
         const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
+
+        const storeCodeSchema = z.string().regex(/^[A-Za-z0-9]{4}$/);
+        if (!storeCodeSchema.safeParse(payload.code).success) {
+            return { error: "Kode toko harus tepat 4 karakter huruf atau angka" };
+        }
 
         const branchName = payload.branchName.trim();
         if (!isBranchInScope(admin, branchName)) {

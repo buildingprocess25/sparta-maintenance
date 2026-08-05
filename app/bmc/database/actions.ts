@@ -11,6 +11,7 @@ import * as XLSX from "xlsx";
 import { getStoreAreaNamesByBranches } from "./queries";
 import { resolveStoreAreaName } from "./store-area-validation";
 import { getLegacyBranchMessage } from "@/lib/branch-merges";
+import { z } from "zod";
 
 function getLegacyStoreBranchError(branchName: string) {
     return getLegacyBranchMessage(branchName);
@@ -299,6 +300,11 @@ export async function createStore(payload: StorePayload) {
         const user = await requireRole("BMC");
         const headersList = await headers();
         await validateCSRF(headersList);
+
+        const storeCodeSchema = z.string().regex(/^[A-Za-z0-9]{4}$/);
+        if (!storeCodeSchema.safeParse(payload.code).success) {
+            return { error: "Kode toko harus tepat 4 karakter huruf atau angka" };
+        }
 
         if (!user.branchNames.includes(payload.branchName)) {
             return { error: "Anda tidak punya akses ke cabang ini" };
