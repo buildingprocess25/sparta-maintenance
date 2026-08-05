@@ -53,6 +53,7 @@ type StoreRow = {
 type Props = {
     stores: StoreRow[];
     branchNames: string[];
+    allBrands: string[];
     areaNamesByBranch: AreaNamesByBranch;
     totalCount: number;
     currentPage: number;
@@ -66,6 +67,7 @@ type Props = {
 export function StoreTable({
     stores,
     branchNames,
+    allBrands,
     areaNamesByBranch,
     totalCount,
     currentPage,
@@ -191,6 +193,7 @@ export function StoreTable({
                     <ImportStoreDialog branchNames={writableBranchNames} />
                     <StoreFormDialog
                         branchNames={writableBranchNames}
+                        allBrands={allBrands}
                         areaNamesByBranch={areaNamesByBranch}
                     />
                 </div>
@@ -257,6 +260,7 @@ export function StoreTable({
                                         <div className="flex items-center justify-end gap-1">
                                             <StoreFormDialog
                                                 branchNames={writableBranchNames}
+                                                allBrands={allBrands}
                                                 areaNamesByBranch={areaNamesByBranch}
                                                 editStore={store}
                                                 trigger={

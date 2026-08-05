@@ -108,6 +108,7 @@ type AdminUserPayload = {
     name: string;
     role: AllowedRole;
     branchNames: string[];
+    areaNames?: string[];
 };
 
 export async function adminCreateUser(payload: AdminUserPayload) {
@@ -122,6 +123,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
         }
 
         const branchNames = normalizeBranchNames(payload.branchNames);
+        const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
         if (!isGlobalAdmin(admin) && payload.role === "ADMIN") {
             return { error: "Role ADMIN hanya dapat dibuat oleh ADMIN" };
@@ -157,6 +159,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
                     name: payload.name,
                     role: payload.role,
                     branchNames,
+                    areaNames,
                     deletedAt: null,
                     deletedByNIK: null,
                     mustChangePassword: true,
@@ -171,6 +174,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
                     name: payload.name,
                     role: payload.role,
                     branchNames,
+                    areaNames,
                 },
             });
         }
@@ -221,6 +225,7 @@ export async function adminUpdateUser(
         if (existing.deletedAt) return { error: "User sudah dihapus" };
 
         const branchNames = normalizeBranchNames(payload.branchNames);
+        const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
         if (
             !isGlobalAdmin(admin) &&
@@ -239,6 +244,7 @@ export async function adminUpdateUser(
                 name: payload.name,
                 role: payload.role,
                 branchNames,
+                areaNames,
             },
         });
 
@@ -343,6 +349,8 @@ type AdminStorePayload = {
     name: string;
     branchName: string;
     isActive?: boolean;
+    areaName?: string | null;
+    brand?: string | null;
 };
 
 export async function adminCreateStore(payload: AdminStorePayload) {
@@ -363,6 +371,8 @@ export async function adminCreateStore(payload: AdminStorePayload) {
                 name: payload.name,
                 branchName,
                 isActive: payload.isActive ?? true,
+                areaName: payload.areaName,
+                brand: payload.brand,
             },
         });
 
@@ -418,6 +428,8 @@ export async function adminUpdateStore(
                 name: payload.name,
                 branchName,
                 isActive: payload.isActive ?? true,
+                areaName: payload.areaName,
+                brand: payload.brand,
             },
         });
 

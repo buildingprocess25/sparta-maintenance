@@ -62,6 +62,7 @@ type UserPayload = {
     name: string;
     role: "BMS" | "BRANCH_ADMIN";
     branchNames: string[];
+    areaNames?: string[];
 };
 
 export async function createUser(payload: UserPayload) {
@@ -272,6 +273,7 @@ type StorePayload = {
     branchName: string;
     areaName?: string | null;
     isActive?: boolean;
+    brand?: string | null;
 };
 
 async function resolveStoreAreaNameForBranch(
@@ -318,6 +320,7 @@ export async function createStore(payload: StorePayload) {
                 branchName: payload.branchName,
                 areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
+                brand: payload.brand,
             },
         });
 
@@ -389,6 +392,7 @@ export async function updateStore(
                 branchName: existing.branchName,
                 areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
+                brand: payload.brand,
             },
         });
 

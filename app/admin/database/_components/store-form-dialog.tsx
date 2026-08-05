@@ -21,7 +21,7 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminCreateStore, adminUpdateStore } from "../actions";
 
@@ -30,16 +30,22 @@ type StoreRow = {
     name: string;
     branchName: string;
     isActive: boolean;
+    areaName?: string | null;
+    brand?: string | null;
 };
 
 type Props = {
     allBranchNames: string[];
+    allBrands?: string[];
+    areaNamesByBranch?: Record<string, string[]>;
     editStore?: StoreRow;
     trigger?: React.ReactNode;
 };
 
 export function AdminStoreFormDialog({
     allBranchNames,
+    allBrands = [],
+    areaNamesByBranch = {},
     editStore,
     trigger,
 }: Props) {
@@ -53,6 +59,11 @@ export function AdminStoreFormDialog({
         editStore?.branchName ?? allBranchNames[0] ?? "",
     );
     const [isActive, setIsActive] = useState(editStore?.isActive ?? true);
+    const [areaName, setAreaName] = useState(editStore?.areaName ?? "");
+    const [brand, setBrand] = useState(editStore?.brand || "ALFAMART");
+
+    const areaOptions = areaNamesByBranch[branch] || [];
+    const isAffected = areaOptions.length > 0;
 
     function resetForm() {
         if (!isEdit) {
@@ -60,6 +71,8 @@ export function AdminStoreFormDialog({
             setName("");
             setBranch(allBranchNames[0] ?? "");
             setIsActive(true);
+            setAreaName("");
+            setBrand("ALFAMART");
         }
     }
 
@@ -84,12 +97,16 @@ export function AdminStoreFormDialog({
                       name: name.trim(),
                       branchName: branch,
                       isActive,
+                      areaName: areaName.trim() || null,
+                      brand: brand || null,
                   })
                 : await adminCreateStore({
                       code: code.trim().toUpperCase(),
                       name: name.trim(),
                       branchName: branch,
                       isActive,
+                      areaName: areaName.trim() || null,
+                      brand: brand || null,
                   });
 
             if (result.error) {
@@ -179,12 +196,61 @@ export function AdminStoreFormDialog({
                         {/* Cabang — always shown for admin (admin can assign any branch) */}
                         <div className="space-y-2">
                             <Label htmlFor="admin-store-branch">Cabang</Label>
-                            <Select value={branch} onValueChange={setBranch}>
+                            <Select value={branch} onValueChange={(val) => {
+                                setBranch(val);
+                                setAreaName("");
+                            }}>
                                 <SelectTrigger id="admin-store-branch">
                                     <SelectValue placeholder="Pilih cabang" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {allBranchNames.map((b) => (
+                                        <SelectItem key={b} value={b}>
+                                            {b}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+
+                        {/* Cabang Lama */}
+                        <div className="space-y-2">
+                            <Label htmlFor="admin-store-area-name">Cabang Lama (opsional)</Label>
+                            <div className="flex gap-2 items-center">
+                                <Select 
+                                    value={areaName || "__none__"} 
+                                    onValueChange={(v) => setAreaName(v === "__none__" ? "" : v)}
+                                    disabled={!isAffected}
+                                >
+                                    <SelectTrigger id="admin-store-area-name" className="flex-1">
+                                        <SelectValue placeholder={isAffected ? "Pilih cabang lama" : "Tidak ada opsi cabang lama"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">Tidak ada</SelectItem>
+                                        {areaOptions.map((opt) => (
+                                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {areaName && (
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setAreaName("")} className="shrink-0 h-9 w-9">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Brand */}
+                        <div className="space-y-2">
+                            <Label htmlFor="admin-store-brand">Brand</Label>
+                            <Select value={brand} onValueChange={setBrand}>
+                                <SelectTrigger id="admin-store-brand">
+                                    <SelectValue placeholder="Pilih brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from(new Set(["ALFAMART", "LAWSON", ...allBrands]))
+                                        .filter((b) => b.trim() !== "")
+                                        .map((b) => (
                                         <SelectItem key={b} value={b}>
                                             {b}
                                         </SelectItem>

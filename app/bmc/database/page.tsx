@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import { getUsersByBranches, getStoresByBranches, getStoreAreaNamesByBranches } from "./queries";
+import { getAllBrands } from "../admin/database/queries";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -57,6 +58,7 @@ export default async function BmcDatabasePage({
             status: resolvedSearchParams.status,
         }),
         getStoreAreaNamesByBranches(user.branchNames),
+        getAllBrands(),
     ]);
 
     return (
@@ -139,6 +141,7 @@ export default async function BmcDatabasePage({
                                 <UserTable
                                     users={usersResult.users}
                                     branchNames={user.branchNames}
+                                    areaNamesByBranch={areaNamesByBranch}
                                     totalCount={usersResult.total}
                                     currentPage={usersResult.page}
                                     totalPages={usersResult.totalPages}
@@ -166,6 +169,7 @@ export default async function BmcDatabasePage({
                                 <StoreTable
                                     stores={storesResult.stores}
                                     branchNames={user.branchNames}
+                                    allBrands={allBrands}
                                     areaNamesByBranch={areaNamesByBranch}
                                     totalCount={storesResult.total}
                                     currentPage={storesResult.page}

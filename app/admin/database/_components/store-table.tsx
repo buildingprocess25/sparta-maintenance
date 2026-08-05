@@ -44,11 +44,15 @@ type Props = {
         status?: string;
         sBranch?: string;
     };
+    allBrands: string[];
+    areaNamesByBranch: Record<string, string[]>;
 };
 
 export function AdminStoreTable({
     stores,
     allBranchNames,
+    allBrands,
+    areaNamesByBranch,
     totalCount,
     currentPage,
     totalPages,
@@ -173,7 +177,11 @@ export function AdminStoreTable({
                 </Select>
 
                 <AdminImportStoreDialog allBranchNames={allBranchNames} />
-                <AdminStoreFormDialog allBranchNames={allBranchNames} />
+                <AdminStoreFormDialog 
+                    allBranchNames={allBranchNames} 
+                    allBrands={allBrands} 
+                    areaNamesByBranch={areaNamesByBranch} 
+                />
             </div>
 
             {/* Table */}
@@ -232,6 +240,8 @@ export function AdminStoreTable({
                                         <div className="flex items-center justify-end gap-1">
                                             <AdminStoreFormDialog
                                                 allBranchNames={allBranchNames}
+                                                allBrands={allBrands}
+                                                areaNamesByBranch={areaNamesByBranch}
                                                 editStore={store}
                                                 trigger={
                                                     <Button

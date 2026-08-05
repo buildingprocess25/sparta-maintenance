@@ -4,6 +4,8 @@ import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell"
 import { AdminStoresTable } from "./_components/admin-stores-table";
 import { ExportStoresDialog } from "./_components/export-stores-dialog";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
+import { getAllBrands } from "@/app/admin/database/queries";
+import { getStoreAreaNamesByBranches } from "@/app/bmc/database/queries";
 import { getAdminStores } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +15,7 @@ export default async function AdminStoresPage() {
     if (!user) redirect("/login");
     if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
 
-    const [branches, initialData] = await Promise.all([
+    const [branches, initialData, allBrands] = await Promise.all([
         user.role === "ADMIN"
             ? fetchAllBranchNames()
             : Promise.resolve(
@@ -22,7 +24,10 @@ export default async function AdminStoresPage() {
                       .filter((branchName) => branchName.length > 0),
               ),
         getAdminStores(null, 20, {}),
+        getAllBrands(),
     ]);
+
+    const areaNamesByBranch = await getStoreAreaNamesByBranches(branches);
 
     return (
         <AdminDashboardShell
@@ -38,6 +43,8 @@ export default async function AdminStoresPage() {
                 initialTotalCount={initialData.totalCount}
                 branches={branches}
                 areaNames={user.areaNames}
+                allBrands={allBrands}
+                areaNamesByBranch={areaNamesByBranch}
                 canManage
             />
         </AdminDashboardShell>

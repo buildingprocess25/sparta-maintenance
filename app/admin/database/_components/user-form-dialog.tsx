@@ -42,6 +42,7 @@ type UserRow = {
     email: string;
     role: string;
     branchNames: string[];
+    areaNames: string[];
 };
 
 type Props = {
@@ -68,6 +69,9 @@ export function AdminUserFormDialog({
     const [branchInput, setBranchInput] = useState(
         editUser?.branchNames.join(", ") ?? "",
     );
+    const [areaNamesInput, setAreaNamesInput] = useState(
+        editUser?.areaNames?.join(", ") ?? "",
+    );
 
     const roleOptions = allowAdminRole
         ? ROLE_OPTIONS
@@ -82,6 +86,7 @@ export function AdminUserFormDialog({
             setEmail("");
             setRole("BMS");
             setBranchInput("");
+            setAreaNamesInput("");
         }
     }
 
@@ -109,6 +114,7 @@ export function AdminUserFormDialog({
         }
 
         const branchNames = needsBranch ? parseBranchNames(branchInput) : [];
+        const areaNames = parseBranchNames(areaNamesInput);
 
         startTransition(async () => {
             const payload = {
@@ -116,6 +122,7 @@ export function AdminUserFormDialog({
                 name: name.trim(),
                 role: role as (typeof ROLE_OPTIONS)[number]["value"],
                 branchNames,
+                areaNames,
             };
 
             const result = isEdit
@@ -266,6 +273,21 @@ export function AdminUserFormDialog({
                                 </datalist>
                             </div>
                         )}
+
+                        {/* Cabang Lama */}
+                        <div className="space-y-2">
+                            <Label htmlFor="admin-user-area-names">
+                                Cabang Lama (opsional)
+                            </Label>
+                            <Input
+                                id="admin-user-area-names"
+                                value={areaNamesInput}
+                                onChange={(e) =>
+                                    setAreaNamesInput(e.target.value)
+                                }
+                                placeholder="Contoh: BOGOR, DEPOK (pisahkan dengan koma)"
+                            />
+                        </div>
 
                         <DialogFooter>
                             <Button
