@@ -5,7 +5,7 @@ import {
     getAllBranchNamesForAdmin,
     getAllBrands,
 } from "./queries";
-import { getStoreAreaNamesByBranches } from "../bmc/database/queries";
+import { getStoreAreaNamesByBranches } from "../../bmc/database/queries";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -49,7 +49,7 @@ export default async function AdminDatabasePage({
     const userPage = Math.max(1, Number(sp.userPage) || 1);
     const storePage = Math.max(1, Number(sp.storePage) || 1);
 
-    const [usersResult, storesResult, allBranchNames] = await Promise.all([
+    const [usersResult, storesResult, allBranchNames, allBrands] = await Promise.all([
         getAllUsers({
             page: userPage,
             limit: 10,

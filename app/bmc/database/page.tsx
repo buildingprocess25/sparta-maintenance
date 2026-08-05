@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/authorization";
 import { getUsersByBranches, getStoresByBranches, getStoreAreaNamesByBranches } from "./queries";
-import { getAllBrands } from "../admin/database/queries";
+import { getAllBrands } from "../../admin/database/queries";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -44,7 +44,7 @@ export default async function BmcDatabasePage({
     const userPage = Math.max(1, Number(resolvedSearchParams.userPage) || 1);
     const storePage = Math.max(1, Number(resolvedSearchParams.storePage) || 1);
 
-    const [usersResult, storesResult, areaNamesByBranch] = await Promise.all([
+    const [usersResult, storesResult, areaNamesByBranch, allBrands] = await Promise.all([
         getUsersByBranches(user.branchNames, {
             page: userPage,
             limit: 10,
