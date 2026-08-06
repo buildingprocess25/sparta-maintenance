@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  serverExternalPackages: ["googleapis"],
   // Opsi allowedDevOrigins untuk Next.js 14.2+ (di luar experimental)
   // Masukkan domain ngrok spesifik atau wildcard tanpa protokol (http/https)
   allowedDevOrigins: [
