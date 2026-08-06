@@ -307,7 +307,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                 </DialogHeader>
 
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
-                    <section className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(180px,1fr)_130px_130px_90px_110px_auto] md:items-end">
+                    <section className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(160px,1fr)_135px_135px_110px_130px_auto] md:items-end">
                         <Field label="BMS">
                             <Select
                                 value={bmsNIK}
