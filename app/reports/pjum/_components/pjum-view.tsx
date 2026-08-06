@@ -147,8 +147,10 @@ function findOverlappingRange(
     return (
         ranges.find((range) => {
             const blockedFrom = startOfDay(new Date(range.fromDate)).getTime();
-            const blockedTo = startOfDay(new Date(range.toDate)).getTime();
-            return from <= blockedTo && to >= blockedFrom;
+            // blockedTo eksklusif: hari terakhir range sebelumnya boleh
+            // jadi start date periode baru (toleransi 1 hari ujung).
+            const blockedToExclusive = startOfDay(new Date(range.toDate)).getTime();
+            return from < blockedToExclusive && to >= blockedFrom;
         }) ?? null
     );
 }
@@ -159,12 +161,14 @@ function DatePickerField({
     label,
     minDate,
     maxDate,
+    blockedRanges,
 }: {
     value?: Date;
     onChange: (d: Date) => void;
     label: string;
     minDate?: Date;
     maxDate?: Date;
+    blockedRanges?: PjumBlockedRange[];
 }) {
     const [open, setOpen] = useState(false);
     return (
@@ -196,9 +200,19 @@ function DatePickerField({
                         }
                     }}
                     disabled={(d) => {
-                        const day = startOfDay(d);
-                        if (minDate && day < startOfDay(minDate)) return true;
-                        if (maxDate && day > startOfDay(maxDate)) return true;
+                        const day = startOfDay(d).getTime();
+                        if (minDate && day < startOfDay(minDate).getTime()) return true;
+                        if (maxDate && day > startOfDay(maxDate).getTime()) return true;
+
+                        // Cek apakah tanggal berada di dalam rentang yang diblokir.
+                        // Toleransi 1 hari: hari terakhir (toDate) tidak diblokir.
+                        if (blockedRanges) {
+                            return blockedRanges.some((range) => {
+                                const from = startOfDay(new Date(range.fromDate)).getTime();
+                                const toExclusive = startOfDay(new Date(range.toDate)).getTime();
+                                return day >= from && day < toExclusive;
+                            });
+                        }
                         return false;
                     }}
                     locale={localeId}
@@ -686,6 +700,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         }}
                                         label="Tanggal mulai"
                                         maxDate={toDate}
+                                        blockedRanges={blockedRanges}
                                     />
                                     <span className="text-muted-foreground text-sm">
                                         —
@@ -699,6 +714,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         }}
                                         label="Tanggal akhir"
                                         minDate={fromDate}
+                                        blockedRanges={blockedRanges}
                                     />
                                 </div>
 
