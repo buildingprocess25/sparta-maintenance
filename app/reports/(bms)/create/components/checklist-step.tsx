@@ -312,7 +312,7 @@ export function ChecklistStep({
 
                                   <RadioGroup
                                     data-tour="bms-checklist-condition"
-                                    value={condition}
+                                    value={condition || ""}
                                     onValueChange={(value) =>
                                       onConditionChange(
                                         item.id,
@@ -389,7 +389,7 @@ export function ChecklistStep({
                                         </p>
                                         <RadioGroup
                                           data-tour="bms-checklist-handler"
-                                          value={handler}
+                                          value={handler || ""}
                                           onValueChange={(val) =>
                                             onHandlerChange(
                                               item.id,
