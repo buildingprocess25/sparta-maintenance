@@ -29,6 +29,8 @@ export type DraftData = {
     checklistItems: ChecklistItemData[];
     bmsEstimations: Record<string, BmsEstimationData[]>;
     totalEstimation?: number;
+    /** Waktu BMS pertama kali membuka form (dari browser). Diisi oleh useDraft, dikirim saat submit. */
+    draftCreatedAt?: string; // ISO 8601
 };
 
 export type DateRangeFilter =
@@ -190,6 +192,7 @@ function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
                 z.array(bmsEstimationSchema).max(100),
             ),
             totalEstimation: z.number().min(0).optional(),
+            draftCreatedAt: z.string().datetime().optional(),
         })
         .superRefine((data, ctx) => {
             const itemIds = new Set<string>();
