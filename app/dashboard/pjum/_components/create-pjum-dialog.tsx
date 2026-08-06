@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import {
     AlertTriangle,
     CalendarDays,
@@ -10,9 +10,12 @@ import {
     Search,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { id as localeId } from "date-fns/locale";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
@@ -23,7 +26,11 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
 import {
     Select,
     SelectContent,
@@ -41,7 +48,9 @@ import {
 } from "@/components/ui/table";
 import {
     createDashboardPjum,
+    getBlockedRangesForBms,
     searchDashboardPjumCandidates,
+    type DashboardPjumBlockedRange,
     type DashboardPjumBmsUser,
     type DashboardPjumCandidateRow,
     type DashboardPjumCandidateResult,
@@ -51,7 +60,7 @@ import {
     getReportStatusLabel,
 } from "@/lib/report-status";
 import { cn } from "@/lib/utils";
-import { formatJakartaDate, getJakartaDayKey } from "@/lib/time";
+import { formatJakartaDate, getJakartaDayKey, getJakartaDayRange } from "@/lib/time";
 
 type CreatePjumDialogProps = {
     bmsUsers: DashboardPjumBmsUser[];
@@ -81,19 +90,101 @@ function formatCurrency(value: number) {
     return `Rp ${Number(value).toLocaleString("id-ID")}`;
 }
 
+const MONTH_OPTIONS = [
+    { value: "Januari", label: "Januari" },
+    { value: "Februari", label: "Februari" },
+    { value: "Maret", label: "Maret" },
+    { value: "April", label: "April" },
+    { value: "Mei", label: "Mei" },
+    { value: "Juni", label: "Juni" },
+    { value: "Juli", label: "Juli" },
+    { value: "Agustus", label: "Agustus" },
+    { value: "September", label: "September" },
+    { value: "Oktober", label: "Oktober" },
+    { value: "November", label: "November" },
+    { value: "Desember", label: "Desember" },
+];
+
+function startOfJakartaDay(date: Date): Date {
+    return getJakartaDayRange(getJakartaDayKey(date)).start;
+}
+
+function findOverlappingRange(
+    fromDate: Date,
+    toDate: Date,
+    ranges: DashboardPjumBlockedRange[],
+): DashboardPjumBlockedRange | null {
+    const from = startOfJakartaDay(fromDate).getTime();
+    const to = startOfJakartaDay(toDate).getTime();
+
+    return (
+        ranges.find((range) => {
+            const blockedFrom = startOfJakartaDay(
+                new Date(range.fromDate),
+            ).getTime();
+            // Toleransi 1 hari: hari terakhir range lama boleh jadi hari pertama baru.
+            const blockedToExclusive = startOfJakartaDay(
+                new Date(range.toDate),
+            ).getTime();
+            return from < blockedToExclusive && to >= blockedFrom;
+        }) ?? null
+    );
+}
+
 export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
     const defaultRange = useMemo(() => getDefaultDateRange(), []);
     const [open, setOpen] = useState(false);
     const [bmsNIK, setBmsNIK] = useState(bmsUsers[0]?.NIK ?? "");
-    const [from, setFrom] = useState(defaultRange.from);
-    const [to, setTo] = useState(defaultRange.to);
+    const [from, setFrom] = useState<Date | undefined>(() => {
+        const d = new Date(defaultRange.from);
+        return isNaN(d.getTime()) ? undefined : d;
+    });
+    const [to, setTo] = useState<Date | undefined>(() => {
+        const d = new Date(defaultRange.to);
+        return isNaN(d.getTime()) ? undefined : d;
+    });
     const [weekNumber, setWeekNumber] = useState("1");
+    const [monthName, setMonthName] = useState<string>("");
     const [result, setResult] = useState<DashboardPjumCandidateResult | null>(
         null,
     );
     const [selectedReports, setSelectedReports] = useState<string[]>([]);
+    const [blockedRanges, setBlockedRanges] = useState<DashboardPjumBlockedRange[]>([]);
+    const [isLoadingBlockedRanges, setIsLoadingBlockedRanges] = useState(false);
+    const blockedRangeRequestRef = useRef(0);
     const [isSearching, startSearchTransition] = useTransition();
     const [isCreating, startCreateTransition] = useTransition();
+
+    async function loadBlockedRanges(nik: string) {
+        const requestId = blockedRangeRequestRef.current + 1;
+        blockedRangeRequestRef.current = requestId;
+        setIsLoadingBlockedRanges(true);
+
+        try {
+            const result = await getBlockedRangesForBms(nik);
+            if (requestId !== blockedRangeRequestRef.current) return;
+
+            if (result.error) {
+                toast.error(result.error);
+                setBlockedRanges([]);
+                return;
+            }
+
+            setBlockedRanges(result.data ?? []);
+        } catch {
+            if (requestId !== blockedRangeRequestRef.current) return;
+            toast.error("Gagal memuat rentang tanggal PJUM yang sudah digunakan");
+            setBlockedRanges([]);
+        } finally {
+            if (requestId !== blockedRangeRequestRef.current) return;
+            setIsLoadingBlockedRanges(false);
+        }
+    }
+
+    const overlappingRange = useMemo(() => {
+        if (!from || !to) return null;
+        return findOverlappingRange(from, to, blockedRanges);
+    }, [from, to, blockedRanges]);
 
     const selectedSet = useMemo(
         () => new Set(selectedReports),
@@ -110,13 +201,22 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         validRows.length > 0 &&
         validRows.every((row) => selectedSet.has(row.reportNumber));
 
-    const canSearch = bmsNIK.length > 0 && from.length > 0 && to.length > 0;
+    const canSearch =
+        bmsNIK.length > 0 &&
+        !!from &&
+        !!to &&
+        !!monthName &&
+        !isLoadingBlockedRanges;
     const canCreate =
-        selectedReports.length > 0 && !isCreating && !isSearching && !!result;
+        selectedReports.length > 0 &&
+        !isCreating &&
+        !isSearching &&
+        !!result &&
+        !!monthName;
 
     function handleSearch() {
         if (!canSearch) {
-            toast.error("Pilih BMS dan periode terlebih dahulu");
+            toast.error("Pilih BMS, periode, dan bulan terlebih dahulu");
             return;
         }
 
@@ -124,8 +224,8 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
             try {
                 const nextResult = await searchDashboardPjumCandidates({
                     bmsNIK,
-                    from,
-                    to,
+                    from: getJakartaDayKey(from!),
+                    to: getJakartaDayKey(to!),
                 });
                 setResult(nextResult);
                 setSelectedReports(
@@ -172,9 +272,10 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
             const response = await createDashboardPjum({
                 reportNumbers: selectedReports,
                 bmsNIK,
-                from,
-                to,
+                from: getJakartaDayKey(from!),
+                to: getJakartaDayKey(to!),
                 weekNumber: Number(weekNumber),
+                monthName,
             });
 
             if (response.error) {
@@ -206,7 +307,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                 </DialogHeader>
 
                 <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3">
-                    <section className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(220px,1fr)_150px_150px_100px_auto] md:items-end">
+                    <section className="grid grid-cols-1 gap-2 md:grid-cols-[minmax(180px,1fr)_130px_130px_90px_110px_auto] md:items-end">
                         <Field label="BMS">
                             <Select
                                 value={bmsNIK}
@@ -214,6 +315,10 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                     setBmsNIK(value);
                                     setResult(null);
                                     setSelectedReports([]);
+                                    setMonthName("");
+                                    setBlockedRanges([]);
+                                    setIsLoadingBlockedRanges(true);
+                                    void loadBlockedRanges(value);
                                 }}
                             >
                                 <SelectTrigger className="h-9 w-full">
@@ -232,24 +337,35 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                             </Select>
                         </Field>
                         <Field label="Dari">
-                            <Input
-                                type="date"
+                            <DatePickerField
+                                label="Dari"
                                 value={from}
-                                onChange={(event) => {
-                                    setFrom(event.target.value);
+                                blockedRanges={blockedRanges}
+                                onChange={(date) => {
+                                    setFrom(date);
                                     setResult(null);
                                     setSelectedReports([]);
                                 }}
                             />
                         </Field>
                         <Field label="Sampai">
-                            <Input
-                                type="date"
+                            <DatePickerField
+                                label="Sampai"
                                 value={to}
-                                onChange={(event) => {
-                                    setTo(event.target.value);
+                                minDate={from}
+                                blockedRanges={blockedRanges}
+                                onChange={(date) => {
+                                    setTo(date);
                                     setResult(null);
                                     setSelectedReports([]);
+                                    if (date) {
+                                        setMonthName(
+                                            date.toLocaleString("id-ID", {
+                                                month: "long",
+                                                timeZone: "Asia/Jakarta",
+                                            }),
+                                        );
+                                    }
                                 }}
                             />
                         </Field>
@@ -273,6 +389,30 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                 </SelectContent>
                             </Select>
                         </Field>
+                        <Field label="Bulan">
+                            <Select
+                                value={monthName}
+                                onValueChange={(value) => {
+                                    setMonthName(value);
+                                    setResult(null);
+                                    setSelectedReports([]);
+                                }}
+                            >
+                                <SelectTrigger className="h-9 w-full" aria-label="Bulan">
+                                    <SelectValue placeholder="Pilih bulan..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {MONTH_OPTIONS.map((opt) => (
+                                        <SelectItem
+                                            key={opt.value}
+                                            value={opt.value}
+                                        >
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </Field>
                         <Button
                             type="button"
                             variant="outline"
@@ -291,6 +431,16 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                             Cek Laporan
                         </Button>
                     </section>
+
+                    {overlappingRange && (
+                        <div className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+                            <AlertTriangle className="size-3.5" />
+                            Range overlap dengan PJUM sebelumnya (
+                            {formatDate(overlappingRange.fromDate)} –{" "}
+                            {formatDate(overlappingRange.toDate)}). Laporan yang
+                            sudah PJUM tidak akan terpilih.
+                        </div>
+                    )}
 
                     {result ? (
                         <section className="space-y-2 border-y bg-muted/20 px-1 py-2">
@@ -515,5 +665,73 @@ function SummaryItem({
             <span>{label}</span>
             <span className={cn("font-semibold", className)}>{value}</span>
         </span>
+    );
+}
+
+function DatePickerField({
+    value,
+    onChange,
+    label,
+    minDate,
+    blockedRanges,
+}: {
+    value?: Date;
+    onChange: (d: Date) => void;
+    label: string;
+    minDate?: Date;
+    blockedRanges?: DashboardPjumBlockedRange[];
+}) {
+    const [open, setOpen] = useState(false);
+    return (
+        <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+                <Button
+                    variant="outline"
+                    className="h-9 w-full justify-start text-left font-normal"
+                    aria-label={label}
+                >
+                    <CalendarDays className="mr-2 size-4 shrink-0 text-muted-foreground" />
+                    <span className="text-sm">
+                        {value
+                            ? format(value, "dd MMM yyyy", { locale: localeId })
+                            : "Pilih tanggal"}
+                    </span>
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                    mode="single"
+                    selected={value}
+                    onSelect={(d) => {
+                        if (d) {
+                            onChange(d);
+                            setOpen(false);
+                        }
+                    }}
+                    disabled={(d) => {
+                        const day = startOfJakartaDay(d).getTime();
+                        if (
+                            minDate &&
+                            day < startOfJakartaDay(minDate).getTime()
+                        )
+                            return true;
+                        if (blockedRanges) {
+                            return blockedRanges.some((range) => {
+                                const from = startOfJakartaDay(
+                                    new Date(range.fromDate),
+                                ).getTime();
+                                const toExclusive = startOfJakartaDay(
+                                    new Date(range.toDate),
+                                ).getTime();
+                                return day >= from && day < toExclusive;
+                            });
+                        }
+                        return false;
+                    }}
+                    locale={localeId}
+                    initialFocus
+                />
+            </PopoverContent>
+        </Popover>
     );
 }
