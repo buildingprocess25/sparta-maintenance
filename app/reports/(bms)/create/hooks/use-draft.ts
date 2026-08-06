@@ -167,7 +167,8 @@ export function useDraft({
                         !url ||
                         (!url.startsWith("data:image") &&
                             !url.startsWith("http") &&
-                            !url.startsWith("/"))
+                            !url.startsWith("/")) ||
+                        url.startsWith("blob:")
                     )
                         return undefined;
                     try {
