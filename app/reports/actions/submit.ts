@@ -16,6 +16,17 @@ import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
 import { isSameJakartaQuarter } from "@/lib/time";
 
+/**
+ * Parse ISO string dari client menjadi Date.
+ * Mengembalikan undefined jika string tidak ada atau tidak valid.
+ * Server Action akan menggunakan @default(now()) Prisma sebagai fallback.
+ */
+function parseDraftCreatedAt(value: string | undefined): Date | undefined {
+    if (!value) return undefined;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? undefined : d;
+}
+
 export async function submitReport(data: DraftData) {
     const parsed = draftDataSchema.safeParse(data);
     if (!parsed.success) {
@@ -91,6 +102,8 @@ export async function submitReport(data: DraftData) {
         const itemsJson = buildItemsJson({ ...data, checklistItems });
         const estimationsJson = buildEstimationsJson(data);
 
+        const reportCreatedAt = parseDraftCreatedAt(data.draftCreatedAt);
+
         // Always get the store to generate the correct sequence prefix
         const store = data.storeCode
             ? await prisma.store.findUnique({
@@ -120,6 +133,7 @@ export async function submitReport(data: DraftData) {
                     estimations: estimationsJson,
                     drivePhotoFileIds:
                         drivePhotoFileIds as unknown as Prisma.InputJsonValue,
+                    ...(reportCreatedAt ? { createdAt: reportCreatedAt } : {}),
                 },
             });
 
