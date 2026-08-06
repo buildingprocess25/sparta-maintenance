@@ -313,6 +313,7 @@ model PjumExport {
   branchName String
   areaNames  String[] @default([])
   weekNumber Int
+  monthName  String?
   fromDate   DateTime @db.Timestamptz(3)
   toDate     DateTime @db.Timestamptz(3)
 
