@@ -360,10 +360,26 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
     COMPLETED: getReportStatusLabel("COMPLETED"),
 };
 
+const MONTH_OPTIONS = [
+    { value: "Januari", label: "Januari" },
+    { value: "Februari", label: "Februari" },
+    { value: "Maret", label: "Maret" },
+    { value: "April", label: "April" },
+    { value: "Mei", label: "Mei" },
+    { value: "Juni", label: "Juni" },
+    { value: "Juli", label: "Juli" },
+    { value: "Agustus", label: "Agustus" },
+    { value: "September", label: "September" },
+    { value: "Oktober", label: "Oktober" },
+    { value: "November", label: "November" },
+    { value: "Desember", label: "Desember" },
+];
+
 export function PjumView({ bmsUsers, historyItems }: Props) {
     const [activeTab, setActiveTab] = useState<"create" | "history">("create");
     const [selectedNIK, setSelectedNIK] = useState<string>("");
     const [weekNumber, setWeekNumber] = useState<string>("");
+    const [monthName, setMonthName] = useState<string>("");
     const [fromDate, setFromDate] = useState<Date>();
     const [toDate, setToDate] = useState<Date>();
     const [reports, setReports] = useState<PjumReportRow[] | null>(null);
@@ -420,13 +436,13 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     }, [fromDate, toDate, blockedRanges]);
 
     const isSearchReady =
-        !!selectedNIK && !!weekNumber && !!fromDate && !!toDate;
+        !!selectedNIK && !!weekNumber && !!monthName && !!fromDate && !!toDate;
     const canSearch = isSearchReady && !isSearching && !isLoadingBlockedRanges;
 
     function handleSearch() {
-        if (!selectedNIK || !fromDate || !toDate || !weekNumber) {
+        if (!selectedNIK || !fromDate || !toDate || !weekNumber || !monthName) {
             toast.error(
-                "Lengkapi BMS, rentang tanggal, dan minggu ke sebelum mencari laporan",
+                "Lengkapi BMS, rentang tanggal, minggu ke, dan bulan sebelum mencari laporan",
             );
             return;
         }
@@ -507,6 +523,10 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             toast.error("Minggu ke wajib dipilih (1-5)");
             return;
         }
+        if (!monthName) {
+            toast.error("Bulan wajib dipilih");
+            return;
+        }
         const exportTotalRealisasi = eligibleReports.reduce(
             (sum, report) => sum + report.totalRealisasi,
             0,
@@ -520,6 +540,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                 from,
                 to,
                 weekNumber: week,
+                monthName,
             });
             if (result.error) {
                 toast.error("Gagal membuat PJUM", {
@@ -555,6 +576,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                             bmsName: selectedBms?.name ?? selectedNIK,
                             branchName: historyBranchName,
                             weekNumber: week,
+                            monthName,
                             fromDate: fromIso,
                             toDate: toIso,
                             reportNumbers: nums,
@@ -650,6 +672,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onValueChange={(value) => {
                                             setSelectedNIK(value);
                                             setWeekNumber("");
+                                            setMonthName("");
                                             setBlockedRanges([]);
                                             setFromDate(undefined);
                                             setToDate(undefined);
@@ -711,6 +734,14 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             setToDate(date);
                                             setReports(null);
                                             setExportDoneDriveUrl(null);
+                                            if (date) {
+                                                setMonthName(
+                                                    date.toLocaleString("id-ID", {
+                                                        month: "long",
+                                                        timeZone: "Asia/Jakarta",
+                                                    }),
+                                                );
+                                            }
                                         }}
                                         label="Tanggal akhir"
                                         minDate={fromDate}
@@ -738,6 +769,32 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                     value={String(week)}
                                                 >
                                                     Minggu ke {week}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Month picker */}
+                                <div className="w-36">
+                                    <Select
+                                        value={monthName}
+                                        onValueChange={(value) => {
+                                            setMonthName(value);
+                                            setReports(null);
+                                            setExportDoneDriveUrl(null);
+                                        }}
+                                    >
+                                        <SelectTrigger aria-label="Bulan">
+                                            <SelectValue placeholder="Pilih bulan..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {MONTH_OPTIONS.map((opt) => (
+                                                <SelectItem
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                >
+                                                    {opt.label}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
