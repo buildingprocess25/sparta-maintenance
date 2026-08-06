@@ -736,10 +736,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             setExportDoneDriveUrl(null);
                                             if (date) {
                                                 setMonthName(
-                                                    date.toLocaleString("id-ID", {
-                                                        month: "long",
-                                                        timeZone: "Asia/Jakarta",
-                                                    }),
+                                                    MONTH_OPTIONS[date.getMonth()]?.value || "",
                                                 );
                                             }
                                         }}
