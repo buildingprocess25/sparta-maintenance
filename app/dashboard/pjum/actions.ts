@@ -55,6 +55,13 @@ export type DashboardPjumBmsUser = {
     name: string;
 };
 
+export type DashboardPjumBlockedRange = {
+    id: string;
+    fromDate: string; // ISO string
+    toDate: string;   // ISO string
+    status: string;
+};
+
 export type DashboardPjumCandidateRow = {
     reportNumber: string;
     finishedAt: string | null;
@@ -175,6 +182,59 @@ export async function getDashboardPjumBmsUsers(): Promise<
         select: { NIK: true, name: true },
         orderBy: { name: "asc" },
     });
+}
+
+export async function getBlockedRangesForBms(
+    bmsNIK: string,
+): Promise<{ data: DashboardPjumBlockedRange[] | null; error: string | null }> {
+    try {
+        const user = await requireRole("BMC");
+
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { branchNames: true, role: true, deletedAt: true },
+        });
+
+        if (!bmsUser || bmsUser.deletedAt || bmsUser.role !== "BMS") {
+            return { data: null, error: "BMS tidak ditemukan" };
+        }
+
+        const hasAccess = bmsUser.branchNames.some((branch) =>
+            user.branchNames.includes(branch),
+        );
+        if (!hasAccess) {
+            return { data: null, error: "BMS tidak dalam cabang Anda" };
+        }
+
+        const ranges = await prisma.pjumExport.findMany({
+            where: {
+                bmsNIK,
+                branchName: { in: user.branchNames },
+            },
+            select: {
+                id: true,
+                fromDate: true,
+                toDate: true,
+                status: true,
+            },
+            orderBy: { fromDate: "asc" },
+        });
+
+        return {
+            data: ranges.map((range) => ({
+                id: range.id,
+                fromDate: range.fromDate.toISOString(),
+                toDate: range.toDate.toISOString(),
+                status: range.status,
+            })),
+            error: null,
+        };
+    } catch {
+        return {
+            data: null,
+            error: "Terjadi kesalahan saat memuat rentang PJUM yang sudah digunakan",
+        };
+    }
 }
 
 export async function searchDashboardPjumCandidates(input: {
@@ -304,6 +364,7 @@ export async function createDashboardPjum(input: {
     from: string;
     to: string;
     weekNumber: number;
+    monthName: string;
 }): Promise<{ error: string | null; pjumExportId: string | null }> {
     const correlationId = crypto.randomUUID();
     const start = performance.now();
@@ -331,6 +392,14 @@ export async function createDashboardPjum(input: {
         if (!Number.isInteger(input.weekNumber) || input.weekNumber < 1) {
             return {
                 error: "Minggu ke harus diisi dengan angka valid",
+                pjumExportId: null,
+            };
+        }
+
+        const monthName = input.monthName.trim();
+        if (!monthName) {
+            return {
+                error: "Bulan wajib dipilih",
                 pjumExportId: null,
             };
         }
@@ -466,6 +535,7 @@ export async function createDashboardPjum(input: {
                     branchName,
                     areaNames,
                     weekNumber: input.weekNumber,
+                    monthName,
                     fromDate,
                     toDate,
                     reportNumbers: safeNumbers,
