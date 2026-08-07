@@ -15,7 +15,7 @@ try {
         .readFileSync(path.join(assetsDir, "Alfamart-Emblem-small.png"))
         .toString("base64");
     buildingLogoBase64 = fs
-        .readFileSync(path.join(assetsDir, "Building-Logo.png"))
+        .readFileSync(path.join(assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {
     // PDF still renders without logos.

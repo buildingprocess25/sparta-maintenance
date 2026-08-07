@@ -23,7 +23,7 @@ try {
         .readFileSync(path.join(_assetsDir, "Alfamart-Emblem-small.png"))
         .toString("base64");
     BUILDING_LOGO_BASE64 = fs
-        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .readFileSync(path.join(_assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {
     // Render without logo if assets are missing
@@ -178,6 +178,7 @@ export async function generatePjumPackagePdf(params: {
         exportedAt,
         weekNumber: params.weekNumber,
         reports: recapRows,
+        watermarkLogoBase64: BUILDING_LOGO_BASE64,
     });
 
     const fullReports = await prisma.report.findMany({

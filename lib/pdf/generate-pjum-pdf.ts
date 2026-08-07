@@ -6,6 +6,7 @@ import {
     View,
     StyleSheet,
     renderToBuffer,
+    Image,
 } from "@react-pdf/renderer";
 import React from "react";
 import { JAKARTA_TIME_ZONE } from "@/lib/time";
@@ -169,6 +170,27 @@ const styles = StyleSheet.create({
         paddingTop: 5,
     },
     footerText: { fontSize: 7, color: "#9ca3af", fontStyle: "italic" },
+    watermarkContainer: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: 0.1,
+    },
+    watermarkImage: {
+        width: 300,
+        marginBottom: 10,
+    },
+    watermarkText: {
+        fontSize: 28,
+        fontFamily: "Helvetica-Bold",
+        color: "#9ca3af",
+        textAlign: "center",
+    },
 });
 
 function fmtCurrency(amount: number) {
@@ -208,6 +230,7 @@ export type PjumPdfData = {
     weekNumber: number;
     exportedAt: string;
     reports: PjumPdfRow[];
+    watermarkLogoBase64?: string;
 };
 
 function buildPjumDocument(data: PjumPdfData) {
@@ -275,6 +298,22 @@ function buildPjumDocument(data: PjumPdfData) {
         React.createElement(
             Page,
             { size: "A4", style: styles.page },
+
+            data.watermarkLogoBase64
+                ? React.createElement(
+                      View,
+                      { style: styles.watermarkContainer, fixed: true },
+                      React.createElement(Image, {
+                          src: `data:image/png;base64,${data.watermarkLogoBase64}`,
+                          style: styles.watermarkImage,
+                      }),
+                      React.createElement(
+                          Text,
+                          { style: styles.watermarkText },
+                          "Dokumen dibuat oleh SPARTA",
+                      ),
+                  )
+                : null,
 
             // ── Document title ──
             React.createElement(

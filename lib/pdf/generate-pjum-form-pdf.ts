@@ -56,7 +56,7 @@ const _assetsDir = path.join(process.cwd(), "public", "assets");
 let BUILDING_LOGO_BASE64 = "";
 try {
     BUILDING_LOGO_BASE64 = fs
-        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .readFileSync(path.join(_assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {}
 
@@ -210,8 +210,6 @@ const s = StyleSheet.create({
         justifyContent: "center",
         alignItems: "center",
         opacity: 0.12,
-        zIndex: -1,
-        transform: "rotate(-30deg)",
     },
     watermarkImage: {
         width: 50,
