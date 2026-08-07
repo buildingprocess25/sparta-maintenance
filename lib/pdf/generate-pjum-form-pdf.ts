@@ -6,8 +6,11 @@ import {
     View,
     StyleSheet,
     renderToBuffer,
+    Image,
 } from "@react-pdf/renderer";
 import React from "react";
+import fs from "fs";
+import path from "path";
 import { JAKARTA_TIME_ZONE } from "@/lib/time";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -26,6 +29,8 @@ export type PjumFormData = {
     /** Total pengeluaran (sum of all reports) */
     totalExpenditure: number;
     /** UM fixed = 1.000.000 */
+    periodeFrom: string;
+    periodeTo: string;
 };
 
 const FIXED_UM = 1_000_000;
@@ -46,6 +51,14 @@ function fmtDate(iso: string): string {
         year: "numeric",
     });
 }
+
+const _assetsDir = path.join(process.cwd(), "public", "assets");
+let BUILDING_LOGO_BASE64 = "";
+try {
+    BUILDING_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .toString("base64");
+} catch {}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Styles — Match tes.html layout faithfully
@@ -94,6 +107,11 @@ const s = StyleSheet.create({
         alignItems: "flex-end",
         marginBottom: 5,
     },
+    formRowKeperluan: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        marginBottom: 5,
+    },
     formLabel: {
         width: 130,
         fontSize: 9,
@@ -108,6 +126,7 @@ const s = StyleSheet.create({
     },
     formValueNoBorder: {
         fontSize: 9,
+        lineHeight: 1.4,
     },
 
     // Amount section
@@ -180,6 +199,30 @@ const s = StyleSheet.create({
         lineHeight: 1.4,
     },
 
+    // Watermark
+    watermarkContainer: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: "row",
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: 0.12,
+        zIndex: -1,
+    },
+    watermarkImage: {
+        width: 50,
+        height: 50,
+        marginRight: 8,
+    },
+    watermarkText: {
+        fontSize: 16,
+        fontFamily: "Helvetica-Bold",
+        color: "#000",
+    },
+
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -193,7 +236,10 @@ function buildPjumFormDocument(pjum: PjumFormData) {
             ? fmtCurrency(selisih)
             : `(${fmtCurrency(Math.abs(selisih))})`;
 
-    const keperluanPjum = `Biaya perbaikan toko minggu ke ${pjum.weekNumber} bulan ${pjum.monthName} ${pjum.year}, 1 BMS a/n ${pjum.bmsName}`;
+    const fromStr = new Date(pjum.periodeFrom).toLocaleDateString("en-GB", { timeZone: JAKARTA_TIME_ZONE }); // DD/MM/YYYY
+    const toStr = new Date(pjum.periodeTo).toLocaleDateString("en-GB", { timeZone: JAKARTA_TIME_ZONE });
+
+    const keperluanPjum = `Biaya perbaikan toko minggu ke ${pjum.weekNumber} bulan ${pjum.monthName} ${pjum.year}, 1 BMS a/n ${pjum.bmsName}\nPeriode ${fromStr} s/d ${toStr}`;
     return React.createElement(
         Document,
         {},
@@ -240,7 +286,7 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                 // Untuk Keperluan
                 React.createElement(
                     View,
-                    { style: s.formRow },
+                    { style: s.formRowKeperluan },
                     React.createElement(
                         Text,
                         { style: s.formLabel },
@@ -441,6 +487,23 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                         "Reff : SAT/SOP/AP/001 Prosedur Pertanggungjawaban Uang Muka (PJUM)",
                     ),
                 ),
+
+                // Watermark
+                BUILDING_LOGO_BASE64
+                    ? React.createElement(
+                          View,
+                          { style: s.watermarkContainer },
+                          React.createElement(Image, {
+                              src: `data:image/png;base64,${BUILDING_LOGO_BASE64}`,
+                              style: s.watermarkImage,
+                          }),
+                          React.createElement(
+                              Text,
+                              { style: s.watermarkText },
+                              "Dokumen dibuat oleh SPARTA",
+                          ),
+                      )
+                    : null,
             ),
 
             null,
