@@ -10,6 +10,7 @@ Menambahkan narasi periode tanggal (Dari s/d Sampai) di bawah teks "Keperluan" p
   - `periodeTo: string` (ISO date string)
 
 ## PDF Layout Changes
+### 1. Narasi Periode
 - **Target:** `lib/pdf/generate-pjum-form-pdf.ts`
 - **Formatting:** Tanggal akan diformat menjadi `DD/MM/YYYY` secara konsisten (memaksa 2 digit).
 - **Narrative Assembly:**
@@ -19,6 +20,12 @@ Menambahkan narasi periode tanggal (Dari s/d Sampai) di bawah teks "Keperluan" p
   ```
 - **Styling Adjustment:**
   Baris "Untuk Keperluan" akan dipisahkan style-nya atau diubah dari `alignItems: "flex-end"` menjadi `alignItems: "flex-start"`. Tujuannya agar label "Untuk Keperluan :" sejajar dengan baris pertama teks, bukan mengambang di baris kedua.
+
+### 2. Watermark SPARTA
+- **Asset Loading:** Logo `Building-Logo.png` dibaca sekali di *module level* pada file `generate-pjum-form-pdf.ts` dan di-convert ke `base64` untuk efisiensi memory.
+- **Komposisi:** Logo Building berdampingan dengan teks "Dokumen dibuat oleh SPARTA" di sebelah kanannya.
+- **Styling & Positioning:** 
+  Diletakkan di dalam container `pjumContainer` dengan style `position: 'absolute'`, `top`, `bottom`, `left`, `right` di-set sedemikian rupa dengan `justifyContent: 'center'` dan `alignItems: 'center'`. `opacity` diset sangat rendah (misal `0.1` - `0.15`) agar menjadi *background watermark* yang tidak menutupi visibilitas teks form PJUM utama. `zIndex: -1` digunakan bila didukung oleh React-PDF.
 
 ## Integration Points
 1. **Approval Flow (`app/reports/pjum/approval-actions.ts`)**
