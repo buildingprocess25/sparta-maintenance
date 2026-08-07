@@ -182,11 +182,12 @@ const styles = StyleSheet.create({
         opacity: 0.1,
     },
     watermarkImage: {
-        width: 300,
+        width: 75,
+        height: 75,
         marginBottom: 10,
     },
     watermarkText: {
-        fontSize: 28,
+        fontSize: 24,
         fontFamily: "Helvetica-Bold",
         color: "#9ca3af",
         textAlign: "center",
