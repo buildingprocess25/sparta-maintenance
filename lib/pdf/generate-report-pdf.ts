@@ -279,17 +279,17 @@ const styles = StyleSheet.create({
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        opacity: 0.1,
+        opacity: 0.15,
     },
     watermarkImage: {
-        width: 75,
-        height: 75,
+        width: 180,
+        height: 180,
         marginBottom: 10,
     },
     watermarkText: {
         fontSize: 24,
         fontFamily: "Helvetica-Bold",
-        color: "#9ca3af",
+        color: "#6b7280",
         textAlign: "center",
     },
     // Stamp Styles
