@@ -211,6 +211,7 @@ const s = StyleSheet.create({
         alignItems: "center",
         opacity: 0.12,
         zIndex: -1,
+        transform: "rotate(-30deg)",
     },
     watermarkImage: {
         width: 50,
