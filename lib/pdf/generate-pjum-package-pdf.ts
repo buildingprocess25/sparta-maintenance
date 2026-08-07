@@ -252,6 +252,8 @@ export async function generatePjumPackagePdf(params: {
                       (sum, row) => sum + row.totalRealisasi,
                       0,
                   ),
+                  periodeFrom: params.from || reports[0].createdAt.toISOString(),
+                  periodeTo: params.to || reports[0].createdAt.toISOString(),
               }
             : null);
 
