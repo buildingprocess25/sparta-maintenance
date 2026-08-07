@@ -398,6 +398,8 @@ export async function approvePjumExport(input: {
             bmsName,
             submissionDate: approvedAtDate.toISOString(),
             totalExpenditure,
+            periodeFrom: pjumExport.fromDate.toISOString(),
+            periodeTo: pjumExport.toDate.toISOString(),
         };
 
         // Generate final PDF package.
