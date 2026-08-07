@@ -18,11 +18,15 @@ import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
 const _assetsDir = path.join(process.cwd(), "public", "assets");
 let ALFAMART_LOGO_BASE64 = "";
 let BUILDING_LOGO_BASE64 = "";
+let WATERMARK_LOGO_BASE64 = "";
 try {
     ALFAMART_LOGO_BASE64 = fs
         .readFileSync(path.join(_assetsDir, "Alfamart-Emblem-small.png"))
         .toString("base64");
     BUILDING_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .toString("base64");
+    WATERMARK_LOGO_BASE64 = fs
         .readFileSync(path.join(_assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {
@@ -178,7 +182,7 @@ export async function generatePjumPackagePdf(params: {
         exportedAt,
         weekNumber: params.weekNumber,
         reports: recapRows,
-        watermarkLogoBase64: BUILDING_LOGO_BASE64,
+        watermarkLogoBase64: WATERMARK_LOGO_BASE64,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -352,6 +356,7 @@ export async function generatePjumPackagePdf(params: {
             totalEstimation: Number(report.totalEstimation),
             alfamartLogoBase64: ALFAMART_LOGO_BASE64,
             buildingLogoBase64: BUILDING_LOGO_BASE64,
+            watermarkLogoBase64: WATERMARK_LOGO_BASE64,
             completionSelfieUrls,
             startReceiptUrls,
             startMaterialStores,

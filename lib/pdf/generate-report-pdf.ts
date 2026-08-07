@@ -575,6 +575,7 @@ export type ReportPdfData = {
     totalEstimation: number;
     alfamartLogoBase64: string;
     buildingLogoBase64: string;
+    watermarkLogoBase64?: string;
     completionSelfieUrls: string[];
     startReceiptUrls: string[];
     startMaterialStores: MaterialStoreJson[];
@@ -1234,12 +1235,12 @@ function buildReportDocument(
             Page,
             { size: "A4", style: styles.page },
 
-            data.buildingLogoBase64
+            data.watermarkLogoBase64
                 ? React.createElement(
                       View,
                       { style: styles.watermarkContainer, fixed: true },
                       React.createElement(Image, {
-                          src: `data:image/png;base64,${data.buildingLogoBase64}`,
+                          src: `data:image/png;base64,${data.watermarkLogoBase64}`,
                           style: styles.watermarkImage,
                       }),
                       React.createElement(

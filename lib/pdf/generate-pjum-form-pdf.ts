@@ -54,8 +54,12 @@ function fmtDate(iso: string): string {
 
 const _assetsDir = path.join(process.cwd(), "public", "assets");
 let BUILDING_LOGO_BASE64 = "";
+let WATERMARK_LOGO_BASE64 = "";
 try {
     BUILDING_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .toString("base64");
+    WATERMARK_LOGO_BASE64 = fs
         .readFileSync(path.join(_assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {}
@@ -488,12 +492,12 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                 ),
 
                 // Watermark
-                BUILDING_LOGO_BASE64
+                WATERMARK_LOGO_BASE64
                     ? React.createElement(
                           View,
                           { style: s.watermarkContainer },
                           React.createElement(Image, {
-                              src: `data:image/png;base64,${BUILDING_LOGO_BASE64}`,
+                              src: `data:image/png;base64,${WATERMARK_LOGO_BASE64}`,
                               style: s.watermarkImage,
                           }),
                           React.createElement(
