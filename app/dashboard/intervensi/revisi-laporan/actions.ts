@@ -516,6 +516,8 @@ async function generatePjumAddendumPages(
             bmsName: bmsUser.name,
             submissionDate: pjumExport.createdAt.toISOString(),
             totalExpenditure,
+            periodeFrom: pjumExport.fromDate.toISOString(),
+            periodeTo: pjumExport.toDate.toISOString(),
         },
     );
 

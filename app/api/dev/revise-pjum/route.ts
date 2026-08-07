@@ -452,6 +452,11 @@ export async function POST(request: Request) {
         pjumExport.approvedAt ?? pjumExport.createdAt
     ).toISOString();
 
+    const fromIso = new Date(fromDate);
+    fromIso.setHours(0, 0, 0, 0);
+    const toIso = new Date(toDate);
+    toIso.setHours(0, 0, 0, 0);
+
     const pjumFormData: PjumFormData = {
         weekNumber,
         monthName: fromDate.toLocaleString("id-ID", { month: "long" }),
@@ -459,12 +464,9 @@ export async function POST(request: Request) {
         bmsName,
         submissionDate,
         totalExpenditure,
+        periodeFrom: fromIso.toISOString(),
+        periodeTo: toIso.toISOString(),
     };
-
-    const fromIso = new Date(fromDate);
-    fromIso.setHours(0, 0, 0, 0);
-    const toIso = new Date(toDate);
-    toIso.setHours(0, 0, 0, 0);
 
     const result = await generatePjumPackagePdf({
         reportNumbers: reportNumbersForPdf,
