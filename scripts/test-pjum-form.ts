@@ -10,9 +10,7 @@ async function run() {
             bmsName: "Rendi",
             submissionDate: new Date().toISOString(),
             totalExpenditure: 1200000,
-            // @ts-expect-error test failing missing fields
             periodeFrom: new Date("2026-07-30").toISOString(),
-            // @ts-expect-error test failing missing fields
             periodeTo: new Date("2026-08-07").toISOString(),
         });
         console.log("PASS: PDF generated, size: " + buffer.length);
