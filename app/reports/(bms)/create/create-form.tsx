@@ -355,6 +355,7 @@ export default function CreateReportForm({
 
         {step === "checklist" && (
           <ChecklistStep
+            storeCode={selectedStoreCode}
             isRepairOnlyMode={isRepairOnlyMode}
             activeCategories={activeCategories}
             checklist={checklist}

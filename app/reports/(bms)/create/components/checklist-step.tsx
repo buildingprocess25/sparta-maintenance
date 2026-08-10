@@ -32,6 +32,7 @@ import {
 } from "@/lib/checklist-data";
 
 interface ChecklistStepProps {
+  storeCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
   activeCategories: ChecklistCategory[];
   checklist: Map<string, ChecklistItem>;
@@ -63,6 +64,7 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
 };
 
 export function ChecklistStep({
+  storeCode,
   isRepairOnlyMode,
   activeCategories,
   checklist,
@@ -492,6 +494,7 @@ export function ChecklistStep({
                                           </Label>
                                           <LocalAhoInput
                                             id={`${item.id}-aho`}
+                                            storeCode={storeCode}
                                             required
                                             initialValue={itemData?.ahoTicketNumber || ""}
                                             onCommit={(val) =>

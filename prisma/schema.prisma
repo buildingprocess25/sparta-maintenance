@@ -143,11 +143,25 @@ model Store {
   isActive   Boolean @default(true)
 
   reports Report[]
+  ahoTickets MasterAhoTicket[]
 
   @@index([branchName])
   @@index([areaName])
   @@index([branchName, code])
   @@index([branchName, areaName])
+}
+
+model MasterAhoTicket {
+  id         String   @id @default(uuid())
+  storeCode  String
+  problemNo  String
+  status     String    // "New" atau "Progress"
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  store      Store    @relation(fields: [storeCode], references: [code])
+
+  @@unique([storeCode, problemNo])
+  @@index([storeCode])
 }
 
 model Report {
