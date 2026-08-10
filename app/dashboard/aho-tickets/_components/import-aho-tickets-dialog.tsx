@@ -28,15 +28,14 @@ import { adminImportAhoTickets } from "../actions";
 type ImportResult = Awaited<ReturnType<typeof adminImportAhoTickets>>;
 
 function generateAhoTicketTemplate() {
-    const headers = ["Kode Toko", "No Problem", "Status"];
+    const headers = ["Kode Toko", "No Problem", "Status", "Kode Cabang Existing", "Nama Cabang Existing"];
     const exampleData = [
-        ["A001", "AHO-12345", "New"],
-        ["T123", "AHO-12346", "Progress"],
-        ["V456", "AHO-12347", "New"],
+        ["1YZ1", "1YZ1-P-G26-2883", "New", "1YZ1", "Manado"],
+        ["CD02", "CZ01-P-F26-4315", "Progress", "JZ01", "DC Cileungsi 2"],
     ];
 
     const ws = XLSX.utils.aoa_to_sheet([headers, ...exampleData]);
-    ws["!cols"] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }];
+    ws["!cols"] = [{ wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 25 }];
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Template Tiket AHO");
@@ -165,7 +164,7 @@ export function ImportAhoTicketsDialog() {
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                     Kolom wajib (baris 1):{" "}
-                                    <strong>Kode Toko, No Problem, Status</strong>.
+                                    <strong>Kode Toko, No Problem, Status, Kode Cabang Existing, Nama Cabang Existing</strong>.
                                     Pastikan penulisan header persis sama.
                                 </p>
                                 <Button
