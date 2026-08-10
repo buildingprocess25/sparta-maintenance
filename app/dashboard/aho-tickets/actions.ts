@@ -10,6 +10,8 @@ import * as XLSX from "xlsx";
 
 export type AdminAhoTicketFilters = {
     search?: string;
+    branchName?: string;
+    status?: string;
 };
 
 // ─── List (cursor-based infinite scroll) ─────────────────────────────────────
@@ -34,8 +36,18 @@ export async function getAdminAhoTickets(
             where.OR = [
                 { storeCode: { contains: filters.search, mode: "insensitive" } },
                 { problemNo: { contains: filters.search, mode: "insensitive" } },
+                { branchName: { contains: filters.search, mode: "insensitive" } },
+                { status: { contains: filters.search, mode: "insensitive" } },
                 { store: { name: { contains: filters.search, mode: "insensitive" } } },
             ];
+        }
+
+        if (filters.branchName) {
+            where.branchName = { contains: filters.branchName, mode: "insensitive" };
+        }
+
+        if (filters.status && filters.status !== "all") {
+            where.status = { equals: filters.status, mode: "insensitive" };
         }
 
         const totalCount = await prisma.masterAhoTicket.count({ where });
@@ -100,7 +112,7 @@ function parseXlsx(
 
     const fileHeaders = Object.keys(rows[0]);
     const missing = requiredHeaders.filter(
-        (h) => !fileHeaders.some((fh) => fh.trim().toLowerCase() === h.toLowerCase()),
+        (h) => !fileHeaders.some((fh) => fh.replace(/\s+/g, " ").trim().toLowerCase() === h.toLowerCase()),
     );
     if (missing.length > 0) {
         return {
@@ -113,15 +125,15 @@ function parseXlsx(
     const mappedRows = rows.map((row) => {
         const mapped: Record<string, string> = {};
         for (const key of Object.keys(row)) {
-            const trimmedKey = key.trim();
+            const normalizedKey = key.replace(/\s+/g, " ").trim();
             // Find if this key matches any required header case-insensitively
             const matchedHeader = requiredHeaders.find(
-                (h) => h.toLowerCase() === trimmedKey.toLowerCase()
+                (h) => h.toLowerCase() === normalizedKey.toLowerCase()
             );
             if (matchedHeader) {
                 mapped[matchedHeader] = row[key];
             } else {
-                mapped[trimmedKey] = row[key];
+                mapped[normalizedKey] = row[key];
             }
         }
         return mapped;
@@ -169,6 +181,8 @@ export async function adminImportAhoTickets(formData: FormData) {
             "Kode Toko",
             "No Problem",
             "Status",
+            "Kode Cabang Existing",
+            "Nama Cabang Existing",
         ]);
         if (error) return { ...result, errors: [error] };
 
@@ -177,9 +191,9 @@ export async function adminImportAhoTickets(formData: FormData) {
         // Valid statuses
         const VALID_STATUSES = ["New", "Progress"];
 
-        // Data processing map: key -> { storeCode, problemNo, status, rowNum }
+        // Data processing map: key -> { storeCode, problemNo, status, branchCode, branchName, rowNum }
         // Using a map ensures duplicates are overwritten by the last occurrence
-        const validTickets = new Map<string, { storeCode: string; problemNo: string; status: string; rowNum: number }>();
+        const validTickets = new Map<string, { storeCode: string; problemNo: string; status: string; branchCode?: string; branchName?: string; rowNum: number }>();
         const codesInFile = new Set<string>();
 
         for (let i = 0; i < rows.length; i++) {
@@ -188,6 +202,12 @@ export async function adminImportAhoTickets(formData: FormData) {
             const storeCode = row["Kode Toko"]?.trim().toUpperCase();
             const problemNo = row["No Problem"]?.trim();
             const statusRaw = row["Status"]?.trim();
+            let branchCode = row["Kode Cabang Existing"]?.trim();
+            let branchName = row["Nama Cabang Existing"]?.trim();
+
+            if (branchName && branchName.toUpperCase().startsWith("DC ")) {
+                branchName = branchName.substring(3).trim();
+            }
 
             if (!storeCode || !problemNo || !statusRaw) {
                 result.skipped++;
@@ -202,9 +222,7 @@ export async function adminImportAhoTickets(formData: FormData) {
 
             if (!VALID_STATUSES.includes(status)) {
                 result.skipped++;
-                if (result.errors.length < MAX_IMPORT_ERRORS) {
-                    result.errors.push(`Baris ${rowNum} (${storeCode}/${problemNo}): Status '${statusRaw}' tidak aktif (hanya menerima New/Progress)`);
-                }
+                // Skip menambahkan ke result.errors untuk mengurangi spam error teks merah
                 continue;
             }
 
@@ -216,7 +234,7 @@ export async function adminImportAhoTickets(formData: FormData) {
                     result.duplicates.push(`Baris ${rowNum}: Duplikat untuk ${storeCode} - ${problemNo}. Menggunakan data baris terakhir.`);
                 }
             }
-            validTickets.set(key, { storeCode, problemNo, status, rowNum });
+            validTickets.set(key, { storeCode, problemNo, status, branchCode, branchName, rowNum });
         }
 
         // Validate store codes against database
@@ -242,18 +260,19 @@ export async function adminImportAhoTickets(formData: FormData) {
                 storeCode: ticket.storeCode,
                 problemNo: ticket.problemNo,
                 status: ticket.status,
+                branchCode: ticket.branchCode,
+                branchName: ticket.branchName,
             });
         }
 
-        // Full sync: Delete all and insert new
-        await prisma.$transaction([
-            prisma.masterAhoTicket.deleteMany({}),
-            prisma.masterAhoTicket.createMany({
-                data: dataToInsert,
-            }),
-        ]);
+        // Insert new data, skip duplicates
+        const createResult = await prisma.masterAhoTicket.createMany({
+            data: dataToInsert,
+            skipDuplicates: true,
+        });
 
-        result.created = dataToInsert.length;
+        result.created = createResult.count;
+        result.skipped += (dataToInsert.length - createResult.count);
         result.success = true;
         revalidatePath("/dashboard/aho-tickets");
 
@@ -302,5 +321,89 @@ export async function getActiveAhoTickets(storeCode: string) {
     } catch (error) {
         logger.error({ operation: "getActiveAhoTickets", storeCode }, "Failed to fetch tickets", error);
         return [];
+    }
+}
+
+// ─── CRUD Actions for Manual Management ──────────────────────────────────────
+
+export async function adminCreateAhoTicket(data: {
+    storeCode: string;
+    problemNo: string;
+    status: string;
+    branchCode?: string;
+    branchName?: string;
+}) {
+    try {
+        const user = await getAuthUser();
+        if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+
+        let normalizedBranchName = data.branchName?.trim() || null;
+        if (normalizedBranchName && normalizedBranchName.toUpperCase().startsWith("DC ")) {
+            normalizedBranchName = normalizedBranchName.substring(3).trim();
+        }
+
+        const ticket = await prisma.masterAhoTicket.create({
+            data: {
+                storeCode: data.storeCode.trim().toUpperCase(),
+                problemNo: data.problemNo.trim(),
+                status: data.status,
+                branchCode: data.branchCode?.trim() || null,
+                branchName: normalizedBranchName,
+            }
+        });
+        revalidatePath("/dashboard/aho-tickets");
+        return { ticket };
+    } catch (e: any) {
+        if (e.code === "P2002") return { error: "Tiket dengan toko dan nomor problem ini sudah ada." };
+        if (e.code === "P2003") return { error: "Toko dengan kode tersebut tidak ditemukan." };
+        return { error: "Gagal menyimpan tiket AHO." };
+    }
+}
+
+export async function adminUpdateAhoTicket(id: string, data: {
+    storeCode: string;
+    problemNo: string;
+    status: string;
+    branchCode?: string;
+    branchName?: string;
+}) {
+    try {
+        const user = await getAuthUser();
+        if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+
+        let normalizedBranchName = data.branchName?.trim() || null;
+        if (normalizedBranchName && normalizedBranchName.toUpperCase().startsWith("DC ")) {
+            normalizedBranchName = normalizedBranchName.substring(3).trim();
+        }
+
+        const ticket = await prisma.masterAhoTicket.update({
+            where: { id },
+            data: {
+                storeCode: data.storeCode.trim().toUpperCase(),
+                problemNo: data.problemNo.trim(),
+                status: data.status,
+                branchCode: data.branchCode?.trim() || null,
+                branchName: normalizedBranchName,
+            }
+        });
+        revalidatePath("/dashboard/aho-tickets");
+        return { ticket };
+    } catch (e: any) {
+        if (e.code === "P2002") return { error: "Tiket dengan toko dan nomor problem ini sudah ada." };
+        if (e.code === "P2003") return { error: "Toko dengan kode tersebut tidak ditemukan." };
+        return { error: "Gagal mengupdate tiket AHO." };
+    }
+}
+
+export async function adminDeleteAhoTicket(id: string) {
+    try {
+        const user = await getAuthUser();
+        if (!user || user.role !== "ADMIN") return { error: "Unauthorized" };
+
+        await prisma.masterAhoTicket.delete({ where: { id } });
+        revalidatePath("/dashboard/aho-tickets");
+        return { success: true };
+    } catch (e: any) {
+        return { error: "Gagal menghapus tiket AHO." };
     }
 }

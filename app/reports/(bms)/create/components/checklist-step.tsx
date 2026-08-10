@@ -33,6 +33,7 @@ import {
 
 interface ChecklistStepProps {
   storeCode?: string;
+  branchCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
   activeCategories: ChecklistCategory[];
   checklist: Map<string, ChecklistItem>;
@@ -65,6 +66,7 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
 
 export function ChecklistStep({
   storeCode,
+  branchCode,
   isRepairOnlyMode,
   activeCategories,
   checklist,
@@ -109,6 +111,16 @@ export function ChecklistStep({
   const progress =
     totalItems > 0 ? Math.round((evaluatedCount / totalItems) * 100) : 0;
   const hasSearch = searchQuery.trim().length > 0;
+
+  const selectedAhoTickets = useMemo(() => {
+    const tickets = new Set<string>();
+    for (const item of checklist.values()) {
+      if (item.ahoTicketNumber) {
+        tickets.add(item.ahoTicketNumber);
+      }
+    }
+    return tickets;
+  }, [checklist]);
 
   const isHeaderVisible = useBmsMobileHeaderVisibility();
 
@@ -495,8 +507,12 @@ export function ChecklistStep({
                                           <LocalAhoInput
                                             id={`${item.id}-aho`}
                                             storeCode={storeCode}
-                                            required
-                                            initialValue={itemData?.ahoTicketNumber || ""}
+                                            branchCode={branchCode}
+                                            initialValue={
+                                              checklist.get(item.id)
+                                                ?.ahoTicketNumber || ""
+                                            }
+                                            selectedTickets={selectedAhoTickets}
                                             onCommit={(val) =>
                                               onAhoTicketNumberChange(
                                                 item.id,
@@ -504,6 +520,7 @@ export function ChecklistStep({
                                                 val,
                                               )
                                             }
+                                            required
                                           />
                                         </div>
                                       </div>

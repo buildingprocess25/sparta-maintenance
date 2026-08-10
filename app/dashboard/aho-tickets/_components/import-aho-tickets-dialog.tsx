@@ -269,7 +269,7 @@ export function ImportAhoTicketsDialog() {
                             <div className="grid grid-cols-2 gap-2 text-center">
                                 {[
                                     { label: "Tersimpan", value: result.created, color: "text-green-600" },
-                                    { label: "Dilewati", value: result.skipped, color: "text-yellow-600" },
+                                    { label: "Dilewati (Duplikat atau bukan New/Progress)", value: result.skipped, color: "text-yellow-600" },
                                 ].map(({ label, value, color }) => (
                                     <div key={label} className="rounded-md bg-muted/50 p-2">
                                         <p className={`text-lg font-semibold ${color}`}>

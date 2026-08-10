@@ -10,21 +10,108 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { getAdminAhoTickets, AdminAhoTicketFilters } from "../actions";
+import { getAdminAhoTickets, AdminAhoTicketFilters, adminDeleteAhoTicket } from "../actions";
+import { AdminAhoTicketFormDialog } from "./admin-aho-ticket-form-dialog";
+import { ImportAhoTicketsDialog } from "./import-aho-tickets-dialog";
+import { useTransition } from "react";
 
 type TicketItem = Awaited<ReturnType<typeof getAdminAhoTickets>>["tickets"][0];
+
+function DeleteTicketDialog({
+    ticket,
+    onDeleted,
+}: {
+    ticket: TicketItem;
+    onDeleted: (id: string) => void;
+}) {
+    const [isPending, startTransition] = useTransition();
+
+    const handleDelete = () => {
+        startTransition(async () => {
+            const result = await adminDeleteAhoTicket(ticket.id);
+            if (result.error) {
+                toast.error("Gagal menghapus tiket", { description: result.error });
+                return;
+            }
+            toast.success(`Tiket ${ticket.problemNo} berhasil dihapus`);
+            onDeleted(ticket.id);
+        });
+    };
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>
+                <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                >
+                    <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Hapus Tiket AHO</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Yakin ingin menghapus tiket AHO dengan No Problem{" "}
+                        <strong>{ticket.problemNo}</strong> untuk toko{" "}
+                        <strong>{ticket.storeCode}</strong>? Tindakan ini tidak dapat dibatalkan.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                    <AlertDialogAction
+                        onClick={handleDelete}
+                        disabled={isPending}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                        {isPending && (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        )}
+                        Ya, Hapus
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+    );
+}
 
 export function AdminAhoTicketsTable({
     initialData,
     initialNextCursor,
     initialTotalCount,
+    branches,
+    allBrands,
+    areaNamesByBranch,
 }: {
     initialData: TicketItem[];
     initialNextCursor: string | null;
     initialTotalCount: number;
+    branches?: string[];
+    allBrands?: string[];
+    areaNamesByBranch?: Record<string, string[]>;
 }) {
     const [tickets, setTickets] = useState<TicketItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
@@ -34,6 +121,8 @@ export function AdminAhoTicketsTable({
 
     // Filters
     const [search, setSearch] = useState("");
+    const [branchName, setBranchName] = useState("all");
+    const [statusFilter, setStatusFilter] = useState("all");
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
@@ -42,6 +131,8 @@ export function AdminAhoTicketsTable({
         async (cursor: string | null, isInitial = false) => {
             const filters: AdminAhoTicketFilters = {
                 search: search || undefined,
+                branchName: branchName === "all" ? undefined : branchName,
+                status: statusFilter === "all" ? undefined : statusFilter,
             };
 
             try {
@@ -70,7 +161,7 @@ export function AdminAhoTicketsTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search],
+        [search, branchName, statusFilter],
     );
 
     // Debounced reload on filter change
@@ -80,7 +171,7 @@ export function AdminAhoTicketsTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, loadData]);
+    }, [search, branchName, statusFilter, loadData]);
 
     // Infinite scroll
     useEffect(() => {
@@ -101,6 +192,11 @@ export function AdminAhoTicketsTable({
         return () => observer.disconnect();
     }, [nextCursor, isFetchingNextPage, isLoading, loadData]);
 
+    const handleDeleted = (id: string) => {
+        setTickets((prev) => prev.filter((t) => t.id !== id));
+        setTotalCount((prev) => prev - 1);
+    };
+
     return (
         <div className="space-y-4">
             {/* Summary */}
@@ -117,7 +213,7 @@ export function AdminAhoTicketsTable({
             {/* Filter bar */}
             <div className="flex flex-wrap items-center gap-2 w-full">
                 {/* Search */}
-                <div className="relative flex-1 min-w-[200px]">
+                <div className="relative flex-[2] min-w-[200px]">
                     <Search className="absolute left-2.5 top-2 h-3 w-3 text-muted-foreground" />
                     <Input
                         placeholder="Cari kode toko, nama toko, atau no tiket..."
@@ -125,6 +221,43 @@ export function AdminAhoTicketsTable({
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
+                </div>
+
+                {/* Branch Filter */}
+                {branches && branches.length > 0 && (
+                    <Select value={branchName} onValueChange={setBranchName}>
+                        <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
+                            <SelectValue placeholder="Semua Cabang" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all" className="text-xs">
+                                Semua Cabang
+                            </SelectItem>
+                            {branches.map((b) => (
+                                <SelectItem key={b} value={b} className="text-xs">
+                                    {b}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                )}
+
+                {/* Status Filter */}
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="flex-[0.8] min-w-[120px] bg-white h-8 text-xs">
+                        <SelectValue placeholder="Semua Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all" className="text-xs">Semua Status</SelectItem>
+                        <SelectItem value="New" className="text-xs">New</SelectItem>
+                        <SelectItem value="Progress" className="text-xs">Progress</SelectItem>
+                    </SelectContent>
+                </Select>
+
+                {/* Tambah AHO Button */}
+                <div className="flex items-center gap-2 ml-auto">
+                    <ImportAhoTicketsDialog />
+                    <AdminAhoTicketFormDialog />
                 </div>
             </div>
 
@@ -140,11 +273,17 @@ export function AdminAhoTicketsTable({
                                 <TableHead className="min-w-[200px]">
                                     Nama Toko
                                 </TableHead>
+                                <TableHead className="w-[140px]">
+                                    Cabang
+                                </TableHead>
                                 <TableHead className="w-[160px]">
                                     No Problem
                                 </TableHead>
                                 <TableHead className="w-[100px]">
                                     Status
+                                </TableHead>
+                                <TableHead className="w-[80px] text-center">
+                                    Aksi
                                 </TableHead>
                             </TableRow>
                         </TableHeader>
@@ -152,7 +291,7 @@ export function AdminAhoTicketsTable({
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={4}
+                                        colSpan={6}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
@@ -161,7 +300,7 @@ export function AdminAhoTicketsTable({
                             ) : tickets.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={4}
+                                        colSpan={6}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada tiket AHO yang ditemukan
@@ -174,6 +313,9 @@ export function AdminAhoTicketsTable({
                                             {ticket.storeCode}
                                         </TableCell>
                                         <TableCell>{ticket.store?.name || "-"}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {ticket.branchName || "-"}
+                                        </TableCell>
                                         <TableCell className="font-mono">{ticket.problemNo}</TableCell>
                                         <TableCell>
                                             <Badge
@@ -186,6 +328,26 @@ export function AdminAhoTicketsTable({
                                             >
                                                 {ticket.status}
                                             </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-center">
+                                            <div className="flex items-center justify-center gap-1">
+                                                <AdminAhoTicketFormDialog
+                                                    editTicket={ticket}
+                                                    trigger={
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    }
+                                                />
+                                                <DeleteTicketDialog
+                                                    ticket={ticket}
+                                                    onDeleted={handleDeleted}
+                                                />
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))

@@ -156,6 +156,8 @@ model MasterAhoTicket {
   storeCode  String
   problemNo  String
   status     String    // "New" atau "Progress"
+  branchCode String?
+  branchName String?
   updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
   store      Store    @relation(fields: [storeCode], references: [code])
