@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 export function LocalAhoInput({
     id,
     storeCode,
-    branchCode,
     initialValue,
     selectedTickets = new Set(),
     onCommit,
@@ -19,7 +18,6 @@ export function LocalAhoInput({
 }: {
     id: string;
     storeCode?: string;
-    branchCode?: string;
     initialValue: string;
     selectedTickets?: Set<string>;
     onCommit: (value: string) => void;
@@ -59,7 +57,7 @@ export function LocalAhoInput({
 
     const smartPrefix = options.length > 0 
         ? options[0].substring(0, 7) 
-        : branchCode ? `${branchCode}-P-` : "";
+        : "";
 
     useEffect(() => {
         hasAutoFilled.current = false;

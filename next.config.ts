@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
   // Masukkan domain ngrok spesifik atau wildcard tanpa protokol (http/https)
   allowedDevOrigins: ["localhost:3000", "*.devtunnels.ms", "*.ngrok-free.dev", "runtgenographically-preposterous-shanel.ngrok-free.dev"],
   experimental: {
-    middlewareClientMaxBodySize: "70mb",
+    proxyClientMaxBodySize: "70mb",
     serverActions: {
       bodySizeLimit: "70mb",
       allowedOrigins: ["localhost:3000", "*.devtunnels.ms", "*.devtunnels.ms:*", "*.ngrok-free.dev", "*.ngrok-free.dev:*", "runtgenographically-preposterous-shanel.ngrok-free.dev"],
