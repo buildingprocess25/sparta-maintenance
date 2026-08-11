@@ -6,7 +6,8 @@ import {
     ImageIcon,
     Package,
     ReceiptText,
-    RotateCcw,
+    RotateCw,
+    Maximize,
     Store,
     ZoomIn,
     ZoomOut,
@@ -308,6 +309,7 @@ function ReceiptCompareDialog({
 }) {
     const [activePhotoId, setActivePhotoId] = useState<string | null>(null);
     const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
     const [pan, setPan] = useState({ x: 0, y: 0 });
     const [drag, setDrag] = useState<{
         pointerId: number;
@@ -327,6 +329,7 @@ function ReceiptCompareDialog({
     function resetImageView() {
         setZoom(1);
         setPan({ x: 0, y: 0 });
+        setRotation(0);
         setDrag(null);
         setPinch(null);
     }
@@ -516,18 +519,29 @@ function ReceiptCompareDialog({
                                             type="button"
                                             variant="ghost"
                                             size="icon-xs"
+                                            onClick={() => setRotation((r) => r + 90)}
+                                            aria-label="Putar foto nota"
+                                        >
+                                            <RotateCw />
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon-xs"
                                             disabled={
                                                 zoom === 1 &&
                                                 pan.x === 0 &&
-                                                pan.y === 0
+                                                pan.y === 0 &&
+                                                (rotation % 360) === 0
                                             }
                                             onClick={() => {
                                                 setZoom(1);
                                                 setPan({ x: 0, y: 0 });
+                                                setRotation(0);
                                             }}
                                             aria-label="Reset posisi foto nota"
                                         >
-                                            <RotateCcw />
+                                            <Maximize />
                                         </Button>
                                     </div>
                                 ) : null}
@@ -541,7 +555,7 @@ function ReceiptCompareDialog({
                                         className="size-full object-contain will-change-transform"
                                         draggable={false}
                                         style={{
-                                            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})`,
+                                            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom}) rotate(${rotation}deg)`,
                                             transition: drag
                                                 ? "none"
                                                 : "transform 120ms ease-out",
