@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type PointerEvent, type WheelEvent } from "react";
+import { useMemo, useState, useEffect, useRef, type PointerEvent } from "react";
 import {
     ArrowRightLeft,
     ImageIcon,
@@ -342,11 +342,22 @@ function ReceiptCompareDialog({
         }
     }
 
-    function handleWheel(event: WheelEvent<HTMLDivElement>) {
-        if (!activePhoto) return;
-        event.preventDefault();
-        updateZoom(zoom + (event.deltaY < 0 ? 0.2 : -0.2));
-    }
+    const imageContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const container = imageContainerRef.current;
+        if (!container) return;
+
+        const onWheel = (event: WheelEvent) => {
+            if (!activePhoto) return;
+            event.preventDefault();
+            updateZoom(zoom + (event.deltaY < 0 ? 0.2 : -0.2));
+        };
+
+        container.addEventListener("wheel", onWheel, { passive: false });
+        return () => container.removeEventListener("wheel", onWheel);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activePhoto, zoom]);
 
     function getDistance(
         p1: { x: number; y: number },
@@ -468,6 +479,7 @@ function ReceiptCompareDialog({
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col">
                             <div
+                                ref={imageContainerRef}
                                 className={cn(
                                     "relative flex min-h-0 flex-1 touch-none select-none items-center justify-center overflow-hidden bg-black p-2",
                                     activePhoto &&
@@ -477,7 +489,6 @@ function ReceiptCompareDialog({
                                                 : "cursor-grab"
                                             : "cursor-zoom-in"),
                                 )}
-                                onWheel={handleWheel}
                                 onPointerDown={handlePointerDown}
                                 onPointerMove={handlePointerMove}
                                 onPointerUp={handlePointerEnd}
@@ -487,7 +498,11 @@ function ReceiptCompareDialog({
                                 }
                             >
                                 {activePhoto ? (
-                                    <div className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-background/95 p-1 shadow-sm">
+                                    <div
+                                        className="absolute right-2 top-2 z-10 flex items-center gap-1 rounded-md bg-background/95 p-1 shadow-sm"
+                                        onPointerDown={(e) => e.stopPropagation()}
+                                        onDoubleClick={(e) => e.stopPropagation()}
+                                    >
                                         <Button
                                             type="button"
                                             variant="ghost"
