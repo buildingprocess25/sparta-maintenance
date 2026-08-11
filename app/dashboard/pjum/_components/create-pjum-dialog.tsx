@@ -509,8 +509,8 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                 Tidak ada laporan pada periode yang dipilih.
                             </div>
                         ) : (
-                            <div className="min-h-0 flex-1">
-                                <Table containerClassName="max-h-[50vh]">
+                            <div className="flex min-h-0 flex-1 flex-col">
+                                <Table containerClassName="min-h-0 flex-1 max-h-none">
                                     <TableHeader>
                                         <TableRow className="h-8">
                                             <TableHead className="w-9 px-2 py-1" />
