@@ -91,6 +91,7 @@ export type PjumExportRow = {
     createdAt: Date;
     approvedByName: string | null;
     approvedAt: Date | null;
+    totalReal: number;
 };
 
 // ─── Sheet 4: Preventive rows ───────────────────────────────────────────────────
@@ -406,10 +407,12 @@ export async function fetchPjumExportRows(
 
         // Collect unique NIKs to resolve names in one query
         const nikSet = new Set<string>();
+        const reportNumberSet = new Set<string>();
         for (const e of exports) {
             nikSet.add(e.createdByNIK);
             nikSet.add(e.bmsNIK);
             if (e.approvedByNIK) nikSet.add(e.approvedByNIK);
+            for (const rn of e.reportNumbers) reportNumberSet.add(rn);
         }
 
         const users = await prisma.user.findMany({
@@ -417,6 +420,14 @@ export async function fetchPjumExportRows(
             select: { NIK: true, name: true },
         });
         const nameMap = new Map(users.map((u) => [u.NIK, u.name]));
+
+        const reports = await prisma.report.findMany({
+            where: { reportNumber: { in: Array.from(reportNumberSet) } },
+            select: { reportNumber: true, totalReal: true },
+        });
+        const totalRealMap = new Map(
+            reports.map((r) => [r.reportNumber, Number(r.totalReal ?? 0)]),
+        );
 
         return exports.map((e) => ({
             branchName: e.branchName,
@@ -433,6 +444,7 @@ export async function fetchPjumExportRows(
                 ? (nameMap.get(e.approvedByNIK) ?? e.approvedByNIK)
                 : null,
             approvedAt: e.approvedAt,
+            totalReal: e.reportNumbers.reduce((sum, rn) => sum + (totalRealMap.get(rn) ?? 0), 0),
         }));
     } catch (error) {
         logger.error(
