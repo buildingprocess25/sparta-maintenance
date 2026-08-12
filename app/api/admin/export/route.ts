@@ -43,6 +43,7 @@ function buildReportSheet(
 ): XLSX.WorkSheet {
   const headers = [
     "No. Laporan",
+    "Jenis Laporan",
     "Tanggal Dibuat",
     "Branch",
     "Kode Toko",
@@ -72,6 +73,7 @@ function buildReportSheet(
     headers.map((h) => textCell(h)),
     ...rows.map((r) => [
       textCell(r.reportNumber),
+      textCell(r.isPreventive ? "Preventif" : "Insidentil"),
       dateCell(r.createdAt),
       textCell(r.branchName),
       textCell(r.storeCode),

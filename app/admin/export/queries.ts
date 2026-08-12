@@ -228,6 +228,22 @@ export async function fetchReportExportRows(
             },
         });
 
+        const reportNumbers = reports.map((r) => r.reportNumber);
+        
+        let preventiveSet = new Set<string>();
+        if (reportNumbers.length > 0) {
+            const preventiveReports = await prisma.$queryRaw<{ reportNumber: string }[]>`
+                SELECT r."reportNumber"
+                FROM "Report" r
+                WHERE r."reportNumber" IN (${Prisma.join(reportNumbers)})
+                  AND ${completePreventiveEvidenceSql({
+                      statusColumn: Prisma.sql`r."status"`,
+                      itemsColumn: Prisma.sql`r."items"`,
+                  })}
+            `;
+            preventiveSet = new Set(preventiveReports.map(r => r.reportNumber));
+        }
+
         return reports.map((r) => {
             const actionTimes = new Map<string, Date>();
             for (const activity of r.activities) {
@@ -238,6 +254,7 @@ export async function fetchReportExportRows(
 
             return {
                 reportNumber: r.reportNumber,
+                isPreventive: preventiveSet.has(r.reportNumber),
                 createdAt: r.createdAt,
                 branchName: r.branchName,
                 storeCode: r.storeCode,
