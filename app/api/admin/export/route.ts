@@ -193,26 +193,34 @@ function normalizePreventiveQuarter(
 
 const PREVENTIVE_QUARTER_COLUMNS = {
   1: {
+    nik: "q1Nik",
     by: "q1By",
     date: "q1Date",
+    nikHeader: "TW1 NIK",
     bmsHeader: "TW1 BMS",
     dateHeader: "TW1 TGL",
   },
   2: {
+    nik: "q2Nik",
     by: "q2By",
     date: "q2Date",
+    nikHeader: "TW2 NIK",
     bmsHeader: "TW2 BMS",
     dateHeader: "TW2 TGL",
   },
   3: {
+    nik: "q3Nik",
     by: "q3By",
     date: "q3Date",
+    nikHeader: "TW3 NIK",
     bmsHeader: "TW3 BMS",
     dateHeader: "TW3 TGL",
   },
   4: {
+    nik: "q4Nik",
     by: "q4By",
     date: "q4Date",
+    nikHeader: "TW4 NIK",
     bmsHeader: "TW4 BMS",
     dateHeader: "TW4 TGL",
   },
@@ -225,6 +233,7 @@ function buildPreventiveSheet(
   const baseHeaders = ["Kode Toko", "Nama Toko", "Branch"];
   const quarters = quarter === "all" ? ([1, 2, 3, 4] as const) : [quarter];
   const quarterHeaders = quarters.flatMap((q) => [
+    PREVENTIVE_QUARTER_COLUMNS[q].nikHeader,
     PREVENTIVE_QUARTER_COLUMNS[q].bmsHeader,
     PREVENTIVE_QUARTER_COLUMNS[q].dateHeader,
   ]);
@@ -235,7 +244,11 @@ function buildPreventiveSheet(
     ...rows.map((r) => {
       const quarterCells = quarters.flatMap((q) => {
         const config = PREVENTIVE_QUARTER_COLUMNS[q];
-        return [textCell(r[config.by]), dateCell(r[config.date])];
+        return [
+          textCell((r as any)[config.nik]),
+          textCell((r as any)[config.by]),
+          dateCell((r as any)[config.date]),
+        ];
       });
 
       return [

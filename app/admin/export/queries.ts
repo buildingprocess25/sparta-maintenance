@@ -680,11 +680,12 @@ export async function fetchPreventiveExportRows(
                 info: { doneAt: Date; bmsName: string; bmsNIK: string } | null,
             ) => {
                 if (!info) {
-                    return { by: "", date: null };
+                    return { nik: "", by: "", date: null };
                 }
 
                 return {
-                    by: info.bmsName || info.bmsNIK || "",
+                    nik: info.bmsNIK || "",
+                    by: info.bmsName || "",
                     date: info.doneAt,
                 };
             };
@@ -705,12 +706,16 @@ export async function fetchPreventiveExportRows(
                 storeCode: store.code,
                 storeName: store.name,
                 branchName: store.branchName,
+                q1Nik: q1.nik,
                 q1By: q1.by,
                 q1Date: q1.date,
+                q2Nik: q2.nik,
                 q2By: q2.by,
                 q2Date: q2.date,
+                q3Nik: q3.nik,
                 q3By: q3.by,
                 q3Date: q3.date,
+                q4Nik: q4.nik,
                 q4By: q4.by,
                 q4Date: q4.date,
             };
