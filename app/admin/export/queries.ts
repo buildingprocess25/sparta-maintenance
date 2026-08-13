@@ -35,6 +35,7 @@ export type ExportFilter = {
 
 export type ReportExportRow = {
     reportNumber: string;
+    isPreventive: boolean;
     createdAt: Date;
     branchName: string;
     storeCode: string | null;
