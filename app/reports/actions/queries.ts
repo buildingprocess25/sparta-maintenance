@@ -76,6 +76,7 @@ export async function getMyReports(filters: ReportFilters = {}) {
             : [
                   "DRAFT",
                   "PENDING_ESTIMATION",
+                  "PENDING_CHECKLIST_REVIEW",
                   "ESTIMATION_APPROVED",
                   "ESTIMATION_REJECTED_REVISION",
                   "ESTIMATION_REJECTED",
@@ -202,6 +203,7 @@ export async function getApprovalReports(params: {
 
     const ALL_NON_DRAFT_STATUSES = [
         "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED_REVISION",
         "ESTIMATION_REJECTED",
@@ -217,7 +219,7 @@ export async function getApprovalReports(params: {
             ? ["APPROVED_BMC"]
             : user.role === "ADMIN"
               ? ALL_NON_DRAFT_STATUSES
-              : ["PENDING_ESTIMATION", "PENDING_REVIEW"]; // BMC
+              : ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"]; // BMC
 
     const normalizedStatus = statusParam?.toUpperCase();
     const activeStatuses: string[] =

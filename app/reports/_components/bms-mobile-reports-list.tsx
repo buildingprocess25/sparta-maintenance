@@ -162,6 +162,7 @@ export function BmsMobileReportsList({
       const ACTIVE_STATUSES = [
         "DRAFT",
         "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED_REVISION",
         "ESTIMATION_REJECTED",

@@ -36,6 +36,7 @@ import {
 const REPORT_STATUSES = [
     { value: "all", label: "Semua Status" },
     { value: "PENDING_ESTIMATION", label: "Pending Estimasi" },
+    { value: "PENDING_CHECKLIST_REVIEW", label: "Pending Review Checklist" },
     { value: "ESTIMATION_APPROVED", label: "Estimasi Disetujui" },
     { value: "ESTIMATION_REJECTED", label: "Estimasi Ditolak" },
     { value: "ESTIMATION_REJECTED_REVISION", label: "Revisi Estimasi" },

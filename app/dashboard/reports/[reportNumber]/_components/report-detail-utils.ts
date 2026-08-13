@@ -165,6 +165,7 @@ export function isIssueFollowUpStatus(status: string) {
     return (
         status === "DRAFT" ||
         status === "PENDING_ESTIMATION" ||
+        status === "PENDING_CHECKLIST_REVIEW" ||
         status === "ESTIMATION_APPROVED" ||
         status === "ESTIMATION_REJECTED_REVISION" ||
         status === "IN_PROGRESS" ||

@@ -67,6 +67,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
     const BMS_ACTIVE = [
         "DRAFT",
         "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
         "ESTIMATION_APPROVED",
         "ESTIMATION_REJECTED_REVISION",
         "ESTIMATION_REJECTED",
@@ -82,6 +83,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
     ];
     const BMS_WAITING_REVIEW = [
         "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
         "PENDING_REVIEW",
         "APPROVED_BMC",
     ];

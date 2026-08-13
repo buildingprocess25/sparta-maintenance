@@ -30,3 +30,17 @@ export function isRekananZeroCost(
 
     return allRekanan && hasNoEstimation;
 }
+
+/**
+ * Returns true when a report is "checklist-only":
+ * no items have handler === "BMS".
+ * Covers both pure-checklist reports (no damage) and reports where
+ * all damaged items are handled entirely by REKANAN.
+ *
+ * Reports matching this condition follow the fast-track approval flow:
+ *   PENDING_CHECKLIST_REVIEW → APPROVED_BMC → COMPLETED
+ * instead of the full BMS work stages.
+ */
+export function isChecklistOnlyReport(items: ReportItemJson[]): boolean {
+    return !items.some((item) => item.handler === "BMS");
+}

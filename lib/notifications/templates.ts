@@ -40,7 +40,9 @@ export function buildNotificationTemplate(
             case "REPORT_SUBMITTED":
                 return {
                     ...base,
-                    title: "Laporan baru menunggu review estimasi",
+                    title: context.isChecklistOnly
+                        ? "Laporan baru menunggu review checklist"
+                        : "Laporan baru menunggu review estimasi",
                     body: `${reportLabel(report)} perlu dicek oleh BMC.`,
                 };
             case "REPORT_ESTIMATION_APPROVED":

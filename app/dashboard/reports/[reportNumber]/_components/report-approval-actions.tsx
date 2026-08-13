@@ -261,6 +261,54 @@ function getApprovalConfig(
         };
     }
 
+    if (viewerRole === "BMC" && status === "PENDING_CHECKLIST_REVIEW") {
+        return {
+            type: "estimation",
+            successLabels: {
+                approve: "Checklist disetujui",
+                reject_revision: "Checklist dikembalikan untuk revisi",
+                reject: "Checklist ditolak",
+            },
+            actions: [
+                {
+                    decision: "reject",
+                    label: "Tolak",
+                    dialogTitle: "Tolak checklist laporan?",
+                    dialogDescription:
+                        "Laporan akan ditutup dan tidak dilanjutkan.",
+                    notesLabel: "Alasan penolakan",
+                    notesPlaceholder:
+                        "Contoh: data checklist tidak sesuai atau tidak valid.",
+                    requiresNotes: true,
+                    variant: "destructive",
+                    icon: XCircle,
+                },
+                {
+                    decision: "reject_revision",
+                    label: "Minta revisi",
+                    dialogTitle: "Kembalikan checklist untuk revisi?",
+                    dialogDescription:
+                        "BMS harus memperbaiki data checklist sebelum laporan dapat diproses lagi.",
+                    notesLabel: "Catatan revisi",
+                    notesPlaceholder:
+                        "Tulis bagian checklist yang perlu diperbaiki.",
+                    requiresNotes: true,
+                    variant: "outline",
+                    icon: RotateCcw,
+                },
+                {
+                    decision: "approve",
+                    label: "Setujui checklist",
+                    dialogTitle: "Setujui checklist laporan?",
+                    dialogDescription:
+                        "BMS tidak perlu melakukan pekerjaan. Laporan akan diteruskan ke BNM untuk approval final.",
+                    requiresNotes: false,
+                    variant: "default",
+                    icon: CheckCircle2,
+                },
+            ],
+        };
+    }
     if (viewerRole === "BMC" && status === "PENDING_REVIEW") {
         return {
             type: "completion",

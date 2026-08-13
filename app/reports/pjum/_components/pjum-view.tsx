@@ -85,6 +85,7 @@ type Props = {
 
 const STATUS_BAR: Record<string, string> = {
     PENDING_ESTIMATION: "bg-yellow-400",
+    PENDING_CHECKLIST_REVIEW: "bg-teal-400",
     ESTIMATION_APPROVED: "bg-green-500",
     ESTIMATION_REJECTED_REVISION: "bg-orange-500",
     ESTIMATION_REJECTED: "bg-red-500",
@@ -235,6 +236,16 @@ function getStatusBadge(status: string) {
                     {getReportStatusLabel("PENDING_ESTIMATION")}
                 </Badge>
             );
+        case "PENDING_CHECKLIST_REVIEW":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none whitespace-nowrap"
+                >
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("PENDING_CHECKLIST_REVIEW")}
+                </Badge>
+            );
         case "ESTIMATION_APPROVED":
             return (
                 <Badge
@@ -334,6 +345,7 @@ function getPjumHistoryStatusBadge(status: PjumHistoryRow["status"]) {
 // Mobile badge (text only, no icon, compact)
 const STATUS_BADGE_MOBILE: Record<string, string> = {
     PENDING_ESTIMATION: "bg-yellow-100 text-yellow-700",
+    PENDING_CHECKLIST_REVIEW: "bg-teal-100 text-teal-700",
     ESTIMATION_APPROVED: "bg-green-100 text-green-700",
     ESTIMATION_REJECTED_REVISION: "bg-orange-100 text-orange-700",
     ESTIMATION_REJECTED: "bg-red-100 text-red-700",
@@ -346,6 +358,7 @@ const STATUS_BADGE_MOBILE: Record<string, string> = {
 
 const STATUS_LABEL_MOBILE: Record<string, string> = {
     PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+    PENDING_CHECKLIST_REVIEW: getReportStatusLabel("PENDING_CHECKLIST_REVIEW"),
     ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
     ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
         "ESTIMATION_REJECTED_REVISION",

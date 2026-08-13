@@ -12,6 +12,8 @@ import { revalidatePath } from "next/cache";
 import type { DraftData } from "./types";
 import { draftDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
+import type { ReportItemJson } from "@/types/report";
 import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
 import { isSameJakartaQuarter } from "@/lib/time";
@@ -102,6 +104,12 @@ export async function submitReport(data: DraftData) {
         const itemsJson = buildItemsJson({ ...data, checklistItems });
         const estimationsJson = buildEstimationsJson(data);
 
+        // Determine the correct initial status based on items content
+        const submittedItems = itemsJson as unknown as ReportItemJson[];
+        const initialStatus = isChecklistOnlyReport(submittedItems)
+            ? "PENDING_CHECKLIST_REVIEW"
+            : "PENDING_ESTIMATION";
+
         const reportCreatedAt = parseDraftCreatedAt(data.draftCreatedAt);
 
         // Always get the store to generate the correct sequence prefix
@@ -127,7 +135,7 @@ export async function submitReport(data: DraftData) {
                     storeName: data.storeName || "",
                     branchName: data.branchName || "",
                     totalEstimation: data.totalEstimation || 0,
-                    status: "PENDING_ESTIMATION",
+                    status: initialStatus,
                     createdByNIK: user.NIK,
                     items: itemsJson,
                     estimations: estimationsJson,

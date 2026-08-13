@@ -96,6 +96,16 @@ const getStatusBadge = (status: string) => {
                     {getReportStatusLabel("PENDING_ESTIMATION")}
                 </Badge>
             );
+        case "PENDING_CHECKLIST_REVIEW":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none"
+                >
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("PENDING_CHECKLIST_REVIEW")}
+                </Badge>
+            );
         case "ESTIMATION_APPROVED":
             return (
                 <Badge
@@ -185,6 +195,8 @@ const getActionLabel = (status: string, role: string): string => {
     switch (status) {
         case "PENDING_ESTIMATION":
             return "Review Estimasi";
+        case "PENDING_CHECKLIST_REVIEW":
+            return "Review Checklist";
         case "PENDING_REVIEW":
             return "Review Pekerjaan";
         case "APPROVED_BMC":
@@ -517,6 +529,7 @@ export function ApprovalReportsList({
                                 {reports.map((report) => {
                                     const statusBar: Record<string, string> = {
                                         PENDING_ESTIMATION: "bg-yellow-400",
+                                        PENDING_CHECKLIST_REVIEW: "bg-teal-400",
                                         ESTIMATION_APPROVED: "bg-green-500",
                                         ESTIMATION_REJECTED_REVISION:
                                             "bg-orange-500",
@@ -532,6 +545,8 @@ export function ApprovalReportsList({
                                         {
                                             PENDING_ESTIMATION:
                                                 "bg-yellow-100 text-yellow-700",
+                                            PENDING_CHECKLIST_REVIEW:
+                                                "bg-teal-100 text-teal-700",
                                             ESTIMATION_APPROVED:
                                                 "bg-green-100 text-green-700",
                                             ESTIMATION_REJECTED_REVISION:

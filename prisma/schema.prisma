@@ -30,6 +30,7 @@ enum PjumStatus {
 enum ReportStatus {
   DRAFT
   PENDING_ESTIMATION // BMS submitted, waiting BMC estimation review
+  PENDING_CHECKLIST_REVIEW // Checklist report, fast track to BMC
   ESTIMATION_APPROVED // BMC approved estimation, BMS can start work
   ESTIMATION_REJECTED_REVISION // BMC rejected estimation, BMS must revise
   ESTIMATION_REJECTED // BMC permanently rejected (report closed)

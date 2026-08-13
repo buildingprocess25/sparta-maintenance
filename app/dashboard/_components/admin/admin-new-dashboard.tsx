@@ -626,6 +626,7 @@ function SlaStatusGuide() {
 function getStatusSegmentClass(status: string) {
     const map: Record<string, string> = {
         PENDING_ESTIMATION: "bg-yellow-400",
+        PENDING_CHECKLIST_REVIEW: "bg-teal-400",
         ESTIMATION_APPROVED: "bg-emerald-500",
         ESTIMATION_REJECTED_REVISION: "bg-orange-500",
         IN_PROGRESS: "bg-blue-500",

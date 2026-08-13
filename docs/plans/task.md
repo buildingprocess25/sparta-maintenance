@@ -1,6 +1,11 @@
-| Task | Status | Notes |
-|------|--------|-------|
-| Task A: Backend — `getBlockedRangesForBms` + `monthName` ke `createDashboardPjum` | ✅ done | commit 10514b2 |
-| Task B: Frontend — Overlap logic + DatePickerField di `create-pjum-dialog.tsx` | ✅ done | commit ca8991c |
-| Task C: Frontend — Tambah dropdown Bulan di grid filter | ✅ done | commit ca8991c |
-| Task D: Verifikasi end-to-end + Task Note | not_started | `docs/agent-notes/` |
+- [x] Task 1: Migrasi Database — Tambah Enum Value
+- [x] Task 2: Daftarkan Status di Helper Pusat
+- [x] Task 3: Tambah Fungsi Helper `isChecklistOnlyReport`
+- [x] Task 4: Update Action Submit
+- [x] Task 5: Update Action Resubmit
+- [x] Task 6: Update Action Approve-Estimation (Inti Alur Baru)
+- [x] Task 7: Update Notifikasi
+- [x] Task 8: Update Dashboard & Reports Queries
+- [x] Task 9: Update Reports Page Group Filters
+- [x] Task 10: Update Semua Komponen UI
+- [x] Task 11: Verifikasi & Task Note

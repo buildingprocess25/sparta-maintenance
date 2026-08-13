@@ -1,6 +1,7 @@
 export const REPORT_STATUS_LABELS = {
     DRAFT: "Draft",
     PENDING_ESTIMATION: "Review Estimasi",
+    PENDING_CHECKLIST_REVIEW: "Review Checklist",
     ESTIMATION_APPROVED: "Siap Dikerjakan",
     ESTIMATION_REJECTED_REVISION: "Revisi Estimasi",
     ESTIMATION_REJECTED: "Estimasi Ditolak",
@@ -21,6 +22,7 @@ export const OPERATIONAL_EXCLUDED_REPORT_STATUSES = [
 
 export const REPORT_STATUS_ORDER: ReportStatusKey[] = [
     "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
     "ESTIMATION_APPROVED",
     "IN_PROGRESS",
     "PENDING_REVIEW",
@@ -39,6 +41,7 @@ export const REPORT_STATUS_OPTIONS = REPORT_STATUS_ORDER.map((status) => ({
 export const REPORT_STATUS_BADGE_CLASS: Record<ReportStatusKey, string> = {
     DRAFT: "bg-slate-100 text-slate-700 hover:bg-slate-100/80",
     PENDING_ESTIMATION: "bg-yellow-100 text-yellow-800 hover:bg-yellow-100/80",
+    PENDING_CHECKLIST_REVIEW: "bg-teal-100 text-teal-800 hover:bg-teal-100/80",
     ESTIMATION_APPROVED: "bg-green-100 text-green-800 hover:bg-green-100/80",
     ESTIMATION_REJECTED_REVISION:
         "bg-orange-100 text-orange-800 hover:bg-orange-100/80",
@@ -54,6 +57,7 @@ export const REPORT_STATUS_BADGE_CLASS: Record<ReportStatusKey, string> = {
 export const REPORT_STATUS_SLUGS: Record<string, ReportStatusKey> = {
     draft: "DRAFT",
     pending_estimation: "PENDING_ESTIMATION",
+    pending_checklist_review: "PENDING_CHECKLIST_REVIEW",
     estimation_approved: "ESTIMATION_APPROVED",
     estimation_rejected_revision: "ESTIMATION_REJECTED_REVISION",
     estimation_rejected: "ESTIMATION_REJECTED",

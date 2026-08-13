@@ -44,6 +44,7 @@ async function dispatchReportNotification(
             branchName: true,
             areaName: true,
             createdByNIK: true,
+            status: true,
         },
     });
 
@@ -56,6 +57,7 @@ async function dispatchReportNotification(
         recipients,
         report,
         notes: "notes" in input ? input.notes : null,
+        isChecklistOnly: report.status === "PENDING_CHECKLIST_REVIEW",
     });
 }
 
@@ -188,6 +190,7 @@ async function createAndPushNotifications(params: {
         reportNumbers: string[];
     };
     notes?: string | null;
+    isChecklistOnly?: boolean;
 }) {
     const uniqueRecipients = Array.from(
         new Map(
@@ -203,6 +206,7 @@ async function createAndPushNotifications(params: {
             report: params.report,
             pjum: params.pjum,
             notes: params.notes,
+            isChecklistOnly: params.isChecklistOnly,
         });
 
         const notification = await prisma.notification.create({

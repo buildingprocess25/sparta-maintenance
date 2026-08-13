@@ -69,6 +69,7 @@ export async function getUserStats(userId: string) {
                     status: {
                         in: [
                             "PENDING_ESTIMATION",
+                            "PENDING_CHECKLIST_REVIEW",
                             "PENDING_REVIEW",
                             "APPROVED_BMC",
                         ],
@@ -133,7 +134,7 @@ export async function getBMCStats(branchNames: string[]) {
                     where: {
                         branchName: { in: branchNames },
                         status: {
-                            in: ["PENDING_ESTIMATION", "PENDING_REVIEW"],
+                            in: ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"],
                         },
                     },
                 }),
@@ -235,6 +236,7 @@ export async function getPendingPjumCount(
 
 const MANAGER_ACTIVE_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
     "ESTIMATION_APPROVED",
     "ESTIMATION_REJECTED_REVISION",
     "IN_PROGRESS",
@@ -292,7 +294,7 @@ function getManagerPriorityStatuses(role: ManagerDashboardRole) {
         return ["APPROVED_BMC"] as const;
     }
 
-    return ["PENDING_ESTIMATION", "PENDING_REVIEW"] as const;
+    return ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"] as const;
 }
 
 function normalizeManagerBranchNames(branchNames: string[]) {

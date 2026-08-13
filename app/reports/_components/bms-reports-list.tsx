@@ -195,6 +195,16 @@ export default function BmsReportsList({
                         {getReportStatusLabel("PENDING_ESTIMATION")}
                     </Badge>
                 );
+            case "PENDING_CHECKLIST_REVIEW":
+                return (
+                    <Badge
+                        variant="secondary"
+                        className="gap-1 bg-teal-100 text-teal-800 shadow-none border-0"
+                    >
+                        <Clock className="h-3 w-3" />
+                        {getReportStatusLabel("PENDING_CHECKLIST_REVIEW")}
+                    </Badge>
+                );
             case "ESTIMATION_APPROVED":
                 return (
                     <Badge
@@ -290,6 +300,11 @@ export default function BmsReportsList({
             cta: true,
         },
         PENDING_ESTIMATION: {
+            label: "Lihat",
+            icon: <Eye className="h-3.5 w-3.5" />,
+            cta: false,
+        },
+        PENDING_CHECKLIST_REVIEW: {
             label: "Lihat",
             icon: <Eye className="h-3.5 w-3.5" />,
             cta: false,

@@ -14,6 +14,8 @@ import { revalidatePath } from "next/cache";
 import type { DraftData } from "./types";
 import { createResubmitDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
+import type { ReportItemJson } from "@/types/report";
 
 /**
  * Resubmit a REJECTED report after revision.
@@ -48,10 +50,6 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
         }
 
         const currentStatus = report.status as RevisionStatus;
-        const newStatus =
-            currentStatus === "REVIEW_REJECTED_REVISION"
-                ? "PENDING_REVIEW"
-                : "PENDING_ESTIMATION";
 
         await requireOwnership(report.createdByNIK);
 
@@ -74,6 +72,14 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         const itemsJson = buildItemsJson(data);
         const estimationsJson = buildEstimationsJson(data);
+
+        const revisedItems = itemsJson as unknown as ReportItemJson[];
+        const newStatus =
+            currentStatus === "REVIEW_REJECTED_REVISION"
+                ? "PENDING_REVIEW"
+                : isChecklistOnlyReport(revisedItems)
+                  ? "PENDING_CHECKLIST_REVIEW"
+                  : "PENDING_ESTIMATION";
 
         await prisma.$transaction(async (tx) => {
             // Delete the rejection log entry before resubmitting
