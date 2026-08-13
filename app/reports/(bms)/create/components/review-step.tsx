@@ -287,11 +287,18 @@ export function ReviewStep({
             </h3>
 
             <div className="grid items-center gap-2">
-              {[
-                "Status laporan menjadi 'Menunggu Persetujuan Estimasi'.",
-                "BMC melakukan review estimasi dan checklist.",
-                "Jika disetujui, BMS dapat mulai pekerjaan.",
-              ].map((item, index) => (
+              {(brokenChecklistItems.length === 0
+                ? [
+                    "Status laporan menjadi 'Pending Review Checklist'.",
+                    "BMC melakukan review atas hasil checklist.",
+                    "Jika disetujui, laporan diteruskan ke BNM untuk approval akhir.",
+                  ]
+                : [
+                    "Status laporan menjadi 'Menunggu Persetujuan Estimasi'.",
+                    "BMC melakukan review estimasi dan checklist.",
+                    "Jika disetujui, BMS dapat mulai pekerjaan.",
+                  ]
+              ).map((item, index) => (
                 <div key={item} className="flex items-center gap-3">
                   <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {index + 1}
