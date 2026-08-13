@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
+import { getAppSetting, SETTING_KEYS } from "@/lib/app-settings";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { AdminAhoTicketsTable } from "./_components/admin-aho-tickets-table";
 import { ImportAhoTicketsDialog } from "./_components/import-aho-tickets-dialog";
@@ -17,10 +18,11 @@ export default async function AdminAhoTicketsPage() {
     // Sesuai spec, menu ini hanya untuk role ADMIN
     if (user.role !== "ADMIN") redirect("/dashboard");
 
-    const [branches, initialData, allBrands] = await Promise.all([
+    const [branches, initialData, allBrands, lastPrintDate] = await Promise.all([
         fetchAllBranchNames(),
         getAdminAhoTickets(null, 20, {}),
         getAllBrands(),
+        getAppSetting(SETTING_KEYS.AHO_LAST_PRINT_DATE),
     ]);
 
     const areaNamesByBranch = await getStoreAreaNamesByBranches(branches);
@@ -39,6 +41,7 @@ export default async function AdminAhoTicketsPage() {
                 branches={branches}
                 allBrands={allBrands}
                 areaNamesByBranch={areaNamesByBranch}
+                lastPrintDate={lastPrintDate}
             />
         </AdminDashboardShell>
     );
