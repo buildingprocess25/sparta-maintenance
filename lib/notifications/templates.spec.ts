@@ -32,6 +32,56 @@ const bmsTemplate = buildNotificationTemplate({
 assert.equal(bmsTemplate.href, "/reports/U845-2606-001");
 assert.match(bmsTemplate.body, /boleh mulai pekerjaan/i);
 
+const checklistApprovedTemplate = buildNotificationTemplate({
+    type: "REPORT_ESTIMATION_APPROVED",
+    actorNIK: "BMC001",
+    recipientRole: UserRole.BMS,
+    report,
+    isChecklistOnly: true,
+});
+
+assert.equal(checklistApprovedTemplate.title, "Checklist disetujui BMC");
+assert.match(checklistApprovedTemplate.body, /diteruskan ke BNM/i);
+
+const checklistRevisionTemplate = buildNotificationTemplate({
+    type: "REPORT_ESTIMATION_REJECTED_REVISION",
+    actorNIK: "BMC001",
+    recipientRole: UserRole.BMS,
+    report,
+    isChecklistOnly: true,
+});
+
+assert.equal(checklistRevisionTemplate.title, "Checklist perlu direvisi");
+assert.match(checklistRevisionTemplate.body, /review checklist/i);
+
+const checklistRejectedTemplate = buildNotificationTemplate({
+    type: "REPORT_ESTIMATION_REJECTED",
+    actorNIK: "BMC001",
+    recipientRole: UserRole.BMS,
+    report,
+    isChecklistOnly: true,
+});
+
+assert.equal(checklistRejectedTemplate.title, "Checklist ditolak");
+assert.match(checklistRejectedTemplate.body, /ditolak oleh BMC/i);
+
+const checklistFinalReviewTemplate = buildNotificationTemplate({
+    type: "REPORT_WORK_APPROVED",
+    actorNIK: "BMC001",
+    recipientRole: UserRole.BNM_MANAGER,
+    report,
+    isChecklistOnly: true,
+});
+
+assert.equal(
+    checklistFinalReviewTemplate.title,
+    "Checklist menunggu persetujuan final",
+);
+assert.match(checklistFinalReviewTemplate.body, /disetujui BMC/i);
+
+assert.equal(bmsTemplate.title, "Estimasi disetujui");
+assert.match(bmsTemplate.body, /boleh mulai pekerjaan/i);
+
 const workStartedTemplate = buildNotificationTemplate({
     type: "REPORT_WORK_STARTED",
     actorNIK: "24115397",

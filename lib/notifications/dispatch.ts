@@ -3,6 +3,8 @@ import "server-only";
 import { NotificationType, UserRole } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
+import type { ReportItemJson } from "@/types/report";
 import { buildNotificationTemplate } from "./templates";
 import { getBmsRecipient, getBranchRecipients } from "./recipients";
 import { sendPushToRecipients } from "./push";
@@ -44,20 +46,33 @@ async function dispatchReportNotification(
             branchName: true,
             areaName: true,
             createdByNIK: true,
-            status: true,
+            items: true,
         },
     });
 
     if (!report) return;
 
     const recipients = await getReportRecipients(input.type, report);
+    const reportItems = Array.isArray(report.items)
+        ? (report.items as unknown as ReportItemJson[])
+        : [];
+    const isChecklistOnly = isChecklistOnlyReport(reportItems);
+    const notificationReport = {
+        reportNumber: report.reportNumber,
+        storeCode: report.storeCode,
+        storeName: report.storeName,
+        branchName: report.branchName,
+        areaName: report.areaName,
+        createdByNIK: report.createdByNIK,
+    };
+
     await createAndPushNotifications({
         type: input.type,
         actorNIK: input.actorNIK,
         recipients,
-        report,
+        report: notificationReport,
         notes: "notes" in input ? input.notes : null,
-        isChecklistOnly: report.status === "PENDING_CHECKLIST_REVIEW",
+        isChecklistOnly,
     });
 }
 

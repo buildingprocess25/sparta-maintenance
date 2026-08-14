@@ -46,23 +46,41 @@ export function buildNotificationTemplate(
                     body: `${reportLabel(report)} perlu dicek oleh BMC.`,
                 };
             case "REPORT_ESTIMATION_APPROVED":
-                return {
-                    ...base,
-                    title: "Estimasi disetujui",
-                    body: `${reportLabel(report)} sudah disetujui. BMS boleh mulai pekerjaan.`,
-                };
+                return context.isChecklistOnly
+                    ? {
+                          ...base,
+                          title: "Checklist disetujui BMC",
+                          body: `${reportLabel(report)} sudah disetujui BMC dan diteruskan ke BNM untuk persetujuan final.`,
+                      }
+                    : {
+                          ...base,
+                          title: "Estimasi disetujui",
+                          body: `${reportLabel(report)} sudah disetujui. BMS boleh mulai pekerjaan.`,
+                      };
             case "REPORT_ESTIMATION_REJECTED_REVISION":
-                return {
-                    ...base,
-                    title: "Estimasi perlu direvisi",
-                    body: `${reportLabel(report)} dikembalikan untuk revisi. Buka laporan untuk melihat catatan.`,
-                };
+                return context.isChecklistOnly
+                    ? {
+                          ...base,
+                          title: "Checklist perlu direvisi",
+                          body: `${reportLabel(report)} dikembalikan untuk revisi review checklist. Buka laporan untuk melihat catatan.`,
+                      }
+                    : {
+                          ...base,
+                          title: "Estimasi perlu direvisi",
+                          body: `${reportLabel(report)} dikembalikan untuk revisi. Buka laporan untuk melihat catatan.`,
+                      };
             case "REPORT_ESTIMATION_REJECTED":
-                return {
-                    ...base,
-                    title: "Estimasi ditolak",
-                    body: `${reportLabel(report)} ditolak permanen oleh BMC.`,
-                };
+                return context.isChecklistOnly
+                    ? {
+                          ...base,
+                          title: "Checklist ditolak",
+                          body: `${reportLabel(report)} ditolak oleh BMC. Buka laporan untuk melihat catatan.`,
+                      }
+                    : {
+                          ...base,
+                          title: "Estimasi ditolak",
+                          body: `${reportLabel(report)} ditolak oleh BMC.`,
+                      };
             case "REPORT_COMPLETION_SUBMITTED":
                 return {
                     ...base,
@@ -76,11 +94,17 @@ export function buildNotificationTemplate(
                     body: `${reportLabel(report)} sudah mulai dikerjakan oleh BMS.`,
                 };
             case "REPORT_WORK_APPROVED":
-                return {
-                    ...base,
-                    title: "Pekerjaan disetujui BMC",
-                    body: `${reportLabel(report)} sudah diteruskan ke BNM untuk approval final.`,
-                };
+                return context.isChecklistOnly
+                    ? {
+                          ...base,
+                          title: "Checklist menunggu persetujuan final",
+                          body: `${reportLabel(report)} sudah disetujui BMC dan menunggu persetujuan final BNM.`,
+                      }
+                    : {
+                          ...base,
+                          title: "Pekerjaan disetujui BMC",
+                          body: `${reportLabel(report)} sudah diteruskan ke BNM untuk approval final.`,
+                      };
             case "REPORT_WORK_REJECTED_REVISION":
                 return {
                     ...base,
