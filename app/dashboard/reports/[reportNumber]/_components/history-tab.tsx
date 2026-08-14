@@ -1,6 +1,7 @@
 import { History } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import {
     Table,
     TableBody,
@@ -19,6 +20,8 @@ import {
 } from "./report-detail-utils";
 
 export function HistoryTab({ report }: { report: ReportDetailModel }) {
+    const isChecklistOnly = isChecklistOnlyReport(report.items);
+
     if (report.activities.length === 0) {
         return (
             <EmptyState
@@ -48,7 +51,11 @@ export function HistoryTab({ report }: { report: ReportDetailModel }) {
                 </TableHeader>
                 <TableBody>
                     {report.activities.map((activity) => (
-                        <ActivityRow key={activity.id} activity={activity} />
+                        <ActivityRow
+                            key={activity.id}
+                            activity={activity}
+                            isChecklistOnly={isChecklistOnly}
+                        />
                     ))}
                 </TableBody>
             </Table>
@@ -56,7 +63,13 @@ export function HistoryTab({ report }: { report: ReportDetailModel }) {
     );
 }
 
-function ActivityRow({ activity }: { activity: DetailActivity }) {
+function ActivityRow({
+    activity,
+    isChecklistOnly,
+}: {
+    activity: DetailActivity;
+    isChecklistOnly: boolean;
+}) {
     return (
         <TableRow>
             <TableCell className="py-2 font-mono text-xs">
@@ -73,7 +86,7 @@ function ActivityRow({ activity }: { activity: DetailActivity }) {
                     variant="outline"
                     className={activityBadgeClass(activity.action)}
                 >
-                    {formatActivityAction(activity.action)}
+                    {formatActivityAction(activity.action, isChecklistOnly)}
                 </Badge>
             </TableCell>
             <TableCell className="max-w-2xl whitespace-normal py-2 text-xs text-muted-foreground">

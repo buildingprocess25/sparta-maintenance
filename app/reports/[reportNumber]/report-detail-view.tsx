@@ -29,6 +29,8 @@ import {
   resolvePhotoUrl,
 } from "@/lib/storage/photo-url";
 import { calculateItemRealisasiTotal } from "@/lib/realisasi";
+import { getReportActivityActionLabel } from "@/lib/report-activity-label";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { cn } from "@/lib/utils";
 import type { ReportData, Viewer, ActivityEntry } from "./_components/types";
 import type { RealisasiItemJson } from "@/types/report";
@@ -99,6 +101,7 @@ function ConditionBadge({
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════ */
 export function ReportDetailView({ report, viewer }: ReportDetailProps) {
+  const isChecklistOnly = isChecklistOnlyReport(report.items);
   const [tab, setTab] = useState<TabKey>("checklist");
   const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
 
@@ -267,7 +270,12 @@ export function ReportDetailView({ report, viewer }: ReportDetailProps) {
                 total={report.totalEstimation}
               />
             ))}
-          {tab === "riwayat" && <HistoryPanel activities={report.activities} />}
+          {tab === "riwayat" && (
+            <HistoryPanel
+              activities={report.activities}
+              isChecklistOnly={isChecklistOnly}
+            />
+          )}
         </div>
       </main>
 
@@ -856,28 +864,28 @@ function CompletionPanel({
 /* ═══════════════════════════════════════════════════════════════
    HISTORY PANEL — timeline
    ═══════════════════════════════════════════════════════════════ */
-const HISTORY_LABELS: Record<
-  string,
-  { label: string; tone: "pos" | "neg" | "neutral" }
-> = {
-  SUBMITTED: { label: "Laporan Dikirim", tone: "pos" },
-  RESUBMITTED_ESTIMATION: { label: "Estimasi Dikirim Ulang", tone: "pos" },
-  RESUBMITTED_WORK: { label: "Pekerjaan Dikirim Ulang", tone: "pos" },
-  WORK_STARTED: { label: "Mulai Pekerjaan", tone: "pos" },
-  COMPLETION_SUBMITTED: { label: "Penyelesaian Dikirim", tone: "pos" },
-  ESTIMATION_APPROVED: { label: "Estimasi Disetujui", tone: "pos" },
-  ESTIMATION_REJECTED_REVISION: {
-    label: "Estimasi Diminta Revisi",
-    tone: "neg",
-  },
-  ESTIMATION_REJECTED: { label: "Estimasi Ditolak", tone: "neg" },
-  WORK_APPROVED: { label: "Pekerjaan Disetujui", tone: "pos" },
-  WORK_REJECTED_REVISION: { label: "Pekerjaan Diminta Revisi", tone: "neg" },
-  FINAL_APPROVED_BNM: { label: "Final Disetujui BNM", tone: "pos" },
-  FINAL_REJECTED_REVISION_BNM: { label: "Final Ditolak BNM", tone: "neg" },
+const HISTORY_TONES: Record<string, "pos" | "neg" | "neutral"> = {
+  SUBMITTED: "pos",
+  RESUBMITTED_ESTIMATION: "pos",
+  RESUBMITTED_WORK: "pos",
+  WORK_STARTED: "pos",
+  COMPLETION_SUBMITTED: "pos",
+  ESTIMATION_APPROVED: "pos",
+  ESTIMATION_REJECTED_REVISION: "neg",
+  ESTIMATION_REJECTED: "neg",
+  WORK_APPROVED: "pos",
+  WORK_REJECTED_REVISION: "neg",
+  FINAL_APPROVED_BNM: "pos",
+  FINAL_REJECTED_REVISION_BNM: "neg",
 };
 
-function HistoryPanel({ activities }: { activities: ActivityEntry[] }) {
+function HistoryPanel({
+  activities,
+  isChecklistOnly,
+}: {
+  activities: ActivityEntry[];
+  isChecklistOnly: boolean;
+}) {
   if (activities.length === 0) {
     return (
       <div className="py-10 text-center text-muted-foreground text-sm">
@@ -891,14 +899,15 @@ function HistoryPanel({ activities }: { activities: ActivityEntry[] }) {
   return (
     <div className="relative mt-4 ml-3 border-l border-border/40 pl-4">
       {sorted.map((entry, i) => {
-        const cfg = HISTORY_LABELS[entry.action] ?? {
-          label: entry.action,
-          tone: "neutral" as const,
-        };
+        const label = getReportActivityActionLabel(
+          entry.action,
+          isChecklistOnly,
+        );
+        const tone = HISTORY_TONES[entry.action] ?? "neutral";
         const dotColor =
-          cfg.tone === "pos"
+          tone === "pos"
             ? "bg-emerald-500"
-            : cfg.tone === "neg"
+            : tone === "neg"
               ? "bg-amber-500"
               : "bg-muted-foreground/40";
 
@@ -910,7 +919,7 @@ function HistoryPanel({ activities }: { activities: ActivityEntry[] }) {
                 dotColor,
               )}
             />
-            <p className="text-sm font-medium text-foreground">{cfg.label}</p>
+            <p className="text-sm font-medium text-foreground">{label}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5">
               {entry.actorName} · {formatJakartaDateTime(entry.createdAt)}
             </p>
