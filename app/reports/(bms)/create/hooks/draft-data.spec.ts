@@ -47,5 +47,11 @@ assert.equal(
     )?.ahoTicketNumber,
     undefined,
 );
+assert.equal(
+    serializeChecklistItems(checklist, checklistCategories).find(
+        (item) => item.itemId === "A1",
+    )?.handler,
+    undefined,
+);
 
 console.log("draft-data tests passed");

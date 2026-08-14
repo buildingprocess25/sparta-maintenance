@@ -33,7 +33,7 @@ export function isRekananZeroCost(
 
 /**
  * Returns true when a report is "checklist-only":
- * no items have handler === "BMS".
+ * no damaged items have handler === "BMS".
  * Covers both pure-checklist reports (no damage) and reports where
  * all damaged items are handled entirely by REKANAN.
  *
@@ -42,5 +42,10 @@ export function isRekananZeroCost(
  * instead of the full BMS work stages.
  */
 export function isChecklistOnlyReport(items: ReportItemJson[]): boolean {
-    return !items.some((item) => item.handler === "BMS");
+    return !items.some(
+        (item) =>
+            item.handler === "BMS" &&
+            (item.condition === "RUSAK" ||
+                item.preventiveCondition === "NOT_OK"),
+    );
 }

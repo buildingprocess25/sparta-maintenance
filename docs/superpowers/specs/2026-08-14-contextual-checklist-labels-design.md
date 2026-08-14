@@ -2,7 +2,7 @@
 
 ## Problem
 
-Laporan tanpa item dengan handler BMS sudah mengikuti alur singkat yang benar:
+Laporan tanpa item rusak dengan handler BMS sudah mengikuti alur singkat yang benar:
 
 ```text
 BMS submit
@@ -20,9 +20,9 @@ approval checklist tampil sebagai "Estimasi disetujui".
 
 ## Goals
 
-- Menampilkan petunjuk submit sesuai ada atau tidaknya handler BMS.
+- Menampilkan petunjuk submit sesuai ada atau tidaknya item rusak dengan handler BMS.
 - Menampilkan aktivitas approval, revisi, dan penolakan sebagai aktivitas
-  checklist untuk laporan tanpa handler BMS.
+  checklist untuk laporan tanpa item rusak dengan handler BMS.
 - Menyesuaikan notifikasi checklist tanpa mengubah recipient atau urutan flow.
 - Memperbaiki label aktivitas lama secara kontekstual tanpa backfill database.
 - Menjaga seluruh copy laporan dengan handler BMS tetap seperti sekarang.
@@ -41,21 +41,23 @@ approval checklist tampil sebagai "Estimasi disetujui".
 Jenis flow ditentukan oleh aturan domain yang sudah dipakai branch ini:
 
 ```text
-checklist-only = tidak ada item dengan handler === "BMS"
+checklist-only = tidak ada item RUSAK / NOT_OK dengan handler === "BMS"
 ```
 
 Aturan tersebut mencakup checklist murni dan laporan dengan kerusakan yang
-seluruhnya ditangani Rekanan. Implementasi harus menggunakan helper domain yang
+seluruhnya ditangani Rekanan. Handler pada item yang bukan rusak tidak boleh
+menentukan flow; nilai handler lama harus dibersihkan saat kondisi berubah dan
+diabaikan saat serialisasi. Implementasi harus menggunakan helper domain yang
 sama, bukan memeriksa jumlah item rusak, total biaya, atau status laporan saat
 ini. Status laporan dapat berubah menjadi `APPROVED_BMC` atau `COMPLETED`,
 sedangkan isi item tetap dapat menentukan jenis flow untuk aktivitas lama.
 
 ## Submit Review Copy
 
-Pada halaman review sebelum submit, copy ditentukan oleh keberadaan handler
-BMS.
+Pada halaman review sebelum submit, copy ditentukan oleh keberadaan item rusak
+dengan handler BMS.
 
-### Tanpa handler BMS
+### Tanpa item rusak dengan handler BMS
 
 1. `Status laporan menjadi "Review Checklist".`
 2. `BMC melakukan review checklist.`

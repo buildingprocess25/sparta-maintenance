@@ -13,10 +13,12 @@ export const BMS_AFTER_SUBMIT_STEPS = [
 ] as const;
 
 export function getAfterSubmitSteps(
-  items: Iterable<Pick<ChecklistItem, "handler">>,
+  items: Iterable<Pick<ChecklistItem, "condition" | "handler">>,
 ): readonly string[] {
   for (const item of items) {
-    if (item.handler === "BMS") return BMS_AFTER_SUBMIT_STEPS;
+    if (item.condition === "rusak" && item.handler === "BMS") {
+      return BMS_AFTER_SUBMIT_STEPS;
+    }
   }
 
   return CHECKLIST_ONLY_AFTER_SUBMIT_STEPS;
