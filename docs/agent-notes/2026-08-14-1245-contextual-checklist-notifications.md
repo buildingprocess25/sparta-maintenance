@@ -20,7 +20,8 @@ schema, migrations, and database data are unchanged.
 ## Changed Files
 
 - `lib/notifications/templates.spec.ts`: covers checklist-only approval,
-  revision, rejection, final-review copy, and unchanged BMS estimation copy.
+  revision, rejection, final-review copy, unchanged BMS estimation approval
+  copy, and the permanent-rejection fallback for BMS-handled reports.
 - `lib/notifications/templates.ts`: supplies exact checklist-only wording while
   retaining the existing BMS-flow variants.
 - `lib/notifications/dispatch.ts`: selects persisted items and passes only a
@@ -36,7 +37,7 @@ schema, migrations, and database data are unchanged.
   `createAndPushNotifications` receives the existing scalar notification-report
   shape instead.
 - Existing estimation and work wording remains the false branch, preserving
-  BMS-handled report behavior.
+  BMS-handled report behavior, including the permanent-rejection body.
 
 ## Verification
 
@@ -48,6 +49,12 @@ schema, migrations, and database data are unchanged.
   TypeScript process exhausted its heap; TypeScript was retried with a 4 GB
   Node heap and exited 0.
 - Agent task-note assertions and `git diff --check` were run before commit.
+- Regression fix RED: the non-checklist permanent-rejection assertion failed
+  because the template returned `ditolak oleh BMC.` instead of the original
+  `ditolak permanen oleh BMC.` wording.
+- Regression fix GREEN: restoring only the non-checklist body made the focused
+  template test pass. Scoped ESLint, TypeScript with a 4 GB Node heap,
+  task-note assertions, and `git diff --check` also passed.
 
 ## Remaining Work and Risks
 

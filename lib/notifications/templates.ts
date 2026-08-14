@@ -79,7 +79,7 @@ export function buildNotificationTemplate(
                     : {
                           ...base,
                           title: "Estimasi ditolak",
-                          body: `${reportLabel(report)} ditolak oleh BMC.`,
+                          body: `${reportLabel(report)} ditolak permanen oleh BMC.`,
                       };
             case "REPORT_COMPLETION_SUBMITTED":
                 return {

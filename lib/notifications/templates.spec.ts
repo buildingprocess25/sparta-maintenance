@@ -32,6 +32,18 @@ const bmsTemplate = buildNotificationTemplate({
 assert.equal(bmsTemplate.href, "/reports/U845-2606-001");
 assert.match(bmsTemplate.body, /boleh mulai pekerjaan/i);
 
+const estimationRejectedTemplate = buildNotificationTemplate({
+    type: "REPORT_ESTIMATION_REJECTED",
+    actorNIK: "BMC001",
+    recipientRole: UserRole.BMS,
+    report,
+});
+
+assert.equal(
+    estimationRejectedTemplate.body,
+    `${report.reportNumber} - ${report.storeName} ditolak permanen oleh BMC.`,
+);
+
 const checklistApprovedTemplate = buildNotificationTemplate({
     type: "REPORT_ESTIMATION_APPROVED",
     actorNIK: "BMC001",
