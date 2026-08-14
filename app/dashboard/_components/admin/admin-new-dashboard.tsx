@@ -45,6 +45,7 @@ import {
 import { AdminTrendChart } from "./admin-overview-charts";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
+import { getAdminRecentActivityLabel } from "./admin-activity-label";
 import { formatJakartaDate } from "@/lib/time";
 
 function normalizePeriod(value?: string): string {
@@ -638,22 +639,6 @@ function getStatusSegmentClass(status: string) {
     return map[status] ?? "bg-slate-400";
 }
 
-const ACTIVITY_LABELS: Record<string, string> = {
-    SUBMITTED: "Laporan diajukan",
-    RESUBMITTED_ESTIMATION: "Revisi estimasi diajukan",
-    RESUBMITTED_WORK: "Revisi pekerjaan diajukan",
-    WORK_STARTED: "Pekerjaan dimulai",
-    COMPLETION_SUBMITTED: "Penyelesaian diajukan",
-    ESTIMATION_APPROVED: "Estimasi disetujui",
-    ESTIMATION_REJECTED_REVISION: "Revisi estimasi",
-    ESTIMATION_REJECTED: "Estimasi ditolak",
-    WORK_APPROVED: "Pekerjaan disetujui BMC",
-    WORK_REJECTED_REVISION: "Revisi pekerjaan",
-    FINAL_APPROVED_BNM: "Final disetujui BNM",
-    FINAL_REJECTED_REVISION_BNM: "Revisi final BNM",
-    ADMIN_REALISASI_REVISED: "Realisasi direvisi admin",
-};
-
 function getActivityBadgeClass(action: string) {
     if (action.includes("REJECTED")) {
         return "border-red-200 bg-red-50 text-red-700";
@@ -740,8 +725,7 @@ function AdminRecentActivityCard({
                                                 activity.action,
                                             )}
                                         >
-                                            {ACTIVITY_LABELS[activity.action] ??
-                                                activity.action}
+                                            {getAdminRecentActivityLabel(activity)}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
