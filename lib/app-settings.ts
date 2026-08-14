@@ -24,6 +24,7 @@ export const SETTING_KEYS = {
     PJUM_PENDING_STALE_DAYS: "pjum_pending_stale_days",
     PJUM_WEEKLY_ADVANCE_AMOUNT: "pjum_weekly_advance_amount",
     PJUM_PERIOD_DAYS: "pjum_period_days",
+    AHO_LAST_PRINT_DATE: "aho_last_print_date",
 } as const;
 
 export const DEFAULT_REPORT_SLA_DAYS: Partial<Record<ReportStatusKey, number>> =

@@ -2,11 +2,13 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+
 import { getAuthUser, requireRole } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import * as XLSX from "xlsx";
+import { SETTING_KEYS, updateAppSetting } from "@/lib/app-settings";
 
 export type AdminAhoTicketFilters = {
     search?: string;
@@ -91,55 +93,215 @@ export async function getAdminAhoTickets(
     }
 }
 
-// ─── Import tiket AHO dari XLSX ──────────────────────────────────────────────────
+// ─── Import tiket AHO dari XLSX (Format B — IRIS Alfamart) ───────────────────
 
 const MAX_IMPORT_ERRORS = 50;
 
-function parseXlsx(
-    buffer: ArrayBuffer,
-    requiredHeaders: string[],
-): { rows: Record<string, string>[]; error?: string } {
-    const wb = XLSX.read(buffer, { type: "array" });
+type ParsedRow = {
+    storeCode: string;
+    problemNo: string;
+    status: string;
+    branchCode: string;
+    branchName: string;
+};
+
+type ParseFormatBResult = {
+    rows: ParsedRow[];
+    printDate: Date | null;
+    error?: string;
+};
+
+function parseFormatBXlsx(buffer: ArrayBuffer): ParseFormatBResult {
+    // raw:true agar xlsx tidak memformat semua sel — jauh lebih cepat untuk 191k baris
+    const wb = XLSX.read(buffer, { type: "array", raw: true });
     const sheetName = wb.SheetNames[0];
-    if (!sheetName) return { rows: [], error: "File XLSX kosong (tidak ada sheet)" };
+    if (!sheetName) return { rows: [], printDate: null, error: "File XLSX kosong (tidak ada sheet)" };
 
-    const rows = XLSX.utils.sheet_to_json<Record<string, string>>(
-        wb.Sheets[sheetName],
-        { defval: "", raw: false },
-    );
+    const ws = wb.Sheets[sheetName];
+    const ref = ws["!ref"];
+    if (!ref) return { rows: [], printDate: null, error: "File XLSX tidak memiliki data" };
 
-    if (rows.length === 0) return { rows: [], error: "File XLSX tidak memiliki data" };
+    // Decode range dari sheet reference (misal "A1:T191181")
+    const range = XLSX.utils.decode_range(ref);
+    const R_MIN = range.s.r; // baris pertama (0-indexed)
+    const R_MAX = range.e.r; // baris terakhir
+    const C_MAX = range.e.c; // kolom terakhir
 
-    const fileHeaders = Object.keys(rows[0]);
-    const missing = requiredHeaders.filter(
-        (h) => !fileHeaders.some((fh) => fh.replace(/\s+/g, " ").trim().toLowerCase() === h.toLowerCase()),
-    );
-    if (missing.length > 0) {
+    // ── Helper: baca sel secara langsung (tanpa sheet_to_json) ──
+    // Ini menghindari konversi semua 3.8 juta sel; hanya baca yang kita butuhkan.
+    const cellStr = (r: number, c: number): string => {
+        const cell = ws[XLSX.utils.encode_cell({ r, c })];
+        if (!cell) return "";
+        // Untuk sel teks gunakan .v (raw value); untuk semua tipe konversi ke string
+        return String(cell.v ?? "").trim();
+    };
+
+    // ── Ekstraksi Tanggal Cetak dari baris-baris awal ──
+    let printDate: Date | null = null;
+    for (let r = R_MIN; r <= Math.min(R_MIN + 20, R_MAX); r++) {
+        const firstCell = cellStr(r, 0).toLowerCase();
+        if (firstCell === "tanggal cetak") {
+            const rawVal = cellStr(r, 1).replace(/^:\s*/, "");
+            // Format dari IRIS: "12-Aug-2026 - 10:50:12" atau "12 Aug 2026 - 10:50:12"
+            const normalized = rawVal.replace(" - ", " ");
+            // IRIS Alfamart selalu menggunakan timezone WIB (UTC+7).
+            // Tanpa suffix timezone, new Date() menginterpretasikan waktu sebagai UTC
+            // sehingga tampilan di browser menjadi +7 jam (salah). Tambahkan +07:00 agar benar.
+            const parsed = new Date(normalized + " +07:00");
+            if (!isNaN(parsed.getTime())) printDate = parsed;
+            break;
+        }
+    }
+
+
+    // ── Temukan baris header secara dinamis ──
+    const TARGET_COLS: Record<string, string[]> = {
+        storeCode:  ["kode toko"],
+        problemNo:  ["no. problem", "no problem"],
+        status:     ["status"],
+        branchCode: ["kode cabang existing"],
+        branchName: ["cabang existing", "nama cabang existing"],
+    };
+
+    let headerRowIndex = -1;
+    const colIndexMap: Record<string, number> = {};
+
+    for (let r = R_MIN; r <= Math.min(R_MIN + 50, R_MAX); r++) {
+        let foundProblemNo = false;
+        let foundStoreCode = false;
+        const cellsInRow: string[] = [];
+        for (let c = 0; c <= C_MAX; c++) {
+            cellsInRow.push(cellStr(r, c).toLowerCase());
+        }
+        for (let c = 0; c <= C_MAX; c++) {
+            const txt = cellsInRow[c];
+            if (TARGET_COLS.problemNo.includes(txt)) foundProblemNo = true;
+            if (TARGET_COLS.storeCode.includes(txt)) foundStoreCode = true;
+        }
+        if (foundProblemNo && foundStoreCode) {
+            headerRowIndex = r;
+            for (const [field, aliases] of Object.entries(TARGET_COLS)) {
+                for (let c = 0; c <= C_MAX; c++) {
+                    if (aliases.includes(cellsInRow[c])) {
+                        colIndexMap[field] = c;
+                        break;
+                    }
+                }
+            }
+            break;
+        }
+    }
+
+    if (headerRowIndex === -1) {
         return {
             rows: [],
-            error: `Header tidak valid. Kolom yang hilang: ${missing.join(", ")}. Pastikan menggunakan template yang benar.`,
+            printDate,
+            error: "Format file tidak dikenali. Pastikan file adalah laporan AHO dari sistem IRIS Alfamart.",
         };
     }
 
-    // Map keys to exact case expected
-    const mappedRows = rows.map((row) => {
-        const mapped: Record<string, string> = {};
-        for (const key of Object.keys(row)) {
-            const normalizedKey = key.replace(/\s+/g, " ").trim();
-            // Find if this key matches any required header case-insensitively
-            const matchedHeader = requiredHeaders.find(
-                (h) => h.toLowerCase() === normalizedKey.toLowerCase()
-            );
-            if (matchedHeader) {
-                mapped[matchedHeader] = row[key];
-            } else {
-                mapped[normalizedKey] = row[key];
-            }
-        }
-        return mapped;
-    });
+    // Validasi kolom wajib
+    const requiredFields = ["storeCode", "problemNo", "status"] as const;
+    const missingFields = requiredFields.filter((f) => colIndexMap[f] === undefined);
+    if (missingFields.length > 0) {
+        return {
+            rows: [],
+            printDate,
+            error: `Kolom wajib tidak ditemukan: ${missingFields.join(", ")}. Pastikan menggunakan file AHO dari IRIS.`,
+        };
+    }
 
-    return { rows: mappedRows };
+    // ── Parse baris data: hanya baca 5 kolom yang dibutuhkan, skip baris kosong ──
+    // Dengan akses sel langsung (bukan sheet_to_json), kita menghindari konversi
+    // semua ~3.8 juta sel — hanya kolom storeCode, problemNo, status, branchCode, branchName.
+    const rows: ParsedRow[] = [];
+    const cStoreCode  = colIndexMap.storeCode;
+    const cProblemNo  = colIndexMap.problemNo;
+    const cStatus     = colIndexMap.status;
+    const cBranchCode = colIndexMap.branchCode;
+    const cBranchName = colIndexMap.branchName;
+
+    for (let r = headerRowIndex + 1; r <= R_MAX; r++) {
+        const storeCode = cellStr(r, cStoreCode).toUpperCase();
+        const problemNo = cellStr(r, cProblemNo);
+        const statusRaw = cellStr(r, cStatus);
+
+        if (!storeCode || !problemNo || !statusRaw) continue;
+
+        const branchCode = cBranchCode !== undefined ? cellStr(r, cBranchCode) : "";
+        let branchName   = cBranchName !== undefined ? cellStr(r, cBranchName) : "";
+
+        if (branchName.toUpperCase().startsWith("DC ")) {
+            branchName = branchName.substring(3).trim();
+        }
+
+        rows.push({ storeCode, problemNo, status: statusRaw, branchCode, branchName });
+    }
+
+    return { rows, printDate };
+}
+
+/**
+ * Batch UPSERT ke MasterAhoTicket menggunakan PostgreSQL ON CONFLICT.
+ * Diproses dalam chunk 1.000 baris (5.000 params) agar aman dari batas parameter PostgreSQL.
+ * Menghitung created vs updated via xmax trick (xmax=0 → INSERT baru, xmax≠0 → UPDATE).
+ */
+async function upsertAhoTickets(
+    rows: {
+        storeCode: string;
+        problemNo: string;
+        status: string;
+        branchCode: string | null;
+        branchName: string | null;
+    }[],
+): Promise<{ created: number; updated: number }> {
+    if (rows.length === 0) return { created: 0, updated: 0 };
+
+    // Chunk agar tidak melebihi batas parameter PostgreSQL (65535).
+    // 1000 rows × 5 params = 5000 params per query — aman dan cepat.
+    const CHUNK_SIZE = 1_000;
+    let totalCreated = 0;
+    let totalUpdated = 0;
+
+    for (let offset = 0; offset < rows.length; offset += CHUNK_SIZE) {
+        const chunk = rows.slice(offset, offset + CHUNK_SIZE);
+
+        const placeholders: string[] = [];
+        const values: (string | null)[] = [];
+
+        chunk.forEach((row, i) => {
+            const base = i * 5;
+            placeholders.push(
+                `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5})`,
+            );
+            values.push(row.storeCode, row.problemNo, row.status, row.branchCode, row.branchName);
+        });
+
+        const sql = `
+            INSERT INTO "MasterAhoTicket" ("id", "storeCode", "problemNo", "status", "branchCode", "branchName", "updatedAt")
+            SELECT
+                gen_random_uuid(),
+                v."storeCode",
+                v."problemNo",
+                v."status",
+                v."branchCode",
+                v."branchName",
+                NOW()
+            FROM (VALUES ${placeholders.join(", ")}) AS v("storeCode", "problemNo", "status", "branchCode", "branchName")
+            ON CONFLICT ("storeCode", "problemNo") DO UPDATE SET
+                "status"     = EXCLUDED."status",
+                "branchCode" = EXCLUDED."branchCode",
+                "branchName" = EXCLUDED."branchName",
+                "updatedAt"  = NOW()
+            RETURNING (xmax = 0) AS is_insert
+        `;
+
+        const result = await prisma.$queryRawUnsafe<{ is_insert: boolean }[]>(sql, ...values);
+        totalCreated += result.filter((r) => r.is_insert).length;
+        totalUpdated += result.filter((r) => !r.is_insert).length;
+    }
+
+    return { created: totalCreated, updated: totalUpdated };
 }
 
 export async function adminImportAhoTickets(formData: FormData) {
@@ -147,8 +309,11 @@ export async function adminImportAhoTickets(formData: FormData) {
     const result = {
         success: false,
         created: 0,
+        updated: 0,
+        deleted: 0,
         skipped: 0,
         total: 0,
+        printDate: null as Date | null,
         errors: [] as string[],
         duplicates: [] as string[],
     };
@@ -177,103 +342,148 @@ export async function adminImportAhoTickets(formData: FormData) {
         }
 
         const buffer = await file.arrayBuffer();
-        const { rows, error } = parseXlsx(buffer, [
-            "Kode Toko",
-            "No Problem",
-            "Status",
-            "Kode Cabang Existing",
-            "Nama Cabang Existing",
-        ]);
+        const { rows: allRows, printDate, error } = parseFormatBXlsx(buffer);
         if (error) return { ...result, errors: [error] };
 
-        result.total = rows.length;
+        result.printDate = printDate;
+        result.total = allRows.length;
 
-        // Valid statuses
+        // ── Filter: hanya New dan Progress ──
         const VALID_STATUSES = ["New", "Progress"];
+        const activeRows: ParsedRow[] = [];
 
-        // Data processing map: key -> { storeCode, problemNo, status, branchCode, branchName, rowNum }
-        // Using a map ensures duplicates are overwritten by the last occurrence
-        const validTickets = new Map<string, { storeCode: string; problemNo: string; status: string; branchCode?: string; branchName?: string; rowNum: number }>();
-        const codesInFile = new Set<string>();
-
-        for (let i = 0; i < rows.length; i++) {
-            const row = rows[i];
-            const rowNum = i + 2;
-            const storeCode = row["Kode Toko"]?.trim().toUpperCase();
-            const problemNo = row["No Problem"]?.trim();
-            const statusRaw = row["Status"]?.trim();
-            let branchCode = row["Kode Cabang Existing"]?.trim();
-            let branchName = row["Nama Cabang Existing"]?.trim();
-
-            if (branchName && branchName.toUpperCase().startsWith("DC ")) {
-                branchName = branchName.substring(3).trim();
-            }
-
-            if (!storeCode || !problemNo || !statusRaw) {
+        for (const row of allRows) {
+            const status =
+                row.status.charAt(0).toUpperCase() + row.status.slice(1).toLowerCase();
+            if (VALID_STATUSES.includes(status)) {
+                activeRows.push({ ...row, status });
+            } else {
                 result.skipped++;
-                if (result.errors.length < MAX_IMPORT_ERRORS) {
-                    result.errors.push(`Baris ${rowNum}: Kode Toko, No Problem, atau Status kosong`);
-                }
-                continue;
             }
-
-            // Capitalize first letter of status to match "New" or "Progress"
-            const status = statusRaw.charAt(0).toUpperCase() + statusRaw.slice(1).toLowerCase();
-
-            if (!VALID_STATUSES.includes(status)) {
-                result.skipped++;
-                // Skip menambahkan ke result.errors untuk mengurangi spam error teks merah
-                continue;
-            }
-
-            codesInFile.add(storeCode);
-
-            const key = `${storeCode}_${problemNo}`;
-            if (validTickets.has(key)) {
-                if (result.duplicates.length < MAX_IMPORT_ERRORS) {
-                    result.duplicates.push(`Baris ${rowNum}: Duplikat untuk ${storeCode} - ${problemNo}. Menggunakan data baris terakhir.`);
-                }
-            }
-            validTickets.set(key, { storeCode, problemNo, status, branchCode, branchName, rowNum });
         }
 
-        // Validate store codes against database
+        // ── Validasi Kode Toko ke database ──
+        const codesInFile = new Set(activeRows.map((r) => r.storeCode));
         const validStoreCodes = new Set(
             (
                 await prisma.store.findMany({
                     where: { code: { in: Array.from(codesInFile) } },
                     select: { code: true },
                 })
-            ).map((store) => store.code)
+            ).map((s) => s.code),
         );
 
-        const dataToInsert = [];
-        for (const [key, ticket] of validTickets.entries()) {
-            if (!validStoreCodes.has(ticket.storeCode)) {
+        // Deduplikasi dalam file: gunakan Map, last-row wins
+        const incomingMap = new Map<
+            string,
+            { storeCode: string; problemNo: string; status: string; branchCode: string; branchName: string }
+        >();
+        for (const row of activeRows) {
+            if (!validStoreCodes.has(row.storeCode)) {
                 result.skipped++;
                 if (result.errors.length < MAX_IMPORT_ERRORS) {
-                    result.errors.push(`Baris ${ticket.rowNum} (${ticket.storeCode}): Kode Toko tidak ditemukan di sistem`);
+                    result.errors.push(`(${row.storeCode}): Kode Toko tidak ditemukan di sistem`);
                 }
                 continue;
             }
-            dataToInsert.push({
-                storeCode: ticket.storeCode,
-                problemNo: ticket.problemNo,
-                status: ticket.status,
-                branchCode: ticket.branchCode,
-                branchName: ticket.branchName,
-            });
+            const key = `${row.storeCode}_${row.problemNo}`;
+            if (incomingMap.has(key)) {
+                if (result.duplicates.length < MAX_IMPORT_ERRORS) {
+                    result.duplicates.push(`Duplikat dalam file: ${row.storeCode} - ${row.problemNo}. Menggunakan data terakhir.`);
+                }
+            }
+            incomingMap.set(key, row);
         }
 
-        // Insert new data, skip duplicates
-        const createResult = await prisma.masterAhoTicket.createMany({
-            data: dataToInsert,
-            skipDuplicates: true,
+        // ── Ambil semua tiket yang saat ini ada di DB ──
+        const existingTickets = await prisma.masterAhoTicket.findMany({
+            select: { id: true, storeCode: true, problemNo: true, status: true, branchCode: true, branchName: true },
         });
+        const existingMap = new Map(
+            existingTickets.map((t) => [`${t.storeCode}_${t.problemNo}`, t]),
+        );
+        const existingById = new Map(existingTickets.map((t) => [t.id, t]));
 
-        result.created = createResult.count;
-        result.skipped += (dataToInsert.length - createResult.count);
+        // ── Klasifikasikan operasi Create / Update / Delete ──
+        const toCreate: { storeCode: string; problemNo: string; status: string; branchCode: string | null; branchName: string | null }[] = [];
+        const toUpdate: { id: string; status: string; branchCode: string | null; branchName: string | null }[] = [];
+        const toDeleteIds: string[] = [];
+
+        // Tiket dari Excel → Create atau Update
+        for (const [key, incoming] of incomingMap.entries()) {
+            const existing = existingMap.get(key);
+            if (!existing) {
+                toCreate.push({
+                    storeCode: incoming.storeCode,
+                    problemNo: incoming.problemNo,
+                    status: incoming.status,
+                    branchCode: incoming.branchCode || null,
+                    branchName: incoming.branchName || null,
+                });
+            } else {
+                const statusChanged = existing.status !== incoming.status;
+                const branchCodeChanged = (existing.branchCode ?? "") !== (incoming.branchCode ?? "");
+                const branchNameChanged = (existing.branchName ?? "") !== (incoming.branchName ?? "");
+                if (statusChanged || branchCodeChanged || branchNameChanged) {
+                    toUpdate.push({
+                        id: existing.id,
+                        status: incoming.status,
+                        branchCode: incoming.branchCode || null,
+                        branchName: incoming.branchName || null,
+                    });
+                }
+            }
+        }
+
+        // Tiket di DB yang tidak ditemukan lagi di Excel (atau statusnya sudah bukan New/Progress)
+        for (const [key, existing] of existingMap.entries()) {
+            if (!incomingMap.has(key)) {
+                toDeleteIds.push(existing.id);
+            }
+        }
+
+        // ── Eksekusi: UPSERT semua incoming rows (Create + Update dalam satu query) ──
+        // Menggantikan interactive transaction yang timeout karena N sequential updates.
+        // PostgreSQL ON CONFLICT DO UPDATE memproses 9k baris dalam satu roundtrip.
+        const allIncoming = [
+            ...toCreate,
+            ...toUpdate.map(({ id: _id, ...data }) => {
+                const existing = existingById.get(_id)!;
+                return {
+                    storeCode: existing.storeCode,
+                    problemNo: existing.problemNo,
+                    status: data.status,
+                    branchCode: data.branchCode ?? null,
+                    branchName: data.branchName ?? null,
+                };
+            }),
+        ];
+
+        const { created, updated } = await upsertAhoTickets(allIncoming);
+
+        // ── Delete: tiket di DB yang tidak ada lagi di incoming file ──
+        let deleted = 0;
+        if (toDeleteIds.length > 0) {
+            const deleteResult = await prisma.masterAhoTicket.deleteMany({
+                where: { id: { in: toDeleteIds } },
+            });
+            deleted = deleteResult.count;
+        }
+
+        result.created = created;
+        result.updated = updated;
+        result.deleted = deleted;
         result.success = true;
+
+        // ── Simpan Tanggal Cetak ke AppSetting ──
+        if (printDate) {
+            await updateAppSetting(
+                SETTING_KEYS.AHO_LAST_PRINT_DATE,
+                printDate.toISOString(),
+                admin.NIK,
+            );
+        }
+
         revalidatePath("/dashboard/aho-tickets");
 
         logger.info(
@@ -282,21 +492,23 @@ export async function adminImportAhoTickets(formData: FormData) {
                 userId: admin.NIK,
                 total: result.total,
                 created: result.created,
+                updated: result.updated,
+                deleted: result.deleted,
                 duration: Date.now() - startTime,
             },
-            "Admin bulk AHO ticket import completed",
+            "Admin bulk AHO ticket sync completed",
         );
 
         return result;
     } catch (error) {
         logger.error(
             { operation: "adminImportAhoTickets" },
-            "Failed to import AHO tickets",
+            "Failed to sync AHO tickets",
             error,
         );
         return {
             ...result,
-            errors: [...result.errors, "Gagal melakukan import (Kesalahan server)"],
+            errors: [...result.errors, "Gagal melakukan sinkronisasi (Kesalahan server)"],
         };
     }
 }

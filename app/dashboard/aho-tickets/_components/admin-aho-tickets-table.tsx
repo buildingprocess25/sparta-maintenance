@@ -105,6 +105,7 @@ export function AdminAhoTicketsTable({
     branches,
     allBrands,
     areaNamesByBranch,
+    lastPrintDate,
 }: {
     initialData: TicketItem[];
     initialNextCursor: string | null;
@@ -112,6 +113,7 @@ export function AdminAhoTicketsTable({
     branches?: string[];
     allBrands?: string[];
     areaNamesByBranch?: Record<string, string[]>;
+    lastPrintDate?: string | null;
 }) {
     const [tickets, setTickets] = useState<TicketItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor);
@@ -208,6 +210,25 @@ export function AdminAhoTicketsTable({
                     </span>{" "}
                     tiket aktif
                 </div>
+                {lastPrintDate && (
+                    <div className="text-sm text-muted-foreground">
+                        Data per:{" "}
+                        <span className="text-foreground font-medium">
+                            {(() => {
+                                const d = new Date(lastPrintDate);
+                                // Format to WIB (UTC+7)
+                                const wib = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+                                const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
+                                const day = wib.getUTCDate().toString().padStart(2, "0");
+                                const month = months[wib.getUTCMonth()];
+                                const year = wib.getUTCFullYear();
+                                const hours = wib.getUTCHours().toString().padStart(2, "0");
+                                const minutes = wib.getUTCMinutes().toString().padStart(2, "0");
+                                return `${day} ${month} ${year}, ${hours}.${minutes}`;
+                            })()}
+                        </span>
+                    </div>
+                )}
             </div>
 
             {/* Filter bar */}
