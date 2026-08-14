@@ -47,57 +47,22 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { ActivityItem } from "@/app/dashboard/queries";
+import { getReportActivityActionLabel } from "@/lib/report-activity-label";
 import { formatJakartaDateTime } from "@/lib/time";
 
-const ACTIVITY_CONFIG: Record<string, { label: string; color: string }> = {
-    SUBMITTED: {
-        label: "Laporan diajukan",
-        color: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    },
-    RESUBMITTED_ESTIMATION: {
-        label: "Laporan direvisi & diajukan ulang",
-        color: "bg-orange-100 text-orange-700 border-orange-200",
-    },
-    RESUBMITTED_WORK: {
-        label: "Pekerjaan direvisi & diajukan ulang",
-        color: "bg-orange-100 text-orange-700 border-orange-200",
-    },
-    WORK_STARTED: {
-        label: "Pekerjaan dimulai",
-        color: "bg-blue-100 text-blue-700 border-blue-200",
-    },
-    COMPLETION_SUBMITTED: {
-        label: "Pekerjaan selesai diajukan",
-        color: "bg-purple-100 text-purple-700 border-purple-200",
-    },
-    ESTIMATION_APPROVED: {
-        label: "Estimasi disetujui",
-        color: "bg-green-100 text-green-700 border-green-200",
-    },
-    ESTIMATION_REJECTED_REVISION: {
-        label: "Estimasi ditolak (revisi)",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
-    ESTIMATION_REJECTED: {
-        label: "Estimasi ditolak",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
-    WORK_APPROVED: {
-        label: "Pekerjaan disetujui BMC",
-        color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    },
-    WORK_REJECTED_REVISION: {
-        label: "Pekerjaan ditolak (revisi)",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
-    FINAL_APPROVED_BNM: {
-        label: "Disetujui final BNM",
-        color: "bg-cyan-100 text-cyan-700 border-cyan-200",
-    },
-    FINAL_REJECTED_REVISION_BNM: {
-        label: "Ditolak final BNM (revisi)",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
+const ACTIVITY_COLORS: Record<string, string> = {
+    SUBMITTED: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    RESUBMITTED_ESTIMATION: "bg-orange-100 text-orange-700 border-orange-200",
+    RESUBMITTED_WORK: "bg-orange-100 text-orange-700 border-orange-200",
+    WORK_STARTED: "bg-blue-100 text-blue-700 border-blue-200",
+    COMPLETION_SUBMITTED: "bg-purple-100 text-purple-700 border-purple-200",
+    ESTIMATION_APPROVED: "bg-green-100 text-green-700 border-green-200",
+    ESTIMATION_REJECTED_REVISION: "bg-red-100 text-red-700 border-red-200",
+    ESTIMATION_REJECTED: "bg-red-100 text-red-700 border-red-200",
+    WORK_APPROVED: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    WORK_REJECTED_REVISION: "bg-red-100 text-red-700 border-red-200",
+    FINAL_APPROVED_BNM: "bg-cyan-100 text-cyan-700 border-cyan-200",
+    FINAL_REJECTED_REVISION_BNM: "bg-red-100 text-red-700 border-red-200",
 };
 
 type Props = {
@@ -158,17 +123,15 @@ export function ActivityList({
 
     const formatDate = (date: Date) => formatJakartaDateTime(date);
 
-    const getActivityBadge = (action: string) => {
-        const cfg = ACTIVITY_CONFIG[action] ?? {
-            label: action,
-            color: "bg-muted text-muted-foreground border-border",
-        };
+    const getActivityBadge = (action: string, isChecklistOnly: boolean) => {
+        const color =
+            ACTIVITY_COLORS[action] ?? "bg-muted text-muted-foreground border-border";
         return (
             <Badge
                 variant="outline"
-                className={`text-xs px-2 py-0.5 border whitespace-nowrap ${cfg.color}`}
+                className={`text-xs px-2 py-0.5 border whitespace-nowrap ${color}`}
             >
-                {cfg.label}
+                {getReportActivityActionLabel(action, isChecklistOnly)}
             </Badge>
         );
     };
@@ -237,13 +200,13 @@ export function ActivityList({
                                 Pekerjaan selesai diajukan
                             </SelectItem>
                             <SelectItem value="ESTIMATION_APPROVED">
-                                Estimasi disetujui
+                                Review disetujui
                             </SelectItem>
                             <SelectItem value="ESTIMATION_REJECTED_REVISION">
-                                Estimasi ditolak (revisi)
+                                Review perlu direvisi
                             </SelectItem>
                             <SelectItem value="ESTIMATION_REJECTED">
-                                Estimasi ditolak
+                                Review ditolak
                             </SelectItem>
                             <SelectItem value="WORK_APPROVED">
                                 Pekerjaan disetujui BMC
@@ -297,7 +260,7 @@ export function ActivityList({
                                             </div>
                                         </div>
                                         <div>
-                                            {getActivityBadge(item.action)}
+                                            {getActivityBadge(item.action, item.isChecklistOnly)}
                                         </div>
                                         <div className="flex items-center justify-between pt-1">
                                             <span className="text-xs text-muted-foreground">
@@ -377,7 +340,7 @@ export function ActivityList({
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                {getActivityBadge(item.action)}
+                                                {getActivityBadge(item.action, item.isChecklistOnly)}
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground">
                                                 {item.actor.name}

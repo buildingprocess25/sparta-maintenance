@@ -10,6 +10,7 @@ import {
     getBranchStuckThresholdDate,
 } from "@/lib/admin-branches";
 import { logger } from "@/lib/logger";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import {
     ARCHIVED_PREVENTIVE_STATUS,
     getReportStatusLabel,
@@ -19,6 +20,7 @@ import { requiresPjum } from "@/lib/realisasi";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import type { Prisma } from "@prisma/client";
 import type { AuthUser } from "@/lib/authorization";
+import type { ReportItemJson } from "@/types/report";
 import {
     getReportBrandWhere,
     getStoreBrandWhere,
@@ -88,6 +90,7 @@ export type AdminBranchActivityItem = {
     reportNumber: string;
     storeName: string;
     action: string;
+    isChecklistOnly: boolean;
     actorName: string;
     createdAt: Date;
 };
@@ -755,7 +758,7 @@ export async function getAdminBranchDetail(
                 action: true,
                 createdAt: true,
                 actor: { select: { name: true } },
-                report: { select: { storeName: true } },
+                report: { select: { storeName: true, items: true } },
             },
         }),
     ]);
@@ -799,6 +802,11 @@ export async function getAdminBranchDetail(
             reportNumber: row.reportNumber,
             storeName: row.report.storeName,
             action: row.action,
+            isChecklistOnly: isChecklistOnlyReport(
+                Array.isArray(row.report.items)
+                    ? (row.report.items as unknown as ReportItemJson[])
+                    : [],
+            ),
             actorName: row.actor.name,
             createdAt: row.createdAt,
         })),

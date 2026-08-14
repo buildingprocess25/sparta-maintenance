@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import {
     ARCHIVED_PREVENTIVE_STATUS,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { requiresPjum } from "@/lib/realisasi";
+import type { ReportItemJson } from "@/types/report";
 import { StoreBrandFilter, buildPjumBrandWhere, getReportBrandWhere, getVisibleBrandBranchNames, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import {
     formatJakartaDate,
@@ -521,6 +523,7 @@ export type ActivityItem = {
     id: string;
     reportNumber: string;
     action: string; // ActivityAction enum value
+    isChecklistOnly: boolean;
     notes: string | null;
     createdAt: Date;
     actor: { name: string; NIK: string };
@@ -570,11 +573,24 @@ async function fetchActivityLogs(
                     status: true,
                     completedPdfPath: true,
                     reportFinalDriveUrl: true,
+                    items: true,
                 },
             },
         },
     });
-    return rows.map((r) => ({ ...r, action: r.action as string }));
+    return rows.map((row) => {
+        const { items, ...report } = row.report;
+        const reportItems = Array.isArray(items)
+            ? (items as unknown as ReportItemJson[])
+            : [];
+
+        return {
+            ...row,
+            action: row.action as string,
+            isChecklistOnly: isChecklistOnlyReport(reportItems),
+            report,
+        };
+    });
 }
 
 // ── public query functions ────────────────────────────────────────────────────

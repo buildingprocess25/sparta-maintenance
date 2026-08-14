@@ -541,6 +541,7 @@ function RecentActivity({ data }: { data: ManagerDashboardData }) {
                                             >
                                                 {getActivityActionLabel(
                                                     activity.action,
+                                                    activity.isChecklistOnly,
                                                 )}
                                             </Badge>
                                         </TableCell>

@@ -374,6 +374,7 @@ export default async function AdminBranchDetailPage({
                                                     >
                                                         {getActivityActionLabel(
                                                             activity.action,
+                                                            activity.isChecklistOnly,
                                                         )}
                                                     </Badge>
                                                 </TableCell>
