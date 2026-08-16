@@ -6,6 +6,7 @@ import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
 import { formatJakartaDateTime } from "@/lib/time";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
+import { loadMaterialNames } from "@/lib/material-master.server";
 
 const REVISION_STATUSES = [
     "ESTIMATION_REJECTED_REVISION",
@@ -46,7 +47,10 @@ export default async function RevisiReportPage({
         redirect("/reports");
     }
 
-    const stores = await getStoresByBranch(user.branchNames[0] || "");
+    const [stores, materialNames] = await Promise.all([
+        getStoresByBranch(user.branchNames[0] || ""),
+        loadMaterialNames(),
+    ]);
 
     const items = (report.items ?? []) as unknown as ReportItemJson[];
     const estimations = (report.estimations ??
@@ -84,6 +88,7 @@ export default async function RevisiReportPage({
     return (
         <CreateReportForm
             stores={stores}
+            materialNames={materialNames}
             userBranchName={user.branchNames[0] || ""}
             userInfo={{
                 name: user.name,

@@ -49,10 +49,12 @@ import {
 import { ESTIMATE_UNITS, type ChecklistItem } from "@/lib/checklist-data";
 import type { BmsItemGroup } from "./types";
 import { formatCurrency } from "@/lib/utils";
+import { MaterialNameCombobox } from "@/components/material-name-combobox";
 
 interface BmsEstimationStepProps {
   bmsItems: Map<string, BmsItemGroup>;
   bmsItemsList: ChecklistItem[];
+  materialNames: string[];
   grandTotalBms: number;
   onAddBmsEntryWithDetails: (
     itemId: string,
@@ -80,6 +82,7 @@ interface BmsEstimationStepProps {
 export function BmsEstimationStep({
   bmsItems,
   bmsItemsList,
+  materialNames,
   grandTotalBms,
   onAddBmsEntryWithDetails,
   onUpdateBmsEntryWithDetails,
@@ -491,17 +494,17 @@ export function BmsEstimationStep({
               >
                 Nama Barang yang Dibeli
               </Label>
-              <Input
+              <MaterialNameCombobox
                 data-tour="bms-estimation-name"
                 id="estimate-item-name"
                 value={estimateDraft.itemName}
-                onChange={(event) =>
+                options={materialNames}
+                onValueChange={(value) =>
                   setEstimateDraft((current) => ({
                     ...current,
-                    itemName: event.target.value,
+                    itemName: value,
                   }))
                 }
-                className="h-11 rounded-xl bg-muted/60"
               />
             </div>
 

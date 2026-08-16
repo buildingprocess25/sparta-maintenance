@@ -56,6 +56,7 @@ export type SerializedDraft = {
 
 export interface CreateReportFormProps {
     stores: StoreOption[];
+    materialNames: string[];
     userBranchName: string;
     existingDraft?: SerializedDraft | null;
     userInfo: {

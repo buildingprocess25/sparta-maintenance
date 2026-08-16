@@ -37,6 +37,7 @@ const WIZARD_STEPS: ReportWizardStep[] = [
 
 export default function CreateReportForm({
   stores,
+  materialNames,
   userBranchName,
   existingDraft,
   userInfo,
@@ -384,6 +385,7 @@ export default function CreateReportForm({
           <BmsEstimationStep
             bmsItems={bmsItems}
             bmsItemsList={bmsItemsList}
+            materialNames={materialNames}
             grandTotalBms={grandTotalBms}
             onAddBmsEntryWithDetails={addBmsEntryWithDetails}
             onUpdateBmsEntryWithDetails={updateBmsEntryWithDetails}

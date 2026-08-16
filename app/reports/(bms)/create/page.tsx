@@ -1,6 +1,6 @@
 import { requireRole } from "@/lib/authorization";
-import { getStoresByBranch, getDraft } from "@/app/reports/actions";
-import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
+import { getStoresByBranch } from "@/app/reports/actions";
+import { loadMaterialNames } from "@/lib/material-master.server";
 import CreateReportForm from "./create-form";
 
 export default async function CreateReportPage({
@@ -12,14 +12,15 @@ export default async function CreateReportPage({
     const { restore } = await searchParams;
     const autoRestoreOnMount = restore === "1";
 
-    // Fetch stores
-    const [stores] = await Promise.all([
+    const [stores, materialNames] = await Promise.all([
         getStoresByBranch(user.branchNames[0] || ""),
+        loadMaterialNames(),
     ]);
 
     return (
         <CreateReportForm
             stores={stores}
+            materialNames={materialNames}
             userBranchName={user.branchNames[0] || ""}
             userInfo={{
                 name: user.name,
