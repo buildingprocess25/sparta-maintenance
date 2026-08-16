@@ -6,11 +6,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { IconSearch, IconDownload, IconLoader2, IconDatabaseOff } from "@tabler/icons-react";
+import { IconSearch, IconLoader2, IconDatabaseOff } from "@tabler/icons-react";
 import { format, startOfMonth, endOfDay } from "date-fns";
-import * as XLSX from "xlsx";
 import { toast } from "sonner";
 import { Card } from "@/components/ui/card";
+import { ExportMaterialAnalysisDialog } from "./export-dialog";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
 export default function MaterialAnalysisClient({ initialBranches = [] }: { initialBranches?: string[] }) {
     const [isPending, startTransition] = useTransition();
@@ -79,31 +81,6 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
 
     const totalPages = Math.ceil(filteredData.length / itemsPerPage) || 1;
 
-    const handleExport = () => {
-        if (filteredData.length === 0) {
-            toast.error("Tidak ada data untuk diekspor");
-            return;
-        }
-
-        const exportData = filteredData.map(row => ({
-            "Nomor Laporan": row.reportNumber,
-            "Tanggal Selesai": format(new Date(row.finishedAt), "dd/MM/yyyy HH:mm"),
-            "Cabang": row.branchName,
-            "Kode Toko": row.storeCode,
-            "Nama Toko": row.storeName,
-            "Brand": row.brand,
-            "BMS": row.bmsName,
-            "Item Rusak": row.itemName,
-            "Material": row.materialName,
-            "Nominal Realisasi": row.realisasiNominal
-        }));
-
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Analisa Material");
-        XLSX.writeFile(wb, `Analisa_Material_${format(new Date(), "yyyyMMdd")}.xlsx`);
-    };
-
     const formatCurrency = (val: number) => 
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val);
 
@@ -156,14 +133,7 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
                 
                 <div className="flex-1" />
                 
-                <Button 
-                    onClick={handleExport} 
-                    disabled={isPending || filteredData.length === 0}
-                    className="w-full md:w-auto"
-                >
-                    <IconDownload className="size-4 mr-2" />
-                    Ekspor XLSX
-                </Button>
+                <ExportMaterialAnalysisDialog branches={initialBranches} />
             </Card>
 
             <Card className="p-4 space-y-4">
@@ -180,18 +150,18 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
                     />
                 </div>
 
-                <div className="rounded-md border overflow-x-auto">
-                    <Table>
-                        <TableHeader>
+                <div className="rounded-md border bg-white overflow-x-auto">
+                    <Table className="text-[11px] [&_td]:py-2 [&_th]:h-8 [&_th]:py-1.5">
+                        <TableHeader className="bg-slate-50/80">
                             <TableRow>
-                                <TableHead className="min-w-[120px]">Tgl Selesai</TableHead>
-                                <TableHead className="min-w-[150px]">Laporan</TableHead>
+                                <TableHead className="min-w-[100px]">Tgl Selesai</TableHead>
+                                <TableHead className="w-[120px] min-w-[120px]">Laporan</TableHead>
                                 <TableHead className="min-w-[180px]">Toko</TableHead>
-                                <TableHead className="min-w-[100px]">Cabang</TableHead>
+                                <TableHead className="min-w-[120px]">Cabang</TableHead>
                                 <TableHead className="min-w-[150px]">BMS</TableHead>
-                                <TableHead className="min-w-[200px]">Item Rusak</TableHead>
-                                <TableHead className="min-w-[200px]">Material</TableHead>
-                                <TableHead className="text-right min-w-[120px]">Realisasi</TableHead>
+                                <TableHead className="min-w-[180px]">Item Rusak</TableHead>
+                                <TableHead className="min-w-[180px]">Material</TableHead>
+                                <TableHead className="text-right w-[120px]">Realisasi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -215,20 +185,45 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
                                 </TableRow>
                             ) : (
                                 paginatedData.map((row) => (
-                                    <TableRow key={row.id}>
-                                        <TableCell>{format(new Date(row.finishedAt), "dd MMM yyyy")}</TableCell>
-                                        <TableCell className="font-medium text-blue-600">{row.reportNumber}</TableCell>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span>{row.storeName}</span>
-                                                <span className="text-xs text-muted-foreground">{row.storeCode}</span>
+                                    <TableRow key={row.id} className="hover:bg-slate-50/70">
+                                        <TableCell className="align-middle whitespace-nowrap text-muted-foreground">{format(new Date(row.finishedAt), "dd MMM yyyy")}</TableCell>
+                                        <TableCell className="whitespace-nowrap align-middle">
+                                            <Link
+                                                prefetch={false}
+                                                href={`/dashboard/reports/${row.reportNumber}`}
+                                                className="inline-flex items-center gap-1 font-mono font-medium text-primary underline-offset-4 hover:underline"
+                                            >
+                                                {row.reportNumber}
+                                                <ArrowUpRight className="h-3 w-3" />
+                                            </Link>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="flex flex-col max-w-[200px] truncate">
+                                                <span className="font-medium truncate">{row.storeName}</span>
+                                                <span className="text-[10px] text-muted-foreground truncate">{row.storeCode}</span>
                                             </div>
                                         </TableCell>
-                                        <TableCell>{row.branchName}</TableCell>
-                                        <TableCell>{row.bmsName}</TableCell>
-                                        <TableCell>{row.itemName}</TableCell>
-                                        <TableCell>{row.materialName}</TableCell>
-                                        <TableCell className="text-right font-medium">
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[120px] truncate font-medium">
+                                                {row.branchName}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[150px] truncate text-[11px]">
+                                                {row.bmsName}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[180px] truncate">
+                                                {row.itemName}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle">
+                                            <div className="max-w-[180px] truncate">
+                                                {row.materialName}
+                                            </div>
+                                        </TableCell>
+                                        <TableCell className="align-middle text-right font-medium">
                                             {formatCurrency(row.realisasiNominal)}
                                         </TableCell>
                                     </TableRow>
