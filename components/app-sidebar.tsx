@@ -127,6 +127,11 @@ const data = {
             icon: IconArchive,
         },
         {
+            title: "Analisa Material",
+            url: "/admin/material-analysis",
+            icon: IconReport,
+        },
+        {
             title: "Pengaturan Sistem",
             url: "/dashboard/settings",
             icon: IconSettings,
