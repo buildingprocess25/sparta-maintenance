@@ -62,7 +62,7 @@ export async function getMaterialAnalysisData(
         where.branchName = branchName;
     }
 
-    if (brand && brand !== "Semua Brand") {
+    if (brand && brand !== "ALL") {
         const brandWhere = getReportBrandWhere(brand as StoreBrandFilter);
         if (brandWhere) {
             where.AND = [brandWhere];

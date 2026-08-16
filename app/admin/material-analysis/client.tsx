@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/card";
 import { ExportMaterialAnalysisDialog } from "./export-dialog";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
+import { STORE_BRAND_OPTIONS } from "@/lib/store-brand-filter";
 
 export default function MaterialAnalysisClient({ initialBranches = [] }: { initialBranches?: string[] }) {
     const [isPending, startTransition] = useTransition();
@@ -26,7 +27,7 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
         format(endOfDay(new Date()), "yyyy-MM-dd")
     );
     const [branchName, setBranchName] = useState<string>("Semua Cabang");
-    const [brand, setBrand] = useState<string>("Semua Brand");
+    const [brand, setBrand] = useState<string>("ALL");
     const [searchQuery, setSearchQuery] = useState("");
 
     // Pagination
@@ -124,9 +125,11 @@ export default function MaterialAnalysisClient({ initialBranches = [] }: { initi
                             <SelectValue placeholder="Pilih Brand" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="Semua Brand">Semua Brand</SelectItem>
-                            <SelectItem value="Alfamart">Alfamart</SelectItem>
-                            <SelectItem value="Lawson">Lawson</SelectItem>
+                            {STORE_BRAND_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </SelectItem>
+                            ))}
                         </SelectContent>
                     </Select>
                 </div>
