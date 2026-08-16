@@ -31,14 +31,12 @@ export function MaterialNameCombobox({
     () => searchMaterialNames(options, value),
     [options, value],
   );
-  const selectedValue = options.includes(value) ? value : null;
-
   return (
     <Combobox
       items={options}
       filteredItems={suggestions}
       filter={null}
-      value={selectedValue}
+      value={value}
       inputValue={value}
       onInputValueChange={onValueChange}
       onValueChange={(nextValue) => {
