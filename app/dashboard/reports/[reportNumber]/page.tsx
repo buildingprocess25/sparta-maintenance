@@ -106,6 +106,7 @@ function hasReportApprovalAction(role: string, status: string) {
     return (
         (role === "BMC" &&
             (status === "PENDING_ESTIMATION" ||
+                status === "PENDING_CHECKLIST_REVIEW" ||
                 status === "PENDING_REVIEW")) ||
         (role === "BNM_MANAGER" && status === "APPROVED_BMC")
     );

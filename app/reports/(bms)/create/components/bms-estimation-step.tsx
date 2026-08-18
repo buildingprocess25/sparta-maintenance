@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import {
   FileCheck2,
   PlusCircle,
@@ -28,6 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -48,10 +49,12 @@ import {
 import { ESTIMATE_UNITS, type ChecklistItem } from "@/lib/checklist-data";
 import type { BmsItemGroup } from "./types";
 import { formatCurrency } from "@/lib/utils";
+import { MaterialNameCombobox } from "@/components/material-name-combobox";
 
 interface BmsEstimationStepProps {
   bmsItems: Map<string, BmsItemGroup>;
   bmsItemsList: ChecklistItem[];
+  materialNames: string[];
   grandTotalBms: number;
   onAddBmsEntryWithDetails: (
     itemId: string,
@@ -79,6 +82,7 @@ interface BmsEstimationStepProps {
 export function BmsEstimationStep({
   bmsItems,
   bmsItemsList,
+  materialNames,
   grandTotalBms,
   onAddBmsEntryWithDetails,
   onUpdateBmsEntryWithDetails,
@@ -107,7 +111,7 @@ export function BmsEstimationStep({
     0,
   );
 
-  const handleEstimateDialogOpen = () => {
+  const handleEstimateDialogOpen = useCallback(() => {
     setEstimateDraft({
       entryId: undefined,
       checklistItemId: bmsItemsList[0]?.id || "",
@@ -117,7 +121,16 @@ export function BmsEstimationStep({
       unitPrice: "0",
     });
     setIsEstimateDialogOpen(true);
-  };
+  }, [bmsItemsList]);
+
+  useEffect(() => {
+    window.addEventListener("bms-estimation-tour-open", handleEstimateDialogOpen);
+    return () =>
+      window.removeEventListener(
+        "bms-estimation-tour-open",
+        handleEstimateDialogOpen,
+      );
+  }, [handleEstimateDialogOpen]);
 
   const handleEditEstimateDialogOpen = (
     itemId: string,
@@ -231,6 +244,7 @@ export function BmsEstimationStep({
             <Card
               size="sm"
               className="bg-primary/5 shadow-sm ring-1 ring-primary/15"
+              data-tour="bms-report-estimation"
             >
               <CardContent>
                 <div className="flex flex-col gap-4">
@@ -328,7 +342,7 @@ export function BmsEstimationStep({
                                       </TableCell>
                                       <TableCell className="px-1 py-2 text-right">
                                         <DropdownMenu>
-                                          <DropdownMenuTrigger asChild>
+                                          <DropdownMenuTrigger asChild data-tour="bms-estimation-actions">
                                             <Button
                                               type="button"
                                               variant="ghost"
@@ -344,6 +358,7 @@ export function BmsEstimationStep({
                                             className="w-[120px]"
                                           >
                                             <DropdownMenuItem
+                                              data-tour="bms-estimation-edit"
                                               onClick={() =>
                                                 handleEditEstimateDialogOpen(
                                                   checklistItem.id,
@@ -355,6 +370,7 @@ export function BmsEstimationStep({
                                               Edit
                                             </DropdownMenuItem>
                                             <DropdownMenuItem
+                                              data-tour="bms-estimation-delete"
                                               className="text-destructive focus:bg-destructive/10 focus:text-destructive"
                                               onClick={() =>
                                                 onRemoveBmsEntry(
@@ -381,6 +397,7 @@ export function BmsEstimationStep({
                   </div>
 
                   <Button
+                    data-tour="bms-estimation-add"
                     type="button"
                     variant="outline"
                     className="h-12 bg-background"
@@ -408,10 +425,21 @@ export function BmsEstimationStep({
       )}
 
       <Dialog
+        modal={false}
         open={isEstimateDialogOpen}
         onOpenChange={setIsEstimateDialogOpen}
       >
-        <DialogContent>
+        <DialogPortal>
+          <div
+            aria-hidden
+            className="fixed inset-0 z-40 bg-black/10 supports-backdrop-filter:backdrop-blur-xs"
+          />
+        </DialogPortal>
+        <DialogContent
+          onPointerDownOutside={(event) => event.preventDefault()}
+          onInteractOutside={(event) => event.preventDefault()}
+          onEscapeKeyDown={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {estimateDraft.entryId
@@ -441,6 +469,7 @@ export function BmsEstimationStep({
                 }
               >
                 <SelectTrigger
+                  data-tour="bms-estimation-item"
                   id="estimate-checklist-item"
                   className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
                 >
@@ -465,16 +494,17 @@ export function BmsEstimationStep({
               >
                 Nama Barang yang Dibeli
               </Label>
-              <Input
+              <MaterialNameCombobox
+                data-tour="bms-estimation-name"
                 id="estimate-item-name"
                 value={estimateDraft.itemName}
-                onChange={(event) =>
+                options={materialNames}
+                onValueChange={(value) =>
                   setEstimateDraft((current) => ({
                     ...current,
-                    itemName: event.target.value,
+                    itemName: value,
                   }))
                 }
-                className="h-11 rounded-xl bg-muted/60"
               />
             </div>
 
@@ -487,6 +517,7 @@ export function BmsEstimationStep({
                   Jumlah
                 </Label>
                 <Input
+                  data-tour="bms-estimation-quantity"
                   id="estimate-quantity"
                   type="number"
                   min={0}
@@ -549,6 +580,7 @@ export function BmsEstimationStep({
                   Rp
                 </span>
                 <Input
+                  data-tour="bms-estimation-price"
                   id="estimate-unit-price"
                   type="number"
                   min={0}
@@ -577,6 +609,7 @@ export function BmsEstimationStep({
               Batal
             </Button>
             <Button
+              data-tour="bms-estimation-save"
               type="button"
               onClick={handleEstimateItemSave}
               disabled={!canSaveEstimateItem}

@@ -12,6 +12,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { z } from "zod";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
@@ -108,6 +109,7 @@ type AdminUserPayload = {
     name: string;
     role: AllowedRole;
     branchNames: string[];
+    areaNames?: string[];
 };
 
 export async function adminCreateUser(payload: AdminUserPayload) {
@@ -122,6 +124,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
         }
 
         const branchNames = normalizeBranchNames(payload.branchNames);
+        const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
         if (!isGlobalAdmin(admin) && payload.role === "ADMIN") {
             return { error: "Role ADMIN hanya dapat dibuat oleh ADMIN" };
@@ -157,6 +160,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
                     name: payload.name,
                     role: payload.role,
                     branchNames,
+                    areaNames,
                     deletedAt: null,
                     deletedByNIK: null,
                     mustChangePassword: true,
@@ -171,6 +175,7 @@ export async function adminCreateUser(payload: AdminUserPayload) {
                     name: payload.name,
                     role: payload.role,
                     branchNames,
+                    areaNames,
                 },
             });
         }
@@ -221,6 +226,7 @@ export async function adminUpdateUser(
         if (existing.deletedAt) return { error: "User sudah dihapus" };
 
         const branchNames = normalizeBranchNames(payload.branchNames);
+        const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
         if (
             !isGlobalAdmin(admin) &&
@@ -239,6 +245,7 @@ export async function adminUpdateUser(
                 name: payload.name,
                 role: payload.role,
                 branchNames,
+                areaNames,
             },
         });
 
@@ -343,6 +350,8 @@ type AdminStorePayload = {
     name: string;
     branchName: string;
     isActive?: boolean;
+    areaName?: string | null;
+    brand?: string | null;
 };
 
 export async function adminCreateStore(payload: AdminStorePayload) {
@@ -351,6 +360,11 @@ export async function adminCreateStore(payload: AdminStorePayload) {
         const admin = await requireMasterDataManager();
         const headersList = await headers();
         await validateCSRF(headersList);
+
+        const storeCodeSchema = z.string().regex(/^[A-Za-z0-9]{4}$/);
+        if (!storeCodeSchema.safeParse(payload.code).success) {
+            return { error: "Kode toko harus tepat 4 karakter huruf atau angka" };
+        }
 
         const branchName = payload.branchName.trim();
         if (!isBranchInScope(admin, branchName)) {
@@ -363,6 +377,8 @@ export async function adminCreateStore(payload: AdminStorePayload) {
                 name: payload.name,
                 branchName,
                 isActive: payload.isActive ?? true,
+                areaName: payload.areaName,
+                brand: payload.brand,
             },
         });
 
@@ -418,6 +434,8 @@ export async function adminUpdateStore(
                 name: payload.name,
                 branchName,
                 isActive: payload.isActive ?? true,
+                areaName: payload.areaName,
+                brand: payload.brand,
             },
         });
 

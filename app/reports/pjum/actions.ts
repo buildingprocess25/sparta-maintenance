@@ -47,6 +47,7 @@ export type PjumHistoryRow = {
     bmsName: string;
     branchName: string;
     weekNumber: number;
+    monthName: string;
     fromDate: string;
     toDate: string;
     reportNumbers: string[];
@@ -69,6 +70,7 @@ const exportSchema = z.object({
         .int("Minggu ke harus angka bulat")
         .min(1, "Minggu ke minimal 1")
         .max(5, "Minggu ke maksimal 5"),
+    monthName: z.string().min(1, "Bulan wajib diisi"),
 });
 
 class PjumExportConflictError extends Error {
@@ -236,6 +238,10 @@ export async function getBmcPjumHistory(
             bmsName: userMap.get(row.bmsNIK) ?? row.bmsNIK,
             branchName: row.branchName,
             weekNumber: row.weekNumber,
+            monthName: row.monthName ?? row.fromDate.toLocaleString("id-ID", {
+                month: "long",
+                timeZone: "Asia/Jakarta",
+            }),
             fromDate: row.fromDate.toISOString(),
             toDate: row.toDate.toISOString(),
             reportNumbers: row.reportNumbers,
@@ -409,6 +415,7 @@ export async function exportPjum(input: {
     from: string;
     to: string;
     weekNumber: number;
+    monthName: string;
 }): Promise<{
     error: string | null;
     pjumExportId: string | null;
@@ -420,7 +427,7 @@ export async function exportPjum(input: {
 
         const parsed = exportSchema.parse(input);
         const safeNumbers = Array.from(new Set(parsed.reportNumbers));
-        const { bmsNIK, from, to, weekNumber } = parsed;
+        const { bmsNIK, from, to, weekNumber, monthName } = parsed;
 
         if (safeNumbers.length !== parsed.reportNumbers.length) {
             return {
@@ -559,6 +566,7 @@ export async function exportPjum(input: {
                     bmsNIK,
                     branchName,
                     weekNumber,
+                    monthName,
                     fromDate: rangeFromDate,
                     toDate: rangeToDate,
                     reportNumbers: safeNumbers,

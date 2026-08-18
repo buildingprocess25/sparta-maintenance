@@ -29,6 +29,7 @@ import { MaintenanceToggle } from "./maintenance-toggle";
 
 const REPORT_SLA_FORM_FIELDS = [
     "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
     "ESTIMATION_APPROVED",
     "ESTIMATION_REJECTED_REVISION",
     "IN_PROGRESS",
@@ -398,6 +399,8 @@ function getSlaHelper(status: ReportStatusKey) {
     switch (status) {
         case "PENDING_ESTIMATION":
             return "Batas waktu BMC meninjau estimasi awal setelah laporan dibuat.";
+        case "PENDING_CHECKLIST_REVIEW":
+            return "Batas waktu BMC meninjau checklist laporan.";
         case "ESTIMATION_APPROVED":
             return "Batas waktu BMS mulai mengerjakan laporan setelah estimasi disetujui.";
         case "ESTIMATION_REJECTED_REVISION":

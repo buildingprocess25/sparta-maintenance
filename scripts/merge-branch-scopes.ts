@@ -2,18 +2,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import prisma from "../lib/prisma";
 
-const BRANCH_MERGES = new Map<string, string>([
-    ["BOGOR", "CILEUNGSI RAYA"],
-    ["BEKASI", "CILEUNGSI RAYA"],
-    ["KARAWANG", "CILEUNGSI RAYA"],
-    ["CILEUNGSI 2", "CILEUNGSI RAYA"],
-    ["BALARAJA", "CIKOKOL RAYA"],
-    ["SERANG", "CIKOKOL RAYA"],
-    ["PARUNG", "CIKOKOL RAYA"],
-    ["CIKOKOL", "CIKOKOL RAYA"],
-]);
+import {
+    getPostMergeRepairAreaName,
+    LEGACY_BRANCH_MERGES,
+} from "../lib/branch-merges";
 
-const OLD_BRANCHES = [...BRANCH_MERGES.keys()];
+const OLD_BRANCHES = [...LEGACY_BRANCH_MERGES.keys()];
 const STORE_AREA_CSV = "backup/branch-area-backup.csv";
 const USER_AREA_CSV = "backup/user-area.csv";
 const BATCH_SIZE = 500;
@@ -26,7 +20,7 @@ function normalizeAreaName(areaName: string) {
 function normalizeUserBranches(branchNames: string[]) {
     const next = branchNames.map((branchName) => {
         const trimmed = branchName.trim();
-        return BRANCH_MERGES.get(trimmed) ?? trimmed;
+        return LEGACY_BRANCH_MERGES.get(trimmed) ?? trimmed;
     });
 
     return [...new Set(next)].filter(Boolean);
@@ -94,11 +88,124 @@ function assertNormalizeUserBranches() {
         "CIKOKOL RAYA",
         "HEAD OFFICE",
     ]);
-    assert.equal(BRANCH_MERGES.get("CIKOKOL"), "CIKOKOL RAYA");
-    assert.deepEqual(parseUserAreaCsv().get("03100115"), [
-        "BEKASI",
-        "KARAWANG",
+    assert.equal(LEGACY_BRANCH_MERGES.get("CIKOKOL"), "CIKOKOL RAYA");
+}
+
+async function repairPostMergeEntries(execute: boolean) {
+    const oldBranchNames = [...LEGACY_BRANCH_MERGES.keys()];
+    const [stores, reports, pjumExports] = await Promise.all([
+        prisma.store.findMany({
+            where: { branchName: { in: oldBranchNames } },
+            select: { code: true, branchName: true, areaName: true },
+        }),
+        prisma.report.findMany({
+            where: { branchName: { in: oldBranchNames } },
+            select: { reportNumber: true, branchName: true, areaName: true },
+        }),
+        prisma.pjumExport.findMany({
+            where: { branchName: { in: oldBranchNames } },
+            select: { id: true, branchName: true },
+        }),
     ]);
+
+    console.log(execute ? "Mode: REPAIR EXECUTE" : "Mode: REPAIR DRY RUN");
+    console.log(`Stores to repair: ${stores.length}`);
+    console.log(`Reports to repair: ${reports.length}`);
+    console.log(`PJUM to repair   : ${pjumExports.length}`);
+
+    if (!execute) {
+        console.log("Jalankan dengan --repair-post-merge --execute untuk menyimpan perubahan.");
+        return;
+    }
+
+    for (const store of stores) {
+        const oldBranchName = store.branchName;
+        await prisma.store.update({
+            where: { code: store.code },
+            data: {
+                branchName: LEGACY_BRANCH_MERGES.get(oldBranchName)!,
+                areaName: getPostMergeRepairAreaName(store.areaName, oldBranchName),
+            },
+        });
+    }
+
+    for (const report of reports) {
+        const oldBranchName = report.branchName;
+        await prisma.report.update({
+            where: { reportNumber: report.reportNumber },
+            data: {
+                branchName: LEGACY_BRANCH_MERGES.get(oldBranchName)!,
+                areaName: getPostMergeRepairAreaName(report.areaName, oldBranchName),
+            },
+        });
+    }
+
+    for (const pjumExport of pjumExports) {
+        await prisma.pjumExport.update({
+            where: { id: pjumExport.id },
+            data: {
+                branchName: LEGACY_BRANCH_MERGES.get(pjumExport.branchName)!,
+            },
+        });
+    }
+
+    await refreshPjumAreas(pjumExports.map((pjumExport) => pjumExport.id));
+    console.log("Repair post-merge selesai.");
+}
+
+async function refreshPjumAreas(pjumExportIds?: string[]) {
+    logProgress("Updating PJUM areas...");
+    let cursor: string | undefined;
+    let updatedPjumExports = 0;
+    while (true) {
+        const pjumExports = await prisma.pjumExport.findMany({
+            where: pjumExportIds ? { id: { in: pjumExportIds } } : undefined,
+            take: PJUM_PAGE_SIZE,
+            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+            orderBy: { id: "asc" },
+            select: { id: true, reportNumbers: true, areaNames: true },
+        });
+
+        if (pjumExports.length === 0) break;
+
+        const reportNumbers = [
+            ...new Set(pjumExports.flatMap((pjum) => pjum.reportNumbers)),
+        ];
+        const reports = await prisma.report.findMany({
+            where: { reportNumber: { in: reportNumbers } },
+            select: { reportNumber: true, areaName: true },
+        });
+        const reportAreaMap = new Map(
+            reports.map((report) => [report.reportNumber, report.areaName]),
+        );
+
+        for (const pjum of pjumExports) {
+            const areaNames = [
+                ...new Set(
+                    pjum.reportNumbers
+                        .map((reportNumber) => reportAreaMap.get(reportNumber))
+                        .filter(
+                            (areaName): areaName is string =>
+                                Boolean(areaName),
+                        ),
+                ),
+            ];
+
+            if (sameStringArray(pjum.areaNames, areaNames)) {
+                continue;
+            }
+
+            await prisma.pjumExport.update({
+                where: { id: pjum.id },
+                data: { areaNames },
+            });
+            updatedPjumExports += 1;
+        }
+
+        cursor = pjumExports.at(-1)?.id;
+        logProgress(`Processed ${pjumExports.length} PJUM rows.`);
+    }
+    return updatedPjumExports;
 }
 
 async function main() {
@@ -109,6 +216,13 @@ async function main() {
     }
 
     const execute = process.argv.includes("--execute");
+    const repairPostMerge = process.argv.includes("--repair-post-merge");
+
+    if (repairPostMerge) {
+        await repairPostMergeEntries(execute);
+        return;
+    }
+
     const storeAreaMap = parseStoreAreaCsv();
     const userAreaMap = parseUserAreaCsv();
     const usersToInspect = Array.from(userAreaMap.keys());
@@ -164,7 +278,7 @@ async function main() {
     console.log(`User area rows  : ${userAreaMap.size}`);
 
     for (const [index, branchName] of OLD_BRANCHES.entries()) {
-        const target = BRANCH_MERGES.get(branchName);
+        const target = LEGACY_BRANCH_MERGES.get(branchName);
         console.log(
             `- ${branchName} -> ${target}: ${storeCounts[index]} toko, ${reportCounts[index]} laporan, ${pjumCounts[index]} PJUM`,
         );
@@ -180,7 +294,7 @@ async function main() {
     let updatedPjumExports = 0;
     logProgress("Updating merged branch names...");
     for (const branchName of OLD_BRANCHES) {
-        const targetBranchName = BRANCH_MERGES.get(branchName)!;
+        const targetBranchName = LEGACY_BRANCH_MERGES.get(branchName)!;
         const storeResult = await prisma.store.updateMany({
             where: { branchName },
             data: { branchName: targetBranchName },
@@ -243,55 +357,8 @@ async function main() {
     }
     logProgress("Users done.");
 
-    logProgress("Updating PJUM areas...");
-    let cursor: string | undefined;
-    while (true) {
-        const pjumExports = await prisma.pjumExport.findMany({
-            take: PJUM_PAGE_SIZE,
-            ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
-            orderBy: { id: "asc" },
-            select: { id: true, reportNumbers: true, areaNames: true },
-        });
-
-        if (pjumExports.length === 0) break;
-
-        const reportNumbers = [
-            ...new Set(pjumExports.flatMap((pjum) => pjum.reportNumbers)),
-        ];
-        const reports = await prisma.report.findMany({
-            where: { reportNumber: { in: reportNumbers } },
-            select: { reportNumber: true, areaName: true },
-        });
-        const reportAreaMap = new Map(
-            reports.map((report) => [report.reportNumber, report.areaName]),
-        );
-
-        for (const pjum of pjumExports) {
-            const areaNames = [
-                ...new Set(
-                    pjum.reportNumbers
-                        .map((reportNumber) => reportAreaMap.get(reportNumber))
-                        .filter(
-                            (areaName): areaName is string =>
-                                Boolean(areaName),
-                        ),
-                ),
-            ];
-
-            if (sameStringArray(pjum.areaNames, areaNames)) {
-                continue;
-            }
-
-            await prisma.pjumExport.update({
-                where: { id: pjum.id },
-                data: { areaNames },
-            });
-            updatedPjumExports += 1;
-        }
-
-        cursor = pjumExports.at(-1)?.id;
-        logProgress(`Processed ${pjumExports.length} PJUM rows.`);
-    }
+    const updatedAreasCount = await refreshPjumAreas();
+    updatedPjumExports += updatedAreasCount;
 
     console.log("✅ Branch user dan toko berhasil diperbarui");
     console.log(`- Users updated : ${updatedUsers}`);

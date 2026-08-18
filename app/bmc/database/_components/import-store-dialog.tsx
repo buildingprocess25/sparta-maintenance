@@ -60,6 +60,7 @@ export function ImportStoreDialog({ branchNames }: Props) {
     const [targetBranch, setTargetBranch] = useState(branchNames[0] ?? "");
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hasSingleBranch = branchNames.length === 1;
+    const hasWritableBranch = branchNames.length > 0;
 
     const resetState = useCallback(() => {
         setSelectedFile(null);
@@ -164,7 +165,17 @@ export function ImportStoreDialog({ branchNames }: Props) {
             }}
         >
             <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="gap-1.5">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={!hasWritableBranch}
+                    title={
+                        hasWritableBranch
+                            ? undefined
+                            : "Tidak ada cabang utama yang dapat dikelola"
+                    }
+                >
                     <Upload className="h-4 w-4" />
                     Import
                 </Button>
@@ -376,7 +387,7 @@ export function ImportStoreDialog({ branchNames }: Props) {
                     {!result && (
                         <Button
                             type="button"
-                            disabled={!selectedFile || isPending}
+                            disabled={!selectedFile || isPending || !hasWritableBranch}
                             onClick={handleImport}
                             className="gap-1.5"
                         >

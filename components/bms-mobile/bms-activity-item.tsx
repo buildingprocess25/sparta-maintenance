@@ -125,7 +125,7 @@ export function BmsMobileActivityItem({
                 getActionBadgeClass(item.action),
               )}
             >
-              {getActivityActionLabel(item.action)}
+              {getActivityActionLabel(item.action, item.isChecklistOnly)}
             </Badge>
           </div>
 

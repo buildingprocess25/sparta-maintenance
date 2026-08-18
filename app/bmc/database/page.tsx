@@ -1,5 +1,6 @@
 import { requireRole } from "@/lib/authorization";
-import { getUsersByBranches, getStoresByBranches } from "./queries";
+import { getUsersByBranches, getStoresByBranches, getStoreAreaNamesByBranches } from "./queries";
+import { getAllBrands } from "../../admin/database/queries";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -43,7 +44,7 @@ export default async function BmcDatabasePage({
     const userPage = Math.max(1, Number(resolvedSearchParams.userPage) || 1);
     const storePage = Math.max(1, Number(resolvedSearchParams.storePage) || 1);
 
-    const [usersResult, storesResult] = await Promise.all([
+    const [usersResult, storesResult, areaNamesByBranch, allBrands] = await Promise.all([
         getUsersByBranches(user.branchNames, {
             page: userPage,
             limit: 10,
@@ -56,6 +57,8 @@ export default async function BmcDatabasePage({
             search: resolvedSearchParams.sSearch,
             status: resolvedSearchParams.status,
         }),
+        getStoreAreaNamesByBranches(user.branchNames),
+        getAllBrands(),
     ]);
 
     return (
@@ -138,6 +141,7 @@ export default async function BmcDatabasePage({
                                 <UserTable
                                     users={usersResult.users}
                                     branchNames={user.branchNames}
+                                    areaNamesByBranch={areaNamesByBranch}
                                     totalCount={usersResult.total}
                                     currentPage={usersResult.page}
                                     totalPages={usersResult.totalPages}
@@ -165,6 +169,8 @@ export default async function BmcDatabasePage({
                                 <StoreTable
                                     stores={storesResult.stores}
                                     branchNames={user.branchNames}
+                                    allBrands={allBrands}
+                                    areaNamesByBranch={areaNamesByBranch}
                                     totalCount={storesResult.total}
                                     currentPage={storesResult.page}
                                     totalPages={storesResult.totalPages}

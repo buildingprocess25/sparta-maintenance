@@ -10,6 +10,7 @@ import {
   type ChecklistItem,
   REPORT_CHECKLIST_ITEMS,
 } from "@/lib/checklist-data";
+import { getAfterSubmitSteps } from "./review-step-copy";
 import type { StoreOption } from "./types";
 import type { BmsItemGroup } from "./types";
 import { formatCurrency } from "@/lib/utils";
@@ -287,11 +288,7 @@ export function ReviewStep({
             </h3>
 
             <div className="grid items-center gap-2">
-              {[
-                "Status laporan menjadi 'Menunggu Persetujuan Estimasi'.",
-                "BMC melakukan review estimasi dan checklist.",
-                "Jika disetujui, BMS dapat mulai pekerjaan.",
-              ].map((item, index) => (
+              {getAfterSubmitSteps(checklist.values()).map((item, index) => (
                 <div key={item} className="flex items-center gap-3">
                   <div className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                     {index + 1}

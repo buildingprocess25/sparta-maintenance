@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { getJakartaYear } from "@/lib/time";
+import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -59,10 +60,12 @@ export function RealisasiFilter({
   branches,
   initialPeriod,
   initialBranch,
+  initialBrand,
 }: {
   branches: string[];
   initialPeriod: string;
   initialBranch: string;
+  initialBrand: StoreBrandFilter;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -71,11 +74,12 @@ export function RealisasiFilter({
   const [periodVal, setPeriodVal] = useState(parsed.selectVal); // "ytd" | "01"–"12"
   const [year, setYear] = useState(parsed.year);
   const [branch, setBranch] = useState(initialBranch || "all");
+  const [brand, setBrand] = useState(initialBrand);
 
   const isMonthMode = periodVal !== "ytd";
 
   const navigate = useCallback(
-    (nextPeriodVal: string, nextYear: string, nextBranch: string) => {
+    (nextPeriodVal: string, nextYear: string, nextBranch: string, nextBrand: StoreBrandFilter) => {
       const params = new URLSearchParams();
       if (nextPeriodVal !== "ytd") {
         params.set("period", `${nextPeriodVal}-${nextYear}`);
@@ -84,6 +88,9 @@ export function RealisasiFilter({
       }
       if (nextBranch && nextBranch !== "all") {
         params.set("branch", nextBranch);
+      }
+      if (nextBrand !== "ALL") {
+        params.set("brand", nextBrand);
       }
       startTransition(() => {
         router.push(`/dashboard/realisasi?${params.toString()}`);
@@ -94,14 +101,14 @@ export function RealisasiFilter({
 
   function handlePeriodChange(value: string) {
     setPeriodVal(value);
-    navigate(value, year, branch);
+    navigate(value, year, branch, brand);
   }
 
   function handleYearBlur(e: React.FocusEvent<HTMLInputElement>) {
     const y = e.target.value.trim();
     if (/^\d{4}$/.test(y)) {
       setYear(y);
-      navigate(periodVal, y, branch);
+      navigate(periodVal, y, branch, brand);
     }
   }
 
@@ -113,11 +120,29 @@ export function RealisasiFilter({
 
   function handleBranchChange(value: string) {
     setBranch(value);
-    navigate(periodVal, year, value);
+    navigate(periodVal, year, value, brand);
+  }
+
+  function handleBrandChange(value: string) {
+    const nextBrand = value as StoreBrandFilter;
+    setBrand(nextBrand);
+    navigate(periodVal, year, branch, nextBrand);
   }
 
   return (
     <div className="flex items-center gap-2">
+      <Select value={brand} onValueChange={handleBrandChange}>
+        <SelectTrigger className="h-8 w-32 text-xs">
+          <SelectValue placeholder="Pilih Brand" />
+        </SelectTrigger>
+        <SelectContent align="end">
+          {STORE_BRAND_OPTIONS.map((option) => (
+            <SelectItem key={option.value} value={option.value} className="text-xs">
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {/* Periode — merged single dropdown */}
       <Select value={periodVal} onValueChange={handlePeriodChange}>
         <SelectTrigger className="h-8 w-40 text-xs">

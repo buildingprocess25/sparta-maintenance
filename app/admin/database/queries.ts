@@ -64,6 +64,7 @@ export async function getAllUsers(input?: AdminUserFilterInput) {
                 email: true,
                 role: true,
                 branchNames: true,
+                areaNames: true,
             },
             orderBy: { name: "asc" },
             skip,
@@ -111,6 +112,8 @@ export async function getAllStores(input?: AdminStoreFilterInput) {
                 code: true,
                 name: true,
                 branchName: true,
+                areaName: true,
+                brand: true,
                 isActive: true,
             },
             orderBy: [{ branchName: "asc" }, { name: "asc" }],
@@ -137,4 +140,15 @@ export async function getAllBranchNamesForAdmin(): Promise<string[]> {
         orderBy: { branchName: "asc" },
     });
     return result.map((r) => r.branchName);
+}
+
+/** Distinct brand names for autofill dropdowns */
+export async function getAllBrands(): Promise<string[]> {
+    const result = await prisma.store.findMany({
+        distinct: ["brand"],
+        select: { brand: true },
+        where: { brand: { not: null } },
+        orderBy: { brand: "asc" },
+    });
+    return result.map((r) => r.brand as string);
 }

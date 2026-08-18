@@ -325,6 +325,19 @@ export async function approvePjumExport(input: {
 
         const pjumExport = await prisma.pjumExport.findUnique({
             where: { id: validated.pjumExportId },
+            select: {
+                id: true,
+                bmsNIK: true,
+                branchName: true,
+                weekNumber: true,
+                monthName: true,
+                fromDate: true,
+                toDate: true,
+                reportNumbers: true,
+                createdByNIK: true,
+                status: true,
+                pjumPdfPath: true,
+            },
         });
 
         if (!pjumExport) {
@@ -374,14 +387,20 @@ export async function approvePjumExport(input: {
 
         const pjumFormData: PjumFormData = {
             weekNumber: pjumExport.weekNumber,
-            monthName: pjumExport.fromDate.toLocaleString("id-ID", {
-                month: "long",
-                timeZone: JAKARTA_TIME_ZONE,
-            }),
+            // Prioritaskan bulan yang dipilih BMC. Fallback ke fromDate
+            // untuk PJUM lama (sebelum fitur ini).
+            monthName:
+                pjumExport.monthName ??
+                pjumExport.fromDate.toLocaleString("id-ID", {
+                    month: "long",
+                    timeZone: JAKARTA_TIME_ZONE,
+                }),
             year: getJakartaYear(pjumExport.fromDate),
             bmsName,
             submissionDate: approvedAtDate.toISOString(),
             totalExpenditure,
+            periodeFrom: pjumExport.fromDate.toISOString(),
+            periodeTo: pjumExport.toDate.toISOString(),
         };
 
         // Generate final PDF package.

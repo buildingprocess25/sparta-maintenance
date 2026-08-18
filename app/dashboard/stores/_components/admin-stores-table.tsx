@@ -108,6 +108,8 @@ export function AdminStoresTable({
     initialTotalCount,
     branches,
     areaNames,
+    allBrands,
+    areaNamesByBranch,
     canManage = true,
 }: {
     initialData: StoreItem[];
@@ -115,6 +117,8 @@ export function AdminStoresTable({
     initialTotalCount: number;
     branches: string[];
     areaNames: string[];
+    allBrands?: string[];
+    areaNamesByBranch?: Record<string, string[]>;
     canManage?: boolean;
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
@@ -276,7 +280,11 @@ export function AdminStoresTable({
                 {canManage ? (
                     <div className="flex items-center gap-2 ml-auto">
                         <ImportStoresDialog branches={branches} />
-                        <AdminStoreFormDialog allBranchNames={branches} />
+                        <AdminStoreFormDialog 
+                            allBranchNames={branches} 
+                            allBrands={allBrands}
+                            areaNamesByBranch={areaNamesByBranch}
+                        />
                     </div>
                 ) : null}
             </div>
@@ -358,9 +366,9 @@ export function AdminStoresTable({
                                             <TableCell className="text-center">
                                                 <div className="flex items-center justify-center gap-1">
                                                     <AdminStoreFormDialog
-                                                        allBranchNames={
-                                                            branches
-                                                        }
+                                                        allBranchNames={branches}
+                                                        allBrands={allBrands}
+                                                        areaNamesByBranch={areaNamesByBranch}
                                                         editStore={store}
                                                         trigger={
                                                             <Button

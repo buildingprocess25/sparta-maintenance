@@ -61,6 +61,10 @@ import {
     PreventiveRow,
     getAdminPreventive,
 } from "../actions";
+import {
+    getPreventiveCompletionForTab,
+} from "../preventive-dashboard";
+import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
     { value: 1, label: "Triwulan 1", period: "Jan-Mar" },
@@ -69,7 +73,6 @@ const quarterOptions: { value: PreventiveQuarter; label: string; period: string 
     { value: 4, label: "Triwulan 4", period: "Okt-Des" },
 ];
 
-const PENDING_PAGE_SIZE = 30;
 const HISTORY_PAGE_SIZE = 30;
 
 function getCurrentQuarter(): PreventiveQuarter {
@@ -224,6 +227,7 @@ export function AdminPreventiveTable({
     availableYears,
     defaultBranch,
     showBranchControls = true,
+    showBrandFilter = false,
     actions,
 }: {
     initialData: AdminPreventiveResult;
@@ -231,9 +235,11 @@ export function AdminPreventiveTable({
     availableYears: number[];
     defaultBranch: string;
     showBranchControls?: boolean;
+    showBrandFilter?: boolean;
     actions?: ReactNode;
 }) {
     const currentYear = getJakartaYear();
+    const [activeTab, setActiveTab] = useState("quarter");
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialData.nextCursor,
@@ -241,9 +247,6 @@ export function AdminPreventiveTable({
     const [totalCount, setTotalCount] = useState(initialData.totalCount);
     const [summary, setSummary] =
         useState<AdminPreventiveResult["summary"] | null>(initialData.summary);
-    const [pendingRows, setPendingRows] = useState<PreventiveRow[]>(
-        initialData.pendingRows,
-    );
     const [branchSummaries, setBranchSummaries] = useState<
         AdminPreventiveResult["branchSummaries"]
     >(initialData.branchSummaries);
@@ -255,16 +258,14 @@ export function AdminPreventiveTable({
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [tableSearch, setTableSearch] = useState("");
     const [branchName, setBranchName] = useState<string>(defaultBranch);
+    const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
     const [year, setYear] = useState<number>(initialData.summary.year || currentYear);
     const [quarter, setQuarter] =
         useState<PreventiveQuarter>(initialData.summary.quarter || getCurrentQuarter());
 
     const observer = useRef<IntersectionObserver | null>(null);
-    const pendingObserver = useRef<IntersectionObserver | null>(null);
     const historyObserver = useRef<IntersectionObserver | null>(null);
     const didHydrateRef = useRef(false);
-    const [visiblePendingCount, setVisiblePendingCount] =
-        useState(PENDING_PAGE_SIZE);
     const [visibleHistoryCount, setVisibleHistoryCount] =
         useState(HISTORY_PAGE_SIZE);
 
@@ -286,8 +287,6 @@ export function AdminPreventiveTable({
             setNextCursor(result.nextCursor);
             setTotalCount(result.totalCount);
             setSummary(result.summary);
-            setPendingRows(result.pendingRows);
-            setVisiblePendingCount(PENDING_PAGE_SIZE);
             setBranchSummaries(result.branchSummaries);
             setLatestReports(result.latestReports);
             setVisibleHistoryCount(HISTORY_PAGE_SIZE);
@@ -302,8 +301,11 @@ export function AdminPreventiveTable({
         try {
             const result = await getAdminPreventive(nextCursor, 30, {
                 branchName,
+                brand,
                 year,
                 quarter,
+                completion: getPreventiveCompletionForTab(activeTab),
+                search: tableSearch.trim() || undefined,
             });
             applyResult(result, true);
         } catch (error) {
@@ -315,8 +317,11 @@ export function AdminPreventiveTable({
         nextCursor,
         isFetchingMore,
         branchName,
+        brand,
         year,
         quarter,
+        activeTab,
+        tableSearch,
         applyResult,
     ]);
 
@@ -347,8 +352,11 @@ export function AdminPreventiveTable({
             try {
                 const result = await getAdminPreventive(null, 30, {
                     branchName,
+                    brand,
                     year,
                     quarter,
+                    completion: getPreventiveCompletionForTab(activeTab),
+                    search: tableSearch.trim() || undefined,
                 });
                 applyResult(result);
             } catch (error) {
@@ -359,26 +367,15 @@ export function AdminPreventiveTable({
         }, 350);
 
         return () => clearTimeout(timer);
-    }, [branchName, year, quarter, applyResult]);
+    }, [branchName, brand, year, quarter, activeTab, tableSearch, applyResult]);
 
-    useEffect(() => {
-        setVisiblePendingCount(PENDING_PAGE_SIZE);
-        setVisibleHistoryCount(HISTORY_PAGE_SIZE);
-    }, [tableSearch]);
-
+    // History state reset moved to search input onChange
     const selectedQuarter = useMemo(
         () => quarterOptions.find((item) => item.value === quarter),
         [quarter],
     );
 
-    const filteredRows = useMemo(
-        () => data.filter((row) => matchesStoreSearch(row, tableSearch)),
-        [data, tableSearch],
-    );
-    const filteredPendingRows = useMemo(
-        () => pendingRows.filter((row) => matchesStoreSearch(row, tableSearch)),
-        [pendingRows, tableSearch],
-    );
+    const filteredRows = data;
     const filteredHistoryRows = useMemo(
         () =>
             latestReports.filter((row) =>
@@ -389,18 +386,6 @@ export function AdminPreventiveTable({
             ),
         [latestReports, tableSearch],
     );
-    const completedRows = filteredRows.filter((row) =>
-        getQuarterInfo(row, quarter),
-    );
-    const pendingRowsInPage = filteredRows.filter(
-        (row) => !getQuarterInfo(row, quarter),
-    );
-    const pendingRowsToRender = filteredPendingRows.slice(
-        0,
-        visiblePendingCount,
-    );
-    const hasMorePendingRows =
-        visiblePendingCount < filteredPendingRows.length;
     const historyRowsToRender = filteredHistoryRows.slice(
         0,
         visibleHistoryCount,
@@ -409,27 +394,6 @@ export function AdminPreventiveTable({
         visibleHistoryCount < filteredHistoryRows.length;
     const lowestBranch = branchSummaries[0];
     const showLowestBranchMetric = showBranchControls && branchName === "all";
-
-    const lastPendingRowRef = useCallback(
-        (node: HTMLTableRowElement) => {
-            if (!hasMorePendingRows) return;
-            if (pendingObserver.current) pendingObserver.current.disconnect();
-
-            pendingObserver.current = new IntersectionObserver((entries) => {
-                if (entries[0].isIntersecting) {
-                    setVisiblePendingCount((current) =>
-                        Math.min(
-                            current + PENDING_PAGE_SIZE,
-                            filteredPendingRows.length,
-                        ),
-                    );
-                }
-            });
-
-            if (node) pendingObserver.current.observe(node);
-        },
-        [hasMorePendingRows, filteredPendingRows.length],
-    );
 
     const lastHistoryRowRef = useCallback(
         (node: HTMLTableRowElement) => {
@@ -488,28 +452,45 @@ export function AdminPreventiveTable({
                         </div>
 
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center xl:justify-end">
+                            {showBrandFilter ? (
+                                    <Select
+                                        value={brand}
+                                        onValueChange={(val) => setBrand(val as StoreBrandFilter)}
+                                    >
+                                        <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[140px]">
+                                            <SelectValue placeholder="Semua Brand" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {STORE_BRAND_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                            ) : null}
                             {showBranchControls ? (
-                                <Select
-                                    value={branchName}
-                                    onValueChange={setBranchName}
-                                >
-                                    <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[190px]">
-                                        <SelectValue placeholder="Semua Cabang" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">
-                                            Semua Cabang
-                                        </SelectItem>
-                                        {branches.map((branch) => (
-                                            <SelectItem
-                                                key={branch}
-                                                value={branch}
-                                            >
-                                                {branch}
+                                    <Select
+                                        value={branchName}
+                                        onValueChange={setBranchName}
+                                    >
+                                        <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[190px]">
+                                            <SelectValue placeholder="Semua Cabang" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">
+                                                Semua Cabang
                                             </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
+                                            {branches.map((branch) => (
+                                                <SelectItem
+                                                    key={branch}
+                                                    value={branch}
+                                                >
+                                                    {branch}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
                             ) : null}
                             <Select
                                 value={quarter.toString()}
@@ -615,7 +596,18 @@ export function AdminPreventiveTable({
                 </div>
             </div>
 
-            <Tabs defaultValue="quarter" className="gap-0">
+            <Tabs
+                value={activeTab}
+                onValueChange={(val) => {
+                    if (val !== activeTab) {
+                        setData([]);
+                        setNextCursor(null);
+                        setIsLoading(true);
+                        setActiveTab(val);
+                    }
+                }}
+                className="gap-0"
+            >
                 <div className="sticky top-15 z-30 border-b bg-background/95 px-4 pt-2 backdrop-blur supports-backdrop-filter:bg-background/80 group-has-data-[collapsible=icon]/sidebar-wrapper:top-12 lg:px-6">
                     <div className="flex flex-col gap-2 pb-1 lg:flex-row lg:items-center lg:justify-between">
                         <div className="max-w-none overflow-x-auto overflow-y-hidden pb-1">
@@ -662,9 +654,10 @@ export function AdminPreventiveTable({
                                 placeholder="Cari kode / nama toko"
                                 className="h-8 bg-background pl-8 text-xs"
                                 value={tableSearch}
-                                onChange={(event) =>
-                                    setTableSearch(event.target.value)
-                                }
+                                onChange={(event) => {
+                                    setTableSearch(event.target.value);
+                                    setVisibleHistoryCount(HISTORY_PAGE_SIZE);
+                                }}
                             />
                         </div>
                     </div>
@@ -778,7 +771,7 @@ export function AdminPreventiveTable({
                             </Table>
                         </div>
                         <p className="mt-2 text-xs text-muted-foreground">
-                            Menampilkan {filteredRows.length} dari {totalCount} toko. Dalam halaman ini: {completedRows.length} selesai, {pendingRowsInPage.length} belum.
+                            Menampilkan {filteredRows.length} dari {summary?.completed ?? totalCount} toko.
                         </p>
                     </TabsContent>
 
@@ -800,7 +793,7 @@ export function AdminPreventiveTable({
                                                 <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
-                                    ) : filteredPendingRows.length === 0 ? (
+                                    ) : filteredRows.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={4}>
                                                 <EmptyTable
@@ -811,17 +804,17 @@ export function AdminPreventiveTable({
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        pendingRowsToRender.map((row, index) => {
+                                        filteredRows.map((row, index) => {
                                             const isLast =
                                                 index ===
-                                                pendingRowsToRender.length - 1;
+                                                filteredRows.length - 1;
 
                                             return (
                                             <TableRow
                                                 key={row.storeCode}
                                                 ref={
                                                     isLast
-                                                        ? lastPendingRowRef
+                                                        ? lastRowRef
                                                         : null
                                                 }
                                             >
@@ -844,23 +837,23 @@ export function AdminPreventiveTable({
                                             );
                                         })
                                     )}
-                                    {hasMorePendingRows ? (
+                                    {isFetchingMore ? (
                                         <TableRow>
                                             <TableCell
                                                 colSpan={4}
                                                 className="h-12 text-center text-xs text-muted-foreground"
                                             >
-                                                Memuat data berikutnya...
+                                                <Loader2 className="mx-auto h-4 w-4 animate-spin text-muted-foreground" />
                                             </TableCell>
                                         </TableRow>
                                     ) : null}
                                 </TableBody>
                             </Table>
                         </div>
-                        {filteredPendingRows.length > 0 ? (
+                        {filteredRows.length > 0 ? (
                             <p className="mt-2 text-xs text-muted-foreground">
-                                Menampilkan {pendingRowsToRender.length} dari{" "}
-                                {filteredPendingRows.length} toko belum checklist.
+                                Menampilkan {filteredRows.length} dari{" "}
+                                {summary?.pending ?? totalCount} toko belum checklist.
                             </p>
                         ) : null}
                     </TabsContent>
@@ -887,7 +880,13 @@ export function AdminPreventiveTable({
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
-                                    {filteredRows.length === 0 ? (
+                                    {isLoading ? (
+                                        <TableRow>
+                                            <TableCell colSpan={7} className="h-28 text-center">
+                                                <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : filteredRows.length === 0 ? (
                                         <TableRow>
                                             <TableCell colSpan={7}>
                                                 <EmptyTable

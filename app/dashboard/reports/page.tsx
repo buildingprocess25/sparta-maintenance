@@ -6,6 +6,7 @@ import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAdminReports } from "./actions";
 import { ExportReportsDialog } from "./_components/export-reports-dialog";
 import { isReportStatusKey } from "@/lib/report-status";
+import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ type Props = {
         sla?: string;
         review?: string;
         revision?: string;
+        brand?: string;
     }>;
 };
 
@@ -63,10 +65,14 @@ export default async function AdminReportsPage({ searchParams }: Props) {
     }
 
     const params = await searchParams;
+    const isAdmin = user.role === "ADMIN";
+    const initialBrand = isAdmin
+        ? normalizeStoreBrandFilter(params.brand)
+        : "ALL";
     const initialStatus = normalizeStatus(params.status);
     const initialPjumStatus = normalizePjumStatus(params.pjumStatus);
     const scopedBranches =
-        user.role === "ADMIN"
+        isAdmin
             ? null
             : user.branchNames.filter((branchName) => branchName.trim() !== "");
     const requestedBranchName = params.branchName?.trim() || undefined;
@@ -94,6 +100,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             pjumStatus: initialPjumStatus,
             branchName: initialBranchName,
             areaName: initialAreaName,
+            brand: initialBrand,
         }),
     ]);
 
@@ -105,7 +112,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             headerActions={
                 <ExportReportsDialog
                     branches={branches}
-                    showBranchFilter={user.role === "ADMIN"}
+                    showBranchFilter={isAdmin}
+                    showBrandFilter={isAdmin}
                 />
             }
             contentClassName="h-full"
@@ -121,6 +129,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                 initialPjumStatus={initialPjumStatus ?? "all"}
                 initialBranchName={initialBranchName ?? "all"}
                 initialAreaName={initialAreaName ?? "all"}
+                initialBrand={initialBrand}
+                showBrandFilter={isAdmin}
             />
         </AdminDashboardShell>
     );

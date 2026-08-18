@@ -30,6 +30,7 @@ enum PjumStatus {
 enum ReportStatus {
   DRAFT
   PENDING_ESTIMATION // BMS submitted, waiting BMC estimation review
+  PENDING_CHECKLIST_REVIEW // Checklist report, fast track to BMC
   ESTIMATION_APPROVED // BMC approved estimation, BMS can start work
   ESTIMATION_REJECTED_REVISION // BMC rejected estimation, BMS must revise
   ESTIMATION_REJECTED // BMC permanently rejected (report closed)
@@ -149,11 +150,27 @@ model Store {
   isActive   Boolean @default(true)
 
   reports Report[]
+  ahoTickets MasterAhoTicket[]
 
   @@index([branchName])
   @@index([areaName])
   @@index([branchName, code])
   @@index([branchName, areaName])
+}
+
+model MasterAhoTicket {
+  id         String   @id @default(uuid())
+  storeCode  String
+  problemNo  String
+  status     String    // "New" atau "Progress"
+  branchCode String?
+  branchName String?
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  store      Store    @relation(fields: [storeCode], references: [code])
+
+  @@unique([storeCode, problemNo])
+  @@index([storeCode])
 }
 
 model Report {
@@ -356,6 +373,7 @@ model PjumExport {
   branchName String
   areaNames  String[] @default([])
   weekNumber Int
+  monthName  String?
   fromDate   DateTime @db.Timestamptz(3)
   toDate     DateTime @db.Timestamptz(3)
 

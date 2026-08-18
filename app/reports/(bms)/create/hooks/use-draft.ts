@@ -21,6 +21,30 @@ import type {
 } from "../components/types";
 import type { DraftData } from "@/app/reports/actions";
 
+const LOCAL_STORAGE_KEY_DRAFT = "sparta_bms_draft";
+
+/**
+ * Membaca draftCreatedAt dari localStorage jika sudah ada.
+ * Jika belum ada (draft baru / browser baru), mengembalikan waktu sekarang.
+ * Nilai ini disertakan di setiap autosave, tapi karena selalu dibaca dari
+ * localStorage yang sudah ada, nilainya tidak pernah berubah setelah dibuat.
+ */
+function getOrSetDraftCreatedAt(): string {
+    try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_KEY_DRAFT);
+        if (raw) {
+            const parsed = JSON.parse(raw) as { data?: { draftCreatedAt?: string } };
+            const existing = parsed.data?.draftCreatedAt;
+            if (existing && typeof existing === "string") {
+                return existing;
+            }
+        }
+    } catch {
+        // localStorage tidak bisa diakses — fallback aman
+    }
+    return new Date().toISOString();
+}
+
 type UseDraftParams = {
     existingDraft?: SerializedDraft | null;
     stores: StoreOption[];
@@ -143,7 +167,8 @@ export function useDraft({
                         !url ||
                         (!url.startsWith("data:image") &&
                             !url.startsWith("http") &&
-                            !url.startsWith("/"))
+                            !url.startsWith("/")) ||
+                        url.startsWith("blob:")
                     )
                         return undefined;
                     try {
@@ -442,6 +467,7 @@ export function useDraft({
             0,
         );
 
+        const draftCreatedAt = getOrSetDraftCreatedAt();
         const draftDataPayload: DraftData = {
             storeCode: debouncedStoreCode || undefined,
             storeName: store,
@@ -449,6 +475,7 @@ export function useDraft({
             checklistItems,
             bmsEstimations,
             totalEstimation,
+            draftCreatedAt,
         };
 
         try {
@@ -501,6 +528,7 @@ export function useDraft({
             }));
         }
 
+        const draftCreatedAt = getOrSetDraftCreatedAt();
         return {
             storeCode: selectedStoreCode || undefined,
             storeName: store,
@@ -508,6 +536,7 @@ export function useDraft({
             checklistItems,
             bmsEstimations,
             totalEstimation: grandTotalBms,
+            draftCreatedAt,
         };
     }, [
         checklist,

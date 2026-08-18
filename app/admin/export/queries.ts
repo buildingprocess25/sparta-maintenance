@@ -14,6 +14,7 @@ import {
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
+import { StoreBrandFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -27,12 +28,14 @@ export type ExportFilter = {
     searchQuery?: string;
     year?: number;
     preventiveQuarter?: "all" | 1 | 2 | 3 | 4;
+    brand?: StoreBrandFilter;
 };
 
 // ─── Sheet 1: Report rows ─────────────────────────────────────────────────────
 
 export type ReportExportRow = {
     reportNumber: string;
+    isPreventive: boolean;
     createdAt: Date;
     branchName: string;
     storeCode: string | null;
@@ -89,6 +92,7 @@ export type PjumExportRow = {
     createdAt: Date;
     approvedByName: string | null;
     approvedAt: Date | null;
+    totalReal: number;
 };
 
 // ─── Sheet 4: Preventive rows ───────────────────────────────────────────────────
@@ -141,6 +145,13 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
                 ...(start ? { gte: start } : {}),
                 ...(endExclusive ? { lt: endExclusive } : {}),
             };
+        }
+    }
+
+    if (filter.brand && filter.brand !== "ALL") {
+        const brandWhere = getReportBrandWhere(filter.brand);
+        if (brandWhere) {
+            (where.AND as Prisma.ReportWhereInput[]).push(brandWhere);
         }
     }
 
@@ -218,6 +229,22 @@ export async function fetchReportExportRows(
             },
         });
 
+        const reportNumbers = reports.map((r) => r.reportNumber);
+        
+        let preventiveSet = new Set<string>();
+        if (reportNumbers.length > 0) {
+            const preventiveReports = await prisma.$queryRaw<{ reportNumber: string }[]>`
+                SELECT r."reportNumber"
+                FROM "Report" r
+                WHERE r."reportNumber" IN (${Prisma.join(reportNumbers)})
+                  AND ${completePreventiveEvidenceSql({
+                      statusColumn: Prisma.sql`r."status"`,
+                      itemsColumn: Prisma.sql`r."items"`,
+                  })}
+            `;
+            preventiveSet = new Set(preventiveReports.map(r => r.reportNumber));
+        }
+
         return reports.map((r) => {
             const actionTimes = new Map<string, Date>();
             for (const activity of r.activities) {
@@ -228,6 +255,7 @@ export async function fetchReportExportRows(
 
             return {
                 reportNumber: r.reportNumber,
+                isPreventive: preventiveSet.has(r.reportNumber),
                 createdAt: r.createdAt,
                 branchName: r.branchName,
                 storeCode: r.storeCode,
@@ -397,10 +425,12 @@ export async function fetchPjumExportRows(
 
         // Collect unique NIKs to resolve names in one query
         const nikSet = new Set<string>();
+        const reportNumberSet = new Set<string>();
         for (const e of exports) {
             nikSet.add(e.createdByNIK);
             nikSet.add(e.bmsNIK);
             if (e.approvedByNIK) nikSet.add(e.approvedByNIK);
+            for (const rn of e.reportNumbers) reportNumberSet.add(rn);
         }
 
         const users = await prisma.user.findMany({
@@ -408,6 +438,14 @@ export async function fetchPjumExportRows(
             select: { NIK: true, name: true },
         });
         const nameMap = new Map(users.map((u) => [u.NIK, u.name]));
+
+        const reports = await prisma.report.findMany({
+            where: { reportNumber: { in: Array.from(reportNumberSet) } },
+            select: { reportNumber: true, totalReal: true },
+        });
+        const totalRealMap = new Map(
+            reports.map((r) => [r.reportNumber, Number(r.totalReal ?? 0)]),
+        );
 
         return exports.map((e) => ({
             branchName: e.branchName,
@@ -424,6 +462,7 @@ export async function fetchPjumExportRows(
                 ? (nameMap.get(e.approvedByNIK) ?? e.approvedByNIK)
                 : null,
             approvedAt: e.approvedAt,
+            totalReal: e.reportNumbers.reduce((sum, rn) => sum + (totalRealMap.get(rn) ?? 0), 0),
         }));
     } catch (error) {
         logger.error(
@@ -553,6 +592,19 @@ export async function fetchPreventiveExportRows(
             ];
         }
 
+        if (filter.brand && filter.brand !== "ALL") {
+            const brandWhere = getStoreBrandWhere(filter.brand);
+            if (brandWhere) {
+                if (Array.isArray(whereStore.AND)) {
+                    whereStore.AND.push(brandWhere);
+                } else if (whereStore.AND) {
+                    whereStore.AND = [whereStore.AND, brandWhere];
+                } else {
+                    whereStore.AND = [brandWhere];
+                }
+            }
+        }
+
         const stores = await prisma.store.findMany({
             where: whereStore,
             orderBy: { code: "asc" },
@@ -646,11 +698,12 @@ export async function fetchPreventiveExportRows(
                 info: { doneAt: Date; bmsName: string; bmsNIK: string } | null,
             ) => {
                 if (!info) {
-                    return { by: "", date: null };
+                    return { nik: "", by: "", date: null };
                 }
 
                 return {
-                    by: info.bmsName || info.bmsNIK || "",
+                    nik: info.bmsNIK || "",
+                    by: info.bmsName || "",
                     date: info.doneAt,
                 };
             };
@@ -671,12 +724,16 @@ export async function fetchPreventiveExportRows(
                 storeCode: store.code,
                 storeName: store.name,
                 branchName: store.branchName,
+                q1Nik: q1.nik,
                 q1By: q1.by,
                 q1Date: q1.date,
+                q2Nik: q2.nik,
                 q2By: q2.by,
                 q2Date: q2.date,
+                q3Nik: q3.nik,
                 q3By: q3.by,
                 q3Date: q3.date,
+                q4Nik: q4.nik,
                 q4By: q4.by,
                 q4Date: q4.date,
             };

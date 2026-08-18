@@ -85,6 +85,7 @@ type Props = {
 
 const STATUS_BAR: Record<string, string> = {
     PENDING_ESTIMATION: "bg-yellow-400",
+    PENDING_CHECKLIST_REVIEW: "bg-teal-400",
     ESTIMATION_APPROVED: "bg-green-500",
     ESTIMATION_REJECTED_REVISION: "bg-orange-500",
     ESTIMATION_REJECTED: "bg-red-500",
@@ -147,8 +148,10 @@ function findOverlappingRange(
     return (
         ranges.find((range) => {
             const blockedFrom = startOfDay(new Date(range.fromDate)).getTime();
-            const blockedTo = startOfDay(new Date(range.toDate)).getTime();
-            return from <= blockedTo && to >= blockedFrom;
+            // blockedTo eksklusif: hari terakhir range sebelumnya boleh
+            // jadi start date periode baru (toleransi 1 hari ujung).
+            const blockedToExclusive = startOfDay(new Date(range.toDate)).getTime();
+            return from < blockedToExclusive && to >= blockedFrom;
         }) ?? null
     );
 }
@@ -159,12 +162,14 @@ function DatePickerField({
     label,
     minDate,
     maxDate,
+    blockedRanges,
 }: {
     value?: Date;
     onChange: (d: Date) => void;
     label: string;
     minDate?: Date;
     maxDate?: Date;
+    blockedRanges?: PjumBlockedRange[];
 }) {
     const [open, setOpen] = useState(false);
     return (
@@ -196,9 +201,19 @@ function DatePickerField({
                         }
                     }}
                     disabled={(d) => {
-                        const day = startOfDay(d);
-                        if (minDate && day < startOfDay(minDate)) return true;
-                        if (maxDate && day > startOfDay(maxDate)) return true;
+                        const day = startOfDay(d).getTime();
+                        if (minDate && day < startOfDay(minDate).getTime()) return true;
+                        if (maxDate && day > startOfDay(maxDate).getTime()) return true;
+
+                        // Cek apakah tanggal berada di dalam rentang yang diblokir.
+                        // Toleransi 1 hari: hari terakhir (toDate) tidak diblokir.
+                        if (blockedRanges) {
+                            return blockedRanges.some((range) => {
+                                const from = startOfDay(new Date(range.fromDate)).getTime();
+                                const toExclusive = startOfDay(new Date(range.toDate)).getTime();
+                                return day >= from && day < toExclusive;
+                            });
+                        }
                         return false;
                     }}
                     locale={localeId}
@@ -219,6 +234,16 @@ function getStatusBadge(status: string) {
                 >
                     <Clock className="h-3 w-3" />{" "}
                     {getReportStatusLabel("PENDING_ESTIMATION")}
+                </Badge>
+            );
+        case "PENDING_CHECKLIST_REVIEW":
+            return (
+                <Badge
+                    variant="secondary"
+                    className="gap-1 bg-teal-100 text-teal-700 hover:bg-teal-100/80 border-teal-200 shadow-none whitespace-nowrap"
+                >
+                    <Clock className="h-3 w-3" />{" "}
+                    {getReportStatusLabel("PENDING_CHECKLIST_REVIEW")}
                 </Badge>
             );
         case "ESTIMATION_APPROVED":
@@ -320,6 +345,7 @@ function getPjumHistoryStatusBadge(status: PjumHistoryRow["status"]) {
 // Mobile badge (text only, no icon, compact)
 const STATUS_BADGE_MOBILE: Record<string, string> = {
     PENDING_ESTIMATION: "bg-yellow-100 text-yellow-700",
+    PENDING_CHECKLIST_REVIEW: "bg-teal-100 text-teal-700",
     ESTIMATION_APPROVED: "bg-green-100 text-green-700",
     ESTIMATION_REJECTED_REVISION: "bg-orange-100 text-orange-700",
     ESTIMATION_REJECTED: "bg-red-100 text-red-700",
@@ -332,6 +358,7 @@ const STATUS_BADGE_MOBILE: Record<string, string> = {
 
 const STATUS_LABEL_MOBILE: Record<string, string> = {
     PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+    PENDING_CHECKLIST_REVIEW: getReportStatusLabel("PENDING_CHECKLIST_REVIEW"),
     ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
     ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
         "ESTIMATION_REJECTED_REVISION",
@@ -346,10 +373,26 @@ const STATUS_LABEL_MOBILE: Record<string, string> = {
     COMPLETED: getReportStatusLabel("COMPLETED"),
 };
 
+const MONTH_OPTIONS = [
+    { value: "Januari", label: "Januari" },
+    { value: "Februari", label: "Februari" },
+    { value: "Maret", label: "Maret" },
+    { value: "April", label: "April" },
+    { value: "Mei", label: "Mei" },
+    { value: "Juni", label: "Juni" },
+    { value: "Juli", label: "Juli" },
+    { value: "Agustus", label: "Agustus" },
+    { value: "September", label: "September" },
+    { value: "Oktober", label: "Oktober" },
+    { value: "November", label: "November" },
+    { value: "Desember", label: "Desember" },
+];
+
 export function PjumView({ bmsUsers, historyItems }: Props) {
     const [activeTab, setActiveTab] = useState<"create" | "history">("create");
     const [selectedNIK, setSelectedNIK] = useState<string>("");
     const [weekNumber, setWeekNumber] = useState<string>("");
+    const [monthName, setMonthName] = useState<string>("");
     const [fromDate, setFromDate] = useState<Date>();
     const [toDate, setToDate] = useState<Date>();
     const [reports, setReports] = useState<PjumReportRow[] | null>(null);
@@ -406,13 +449,13 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     }, [fromDate, toDate, blockedRanges]);
 
     const isSearchReady =
-        !!selectedNIK && !!weekNumber && !!fromDate && !!toDate;
+        !!selectedNIK && !!weekNumber && !!monthName && !!fromDate && !!toDate;
     const canSearch = isSearchReady && !isSearching && !isLoadingBlockedRanges;
 
     function handleSearch() {
-        if (!selectedNIK || !fromDate || !toDate || !weekNumber) {
+        if (!selectedNIK || !fromDate || !toDate || !weekNumber || !monthName) {
             toast.error(
-                "Lengkapi BMS, rentang tanggal, dan minggu ke sebelum mencari laporan",
+                "Lengkapi BMS, rentang tanggal, minggu ke, dan bulan sebelum mencari laporan",
             );
             return;
         }
@@ -493,6 +536,10 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             toast.error("Minggu ke wajib dipilih (1-5)");
             return;
         }
+        if (!monthName) {
+            toast.error("Bulan wajib dipilih");
+            return;
+        }
         const exportTotalRealisasi = eligibleReports.reduce(
             (sum, report) => sum + report.totalRealisasi,
             0,
@@ -506,6 +553,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                 from,
                 to,
                 weekNumber: week,
+                monthName,
             });
             if (result.error) {
                 toast.error("Gagal membuat PJUM", {
@@ -541,6 +589,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                             bmsName: selectedBms?.name ?? selectedNIK,
                             branchName: historyBranchName,
                             weekNumber: week,
+                            monthName,
                             fromDate: fromIso,
                             toDate: toIso,
                             reportNumbers: nums,
@@ -636,6 +685,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onValueChange={(value) => {
                                             setSelectedNIK(value);
                                             setWeekNumber("");
+                                            setMonthName("");
                                             setBlockedRanges([]);
                                             setFromDate(undefined);
                                             setToDate(undefined);
@@ -686,6 +736,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         }}
                                         label="Tanggal mulai"
                                         maxDate={toDate}
+                                        blockedRanges={blockedRanges}
                                     />
                                     <span className="text-muted-foreground text-sm">
                                         —
@@ -696,9 +747,15 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             setToDate(date);
                                             setReports(null);
                                             setExportDoneDriveUrl(null);
+                                            if (date) {
+                                                setMonthName(
+                                                    MONTH_OPTIONS[date.getMonth()]?.value || "",
+                                                );
+                                            }
                                         }}
                                         label="Tanggal akhir"
                                         minDate={fromDate}
+                                        blockedRanges={blockedRanges}
                                     />
                                 </div>
 
@@ -722,6 +779,32 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                     value={String(week)}
                                                 >
                                                     Minggu ke {week}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {/* Month picker */}
+                                <div className="w-36">
+                                    <Select
+                                        value={monthName}
+                                        onValueChange={(value) => {
+                                            setMonthName(value);
+                                            setReports(null);
+                                            setExportDoneDriveUrl(null);
+                                        }}
+                                    >
+                                        <SelectTrigger aria-label="Bulan">
+                                            <SelectValue placeholder="Pilih bulan..." />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {MONTH_OPTIONS.map((opt) => (
+                                                <SelectItem
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                >
+                                                    {opt.label}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>

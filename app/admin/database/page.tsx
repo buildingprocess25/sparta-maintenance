@@ -3,7 +3,9 @@ import {
     getAllUsers,
     getAllStores,
     getAllBranchNamesForAdmin,
+    getAllBrands,
 } from "./queries";
+import { getStoreAreaNamesByBranches } from "../../bmc/database/queries";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import {
@@ -47,7 +49,7 @@ export default async function AdminDatabasePage({
     const userPage = Math.max(1, Number(sp.userPage) || 1);
     const storePage = Math.max(1, Number(sp.storePage) || 1);
 
-    const [usersResult, storesResult, allBranchNames] = await Promise.all([
+    const [usersResult, storesResult, allBranchNames, allBrands] = await Promise.all([
         getAllUsers({
             page: userPage,
             limit: 10,
@@ -63,7 +65,10 @@ export default async function AdminDatabasePage({
             branchName: sp.sBranch,
         }),
         getAllBranchNamesForAdmin(),
+        getAllBrands(),
     ]);
+
+    const areaNamesByBranch = await getStoreAreaNamesByBranches(allBranchNames);
 
     return (
         <div className="min-h-screen flex flex-col bg-muted/20">
@@ -157,6 +162,8 @@ export default async function AdminDatabasePage({
                                 <AdminStoreTable
                                     stores={storesResult.stores}
                                     allBranchNames={allBranchNames}
+                                    allBrands={allBrands}
+                                    areaNamesByBranch={areaNamesByBranch}
                                     totalCount={storesResult.total}
                                     currentPage={storesResult.page}
                                     totalPages={storesResult.totalPages}

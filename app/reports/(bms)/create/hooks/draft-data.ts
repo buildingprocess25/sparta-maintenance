@@ -50,7 +50,9 @@ export function serializeChecklistItems(
                             : undefined
                     : undefined,
                 handler:
-                    item.handler === "BMS"
+                    item.condition !== "rusak"
+                        ? undefined
+                        : item.handler === "BMS"
                         ? "BMS"
                         : item.handler === "Rekanan"
                           ? "REKANAN"

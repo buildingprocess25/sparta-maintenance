@@ -47,29 +47,15 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination";
 import type { ActivityItem } from "@/app/dashboard/queries";
+import { getReportActivityActionLabel } from "@/lib/report-activity-label";
 import { formatJakartaDateTime } from "@/lib/time";
 
-const ACTION_CONFIG: Record<string, { label: string; color: string }> = {
-    ESTIMATION_APPROVED: {
-        label: "Estimasi disetujui",
-        color: "bg-green-100 text-green-700 border-green-200",
-    },
-    ESTIMATION_REJECTED_REVISION: {
-        label: "Estimasi ditolak (revisi)",
-        color: "bg-orange-100 text-orange-700 border-orange-200",
-    },
-    ESTIMATION_REJECTED: {
-        label: "Estimasi ditolak",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
-    WORK_APPROVED: {
-        label: "Penyelesaian disetujui",
-        color: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    },
-    WORK_REJECTED_REVISION: {
-        label: "Penyelesaian ditolak (revisi)",
-        color: "bg-red-100 text-red-700 border-red-200",
-    },
+const ACTIVITY_COLORS: Record<string, string> = {
+    ESTIMATION_APPROVED: "bg-green-100 text-green-700 border-green-200",
+    ESTIMATION_REJECTED_REVISION: "bg-orange-100 text-orange-700 border-orange-200",
+    ESTIMATION_REJECTED: "bg-red-100 text-red-700 border-red-200",
+    WORK_APPROVED: "bg-emerald-100 text-emerald-700 border-emerald-200",
+    WORK_REJECTED_REVISION: "bg-red-100 text-red-700 border-red-200",
 };
 
 type Props = {
@@ -130,17 +116,15 @@ export function BmcHistoryList({
 
     const formatDate = (date: Date) => formatJakartaDateTime(date);
 
-    const getActionBadge = (action: string) => {
-        const cfg = ACTION_CONFIG[action] ?? {
-            label: action,
-            color: "bg-muted text-muted-foreground border-border",
-        };
+    const getActivityBadge = (action: string, isChecklistOnly: boolean) => {
+        const color =
+            ACTIVITY_COLORS[action] ?? "bg-muted text-muted-foreground border-border";
         return (
             <Badge
                 variant="outline"
-                className={`text-xs px-2 py-0.5 border whitespace-nowrap ${cfg.color}`}
+                className={`text-xs px-2 py-0.5 border whitespace-nowrap ${color}`}
             >
-                {cfg.label}
+                {getReportActivityActionLabel(action, isChecklistOnly)}
             </Badge>
         );
     };
@@ -194,13 +178,13 @@ export function BmcHistoryList({
                         <SelectContent>
                             <SelectItem value="all">Semua Keputusan</SelectItem>
                             <SelectItem value="ESTIMATION_APPROVED">
-                                Estimasi disetujui
+                                Review disetujui
                             </SelectItem>
                             <SelectItem value="ESTIMATION_REJECTED_REVISION">
-                                Estimasi ditolak (revisi)
+                                Review perlu direvisi
                             </SelectItem>
                             <SelectItem value="ESTIMATION_REJECTED">
-                                Estimasi ditolak
+                                Review ditolak
                             </SelectItem>
                             <SelectItem value="WORK_APPROVED">
                                 Penyelesaian disetujui
@@ -251,7 +235,7 @@ export function BmcHistoryList({
                                                 </p>
                                             </div>
                                         </div>
-                                        <div>{getActionBadge(item.action)}</div>
+                                        <div>{getActivityBadge(item.action, item.isChecklistOnly)}</div>
                                         {item.notes && (
                                             <p className="text-xs text-muted-foreground italic border-l-2 pl-2">
                                                 {item.notes}
@@ -352,7 +336,7 @@ export function BmcHistoryList({
                                                 </div>
                                             </TableCell>
                                             <TableCell>
-                                                {getActionBadge(item.action)}
+                                                {getActivityBadge(item.action, item.isChecklistOnly)}
                                             </TableCell>
                                             <TableCell className="text-sm text-muted-foreground max-w-xs truncate">
                                                 {item.notes || (

@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Versioned agent tooling is not application source.
+    ".agent/**",
+    ".agents/**",
+    ".claude/**",
+    ".cursor/**",
+    ".gemini/**",
+    ".github/skills/**",
+    ".opencode/**",
   ]),
 ]);
 

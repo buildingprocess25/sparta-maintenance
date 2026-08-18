@@ -53,11 +53,13 @@ type UserRow = {
     email: string;
     role: string;
     branchNames: string[];
+    areaNames: string[];
 };
 
 type Props = {
     users: UserRow[];
     branchNames: string[];
+    areaNamesByBranch: Record<string, string[]>;
     totalCount: number;
     currentPage: number;
     totalPages: number;
@@ -70,6 +72,7 @@ type Props = {
 export function UserTable({
     users,
     branchNames,
+    areaNamesByBranch,
     totalCount,
     currentPage,
     totalPages,
@@ -192,7 +195,10 @@ export function UserTable({
                         {totalCount} user ditemukan
                     </p>
                     <ImportUserDialog />
-                    <UserFormDialog branchNames={branchNames} />
+                    <UserFormDialog
+                        branchNames={branchNames}
+                        areaNamesByBranch={areaNamesByBranch}
+                    />
                 </div>
             </div>
 
@@ -256,6 +262,7 @@ export function UserTable({
                                         <div className="flex items-center justify-end gap-1">
                                             <UserFormDialog
                                                 branchNames={branchNames}
+                                                areaNamesByBranch={areaNamesByBranch}
                                                 editUser={user}
                                                 trigger={
                                                     <Button

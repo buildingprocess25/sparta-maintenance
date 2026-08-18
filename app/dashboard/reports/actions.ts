@@ -21,6 +21,7 @@ import {
     ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "@/lib/report-retention";
+import { StoreBrandFilter, getReportBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export type AdminReportFilters = {
     search?: string;
@@ -31,10 +32,12 @@ export type AdminReportFilters = {
     fromDate?: string;
     toDate?: string;
     pjumStatus?: string;
+    brand?: StoreBrandFilter;
 };
 
 const ACTIVE_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
     "ESTIMATION_APPROVED",
     "ESTIMATION_REJECTED_REVISION",
     "IN_PROGRESS",
@@ -50,6 +53,7 @@ const REVISION_REPORT_STATUSES = [
 
 const BMC_REVIEW_REPORT_STATUSES = [
     "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
     "PENDING_REVIEW",
 ] as const;
 
@@ -159,6 +163,9 @@ export async function getAdminReports(
         if (scopedBranchNames === undefined) {
             throw new Error("Unauthorized");
         }
+
+        const brand = parseStoreBrandFilter(filters.brand);
+        if (brand === null) throw new Error("Invalid brand filter");
 
         const slaDaysByStatus = await getReportSlaDays();
 
@@ -275,6 +282,13 @@ export async function getAdminReports(
             };
         }
 
+        if (brand !== "ALL") {
+            const brandWhere = getReportBrandWhere(brand);
+            if (brandWhere) {
+                andFilters.push(brandWhere);
+            }
+        }
+
         if (andFilters.length > 0) {
             where.AND = andFilters;
         }
@@ -288,7 +302,7 @@ export async function getAdminReports(
                 where.reportNumber = { in: reportNumbers };
             }
         }
-        
+
         // Count total reports for the given filters
         const totalCount = await prisma.report.count({ where });
         const overdueCount = await prisma.report.count({

@@ -139,7 +139,7 @@ async function renderFolderListing(params: {
     });
 
     const rows = (files.data.files ?? [])
-        .map((file) => {
+        .map((file: any) => {
             if (!file.id || !file.name) return "";
             const isFolder = file.mimeType === FOLDER_MIME_TYPE;
             const href = devProxyHref(requestUrl, {

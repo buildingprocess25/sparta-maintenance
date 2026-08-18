@@ -40,15 +40,21 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
     return cleanReportItemsJson(
         data.checklistItems
             .filter((item) => item.condition || item.preventiveCondition)
-            .map((item) => ({
-                itemId: item.itemId,
-                condition: item.condition,
-                preventiveCondition: item.preventiveCondition,
-                handler: item.handler,
-                photoUrl: item.photoUrl,
-                notes: item.notes,
-                ahoTicketNumber: item.ahoTicketNumber?.trim(),
-            })),
+            .map((item) => {
+                const isDamaged =
+                    item.condition === "RUSAK" ||
+                    item.preventiveCondition === "NOT_OK";
+
+                return {
+                    itemId: item.itemId,
+                    condition: item.condition,
+                    preventiveCondition: item.preventiveCondition,
+                    handler: isDamaged ? item.handler : undefined,
+                    photoUrl: item.photoUrl,
+                    notes: isDamaged ? item.notes : undefined,
+                    ahoTicketNumber: isDamaged ? item.ahoTicketNumber?.trim() : undefined,
+                };
+            }),
     );
 }
 

@@ -10,12 +10,16 @@ import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
 const assetsDir = path.join(process.cwd(), "public", "assets");
 let alfamartLogoBase64 = "";
 let buildingLogoBase64 = "";
+let watermarkLogoBase64 = "";
 try {
     alfamartLogoBase64 = fs
         .readFileSync(path.join(assetsDir, "Alfamart-Emblem-small.png"))
         .toString("base64");
     buildingLogoBase64 = fs
         .readFileSync(path.join(assetsDir, "Building-Logo.png"))
+        .toString("base64");
+    watermarkLogoBase64 = fs
+        .readFileSync(path.join(assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {
     // PDF still renders without logos.
@@ -172,6 +176,7 @@ export async function buildReportPdfBuffer(reportNumber: string): Promise<{
         totalEstimation: Number(report.totalEstimation),
         alfamartLogoBase64,
         buildingLogoBase64,
+        watermarkLogoBase64,
         completionSelfieUrls,
         startReceiptUrls,
         startMaterialStores,

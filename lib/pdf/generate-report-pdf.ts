@@ -270,6 +270,28 @@ const styles = StyleSheet.create({
         color: "#9ca3af",
         fontStyle: "italic",
     },
+    watermarkContainer: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: 0.15,
+    },
+    watermarkImage: {
+        width: 180,
+        height: 180,
+        marginBottom: 10,
+    },
+    watermarkText: {
+        fontSize: 24,
+        fontFamily: "Helvetica-Bold",
+        color: "#6b7280",
+        textAlign: "center",
+    },
     // Stamp Styles
     stampSectionContent: {
         marginTop: 8,
@@ -554,6 +576,7 @@ export type ReportPdfData = {
     totalEstimation: number;
     alfamartLogoBase64: string;
     buildingLogoBase64: string;
+    watermarkLogoBase64?: string;
     completionSelfieUrls: string[];
     startReceiptUrls: string[];
     startMaterialStores: MaterialStoreJson[];
@@ -1212,6 +1235,22 @@ function buildReportDocument(
         React.createElement(
             Page,
             { size: "A4", style: styles.page },
+
+            data.watermarkLogoBase64
+                ? React.createElement(
+                      View,
+                      { style: styles.watermarkContainer, fixed: true },
+                      React.createElement(Image, {
+                          src: `data:image/png;base64,${data.watermarkLogoBase64}`,
+                          style: styles.watermarkImage,
+                      }),
+                      React.createElement(
+                          Text,
+                          { style: styles.watermarkText },
+                          "Dokumen dibuat oleh SPARTA",
+                      ),
+                  )
+                : null,
 
             // Header: Alfamart Red + Logos
             React.createElement(

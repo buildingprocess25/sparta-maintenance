@@ -22,6 +22,10 @@ const STATUS_CONFIG: Record<string, StatusConfig> = {
         label: getReportStatusLabel("PENDING_ESTIMATION"),
         badgeClass: "bg-amber-100 text-amber-800",
     },
+    PENDING_CHECKLIST_REVIEW: {
+        label: getReportStatusLabel("PENDING_CHECKLIST_REVIEW"),
+        badgeClass: "bg-teal-100 text-teal-800",
+    },
     ESTIMATION_APPROVED: {
         label: getReportStatusLabel("ESTIMATION_APPROVED"),
         badgeClass: "bg-emerald-100 text-emerald-800",

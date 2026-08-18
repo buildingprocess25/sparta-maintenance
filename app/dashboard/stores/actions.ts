@@ -90,6 +90,7 @@ export async function getAdminStores(
                 name: true,
                 branchName: true,
                 areaName: true,
+                brand: true,
                 isActive: true,
             },
         });

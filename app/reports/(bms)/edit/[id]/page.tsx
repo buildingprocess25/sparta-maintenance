@@ -6,6 +6,7 @@ import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
 import { formatJakartaDateTime } from "@/lib/time";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
+import { loadMaterialNames } from "@/lib/material-master.server";
 
 export default async function EditReportPage({
     params,
@@ -45,8 +46,9 @@ export default async function EditReportPage({
         redirect("/reports");
     }
 
-    const [stores] = await Promise.all([
+    const [stores, materialNames] = await Promise.all([
         getStoresByBranch(user.branchNames[0] || ""),
+        loadMaterialNames(),
     ]);
 
     const items = (report.items ?? []) as unknown as ReportItemJson[];
@@ -85,6 +87,7 @@ export default async function EditReportPage({
     return (
         <CreateReportForm
             stores={stores}
+            materialNames={materialNames}
             userBranchName={user.branchNames[0] || ""}
             userInfo={{
                 name: user.name,

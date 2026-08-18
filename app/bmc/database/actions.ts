@@ -8,6 +8,14 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { getStoreAreaNamesByBranches } from "./queries";
+import { resolveStoreAreaName } from "./store-area-validation";
+import { getLegacyBranchMessage } from "@/lib/branch-merges";
+import { z } from "zod";
+
+function getLegacyStoreBranchError(branchName: string) {
+    return getLegacyBranchMessage(branchName);
+}
 
 function getBmcDatabaseErrorDetail(error: unknown): string {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -55,6 +63,7 @@ type UserPayload = {
     name: string;
     role: "BMS" | "BRANCH_ADMIN";
     branchNames: string[];
+    areaNames?: string[];
 };
 
 export async function createUser(payload: UserPayload) {
@@ -263,24 +272,61 @@ type StorePayload = {
     code: string;
     name: string;
     branchName: string;
+    areaName?: string | null;
     isActive?: boolean;
+    brand?: string | null;
 };
+
+async function resolveStoreAreaNameForBranch(
+    branchName: string,
+    areaName: string | null | undefined,
+    currentAreaName?: string | null,
+) {
+    const areaNamesByBranch = await getStoreAreaNamesByBranches([branchName]);
+    return resolveStoreAreaName(
+        areaNamesByBranch,
+        branchName,
+        areaName,
+        currentAreaName,
+    );
+}
 
 export async function createStore(payload: StorePayload) {
     const startTime = Date.now();
     try {
+        const legacyBranchMessage = getLegacyStoreBranchError(payload.branchName);
+        if (legacyBranchMessage) return { error: legacyBranchMessage };
+
         const user = await requireRole("BMC");
         const headersList = await headers();
         await validateCSRF(headersList);
+
+        const storeCodeSchema = z.string().regex(/^[A-Za-z0-9]{4}$/);
+        if (!storeCodeSchema.safeParse(payload.code).success) {
+            return { error: "Kode toko harus tepat 4 karakter huruf atau angka" };
+        }
 
         if (!user.branchNames.includes(payload.branchName)) {
             return { error: "Anda tidak punya akses ke cabang ini" };
         }
 
+        const areaResult = await resolveStoreAreaNameForBranch(
+            payload.branchName,
+            payload.areaName,
+        );
+        if (!areaResult.valid) {
+            return { error: areaResult.error };
+        }
+        const normalizedAreaName = areaResult.areaName;
+
         await prisma.store.create({
             data: {
-                ...payload,
+                code: payload.code,
+                name: payload.name,
+                branchName: payload.branchName,
+                areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
+                brand: payload.brand,
             },
         });
 
@@ -314,28 +360,45 @@ export async function updateStore(
 ) {
     const startTime = Date.now();
     try {
+        const legacyBranchMessage = getLegacyStoreBranchError(payload.branchName);
+        if (legacyBranchMessage) return { error: legacyBranchMessage };
+
         const user = await requireRole("BMC");
         const headersList = await headers();
         await validateCSRF(headersList);
 
-        if (!user.branchNames.includes(payload.branchName)) {
-            return { error: "Anda tidak punya akses ke cabang ini" };
-        }
-
         const existing = await prisma.store.findUnique({
             where: { code },
-            select: { branchName: true },
+            select: { branchName: true, areaName: true },
         });
         if (!existing) return { error: "Toko tidak ditemukan" };
+
+        if (payload.branchName !== existing.branchName) {
+            return { error: "Cabang toko tidak dapat diubah" };
+        }
+
         if (!user.branchNames.includes(existing.branchName)) {
             return { error: "Toko ini bukan dari cabang Anda" };
         }
 
+        const areaResult = await resolveStoreAreaNameForBranch(
+            existing.branchName,
+            payload.areaName,
+            existing.areaName,
+        );
+        if (!areaResult.valid) {
+            return { error: areaResult.error };
+        }
+        const normalizedAreaName = areaResult.areaName;
+
         await prisma.store.update({
             where: { code },
             data: {
-                ...payload,
+                name: payload.name,
+                branchName: existing.branchName,
+                areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
+                brand: payload.brand,
             },
         });
 
@@ -472,6 +535,12 @@ export async function importStores(formData: FormData) {
 
         // Determine target branch
         const branchName = targetBranch?.trim() || user.branchNames[0];
+
+        const legacyBranchMessage = getLegacyStoreBranchError(branchName);
+        if (legacyBranchMessage) {
+            return { ...result, errors: [legacyBranchMessage] };
+        }
+
         if (!branchName || !user.branchNames.includes(branchName)) {
             return {
                 ...result,

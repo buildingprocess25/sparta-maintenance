@@ -53,6 +53,7 @@ export type NotificationTemplateContext = {
         reportNumbers: string[];
     };
     notes?: string | null;
+    isChecklistOnly?: boolean;
 };
 
 export type NotificationTemplate = {

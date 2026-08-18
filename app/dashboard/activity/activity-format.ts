@@ -1,3 +1,8 @@
+import {
+    getReportActivityActionLabel,
+    REVIEW_ACTIVITY_FILTER_OPTIONS,
+} from "@/lib/report-activity-label";
+
 export const ROLE_OPTIONS = [
     { value: "BMS", label: "BMS" },
     { value: "BMC", label: "BMC" },
@@ -20,9 +25,7 @@ export const ACTION_OPTIONS = [
     { value: "RESUBMITTED_WORK", label: "Pekerjaan direvisi & diajukan ulang" },
     { value: "WORK_STARTED", label: "Pekerjaan dimulai" },
     { value: "COMPLETION_SUBMITTED", label: "Pekerjaan selesai diajukan" },
-    { value: "ESTIMATION_APPROVED", label: "Estimasi disetujui" },
-    { value: "ESTIMATION_REJECTED_REVISION", label: "Estimasi ditolak revisi" },
-    { value: "ESTIMATION_REJECTED", label: "Estimasi ditolak" },
+    ...REVIEW_ACTIVITY_FILTER_OPTIONS,
     { value: "WORK_APPROVED", label: "Pekerjaan disetujui BMC" },
     { value: "WORK_REJECTED_REVISION", label: "Pekerjaan ditolak revisi" },
     { value: "FINAL_APPROVED_BNM", label: "Disetujui final BNM" },
@@ -32,8 +35,11 @@ export const ACTION_OPTIONS = [
     { value: "PJUM_APPROVED", label: "PJUM disetujui" },
 ];
 
-export function getActivityActionLabel(action: string) {
-    return ACTION_OPTIONS.find((item) => item.value === action)?.label ?? action;
+export function getActivityActionLabel(
+    action: string,
+    isChecklistOnly = false,
+): string {
+    return getReportActivityActionLabel(action, isChecklistOnly);
 }
 
 export function getActivityModuleLabel(module: string) {

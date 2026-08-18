@@ -21,26 +21,32 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { createStore, updateStore } from "../actions";
+import { getStoreAreaOptions, type AreaNamesByBranch } from "../store-area-options";
 
 type StoreRow = {
     code: string;
     name: string;
     branchName: string;
+    areaName: string | null;
     isActive: boolean;
+    brand?: string | null;
 };
 
 type Props = {
     branchNames: string[];
+    allBrands: string[];
+    areaNamesByBranch: AreaNamesByBranch;
     editStore?: StoreRow;
     trigger?: React.ReactNode;
 };
 
-export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
+export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, editStore, trigger }: Props) {
     const isEdit = !!editStore;
     const hasSingleBranch = branchNames.length === 1;
+    const hasWritableBranch = branchNames.length > 0;
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
 
@@ -50,6 +56,19 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
         editStore?.branchName ?? branchNames[0] ?? "",
     );
     const [isActive, setIsActive] = useState(editStore?.isActive ?? true);
+    const [areaName, setAreaName] = useState<string | null>(
+        editStore?.areaName ?? null,
+    );
+    const [brand, setBrand] = useState<string>(
+        editStore?.brand || "ALFAMART",
+    );
+    const areaOptions = getStoreAreaOptions(
+        areaNamesByBranch,
+        branch,
+        editStore?.areaName,
+    );
+    const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
+    const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
 
     function resetForm() {
         if (!isEdit) {
@@ -57,6 +76,8 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
             setName("");
             setBranch(branchNames[0] ?? "");
             setIsActive(true);
+            setAreaName(null);
+            setBrand("ALFAMART");
         }
     }
 
@@ -67,6 +88,13 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
         if (!code.trim()) missingFields.push("Kode Toko");
         if (!name.trim()) missingFields.push("Nama Toko");
         if (!branch) missingFields.push("Cabang");
+
+        if (codeError) {
+            toast.error("Kode toko tidak valid", {
+                description: codeError,
+            });
+            return;
+        }
 
         if (missingFields.length > 0) {
             toast.error("Data toko belum lengkap", {
@@ -80,13 +108,17 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                 ? await updateStore(code, {
                       name: name.trim(),
                       branchName: editStore?.branchName ?? branch,
+                      areaName,
                       isActive,
+                      brand,
                   })
                 : await createStore({
                       code: code.trim().toUpperCase(),
                       name: name.trim(),
                       branchName: branch,
+                      areaName,
                       isActive,
+                      brand,
                   });
 
             if (result.error) {
@@ -127,7 +159,16 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
             >
                 <DialogTrigger asChild>
                     {trigger ?? (
-                        <Button size="sm" className="gap-1.5">
+                        <Button
+                            size="sm"
+                            className="gap-1.5"
+                            disabled={!hasWritableBranch}
+                            title={
+                                hasWritableBranch
+                                    ? undefined
+                                    : "Tidak ada cabang utama yang dapat dikelola"
+                            }
+                        >
                             <Plus className="h-4 w-4" />
                             Tambah Toko
                         </Button>
@@ -157,6 +198,11 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                                 maxLength={10}
                                 required
                             />
+                            {codeError && (
+                                <p className="text-[0.8rem] font-medium text-destructive">
+                                    {codeError}
+                                </p>
+                            )}
                         </div>
 
                         <div className="space-y-2">
@@ -176,7 +222,10 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                                 <Label htmlFor="store-branch">Cabang</Label>
                                 <Select
                                     value={branch}
-                                    onValueChange={setBranch}
+                                    onValueChange={(value) => {
+                                        setBranch(value);
+                                        setAreaName(null);
+                                    }}
                                 >
                                     <SelectTrigger id="store-branch">
                                         <SelectValue placeholder="Pilih cabang" />
@@ -191,6 +240,55 @@ export function StoreFormDialog({ branchNames, editStore, trigger }: Props) {
                                 </Select>
                             </div>
                         )}
+
+                        <div className="space-y-2">
+                            <Label htmlFor="store-legacy-area">Cabang Lama (opsional)</Label>
+                            <div className="flex gap-2 items-center">
+                                <Select
+                                    value={areaName ?? "__none__"}
+                                    onValueChange={(value) =>
+                                        setAreaName(value === "__none__" ? null : value)
+                                    }
+                                    disabled={areaOptions.length === 0}
+                                >
+                                    <SelectTrigger id="store-legacy-area" className="flex-1">
+                                        <SelectValue placeholder={areaOptions.length > 0 ? "Pilih cabang lama" : "Tidak ada opsi cabang lama"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="__none__">Tidak ada</SelectItem>
+                                        {areaOptions.map((option) => (
+                                            <SelectItem key={option} value={option}>
+                                                {option}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {areaName && (
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => setAreaName(null)} className="shrink-0 h-9 w-9">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Brand */}
+                        <div className="space-y-2">
+                            <Label htmlFor="store-brand">Brand</Label>
+                            <Select value={brand} onValueChange={setBrand}>
+                                <SelectTrigger id="store-brand">
+                                    <SelectValue placeholder="Pilih brand" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from(new Set(["ALFAMART", "LAWSON", ...allBrands]))
+                                        .filter((b) => b.trim() !== "")
+                                        .map((b) => (
+                                        <SelectItem key={b} value={b}>
+                                            {b}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
                         <div className="space-y-2">
                             <Label htmlFor="store-status">Status Toko</Label>

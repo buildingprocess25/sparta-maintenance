@@ -4,9 +4,12 @@ import prisma from "@/lib/prisma";
 import { getAuthUser, type AuthUser } from "@/lib/authorization";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
+import { getReportActivityActionLabel } from "@/lib/report-activity-label";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { logger } from "@/lib/logger";
 import { getTodayActiveUsers } from "@/lib/presence";
 import { getJakartaTodayWindow } from "@/lib/time";
+import type { ReportItemJson } from "@/types/report";
 import type { Prisma, UserRole } from "@prisma/client";
 
 export type AdminActivityModule = "MAINTENANCE" | "PJUM" | "REALISASI";
@@ -70,28 +73,6 @@ const APPROVAL_DONE_ACTIONS = [
     "WORK_APPROVED",
     "FINAL_APPROVED_BNM",
 ] as const;
-
-const ACTION_LABELS: Record<string, string> = {
-    SUBMITTED: "Laporan diajukan",
-    RESUBMITTED_ESTIMATION: "Laporan direvisi & diajukan ulang",
-    RESUBMITTED_WORK: "Pekerjaan direvisi & diajukan ulang",
-    WORK_STARTED: "Pekerjaan dimulai",
-    COMPLETION_SUBMITTED: "Pekerjaan selesai diajukan",
-    ESTIMATION_APPROVED: "Estimasi disetujui",
-    ESTIMATION_REJECTED_REVISION: "Estimasi ditolak revisi",
-    ESTIMATION_REJECTED: "Estimasi ditolak",
-    WORK_APPROVED: "Pekerjaan disetujui BMC",
-    WORK_REJECTED_REVISION: "Pekerjaan ditolak revisi",
-    FINAL_APPROVED_BNM: "Disetujui final BNM",
-    FINAL_REJECTED_REVISION_BNM: "Ditolak final BNM revisi",
-    ADMIN_REALISASI_REVISED: "Realisasi direvisi admin",
-    PJUM_CREATED: "PJUM diajukan",
-    PJUM_APPROVED: "PJUM disetujui",
-};
-
-function getActionLabel(action: string) {
-    return ACTION_LABELS[action] ?? action;
-}
 
 function getActivityModule(action: string): AdminActivityModule {
     return action === "ADMIN_REALISASI_REVISED" ? "REALISASI" : "MAINTENANCE";
@@ -391,7 +372,7 @@ async function fetchPjumEvents(
                 occurredAt: row.createdAt,
                 module: "PJUM",
                 action: "PJUM_CREATED",
-                actionLabel: getActionLabel("PJUM_CREATED"),
+                actionLabel: getReportActivityActionLabel("PJUM_CREATED"),
                 actor: {
                     NIK: row.createdByNIK,
                     name: creator?.name ?? row.createdByNIK,
@@ -414,7 +395,7 @@ async function fetchPjumEvents(
                     occurredAt: row.approvedAt,
                     module: "PJUM",
                     action: "PJUM_APPROVED",
-                    actionLabel: getActionLabel("PJUM_APPROVED"),
+                    actionLabel: getReportActivityActionLabel("PJUM_APPROVED"),
                     actor: {
                         NIK: row.approvedByNIK,
                         name: approver?.name ?? row.approvedByNIK,
@@ -441,16 +422,28 @@ function mapReportActivity(row: {
     notes: string | null;
     createdAt: Date;
     actor: { NIK: string; name: string; role: UserRole };
-    report: { branchName: string; storeName: string; status: string };
+    report: {
+        branchName: string;
+        storeName: string;
+        status: string;
+        items: Prisma.JsonValue;
+    };
 }): AdminActivityEvent {
     const activityModule = getActivityModule(row.action);
+    const reportItems = Array.isArray(row.report.items)
+        ? (row.report.items as unknown as ReportItemJson[])
+        : [];
+    const actionLabel = getReportActivityActionLabel(
+        row.action,
+        isChecklistOnlyReport(reportItems),
+    );
 
     return {
         id: row.id,
         occurredAt: row.createdAt,
         module: activityModule,
         action: row.action,
-        actionLabel: getActionLabel(row.action),
+        actionLabel,
         actor: row.actor,
         branchName: row.report.branchName,
         targetLabel: row.reportNumber,
@@ -636,6 +629,7 @@ export async function getAdminActivityEvents(
                                       branchName: true,
                                       storeName: true,
                                       status: true,
+                                      items: true,
                                   },
                               },
                           },

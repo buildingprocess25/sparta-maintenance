@@ -58,6 +58,7 @@ import type { BmsBalanceInfo } from "@/lib/balance";
 
 export interface CreateReportFormProps {
     stores: StoreOption[];
+    materialNames: string[];
     userBranchName: string;
     existingDraft?: SerializedDraft | null;
     userInfo: {

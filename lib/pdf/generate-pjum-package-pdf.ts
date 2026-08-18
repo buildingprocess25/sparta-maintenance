@@ -18,12 +18,16 @@ import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
 const _assetsDir = path.join(process.cwd(), "public", "assets");
 let ALFAMART_LOGO_BASE64 = "";
 let BUILDING_LOGO_BASE64 = "";
+let WATERMARK_LOGO_BASE64 = "";
 try {
     ALFAMART_LOGO_BASE64 = fs
         .readFileSync(path.join(_assetsDir, "Alfamart-Emblem-small.png"))
         .toString("base64");
     BUILDING_LOGO_BASE64 = fs
         .readFileSync(path.join(_assetsDir, "Building-Logo.png"))
+        .toString("base64");
+    WATERMARK_LOGO_BASE64 = fs
+        .readFileSync(path.join(_assetsDir, "sparta-maintenance.png"))
         .toString("base64");
 } catch {
     // Render without logo if assets are missing
@@ -100,6 +104,7 @@ export async function generatePjumPackagePdf(params: {
     let approvedAt: string | null = null;
     let exportCreatedAt: string | null = null;
     let canIncludeFallbackPjumForm = false;
+    let pjumExportMonthName: string | null = null;
 
     if (params.requireExported) {
         const pjumExport = await prisma.pjumExport.findFirst({
@@ -110,6 +115,7 @@ export async function generatePjumPackagePdf(params: {
                 approvedAt: true,
                 createdAt: true,
                 status: true,
+                monthName: true,
             },
             orderBy: { createdAt: "desc" },
         });
@@ -128,6 +134,7 @@ export async function generatePjumPackagePdf(params: {
         if (pjumExport?.createdAt) {
             exportCreatedAt = pjumExport.createdAt.toISOString();
         }
+        pjumExportMonthName = pjumExport?.monthName ?? null;
 
         canIncludeFallbackPjumForm = pjumExport?.status === "APPROVED";
 
@@ -175,6 +182,7 @@ export async function generatePjumPackagePdf(params: {
         exportedAt,
         weekNumber: params.weekNumber,
         reports: recapRows,
+        watermarkLogoBase64: WATERMARK_LOGO_BASE64,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -232,12 +240,14 @@ export async function generatePjumPackagePdf(params: {
         (params.requireExported && canIncludeFallbackPjumForm
             ? {
                   weekNumber: params.weekNumber,
-                  monthName: new Date(
-                      params.from || reports[0].createdAt.toISOString(),
-                  ).toLocaleString("id-ID", {
-                      month: "long",
-                      timeZone: JAKARTA_TIME_ZONE,
-                  }),
+                  monthName:
+                      pjumExportMonthName ??
+                      new Date(
+                          params.from || reports[0].createdAt.toISOString(),
+                      ).toLocaleString("id-ID", {
+                          month: "long",
+                          timeZone: JAKARTA_TIME_ZONE,
+                      }),
                   year: getJakartaYear(
                       params.from || reports[0].createdAt.toISOString(),
                   ),
@@ -247,6 +257,8 @@ export async function generatePjumPackagePdf(params: {
                       (sum, row) => sum + row.totalRealisasi,
                       0,
                   ),
+                  periodeFrom: params.from || reports[0].createdAt.toISOString(),
+                  periodeTo: params.to || reports[0].createdAt.toISOString(),
               }
             : null);
 
@@ -344,6 +356,7 @@ export async function generatePjumPackagePdf(params: {
             totalEstimation: Number(report.totalEstimation),
             alfamartLogoBase64: ALFAMART_LOGO_BASE64,
             buildingLogoBase64: BUILDING_LOGO_BASE64,
+            watermarkLogoBase64: WATERMARK_LOGO_BASE64,
             completionSelfieUrls,
             startReceiptUrls,
             startMaterialStores,

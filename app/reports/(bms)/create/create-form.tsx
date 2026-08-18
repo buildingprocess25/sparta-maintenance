@@ -23,6 +23,7 @@ import {
 import { BmsBalanceCard } from "@/components/bms-balance-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Lock } from "lucide-react";
+import { BmsReportTour } from "./components/bms-report-tour";
 
 import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
@@ -39,6 +40,7 @@ const WIZARD_STEPS: ReportWizardStep[] = [
 
 export default function CreateReportForm({
   stores,
+  materialNames,
   userBranchName,
   existingDraft,
   userInfo,
@@ -256,6 +258,15 @@ export default function CreateReportForm({
 
   return (
     <>
+      {!showDraftDialog && (
+        <BmsReportTour
+          key={`${isEditMode ? "revision" : "create"}:${step}:${isRepairOnlyMode}`}
+          activeStep={step}
+          isEditMode={isEditMode}
+          isRepairOnlyMode={isRepairOnlyMode}
+        />
+      )}
+
       {showDraftDialog && (
         <DraftDialog
           open={showDraftDialog}
@@ -332,6 +343,7 @@ export default function CreateReportForm({
               (step === "estimation" && isOverbudget) ||
               (step === "review" && isOverbudget)
             }
+            data-tour={step === "review" ? "bms-report-submit" : undefined}
           >
             {step === "review" ? (
               isEditMode ? (
@@ -388,6 +400,7 @@ export default function CreateReportForm({
 
         {step === "checklist" && (
           <ChecklistStep
+            storeCode={selectedStoreCode}
             isRepairOnlyMode={isRepairOnlyMode}
             activeCategories={activeCategories}
             checklist={checklist}
@@ -416,6 +429,7 @@ export default function CreateReportForm({
           <BmsEstimationStep
             bmsItems={bmsItems}
             bmsItemsList={bmsItemsList}
+            materialNames={materialNames}
             grandTotalBms={grandTotalBms}
             onAddBmsEntryWithDetails={addBmsEntryWithDetails}
             onUpdateBmsEntryWithDetails={updateBmsEntryWithDetails}

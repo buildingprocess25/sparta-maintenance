@@ -21,6 +21,8 @@ export async function GET() {
             totalExpenditure: 750000,
             allowanceAmount: 1000000,
             difference: 250000,
+            periodeFrom: new Date(2026, 2, 1).toISOString(),
+            periodeTo: new Date(2026, 2, 7).toISOString(),
         };
 
         const pdfBuffer = await generatePjumFormPdf(mockPjumData);

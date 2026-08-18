@@ -165,6 +165,13 @@ Route admin penting:
 - `app/reports/(bms)/start-work/*`
 - `app/reports/(bms)/complete/*`
 
+Material estimasi BMS memakai master statis `data/masterdata-material.txt`.
+Server membaca dan menghapus duplikat nama sebelum meneruskan daftar ke form
+create, edit, dan revisi; pencarian typo-tolerant dilakukan di browser tanpa
+endpoint atau tabel database. Pilihan rekomendasi tidak wajib: BMS tetap boleh
+menyimpan teks bebas untuk material yang belum ada di master. Perubahan master
+berlaku setelah file diganti dan aplikasi dideploy ulang.
+
 ### PJUM
 
 - `app/dashboard/pjum/page.tsx`

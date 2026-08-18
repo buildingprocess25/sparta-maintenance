@@ -6,9 +6,11 @@ import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import {
-    getAdminBranchHierarchy,
-    type AdminBranchHierarchy,
-} from "../queries";
+    type PreventiveCompletion,
+    paginatePreventiveRows,
+    splitPreventiveRows,
+    summarizePreventiveBranches,
+} from "./preventive-dashboard";
 import {
     getJakartaCurrentQuarter,
     getJakartaQuarterWindow,
@@ -17,6 +19,7 @@ import {
     getJakartaYearWindow,
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import { type StoreBrandFilter, getStoreBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -26,6 +29,8 @@ export type AdminPreventiveFilters = {
     branchName?: string;
     year: number;
     quarter?: PreventiveQuarter;
+    completion?: PreventiveCompletion;
+    brand?: StoreBrandFilter;
 };
 
 export type PreventiveQuarterInfo = {
@@ -82,13 +87,6 @@ export type PreventiveSummary = {
     daysOverdue: number | null;
 };
 
-type PreventiveBranchAccumulator = Omit<
-    PreventiveBranchSummary,
-    "lastDoneAt"
-> & {
-    lastDoneAt: Date | null;
-};
-
 type PreventiveQuarterInfoInternal = {
     doneAt: Date;
     bmsName: string;
@@ -112,7 +110,6 @@ type PreventiveReportRow = {
 
 export type AdminPreventiveResult = {
     rows: PreventiveRow[];
-    pendingRows: PreventiveRow[];
     branchSummaries: PreventiveBranchSummary[];
     latestReports: PreventiveHistoryItem[];
     summary: PreventiveSummary;
@@ -140,27 +137,6 @@ function getBranchScope(user: NonNullable<Awaited<ReturnType<typeof getAuthUser>
     }
 
     return { branchName: { in: user.branchNames } };
-}
-
-function getAdminBranchChildren(
-    parentBranch: string,
-    hierarchy: AdminBranchHierarchy,
-) {
-    const branchNames = new Set([parentBranch]);
-    for (const [branchName, parent] of hierarchy.parentMap.entries()) {
-        if (parent === parentBranch) {
-            branchNames.add(branchName);
-        }
-    }
-    branchNames.delete(EXCLUDED_ADMIN_BRANCH_NAME);
-    return Array.from(branchNames);
-}
-
-function resolveDashboardBranchName(
-    branchName: string,
-    hierarchy: AdminBranchHierarchy | null,
-) {
-    return hierarchy?.parentMap.get(branchName) ?? branchName;
 }
 
 function getCurrentQuarter(): PreventiveQuarter {
@@ -226,14 +202,8 @@ export async function getAdminPreventive(
             throw new Error("Unauthorized");
         }
 
-        const adminHierarchy =
-            user.role === "ADMIN" ? await getAdminBranchHierarchy() : null;
-        const selectedAdminBranchNames =
-            adminHierarchy &&
-            filters.branchName &&
-            filters.branchName !== "all"
-                ? getAdminBranchChildren(filters.branchName, adminHierarchy)
-                : null;
+        const brand = parseStoreBrandFilter(filters.brand);
+        if (brand === null) throw new Error("Invalid brand filter");
 
         const where: Prisma.StoreWhereInput = {
             ...getBranchScope(user),
@@ -250,9 +220,20 @@ export async function getAdminPreventive(
             if (user.role !== "ADMIN" && !user.branchNames.includes(filters.branchName)) {
                 throw new Error("Unauthorized branch access");
             }
-            where.branchName = selectedAdminBranchNames
-                ? { in: selectedAdminBranchNames }
-                : filters.branchName;
+            where.branchName = filters.branchName;
+        }
+
+        if (brand !== "ALL") {
+            const brandWhere = getStoreBrandWhere(brand);
+            if (brandWhere) {
+                if (Array.isArray(where.AND)) {
+                    where.AND.push(brandWhere);
+                } else if (where.AND) {
+                    where.AND = [where.AND, brandWhere];
+                } else {
+                    where.AND = [brandWhere];
+                }
+            }
         }
 
         const quarter = filters.quarter ?? getCurrentQuarter();
@@ -267,16 +248,6 @@ export async function getAdminPreventive(
                 branchName: true,
             },
         });
-
-        const cursorIndex = cursor
-            ? allStores.findIndex((store) => store.code === cursor)
-            : -1;
-        const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
-        const stores = allStores.slice(startIndex, startIndex + limit);
-        const nextCursor =
-            startIndex + limit < allStores.length
-                ? stores[stores.length - 1]?.code ?? null
-                : null;
 
         // Fetch reports for these stores in the given year
         const { start: yearStart, endExclusive: yearEnd } =
@@ -294,9 +265,9 @@ export async function getAdminPreventive(
         ];
 
         if (user.role === "ADMIN") {
-            if (selectedAdminBranchNames) {
+            if (filters.branchName && filters.branchName !== "all") {
                 reportPredicates.push(
-                    Prisma.sql`r."branchName" IN (${Prisma.join(selectedAdminBranchNames)})`,
+                    Prisma.sql`r."branchName" = ${filters.branchName}`,
                 );
             } else {
                 reportPredicates.push(
@@ -434,75 +405,34 @@ export async function getAdminPreventive(
         };
 
         const allRows = allStores.map(buildRow);
-        const rows = stores.map(buildRow);
-        const pendingRows = allRows.filter((row) => !row[quarterKey]);
-        const completed = allRows.length - pendingRows.length;
+        const { completed: completedRows, pending: pendingRows } = splitPreventiveRows(allRows, quarterKey);
+        const rowsForCompletion =
+            filters.completion === "pending" ? pendingRows :
+            filters.completion === "completed" ? completedRows :
+            allRows;
+        const { rows, nextCursor } = paginatePreventiveRows(rowsForCompletion, cursor, limit);
+        const completed = completedRows.length;
 
-        const initialBranchSummaries =
-            adminHierarchy && !selectedAdminBranchNames
-                ? new Map(
-                      adminHierarchy.options.map((option) => [
-                          option.name,
-                          {
-                              branchName: option.name,
-                              totalStores: 0,
-                              completed: 0,
-                              pending: 0,
-                              completionRate: 0,
-                              lastDoneAt: null as Date | null,
-                          },
-                      ]),
-                  )
-                : new Map<string, PreventiveBranchAccumulator>();
-
-        if (adminHierarchy && filters.branchName && filters.branchName !== "all") {
-            initialBranchSummaries.set(filters.branchName, {
-                branchName: filters.branchName,
-                totalStores: 0,
-                completed: 0,
-                pending: 0,
-                completionRate: 0,
-                lastDoneAt: null,
-            });
+        // Compute lastDoneAt per branch from allRows (preserve existing per-branch lastDoneAt logic)
+        const branchLastDoneAtMap = new Map<string, Date | null>();
+        for (const row of allRows) {
+            const quarterInfo = row[quarterKey];
+            if (quarterInfo) {
+                const doneAt = new Date((quarterInfo as { doneAt: string }).doneAt);
+                const existing = branchLastDoneAtMap.get(row.branchName) ?? null;
+                if (!existing || doneAt > existing) {
+                    branchLastDoneAtMap.set(row.branchName, doneAt);
+                }
+            } else if (!branchLastDoneAtMap.has(row.branchName)) {
+                branchLastDoneAtMap.set(row.branchName, null);
+            }
         }
 
-        const branchSummaries = Array.from(
-            allRows.reduce((map, row) => {
-                const dashboardBranchName = resolveDashboardBranchName(
-                    row.branchName,
-                    adminHierarchy,
-                );
-                const current = map.get(dashboardBranchName) ?? {
-                    branchName: dashboardBranchName,
-                    totalStores: 0,
-                    completed: 0,
-                    pending: 0,
-                    completionRate: 0,
-                    lastDoneAt: null as Date | null,
-                };
-                const currentQuarterInfo = row[quarterKey];
-
-                current.totalStores += 1;
-                if (currentQuarterInfo) {
-                    current.completed += 1;
-                    const doneAt = new Date(currentQuarterInfo.doneAt);
-                    if (!current.lastDoneAt || doneAt > current.lastDoneAt) {
-                        current.lastDoneAt = doneAt;
-                    }
-                } else {
-                    current.pending += 1;
-                }
-
-                map.set(dashboardBranchName, current);
-                return map;
-            }, initialBranchSummaries),
-        )
-            .map(([, branch]) => ({
-                ...branch,
-                completionRate: calculateRate(branch.completed, branch.totalStores),
-                lastDoneAt: toIso(branch.lastDoneAt),
-            }))
-            .sort((a, b) => a.completionRate - b.completionRate);
+        const branchSummaries = summarizePreventiveBranches(allRows, quarterKey).map((b) => ({
+            ...b,
+            completionRate: calculateRate(b.completed, b.totalStores),
+            lastDoneAt: toIso(branchLastDoneAtMap.get(b.branchName) ?? null),
+        })).sort((a, b) => a.completionRate - b.completionRate);
 
         const durationMs = Math.round(performance.now() - start);
         logger.info(
@@ -510,7 +440,7 @@ export async function getAdminPreventive(
                 operation: "getAdminPreventive",
                 correlationId,
                 durationMs,
-                count: stores.length,
+                count: rows.length,
                 role: user.role,
             },
             "Fetched preventive successfully",
@@ -520,7 +450,6 @@ export async function getAdminPreventive(
 
         return {
             rows,
-            pendingRows,
             branchSummaries,
             latestReports,
             summary: {
@@ -605,4 +534,18 @@ export async function getReportYears() {
         );
         return [getJakartaYear()];
     }
+}
+
+export async function getPreventiveBranchOptions(): Promise<string[]> {
+    const user = await getAuthUser();
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
+        throw new Error("Unauthorized");
+    }
+    const stores = await prisma.store.findMany({
+        where: getBranchScope(user),
+        select: { branchName: true },
+        distinct: ["branchName"],
+        orderBy: { branchName: "asc" },
+    });
+    return stores.map((s) => s.branchName);
 }

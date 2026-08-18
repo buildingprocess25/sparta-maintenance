@@ -112,6 +112,11 @@ const data = {
                     url: "/dashboard/stores",
                     icon: IconBuildingStore,
                 },
+                {
+                    title: "Tiket AHO",
+                    url: "/dashboard/aho-tickets",
+                    icon: IconReport, // Reuse IconReport for tickets, or use another imported icon
+                },
             ],
         },
     ],
@@ -120,6 +125,11 @@ const data = {
             title: "Arsip Dokumen SPARTA-M",
             url: "/admin/archive",
             icon: IconArchive,
+        },
+        {
+            title: "Analisa Material",
+            url: "/admin/material-analysis",
+            icon: IconReport,
         },
         {
             title: "Pengaturan Sistem",

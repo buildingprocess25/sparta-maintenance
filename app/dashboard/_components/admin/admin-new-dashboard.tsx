@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 import {
     Activity,
     ArrowUpRight,
@@ -38,11 +39,13 @@ import {
     type AdminBranchPerformanceDatum,
     type ActivityItem,
     type AdminKpiMetric,
+    type AdminPjumSummary,
     type AdminStatusDatum,
 } from "../../queries";
 import { AdminTrendChart } from "./admin-overview-charts";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
+import { getAdminRecentActivityLabel } from "./admin-activity-label";
 import { formatJakartaDate } from "@/lib/time";
 
 function normalizePeriod(value?: string): string {
@@ -56,6 +59,10 @@ function normalizePeriod(value?: string): string {
     return "ytd";
 }
 
+function withBrandHref(href: string, brand: StoreBrandFilter) {
+    if (brand === "ALL") return href;
+    return `${href}${href.includes("?") ? "&" : "?"}brand=${brand}`;
+}
 function formatNumber(value: number): string {
     return value.toLocaleString("id-ID");
 }
@@ -78,7 +85,7 @@ function formatDate(date: Date): string {
     return formatJakartaDate(date);
 }
 
-function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
+function DashboardHeader({ kpi, brand }: { kpi: AdminKpiMetric; brand: StoreBrandFilter }) {
     return (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
@@ -98,7 +105,7 @@ function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
                     </Link>
                 </Button>
                 <Button asChild>
-                    <Link href="/dashboard/reports">
+                    <Link href={withBrandHref("/dashboard/reports", brand)}>
                         <FileText className="h-4 w-4" />
                         Semua Laporan
                     </Link>
@@ -114,49 +121,68 @@ function DashboardHeader({ kpi }: { kpi: AdminKpiMetric }) {
 function KpiGrid({
     kpi,
     pjum,
+    breakdown,
+    isBrandFiltered,
+    brand,
 }: {
     kpi: AdminKpiMetric;
-    pjum: Awaited<ReturnType<typeof getAdminCommandCenterData>>["pjum"];
+    pjum: AdminPjumSummary;
+    breakdown?: {
+        alfamart: { kpi: AdminKpiMetric };
+        lawson: { kpi: AdminKpiMetric };
+    };
+    isBrandFiltered: boolean;
+    brand: StoreBrandFilter;
 }) {
     return (
         <div className="grid gap-4 lg:grid-cols-3">
             <GroupedKpiCard
                 title="Laporan"
                 icon={FileText}
-                href="/dashboard/reports"
+                href={withBrandHref("/dashboard/reports", brand)}
                 value={formatNumber(kpi.totalReports)}
                 helper="Semua laporan non-draft tahun berjalan"
                 rows={[
                     {
                         label: "Selesai",
                         value: formatNumber(kpi.completedReports),
-                        href: "/dashboard/reports?status=COMPLETED",
+                        href: withBrandHref("/dashboard/reports?status=COMPLETED", brand),
                         tone: "green",
                     },
                     {
                         label: "Laporan Aktif",
                         value: formatNumber(kpi.activeReports),
-                        href: "/dashboard/reports?scope=active",
+                        href: withBrandHref("/dashboard/reports?scope=active", brand),
                         tone: "blue",
                     },
                     {
                         label: "Ditolak",
                         value: formatNumber(kpi.rejectedReports),
-                        href: "/dashboard/reports?status=ESTIMATION_REJECTED",
+                        href: withBrandHref("/dashboard/reports?status=ESTIMATION_REJECTED", brand),
                         tone: "slate",
                     },
                     {
-                        label: "User Aktif",
+                        label: isBrandFiltered
+                            ? "User Aktif (semua brand)"
+                            : "User Aktif",
                         value: formatNumber(kpi.activeUsers),
                         href: "/dashboard/activity/online",
                         tone: "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: formatNumber(breakdown.alfamart.kpi.totalReports),
+                              lawson: formatNumber(breakdown.lawson.kpi.totalReports),
+                          }
+                        : undefined
+                }
             />
             <GroupedKpiCard
                 title="Penyelesaian"
                 icon={CheckCircle2}
-                href="/dashboard/reports?status=COMPLETED"
+                href={withBrandHref("/dashboard/reports?status=COMPLETED", brand)}
                 value={`${kpi.completionRate}%`}
                 helper="Selesai dibanding seluruh laporan non-draft"
                 progress={kpi.completionRate}
@@ -169,13 +195,13 @@ function KpiGrid({
                     {
                         label: "Sudah PJUM",
                         value: formatNumber(kpi.pjumCompletedReports),
-                        href: "/dashboard/reports?status=COMPLETED&pjumStatus=exported",
+                        href: withBrandHref("/dashboard/reports?status=COMPLETED&pjumStatus=exported", brand),
                         tone: "blue",
                     },
                     {
                         label: "Belum PJUM",
                         value: formatNumber(kpi.unpjumCompletedReports),
-                        href: "/dashboard/reports?status=COMPLETED&pjumStatus=not_exported",
+                        href: withBrandHref("/dashboard/reports?status=COMPLETED&pjumStatus=not_exported", brand),
                         tone:
                             kpi.unpjumCompletedReports > 0 ? "amber" : "green",
                     },
@@ -185,11 +211,19 @@ function KpiGrid({
                         tone: "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: `${breakdown.alfamart.kpi.completionRate}%`,
+                              lawson: `${breakdown.lawson.kpi.completionRate}%`,
+                          }
+                        : undefined
+                }
             />
             <GroupedKpiCard
                 title="Realisasi & PJUM"
                 icon={CircleDollarSign}
-                href="/dashboard/realisasi"
+                href={withBrandHref("/dashboard/realisasi", brand)}
                 value={formatShortRp(kpi.totalRealisasi)}
                 helper={`BMS / minggu all cabang ${formatRp(kpi.avgBmsWeeklyRealisasi)}`}
                 rows={[
@@ -212,6 +246,14 @@ function KpiGrid({
                         tone: pjum.pending > 0 ? "amber" : "slate",
                     },
                 ]}
+                breakdown={
+                    breakdown
+                        ? {
+                              alfamart: formatShortRp(breakdown.alfamart.kpi.totalRealisasi),
+                              lawson: formatShortRp(breakdown.lawson.kpi.totalRealisasi),
+                          }
+                        : undefined
+                }
             />
         </div>
     );
@@ -243,6 +285,7 @@ function GroupedKpiCard({
     href,
     rows,
     progress,
+    breakdown,
 }: {
     title: string;
     icon: React.ElementType;
@@ -251,6 +294,7 @@ function GroupedKpiCard({
     href: string;
     rows: GroupedKpiRow[];
     progress?: number;
+    breakdown?: { alfamart: string; lawson: string };
 }) {
     return (
         <section className="flex h-full flex-col rounded-lg border bg-background p-4 shadow-sm">
@@ -267,6 +311,12 @@ function GroupedKpiCard({
                         {value}
                         <ArrowUpRight className="h-4 w-4" />
                     </Link>
+                    {breakdown && (
+                        <div className="mt-1 flex items-center gap-3 text-xs font-medium">
+                            <span className="text-red-600">Alfamart: {breakdown.alfamart}</span>
+                            <span className="text-blue-600">Lawson: {breakdown.lawson}</span>
+                        </div>
+                    )}
                     <p className="mt-1 text-xs text-muted-foreground">
                         {helper}
                     </p>
@@ -353,7 +403,13 @@ const SLA_STATUS_GUIDE = [
     },
 ] as const;
 
-function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
+function StatusDistributionKpis({
+    status,
+    breakdown,
+}: {
+    status: AdminStatusDatum[];
+    breakdown?: { alfamart: number; lawson: number };
+}) {
     const visibleStatus = status.filter((item) => item.slaDays !== null);
     const totalActive = visibleStatus.reduce(
         (sum, item) => sum + item.count,
@@ -374,6 +430,12 @@ function StatusDistributionKpis({ status }: { status: AdminStatusDatum[] }) {
                     <div className="mt-1 text-3xl font-semibold tracking-tight">
                         {formatNumber(totalActive)}
                     </div>
+                    {breakdown && (
+                        <div className="mt-1 flex items-center gap-3 text-xs font-medium">
+                            <span className="text-red-600">Alfamart: {breakdown.alfamart}</span>
+                            <span className="text-blue-600">Lawson: {breakdown.lawson}</span>
+                        </div>
+                    )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Badge
@@ -565,6 +627,7 @@ function SlaStatusGuide() {
 function getStatusSegmentClass(status: string) {
     const map: Record<string, string> = {
         PENDING_ESTIMATION: "bg-yellow-400",
+        PENDING_CHECKLIST_REVIEW: "bg-teal-400",
         ESTIMATION_APPROVED: "bg-emerald-500",
         ESTIMATION_REJECTED_REVISION: "bg-orange-500",
         IN_PROGRESS: "bg-blue-500",
@@ -575,22 +638,6 @@ function getStatusSegmentClass(status: string) {
 
     return map[status] ?? "bg-slate-400";
 }
-
-const ACTIVITY_LABELS: Record<string, string> = {
-    SUBMITTED: "Laporan diajukan",
-    RESUBMITTED_ESTIMATION: "Revisi estimasi diajukan",
-    RESUBMITTED_WORK: "Revisi pekerjaan diajukan",
-    WORK_STARTED: "Pekerjaan dimulai",
-    COMPLETION_SUBMITTED: "Penyelesaian diajukan",
-    ESTIMATION_APPROVED: "Estimasi disetujui",
-    ESTIMATION_REJECTED_REVISION: "Revisi estimasi",
-    ESTIMATION_REJECTED: "Estimasi ditolak",
-    WORK_APPROVED: "Pekerjaan disetujui BMC",
-    WORK_REJECTED_REVISION: "Revisi pekerjaan",
-    FINAL_APPROVED_BNM: "Final disetujui BNM",
-    FINAL_REJECTED_REVISION_BNM: "Revisi final BNM",
-    ADMIN_REALISASI_REVISED: "Realisasi direvisi admin",
-};
 
 function getActivityBadgeClass(action: string) {
     if (action.includes("REJECTED")) {
@@ -678,8 +725,7 @@ function AdminRecentActivityCard({
                                                 activity.action,
                                             )}
                                         >
-                                            {ACTIVITY_LABELS[activity.action] ??
-                                                activity.action}
+                                            {getAdminRecentActivityLabel(activity)}
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
@@ -717,8 +763,10 @@ function AdminRecentActivityCard({
 
 function BranchPerformanceTable({
     branches,
+    brand,
 }: {
     branches: AdminBranchPerformanceDatum[];
+    brand: StoreBrandFilter;
 }) {
     return (
         <Card className="overflow-hidden">
@@ -731,7 +779,7 @@ function BranchPerformanceTable({
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/dashboard/branches">
+                        <Link href={withBrandHref("/dashboard/branches", brand)}>
                             Detail
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -755,7 +803,7 @@ function BranchPerformanceTable({
                             <TableRow key={branch.branchName}>
                                 <TableCell className="font-medium">
                                     <Link
-                                        href={`/dashboard/branches/${branch.branchName}`}
+                                        href={withBrandHref(`/dashboard/branches/${encodeURIComponent(branch.branchName)}`, brand)}
                                         className="text-primary hover:underline flex items-center gap-1 group"
                                     >
                                         {branch.branchName}
@@ -894,12 +942,15 @@ function AttentionTable({
 export async function AdminNewDashboard({
     user,
     period,
+    brand,
 }: {
     user: AuthUser;
     period?: string;
+    brand?: StoreBrandFilter;
 }) {
     const selectedPeriod = normalizePeriod(period);
-    const data = await getAdminCommandCenterData(selectedPeriod);
+    const selectedBrand = brand ?? "ALL";
+    const data = await getAdminCommandCenterData(selectedPeriod, selectedBrand);
 
     return (
         <AdminDashboardShell
@@ -908,11 +959,21 @@ export async function AdminNewDashboard({
             breadcrumbs={[{ label: "Dashboard" }]}
             contentClassName="md:p-6"
             headerActions={
-                <AdminTrendPeriodFilter initialPeriod={selectedPeriod} />
+                <AdminTrendPeriodFilter
+                    initialPeriod={selectedPeriod}
+                    initialBrand={selectedBrand}
+                    showBrandFilter
+                />
             }
         >
-            <DashboardHeader kpi={data.kpi} />
-            <KpiGrid kpi={data.kpi} pjum={data.pjum} />
+            <DashboardHeader kpi={data.kpi} brand={selectedBrand} />
+            <KpiGrid
+                kpi={data.kpi}
+                pjum={data.pjum}
+                breakdown={data.brandBreakdown}
+                isBrandFiltered={selectedBrand !== "ALL"}
+                brand={selectedBrand}
+            />
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
                 <div className="space-y-4">
@@ -925,7 +986,7 @@ export async function AdminNewDashboard({
                             batas waktu operasional.
                         </p>
                     </div>
-                    <StatusDistributionKpis status={data.status} />
+                    <StatusDistributionKpis status={data.status} breakdown={data.brandBreakdown ? { alfamart: data.brandBreakdown.alfamart.kpi.activeReports, lawson: data.brandBreakdown.lawson.kpi.activeReports } : undefined} />
                 </div>
                 <SlaStatusGuide />
             </section>
@@ -950,14 +1011,14 @@ export async function AdminNewDashboard({
                 </CardContent>
             </Card>
 
-            <BranchPerformanceTable branches={data.branches} />
+            <BranchPerformanceTable branches={data.branches} brand={selectedBrand} />
             <AttentionTable
                 reports={data.stuckReports}
                 title="Stuck Reports"
                 description="Laporan aktif yang tidak bergerak lebih dari 7 hari"
                 emptyMessage="Tidak ada laporan stuck lebih dari 7 hari."
                 icon={Clock3}
-                viewHref="/dashboard/reports?scope=overdue"
+                viewHref={withBrandHref("/dashboard/reports?scope=overdue", selectedBrand)}
                 viewLabel="Buka SLA"
             />
             <AdminRecentActivityCard activities={data.recentActivity} />

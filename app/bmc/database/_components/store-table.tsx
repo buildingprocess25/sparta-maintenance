@@ -39,17 +39,22 @@ import {
 import { Store, Pencil, Search, X } from "lucide-react";
 import { StoreFormDialog } from "./store-form-dialog";
 import { ImportStoreDialog } from "./import-store-dialog";
+import type { AreaNamesByBranch } from "../store-area-options";
+import { getWritableBranchNames } from "@/lib/branch-merges";
 
 type StoreRow = {
     code: string;
     name: string;
     branchName: string;
+    areaName: string | null;
     isActive: boolean;
 };
 
 type Props = {
     stores: StoreRow[];
     branchNames: string[];
+    allBrands: string[];
+    areaNamesByBranch: AreaNamesByBranch;
     totalCount: number;
     currentPage: number;
     totalPages: number;
@@ -62,6 +67,8 @@ type Props = {
 export function StoreTable({
     stores,
     branchNames,
+    allBrands,
+    areaNamesByBranch,
     totalCount,
     currentPage,
     totalPages,
@@ -70,6 +77,8 @@ export function StoreTable({
     const router = useRouter();
     const pathname = usePathname();
     const currentSearchParams = useSearchParams();
+
+    const writableBranchNames = getWritableBranchNames(branchNames);
 
     // Local state for search
     const [searchTerm, setSearchTerm] = useState(searchParams.sSearch || "");
@@ -181,8 +190,12 @@ export function StoreTable({
                     <p className="text-sm text-muted-foreground hidden lg:block">
                         {totalCount} toko ditemukan
                     </p>
-                    <ImportStoreDialog branchNames={branchNames} />
-                    <StoreFormDialog branchNames={branchNames} />
+                    <ImportStoreDialog branchNames={writableBranchNames} />
+                    <StoreFormDialog
+                        branchNames={writableBranchNames}
+                        allBrands={allBrands}
+                        areaNamesByBranch={areaNamesByBranch}
+                    />
                 </div>
             </div>
 
@@ -246,7 +259,9 @@ export function StoreTable({
                                     <TableCell className="text-right">
                                         <div className="flex items-center justify-end gap-1">
                                             <StoreFormDialog
-                                                branchNames={branchNames}
+                                                branchNames={writableBranchNames}
+                                                allBrands={allBrands}
+                                                areaNamesByBranch={areaNamesByBranch}
                                                 editStore={store}
                                                 trigger={
                                                     <Button

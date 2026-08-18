@@ -103,7 +103,13 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
                     condition: "" as ChecklistCondition,
                     handler: "",
                 };
-                next.set(itemId, { ...existing, [field]: value });
+                const updated = { ...existing, [field]: value };
+
+                if (field === "condition" && value !== "rusak") {
+                    updated.handler = "";
+                }
+
+                next.set(itemId, updated);
                 return next;
             });
         },

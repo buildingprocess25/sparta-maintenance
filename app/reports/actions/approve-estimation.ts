@@ -43,9 +43,15 @@ export async function reviewEstimation(
 
         if (!report) return { error: "Laporan tidak ditemukan" };
 
-        if (report.status !== ReportStatus.PENDING_ESTIMATION) {
+        const REVIEWABLE_STATUSES = [
+            ReportStatus.PENDING_ESTIMATION,
+            ReportStatus.PENDING_CHECKLIST_REVIEW,
+        ] as const;
+        type ReviewableStatus = (typeof REVIEWABLE_STATUSES)[number];
+
+        if (!REVIEWABLE_STATUSES.includes(report.status as ReviewableStatus)) {
             return {
-                error: `Laporan harus berstatus '${getReportStatusLabel("PENDING_ESTIMATION")}'`,
+                error: `Laporan harus berstatus '${getReportStatusLabel("PENDING_ESTIMATION")}' atau '${getReportStatusLabel("PENDING_CHECKLIST_REVIEW")}'`,
             };
         }
 
@@ -60,16 +66,22 @@ export async function reviewEstimation(
         const items = (report.items ?? []) as unknown as ReportItemJson[];
         const estimations = (report.estimations ??
             []) as unknown as MaterialEstimationJson[];
-        const isRekananBypass =
-            decision === "approve" && isRekananZeroCost(items, estimations);
+            
+        const isChecklistReport = report.status === ReportStatus.PENDING_CHECKLIST_REVIEW;
 
-        const newStatus = isRekananBypass
+        // isRekananZeroCost dipertahankan sebagai safety net untuk PENDING_ESTIMATION
+        const isRekananBypass =
+            decision === "approve" && !isChecklistReport && isRekananZeroCost(items, estimations);
+
+        const newStatus = isChecklistReport && decision === "approve"
             ? ReportStatus.APPROVED_BMC
-            : decision === "approve"
-              ? ReportStatus.ESTIMATION_APPROVED
-              : decision === "reject_revision"
-                ? ReportStatus.ESTIMATION_REJECTED_REVISION
-                : ReportStatus.ESTIMATION_REJECTED;
+            : isRekananBypass
+              ? ReportStatus.APPROVED_BMC
+              : decision === "approve"
+                ? ReportStatus.ESTIMATION_APPROVED
+                : decision === "reject_revision"
+                  ? ReportStatus.ESTIMATION_REJECTED_REVISION
+                  : ReportStatus.ESTIMATION_REJECTED;
 
         // For approvals, only store user-typed notes (null if empty) so the PDF
         // stamp notes strip doesn't show an auto-generated placeholder.
@@ -93,7 +105,7 @@ export async function reviewEstimation(
             prisma.report.update({
                 where: {
                     reportNumber,
-                    status: ReportStatus.PENDING_ESTIMATION,
+                    status: { in: [ReportStatus.PENDING_ESTIMATION, ReportStatus.PENDING_CHECKLIST_REVIEW] },
                 },
                 data: { status: newStatus },
             }),
@@ -135,7 +147,7 @@ export async function reviewEstimation(
             notes: logNote,
         });
 
-        if (isRekananBypass) {
+        if (isRekananBypass || (isChecklistReport && decision === "approve")) {
             dispatchNotificationEvent({
                 type: "REPORT_WORK_APPROVED",
                 actorNIK: user.NIK,
@@ -149,12 +161,15 @@ export async function reviewEstimation(
                 operation: "reviewEstimation",
                 reportNumber,
                 decision,
+                isChecklistReport,
                 rekananBypass: isRekananBypass,
                 userId: user.NIK,
             },
-            isRekananBypass
-                ? "Estimation approved with REKANAN bypass → APPROVED_BMC"
-                : "Estimation reviewed",
+            isChecklistReport && decision === "approve"
+                ? "Checklist approved → APPROVED_BMC"
+                : isRekananBypass
+                  ? "Estimation approved with REKANAN bypass → APPROVED_BMC"
+                  : "Estimation reviewed",
         );
 
         return { success: true };

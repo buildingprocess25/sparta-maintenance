@@ -11,6 +11,7 @@ import {
 } from "@/app/admin/export/queries";
 import { toExcelJakartaSerial } from "@/lib/time";
 import { resolveLimitedExportScope } from "./access";
+import { parseStoreBrandFilter } from "@/lib/store-brand-filter";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
 
@@ -42,6 +43,7 @@ function buildReportSheet(
 ): XLSX.WorkSheet {
   const headers = [
     "No. Laporan",
+    "Jenis Laporan",
     "Tanggal Dibuat",
     "Branch",
     "Kode Toko",
@@ -71,6 +73,7 @@ function buildReportSheet(
     headers.map((h) => textCell(h)),
     ...rows.map((r) => [
       textCell(r.reportNumber),
+      textCell(r.isPreventive ? "Preventif" : "Insidentil"),
       dateCell(r.createdAt),
       textCell(r.branchName),
       textCell(r.storeCode),
@@ -149,6 +152,7 @@ function buildPjumSheet(
     "Sampai Tanggal",
     "Status",
     "Jumlah Laporan",
+    "Total Dana PJUM (Rp)",
     "Dibuat Oleh",
     "Tanggal Dibuat",
     "Disetujui Oleh",
@@ -166,6 +170,7 @@ function buildPjumSheet(
       dateCell(r.toDate),
       textCell(r.status),
       numCell(r.reportCount),
+      numCell(r.totalReal),
       textCell(r.createdByName),
       dateCell(r.createdAt),
       textCell(r.approvedByName),
@@ -190,26 +195,34 @@ function normalizePreventiveQuarter(
 
 const PREVENTIVE_QUARTER_COLUMNS = {
   1: {
+    nik: "q1Nik",
     by: "q1By",
     date: "q1Date",
+    nikHeader: "TW1 NIK",
     bmsHeader: "TW1 BMS",
     dateHeader: "TW1 TGL",
   },
   2: {
+    nik: "q2Nik",
     by: "q2By",
     date: "q2Date",
+    nikHeader: "TW2 NIK",
     bmsHeader: "TW2 BMS",
     dateHeader: "TW2 TGL",
   },
   3: {
+    nik: "q3Nik",
     by: "q3By",
     date: "q3Date",
+    nikHeader: "TW3 NIK",
     bmsHeader: "TW3 BMS",
     dateHeader: "TW3 TGL",
   },
   4: {
+    nik: "q4Nik",
     by: "q4By",
     date: "q4Date",
+    nikHeader: "TW4 NIK",
     bmsHeader: "TW4 BMS",
     dateHeader: "TW4 TGL",
   },
@@ -222,6 +235,7 @@ function buildPreventiveSheet(
   const baseHeaders = ["Kode Toko", "Nama Toko", "Branch"];
   const quarters = quarter === "all" ? ([1, 2, 3, 4] as const) : [quarter];
   const quarterHeaders = quarters.flatMap((q) => [
+    PREVENTIVE_QUARTER_COLUMNS[q].nikHeader,
     PREVENTIVE_QUARTER_COLUMNS[q].bmsHeader,
     PREVENTIVE_QUARTER_COLUMNS[q].dateHeader,
   ]);
@@ -232,7 +246,11 @@ function buildPreventiveSheet(
     ...rows.map((r) => {
       const quarterCells = quarters.flatMap((q) => {
         const config = PREVENTIVE_QUARTER_COLUMNS[q];
-        return [textCell(r[config.by]), dateCell(r[config.date])];
+        return [
+          textCell((r as any)[config.nik]),
+          textCell((r as any)[config.by]),
+          dateCell((r as any)[config.date]),
+        ];
       });
 
       return [
@@ -329,6 +347,11 @@ export async function POST(request: NextRequest) {
   }
 
   const filter: ExportFilter = body.filter ?? {};
+  const brand = parseStoreBrandFilter(filter.brand);
+  if (brand === null) {
+    return NextResponse.json({ error: "Invalid brand filter" }, { status: 400 });
+  }
+  filter.brand = brand;
   const preventiveQuarter = normalizePreventiveQuarter(
     filter.preventiveQuarter,
   );

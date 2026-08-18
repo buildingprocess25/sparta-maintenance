@@ -51,6 +51,7 @@ type UserRow = {
     email: string;
     role: string;
     branchNames: string[];
+    areaNames: string[];
 };
 
 type Props = {

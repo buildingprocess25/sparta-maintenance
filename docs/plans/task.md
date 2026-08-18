@@ -1,0 +1,11 @@
+- [x] Task 1: Migrasi Database — Tambah Enum Value
+- [x] Task 2: Daftarkan Status di Helper Pusat
+- [x] Task 3: Tambah Fungsi Helper `isChecklistOnlyReport`
+- [x] Task 4: Update Action Submit
+- [x] Task 5: Update Action Resubmit
+- [x] Task 6: Update Action Approve-Estimation (Inti Alur Baru)
+- [x] Task 7: Update Notifikasi
+- [x] Task 8: Update Dashboard & Reports Queries
+- [x] Task 9: Update Reports Page Group Filters
+- [x] Task 10: Update Semua Komponen UI
+- [x] Task 11: Verifikasi & Task Note

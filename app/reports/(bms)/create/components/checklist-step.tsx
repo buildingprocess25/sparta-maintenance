@@ -32,6 +32,7 @@ import {
 } from "@/lib/checklist-data";
 
 interface ChecklistStepProps {
+  storeCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
   activeCategories: ChecklistCategory[];
   checklist: Map<string, ChecklistItem>;
@@ -63,6 +64,7 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
 };
 
 export function ChecklistStep({
+  storeCode,
   isRepairOnlyMode,
   activeCategories,
   checklist,
@@ -107,6 +109,16 @@ export function ChecklistStep({
   const progress =
     totalItems > 0 ? Math.round((evaluatedCount / totalItems) * 100) : 0;
   const hasSearch = searchQuery.trim().length > 0;
+
+  const selectedAhoTickets = useMemo(() => {
+    const tickets = new Set<string>();
+    for (const item of checklist.values()) {
+      if (item.ahoTicketNumber) {
+        tickets.add(item.ahoTicketNumber);
+      }
+    }
+    return tickets;
+  }, [checklist]);
 
   const isHeaderVisible = useBmsMobileHeaderVisibility();
 
@@ -178,6 +190,7 @@ export function ChecklistStep({
       </Card>
 
       <section
+        data-tour="bms-report-checklist"
         className={cn(
           "sticky z-40 -mx-4 px-4 pt-2 pb-0 bg-background/95 backdrop-blur-md transition-all duration-300",
           isHeaderVisible ? "top-[60px]" : "top-0",
@@ -310,7 +323,8 @@ export function ChecklistStep({
                                   </div>
 
                                   <RadioGroup
-                                    value={condition}
+                                    data-tour="bms-checklist-condition"
+                                    value={condition || ""}
                                     onValueChange={(value) =>
                                       onConditionChange(
                                         item.id,
@@ -386,7 +400,8 @@ export function ChecklistStep({
                                           </span>
                                         </p>
                                         <RadioGroup
-                                          value={handler}
+                                          data-tour="bms-checklist-handler"
+                                          value={handler || ""}
                                           onValueChange={(val) =>
                                             onHandlerChange(
                                               item.id,
@@ -421,7 +436,7 @@ export function ChecklistStep({
                                       </div>
                                     ) : null}
 
-                                    <div className="flex flex-col gap-2">
+                                    <div className="flex flex-col gap-2" data-tour="bms-checklist-photo">
                                       <p className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">
                                         Foto Bukti{" "}
                                         <span className="text-destructive">
@@ -455,27 +470,29 @@ export function ChecklistStep({
 
                                     {isBroken ? (
                                       <div className="flex flex-col gap-2">
-                                        <Label
-                                          htmlFor={`${item.id}-note`}
-                                          className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
-                                        >
-                                          Catatan{" "}
-                                          <span className="text-destructive">
-                                            *
-                                          </span>
-                                        </Label>
-                                        <LocalNotesTextarea
-                                          required={true}
-                                          initialValue={itemData?.notes || ""}
-                                          onCommit={(val) =>
-                                            onNotesChange(
-                                              item.id,
-                                              item.name,
-                                              val,
-                                            )
-                                          }
-                                        />
-                                        <div className="flex flex-col gap-2">
+                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-notes">
+                                          <Label
+                                            htmlFor={`${item.id}-note`}
+                                            className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
+                                          >
+                                            Catatan{" "}
+                                            <span className="text-destructive">
+                                              *
+                                            </span>
+                                          </Label>
+                                          <LocalNotesTextarea
+                                            required={true}
+                                            initialValue={itemData?.notes || ""}
+                                            onCommit={(val) =>
+                                              onNotesChange(
+                                                item.id,
+                                                item.name,
+                                                val,
+                                              )
+                                            }
+                                          />
+                                        </div>
+                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-aho">
                                           <Label
                                             htmlFor={`${item.id}-aho`}
                                             className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
@@ -487,8 +504,12 @@ export function ChecklistStep({
                                           </Label>
                                           <LocalAhoInput
                                             id={`${item.id}-aho`}
-                                            required
-                                            initialValue={itemData?.ahoTicketNumber || ""}
+                                            storeCode={storeCode}
+                                            initialValue={
+                                              checklist.get(item.id)
+                                                ?.ahoTicketNumber || ""
+                                            }
+                                            selectedTickets={selectedAhoTickets}
                                             onCommit={(val) =>
                                               onAhoTicketNumberChange(
                                                 item.id,
@@ -496,6 +517,7 @@ export function ChecklistStep({
                                                 val,
                                               )
                                             }
+                                            required
                                           />
                                         </div>
                                       </div>

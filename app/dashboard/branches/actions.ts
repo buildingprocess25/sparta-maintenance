@@ -10,6 +10,7 @@ import {
     getBranchStuckThresholdDate,
 } from "@/lib/admin-branches";
 import { logger } from "@/lib/logger";
+import { isChecklistOnlyReport } from "@/lib/report-utils";
 import {
     ARCHIVED_PREVENTIVE_STATUS,
     getReportStatusLabel,
@@ -19,6 +20,13 @@ import { requiresPjum } from "@/lib/realisasi";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import type { Prisma } from "@prisma/client";
 import type { AuthUser } from "@/lib/authorization";
+import type { ReportItemJson } from "@/types/report";
+import {
+    getReportBrandWhere,
+    getStoreBrandWhere,
+    getVisibleBrandBranchNames,
+    type StoreBrandFilter,
+} from "@/lib/store-brand-filter";
 
 export type AdminBranchSummary = {
     totalBranches: number;
@@ -82,6 +90,7 @@ export type AdminBranchActivityItem = {
     reportNumber: string;
     storeName: string;
     action: string;
+    isChecklistOnly: boolean;
     actorName: string;
     createdAt: Date;
 };
@@ -180,10 +189,13 @@ function emptySummary(totalBranches = 0): AdminBranchSummary {
 async function getAdminBranchOverview(
     branchName: string,
     period: string,
+    brand: StoreBrandFilter,
 ): Promise<AdminBranchRow | null> {
     const periodWindow = getActivityPeriodWindow(period);
     const periodDateFilter = buildDateFilter(periodWindow);
     const stuckThreshold = getBranchStuckThresholdDate();
+    const storeBrandWhere = getStoreBrandWhere(brand);
+    const reportBrandWhere = getReportBrandWhere(brand);
 
     const officialBranchRows = await prisma.$queryRaw<{ count: number }[]>`
         SELECT COUNT(*)::int AS "count"
@@ -207,7 +219,7 @@ async function getAdminBranchOverview(
         lastActivityRows,
     ] = await Promise.all([
         prisma.store.count({
-            where: { branchName, isActive: true },
+            where: { ...storeBrandWhere, branchName, isActive: true },
         }),
         prisma.$queryRaw<UserRoleCountRow[]>`
             SELECT
@@ -221,6 +233,7 @@ async function getAdminBranchOverview(
         `,
         prisma.report.count({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: {
                     notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
@@ -230,6 +243,7 @@ async function getAdminBranchOverview(
         }),
         prisma.report.aggregate({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: "COMPLETED",
                 pjumExportedAt: { not: null },
@@ -240,12 +254,14 @@ async function getAdminBranchOverview(
         }),
         prisma.report.count({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
             },
         }),
         prisma.report.count({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
                 createdAt: { lt: stuckThreshold },
@@ -258,6 +274,7 @@ async function getAdminBranchOverview(
         }),
         prisma.report.findMany({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: "COMPLETED",
                 pjumExportedAt: null,
@@ -270,6 +287,7 @@ async function getAdminBranchOverview(
         prisma.activityLog.findFirst({
             where: {
                 report: {
+                    ...reportBrandWhere,
                     branchName,
                     status: {
                         notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
@@ -324,8 +342,12 @@ async function getAdminBranchOverview(
 
 export async function getAdminBranchesData(
     period = "ytd",
+    brand: StoreBrandFilter = "ALL",
 ): Promise<AdminBranchesData> {
     const user = await requireBranchMonitor();
+    const brandScope = user.role === "ADMIN" ? brand : "ALL";
+    const storeBrandWhere = getStoreBrandWhere(brandScope);
+    const reportBrandWhere = getReportBrandWhere(brandScope);
 
     const correlationId = crypto.randomUUID();
     const start = performance.now();
@@ -352,6 +374,7 @@ export async function getAdminBranchesData(
             prisma.store.groupBy({
                 by: ["branchName"],
                 where: {
+                    ...storeBrandWhere,
                     branchName: { in: branchNames },
                     isActive: true,
                     NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
@@ -374,6 +397,7 @@ export async function getAdminBranchesData(
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    ...reportBrandWhere,
                     branchName: { in: branchNames },
                     status: {
                         notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
@@ -385,6 +409,7 @@ export async function getAdminBranchesData(
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    ...reportBrandWhere,
                     branchName: { in: branchNames },
                     status: "COMPLETED",
                     pjumExportedAt: { not: null },
@@ -396,6 +421,7 @@ export async function getAdminBranchesData(
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    ...reportBrandWhere,
                     branchName: { in: branchNames },
                     status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
                 },
@@ -404,6 +430,7 @@ export async function getAdminBranchesData(
             prisma.report.groupBy({
                 by: ["branchName"],
                 where: {
+                    ...reportBrandWhere,
                     branchName: { in: branchNames },
                     status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
                     createdAt: { lt: stuckThreshold },
@@ -417,6 +444,7 @@ export async function getAdminBranchesData(
             }),
             prisma.report.findMany({
                 where: {
+                    ...reportBrandWhere,
                     branchName: { in: branchNames },
                     status: "COMPLETED",
                     pjumExportedAt: null,
@@ -443,6 +471,11 @@ export async function getAdminBranchesData(
         ]);
 
         const storeMap = mapCountRows(storeRows);
+        const scopedBranchNames = getVisibleBrandBranchNames(
+            brandScope,
+            branchNames,
+            storeMap.keys(),
+        );
         const reportMap = mapCountRows(reportRows);
         const openMap = mapCountRows(openRows);
         const stuckMap = mapCountRows(stuckRows);
@@ -476,14 +509,16 @@ export async function getAdminBranchesData(
             userMap.set(branchName, current);
         }
 
+        const filteredLastActivityRows =
+            brandScope === "ALL" ? lastActivityRows : [];
         const activityMap = new Map(
-            lastActivityRows.map((row) => [
+            filteredLastActivityRows.map((row) => [
                 row.branchName,
                 row.lastActivityAt,
             ]),
         );
 
-        const branches = branchNames.map((branchName) => {
+        const branches = [...scopedBranchNames].map((branchName) => {
             const reportCount = reportMap.get(branchName) ?? 0;
             const completed = completedMap.get(branchName) ?? {
                 count: 0,
@@ -528,7 +563,7 @@ export async function getAdminBranchesData(
                 acc.unpjumCompletedReports += branch.unpjumCompletedReports;
                 return acc;
             },
-            emptySummary(branchNames.length),
+            emptySummary(scopedBranchNames.size),
         );
         summary.completionRate = calculateBranchCompletionRate(
             summary.completedReports,
@@ -541,6 +576,7 @@ export async function getAdminBranchesData(
                 correlationId,
                 durationMs: Math.round(performance.now() - start),
                 count: branches.length,
+                brand: brandScope,
             },
             "Fetched admin branches data",
         );
@@ -594,12 +630,32 @@ function mapReportItem(report: {
 export async function getAdminBranchDetail(
     branchName: string,
     period = "ytd",
+    brand: StoreBrandFilter = "ALL",
 ): Promise<AdminBranchDetail | null> {
     const user = await requireBranchMonitor();
+    const brandScope = user.role === "ADMIN" ? brand : "ALL";
+    const reportBrandWhere = getReportBrandWhere(brandScope);
     const visibleBranchNames = await getVisibleBranchNames(user);
-    if (!visibleBranchNames.includes(branchName)) return null;
+    const ownedBranchRows =
+        brandScope === "ALL"
+            ? []
+            : await prisma.store.findMany({
+                  where: {
+                      ...getStoreBrandWhere(brandScope),
+                      branchName,
+                      isActive: true,
+                  },
+                  select: { branchName: true },
+                  take: 1,
+              });
+    const scopedBranchNames = getVisibleBrandBranchNames(
+        brandScope,
+        visibleBranchNames,
+        ownedBranchRows.map((store) => store.branchName),
+    );
+    if (!scopedBranchNames.has(branchName)) return null;
 
-    const branch = await getAdminBranchOverview(branchName, period);
+    const branch = await getAdminBranchOverview(branchName, period, brandScope);
     if (!branch) return null;
 
     const periodWindow = getActivityPeriodWindow(period);
@@ -616,6 +672,7 @@ export async function getAdminBranchDetail(
         prisma.report.groupBy({
             by: ["status"],
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: {
                     notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
@@ -627,6 +684,7 @@ export async function getAdminBranchDetail(
         prisma.report.groupBy({
             by: ["createdByNIK"],
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: "COMPLETED",
                 pjumExportedAt: { not: null },
@@ -639,6 +697,7 @@ export async function getAdminBranchDetail(
         }),
         prisma.report.findMany({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: { in: [...BRANCH_OPEN_REPORT_STATUSES] },
                 createdAt: { lt: stuckThreshold },
@@ -666,6 +725,7 @@ export async function getAdminBranchDetail(
         }),
         prisma.report.findMany({
             where: {
+                ...reportBrandWhere,
                 branchName,
                 status: "COMPLETED",
                 pjumExportedAt: null,
@@ -685,6 +745,7 @@ export async function getAdminBranchDetail(
         prisma.activityLog.findMany({
             where: {
                 report: {
+                    ...reportBrandWhere,
                     branchName,
                     status: { not: ARCHIVED_PREVENTIVE_STATUS },
                 },
@@ -697,7 +758,7 @@ export async function getAdminBranchDetail(
                 action: true,
                 createdAt: true,
                 actor: { select: { name: true } },
-                report: { select: { storeName: true } },
+                report: { select: { storeName: true, items: true } },
             },
         }),
     ]);
@@ -741,6 +802,11 @@ export async function getAdminBranchDetail(
             reportNumber: row.reportNumber,
             storeName: row.report.storeName,
             action: row.action,
+            isChecklistOnly: isChecklistOnlyReport(
+                Array.isArray(row.report.items)
+                    ? (row.report.items as unknown as ReportItemJson[])
+                    : [],
+            ),
             actorName: row.actor.name,
             createdAt: row.createdAt,
         })),
