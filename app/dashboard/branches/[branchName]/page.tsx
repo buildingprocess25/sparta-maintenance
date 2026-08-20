@@ -34,7 +34,7 @@ import {
     getActivityActionLabel,
 } from "../../activity/activity-format";
 import { getReportStatusBadgeClass } from "@/lib/report-status";
-import { cn } from "@/lib/utils";
+import { cn, formatDashboardCurrency } from "@/lib/utils";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
 export const dynamic = "force-dynamic";
@@ -55,13 +55,7 @@ function formatNumber(value: number) {
 }
 
 function formatShortRp(value: number) {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatDate(date: Date | string | null) {
