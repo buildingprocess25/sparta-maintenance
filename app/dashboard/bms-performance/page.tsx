@@ -38,7 +38,7 @@ import {
     SheetTrigger,
 } from "@/components/ui/sheet";
 import { getAuthUser } from "@/lib/authorization";
-import { cn } from "@/lib/utils";
+import { cn, formatDashboardCurrency } from "@/lib/utils";
 import { formatJakartaDateTime } from "@/lib/time";
 import { BmsPerformanceChart } from "./_components/bms-performance-chart";
 import { BmsPerformancePeriodFilter } from "./_components/bms-performance-period-filter";
@@ -64,13 +64,7 @@ function formatRp(value: number) {
 }
 
 function formatShortRp(value: number) {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatDateTime(date: Date | null) {
