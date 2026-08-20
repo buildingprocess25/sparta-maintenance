@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/table";
 import { AdminDashboardShell } from "./admin/admin-dashboard-shell";
 import type { AuthUser } from "@/lib/authorization";
-import { cn } from "@/lib/utils";
+import { cn, formatDashboardCurrency } from "@/lib/utils";
 import {
     getManagerDashboardData,
     type ManagerDashboardData,
@@ -57,13 +57,7 @@ function formatRp(value: number): string {
 }
 
 function formatShortRp(value: number): string {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatDate(date: Date): string {
