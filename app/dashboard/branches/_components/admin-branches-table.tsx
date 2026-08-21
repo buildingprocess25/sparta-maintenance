@@ -27,7 +27,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import type { AdminBranchesData, AdminBranchRow } from "../actions";
-import { cn } from "@/lib/utils";
+import { formatDashboardCurrency, cn } from "@/lib/utils";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 
 type BranchViewFilter = "all" | "attention" | "unpjum" | "strong";
@@ -63,13 +63,7 @@ function formatNumber(value: number) {
 }
 
 function formatShortRp(value: number) {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatDate(date: Date | string | null) {

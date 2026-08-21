@@ -32,7 +32,7 @@ import {
     getReportStatusBadgeClass,
     REPORT_STATUS_LABELS,
 } from "@/lib/report-status";
-import { cn } from "@/lib/utils";
+import { cn, formatDashboardCurrency } from "@/lib/utils";
 import {
     getAdminCommandCenterData,
     type AdminAttentionReport,
@@ -72,13 +72,7 @@ function formatRp(value: number): string {
 }
 
 function formatShortRp(value: number): string {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatDate(date: Date): string {

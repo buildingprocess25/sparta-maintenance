@@ -128,6 +128,11 @@ export function ReportHeader({
                                         ? "default"
                                         : "outline"
                                 }
+                                className={
+                                    document.key === "revised_report"
+                                        ? "border-amber-500 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:border-amber-500/50 dark:text-amber-500"
+                                        : ""
+                                }
                                 size="sm"
                             >
                                 <Link
@@ -137,6 +142,8 @@ export function ReportHeader({
                                 >
                                     {document.key === "report" ? (
                                         <FileCheck data-icon="inline-start" />
+                                    ) : document.key === "revised_report" ? (
+                                        <AlertTriangle data-icon="inline-start" className="size-4" />
                                     ) : (
                                         <ReceiptText data-icon="inline-start" />
                                     )}

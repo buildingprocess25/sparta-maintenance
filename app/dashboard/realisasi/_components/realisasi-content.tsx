@@ -15,6 +15,7 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { formatDashboardCurrency } from "@/lib/utils";
 
 import {
     Table,
@@ -41,13 +42,7 @@ function formatRp(value: number): string {
 }
 
 function formatShortRp(value: number): string {
-    return new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-        notation: "compact",
-        compactDisplay: "short",
-    }).format(value);
+    return formatDashboardCurrency(value);
 }
 
 function formatNumber(value: number): string {

@@ -38,7 +38,7 @@ export function getFinalDriveDocuments(report: ReportDetailModel) {
             ? `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1`
             : "";
     const documents: Array<{
-        key: "report" | "pjum";
+        key: "report" | "pjum" | "revised_report";
         label: string;
         url: string;
     }> = [];
@@ -56,6 +56,15 @@ export function getFinalDriveDocuments(report: ReportDetailModel) {
             key: "pjum",
             label: "PJUM Final PDF",
             url: pjumFinalUrl,
+        });
+    }
+
+    const revisedPdfUrl = report.revisedPdfDriveUrl?.trim();
+    if (revisedPdfUrl) {
+        documents.push({
+            key: "revised_report",
+            label: "PDF Revisi",
+            url: revisedPdfUrl,
         });
     }
 
