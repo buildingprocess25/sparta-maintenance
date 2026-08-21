@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { getAuthUser, requireRole } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { SETTING_KEYS } from "@/lib/app-settings";
 
@@ -119,14 +120,14 @@ export async function adminImportAhoTickets(formData: FormData): Promise<
             return { error: "Hanya menerima file .xlsx" };
         }
 
-        // Simpan ke DB dan dapatkan jobId
+        // Simpan job ke DB — tanpa fileBuffer (diproses langsung via closure)
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
         const job = await prisma.ahoImportJob.create({
             data: {
                 requestedByNIK: admin.NIK,
-                fileBuffer: buffer,
+                fileBuffer: Buffer.alloc(0), // tidak disimpan ke DB
             },
         });
 
@@ -136,14 +137,16 @@ export async function adminImportAhoTickets(formData: FormData): Promise<
         );
 
         // Fire-and-forget: proses di background
-        // Import dinamis untuk menghindari bundling XLSX di server action response
-        import("@/lib/jobs/aho-import").then(({ processAhoImportJob }) => {
-            processAhoImportJob(job.id).catch((err) => {
-                logger.error(
-                    { operation: "adminImportAhoTickets", jobId: job.id },
-                    "Background process failed",
-                    err,
-                );
+        // Buffer di-capture via closure, tidak perlu round-trip ke DB
+        import("@/lib/jobs/aho-import").then(({ processAhoImportJobWithBuffer }) => {
+            after(() => {
+                processAhoImportJobWithBuffer(job.id, buffer, admin.NIK).catch((err) => {
+                    logger.error(
+                        { operation: "adminImportAhoTickets", jobId: job.id },
+                        "Background process failed",
+                        err,
+                    );
+                });
             });
         });
 
@@ -151,13 +154,10 @@ export async function adminImportAhoTickets(formData: FormData): Promise<
     } catch (error) {
         logger.error(
             { operation: "adminImportAhoTickets" },
-            "Failed to sync AHO tickets",
+            "Failed to enqueue AHO import job",
             error,
         );
-        return {
-            ...result,
-            errors: [...result.errors, "Gagal melakukan sinkronisasi (Kesalahan server)"],
-        };
+        return { error: "Gagal melakukan sinkronisasi (Kesalahan server)" };
     }
 }
 

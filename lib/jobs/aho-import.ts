@@ -37,8 +37,8 @@ const MAX_IMPORT_ERRORS = 50;
 
 // ─── XLSX Parser (dipindahkan dari actions.ts) ────────────────────────────────
 
-function parseFormatBXlsx(buffer: ArrayBuffer): ParseFormatBResult {
-    const wb = XLSX.read(buffer, { type: "array", raw: true });
+function parseFormatBXlsx(buffer: Buffer): ParseFormatBResult {
+    const wb = XLSX.read(buffer, { type: "buffer", raw: true });
     const sheetName = wb.SheetNames[0];
     if (!sheetName) return { rows: [], printDate: null, error: "File XLSX kosong (tidak ada sheet)" };
 
@@ -211,22 +211,49 @@ async function upsertAhoTickets(
 // ─── Main Job Processor ───────────────────────────────────────────────────────
 
 /**
+ * Versi cepat: menerima buffer langsung dari closure Server Action.
+ * Tidak perlu menyimpan/membaca 70MB dari DB → Server Action lebih cepat.
+ * Dipanggil dari after() di adminImportAhoTickets.
+ */
+export async function processAhoImportJobWithBuffer(
+    jobId: string,
+    buffer: Buffer,
+    requestedByNIK: string,
+): Promise<void> {
+    return _runImportJob(jobId, buffer, requestedByNIK);
+}
+
+/**
  * Mengeksekusi satu AhoImportJob berdasarkan jobId.
  * Dipanggil secara fire-and-forget dari Server Action maupun Route Handler.
  * Mengupdate status job di DB selama eksekusi.
  */
 export async function processAhoImportJob(jobId: string): Promise<void> {
-    const startTime = Date.now();
-
     const job = await prisma.ahoImportJob.findUnique({ where: { id: jobId } });
     if (!job) {
         logger.error({ operation: "processAhoImportJob", jobId }, "Job not found");
         return;
     }
+    return _runImportJob(jobId, job.fileBuffer, job.requestedByNIK);
+}
+
+// ─── Core Implementation ──────────────────────────────────────────────────────
+
+async function _runImportJob(
+    jobId: string,
+    buffer: Buffer,
+    requestedByNIK: string,
+): Promise<void> {
+    const startTime = Date.now();
 
     // Guard: jangan proses ulang job yang sudah selesai atau sedang berjalan
-    if (job.status === "done" || job.status === "failed") {
-        logger.warn({ operation: "processAhoImportJob", jobId, status: job.status }, "Job already completed, skipping");
+    const existing = await prisma.ahoImportJob.findUnique({ where: { id: jobId }, select: { status: true } });
+    if (!existing) {
+        logger.error({ operation: "processAhoImportJob", jobId }, "Job not found");
+        return;
+    }
+    if (existing.status === "done" || existing.status === "failed") {
+        logger.warn({ operation: "processAhoImportJob", jobId, status: existing.status }, "Job already completed, skipping");
         return;
     }
 
@@ -248,12 +275,7 @@ export async function processAhoImportJob(jobId: string): Promise<void> {
     };
 
     try {
-        // Buffer dari DB (Prisma Bytes → ArrayBuffer)
-        const buffer = job.fileBuffer.buffer.slice(
-            job.fileBuffer.byteOffset,
-            job.fileBuffer.byteOffset + job.fileBuffer.byteLength,
-        ) as ArrayBuffer;
-
+        // Buffer diterima langsung via parameter (tidak dibaca ulang dari DB)
         const { rows: allRows, printDate, error } = parseFormatBXlsx(buffer);
         if (error) {
             result.errors.push(error);
@@ -397,7 +419,7 @@ export async function processAhoImportJob(jobId: string): Promise<void> {
             await updateAppSetting(
                 SETTING_KEYS.AHO_LAST_PRINT_DATE,
                 printDate.toISOString(),
-                job.requestedByNIK,
+                requestedByNIK,
             );
         }
 
@@ -406,7 +428,7 @@ export async function processAhoImportJob(jobId: string): Promise<void> {
             {
                 operation: "processAhoImportJob",
                 jobId,
-                userId: job.requestedByNIK,
+                userId: requestedByNIK,
                 total: result.total,
                 created: result.created,
                 updated: result.updated,
