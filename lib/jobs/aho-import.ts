@@ -234,7 +234,7 @@ export async function processAhoImportJob(jobId: string): Promise<void> {
         logger.error({ operation: "processAhoImportJob", jobId }, "Job not found");
         return;
     }
-    return _runImportJob(jobId, job.fileBuffer, job.requestedByNIK);
+    return _runImportJob(jobId, Buffer.from(job.fileBuffer), job.requestedByNIK);
 }
 
 // ─── Core Implementation ──────────────────────────────────────────────────────
