@@ -35,3 +35,5 @@ direspons serentak saat freeze selesai.
 
 - Worker Thread menggunakan tsx/esm loader. Perlu verifikasi di production standalone build.
   Jika gagal, fallback: compile worker ke JS via tsc, atau ganti execArgv yang sesuai environment.
+
+- Update: Refactored aho-import.ts to spawn worker thread
