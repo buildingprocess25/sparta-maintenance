@@ -37,3 +37,5 @@ direspons serentak saat freeze selesai.
   Jika gagal, fallback: compile worker ke JS via tsc, atau ganti execArgv yang sesuai environment.
 
 - Update: Refactored aho-import.ts to spawn worker thread
+
+- Update: Refactored polling logic in import-aho-tickets-dialog.tsx to use recursive setTimeout

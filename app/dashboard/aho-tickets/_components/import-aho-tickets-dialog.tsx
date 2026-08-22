@@ -39,13 +39,15 @@ export function ImportAhoTicketsDialog() {
     const [result, setResult] = useState<AhoImportResult | null>(null);
     const [progress, setProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pollStartRef = useRef<number>(0);
+    const isPollingStoppedRef = useRef<boolean>(false);
 
     const stopPolling = useCallback(() => {
-        if (pollIntervalRef.current) {
-            clearInterval(pollIntervalRef.current);
-            pollIntervalRef.current = null;
+        isPollingStoppedRef.current = true;
+        if (pollTimeoutRef.current) {
+            clearTimeout(pollTimeoutRef.current);
+            pollTimeoutRef.current = null;
         }
     }, []);
 
@@ -91,12 +93,15 @@ export function ImportAhoTicketsDialog() {
 
     const startPolling = useCallback(
         (jobId: string) => {
+            isPollingStoppedRef.current = false;
             pollStartRef.current = Date.now();
-            // Progress simulasi lambat selama polling
             setProgress(10);
 
-            pollIntervalRef.current = setInterval(async () => {
-                // Safety: hentikan polling jika terlalu lama
+            const poll = async () => {
+                // Guard: jika polling sudah dihentikan, abaikan eksekusi ini
+                if (isPollingStoppedRef.current) return;
+
+                // Safety timeout: hentikan setelah 10 menit
                 if (Date.now() - pollStartRef.current > MAX_POLL_DURATION_MS) {
                     stopPolling();
                     setJobStatus("failed");
@@ -110,16 +115,26 @@ export function ImportAhoTicketsDialog() {
 
                 try {
                     const res = await fetch(`/api/admin/import-aho/${jobId}`);
+
+                    // Guard setelah await fetch — modal mungkin ditutup saat fetch berjalan
+                    if (isPollingStoppedRef.current) return;
+
                     if (!res.ok) {
-                        // Jangan langsung fail — bisa jadi network hiccup
+                        // Network hiccup — jadwalkan poll berikutnya
+                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
                         return;
                     }
+
                     const data = await res.json();
+
+                    // Guard setelah json parse
+                    if (isPollingStoppedRef.current) return;
 
                     if (data.status === "processing") {
                         setJobStatus("processing");
-                        // Animasi progress lambat saat processing
                         setProgress((prev) => Math.min(90, prev + 5));
+                        // Poll berikutnya dijadwalkan HANYA setelah yang ini selesai (non-overlapping)
+                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
                     } else if (data.status === "done") {
                         stopPolling();
                         setJobStatus("done");
@@ -148,12 +163,20 @@ export function ImportAhoTicketsDialog() {
                                 data.result?.errors?.[0] ??
                                 "Terjadi kendala saat import.",
                         });
+                    } else {
+                        // status "pending" — lanjut poll
+                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
                     }
-                    // status "pending" → biarkan polling terus
                 } catch {
-                    // Network error sementara — polling tetap jalan
+                    // Network error sementara — coba lagi jika belum dihentikan
+                    if (!isPollingStoppedRef.current) {
+                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
+                    }
                 }
-            }, POLL_INTERVAL_MS);
+            };
+
+            // Mulai poll pertama setelah interval pertama
+            pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
         },
         [stopPolling, router],
     );
