@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useTransition, useRef, useCallback } from "react";
 import {
     Dialog,
     DialogContent,
@@ -19,50 +19,28 @@ import {
     XCircle,
     AlertTriangle,
     X,
-    Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import * as XLSX from "xlsx";
 import { adminImportAhoTickets } from "../actions";
-import type { AhoImportResult } from "@/lib/jobs/aho-import";
 
-type JobStatus = "idle" | "submitting" | "pending" | "processing" | "done" | "failed";
+type ImportResult = Awaited<ReturnType<typeof adminImportAhoTickets>>;
 
-const POLL_INTERVAL_MS = 3_000; // poll setiap 3 detik
-const MAX_POLL_DURATION_MS = 10 * 60 * 1_000; // batas keamanan 10 menit
+
 
 export function ImportAhoTicketsDialog() {
-    const router = useRouter();
     const [open, setOpen] = useState(false);
+    const [isPending, startTransition] = useTransition();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [jobStatus, setJobStatus] = useState<JobStatus>("idle");
-    const [result, setResult] = useState<AhoImportResult | null>(null);
+    const [result, setResult] = useState<ImportResult | null>(null);
     const [progress, setProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const pollStartRef = useRef<number>(0);
-    const isPollingStoppedRef = useRef<boolean>(false);
-
-    const stopPolling = useCallback(() => {
-        isPollingStoppedRef.current = true;
-        if (pollTimeoutRef.current) {
-            clearTimeout(pollTimeoutRef.current);
-            pollTimeoutRef.current = null;
-        }
-    }, []);
 
     const resetState = useCallback(() => {
-        stopPolling();
         setSelectedFile(null);
-        setJobStatus("idle");
         setResult(null);
         setProgress(0);
-    }, [stopPolling]);
-
-    // Cleanup saat komponen unmount
-    useEffect(() => {
-        return () => stopPolling();
-    }, [stopPolling]);
+    }, []);
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -91,132 +69,53 @@ export function ImportAhoTicketsDialog() {
         setResult(null);
     }
 
-    const startPolling = useCallback(
-        (jobId: string) => {
-            isPollingStoppedRef.current = false;
-            pollStartRef.current = Date.now();
-            setProgress(10);
-
-            const poll = async () => {
-                // Guard: jika polling sudah dihentikan, abaikan eksekusi ini
-                if (isPollingStoppedRef.current) return;
-
-                // Safety timeout: hentikan setelah 10 menit
-                if (Date.now() - pollStartRef.current > MAX_POLL_DURATION_MS) {
-                    stopPolling();
-                    setJobStatus("failed");
-                    setProgress(100);
-                    toast.error("Proses import timeout", {
-                        description:
-                            "Proses memakan waktu terlalu lama. Silakan refresh halaman untuk memeriksa apakah data sudah tersimpan.",
-                    });
-                    return;
-                }
-
-                try {
-                    const res = await fetch(`/api/admin/import-aho/${jobId}`);
-
-                    // Guard setelah await fetch — modal mungkin ditutup saat fetch berjalan
-                    if (isPollingStoppedRef.current) return;
-
-                    if (!res.ok) {
-                        // Network hiccup — jadwalkan poll berikutnya
-                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-                        return;
-                    }
-
-                    const data = await res.json();
-
-                    // Guard setelah json parse
-                    if (isPollingStoppedRef.current) return;
-
-                    if (data.status === "processing") {
-                        setJobStatus("processing");
-                        setProgress((prev) => Math.min(90, prev + 5));
-                        // Poll berikutnya dijadwalkan HANYA setelah yang ini selesai (non-overlapping)
-                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-                    } else if (data.status === "done") {
-                        stopPolling();
-                        setJobStatus("done");
-                        setProgress(100);
-                        setResult(data.result as AhoImportResult);
-                        router.refresh();
-
-                        const r = data.result as AhoImportResult;
-                        if (r.errors.length === 0) {
-                            toast.success("Import tiket AHO berhasil", {
-                                description: `${r.created} tiket tersimpan dari ${r.total} baris.`,
-                            });
-                        } else {
-                            toast.warning("Import selesai dengan catatan", {
-                                description: `${r.skipped} baris dilewati. Lihat detail di panel hasil.`,
-                            });
-                        }
-                    } else if (data.status === "failed") {
-                        stopPolling();
-                        setJobStatus("failed");
-                        setProgress(100);
-                        setResult(data.result as AhoImportResult | null);
-                        toast.error("Import tiket AHO gagal", {
-                            description:
-                                data.errorMessage ??
-                                data.result?.errors?.[0] ??
-                                "Terjadi kendala saat import.",
-                        });
-                    } else {
-                        // status "pending" — lanjut poll
-                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-                    }
-                } catch {
-                    // Network error sementara — coba lagi jika belum dihentikan
-                    if (!isPollingStoppedRef.current) {
-                        pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-                    }
-                }
-            };
-
-            // Mulai poll pertama setelah interval pertama
-            pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
-        },
-        [stopPolling, router],
-    );
-
-    async function handleImport() {
+    function handleImport() {
         if (!selectedFile) return;
 
-        setJobStatus("submitting");
-        setProgress(5);
-
-        const formData = new FormData();
-        formData.append("file", selectedFile);
-
-        const enqueueResult = await adminImportAhoTickets(formData);
-
-        if ("error" in enqueueResult) {
-            setJobStatus("idle");
-            setProgress(0);
-            toast.error("Import tiket AHO gagal", {
-                description: enqueueResult.error,
+        setProgress(0);
+        const progressInterval = setInterval(() => {
+            setProgress((prev) => {
+                if (prev >= 98) return 98;
+                const remaining = 98 - prev;
+                const step =
+                    prev < 80
+                        ? Math.max(2, remaining * 0.2)
+                        : Math.max(0.4, remaining * 0.08);
+                return Math.min(98, prev + step);
             });
-            return;
-        }
+        }, 250);
 
-        setJobStatus("pending");
-        startPolling(enqueueResult.jobId);
+        startTransition(async () => {
+            try {
+                const formData = new FormData();
+                formData.append("file", selectedFile);
+
+                const importResult = await adminImportAhoTickets(formData);
+                setResult(importResult);
+
+                if (importResult.success && importResult.errors.length === 0) {
+                    toast.success("Import tiket AHO berhasil", {
+                        description: `${importResult.created} tiket tersimpan dari ${importResult.total} baris.`,
+                    });
+                } else if (importResult.success) {
+                    toast.warning("Import selesai dengan catatan", {
+                        description: `${importResult.skipped} baris dilewati. Lihat detail di panel hasil.`,
+                    });
+                } else {
+                    toast.error("Import tiket AHO gagal", {
+                        description: importResult.errors[0] ?? "Terjadi kendala saat import.",
+                    });
+                }
+            } catch {
+                toast.error("Import gagal", {
+                    description: "Silakan coba lagi.",
+                });
+            } finally {
+                clearInterval(progressInterval);
+                setProgress(100);
+            }
+        });
     }
-
-    const isProcessing =
-        jobStatus === "submitting" || jobStatus === "pending" || jobStatus === "processing";
-    const isDone = jobStatus === "done" || jobStatus === "failed";
-
-    const statusLabel: Record<JobStatus, string> = {
-        idle: "",
-        submitting: "Mengunggah file...",
-        pending: "Menunggu giliran proses...",
-        processing: "Mensinkronisasi data...",
-        done: "",
-        failed: "",
-    };
 
     return (
         <Dialog
@@ -241,12 +140,14 @@ export function ImportAhoTicketsDialog() {
                 </DialogHeader>
 
                 <div className="space-y-5">
-                    {/* Step 1 — Info file */}
+                    {/* Step 1 — Download template */}
                     <div className="rounded-lg border border-dashed border-primary/30 bg-primary/5 p-4">
                         <div className="flex items-start gap-3">
                             <FileSpreadsheet className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                             <div className="space-y-2 flex-1">
-                                <p className="text-sm font-medium">Langkah 1: Siapkan File</p>
+                                <p className="text-sm font-medium">
+                                    Langkah 1: Siapkan File
+                                </p>
                                 <p className="text-xs text-muted-foreground">
                                     Gunakan file laporan AHO yang diekspor langsung dari sistem <strong>IRIS Alfamart</strong>. Sistem akan otomatis mengenali format file tersebut — tidak perlu mengubah apapun.
                                 </p>
@@ -255,71 +156,73 @@ export function ImportAhoTicketsDialog() {
                     </div>
 
                     {/* Step 2 — Upload file */}
-                    {!isProcessing && !isDone && (
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium">Langkah 2: Upload File</p>
-                            <div
-                                className="relative rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer p-6 text-center"
-                                onDragOver={(e) => e.preventDefault()}
-                                onDrop={handleDrop}
-                                onClick={() => fileInputRef.current?.click()}
-                            >
-                                <input
-                                    ref={fileInputRef}
-                                    type="file"
-                                    accept=".xlsx"
-                                    onChange={handleFileChange}
-                                    className="hidden"
-                                />
-                                {selectedFile ? (
-                                    <div className="flex items-center justify-center gap-2">
-                                        <FileSpreadsheet className="h-5 w-5 text-green-600" />
-                                        <span className="text-sm font-medium">{selectedFile.name}</span>
-                                        <Button
-                                            type="button"
-                                            size="icon"
-                                            variant="ghost"
-                                            className="h-6 w-6"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedFile(null);
-                                                setResult(null);
-                                                if (fileInputRef.current) fileInputRef.current.value = "";
-                                            }}
-                                        >
-                                            <X className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-1">
-                                        <Upload className="h-8 w-8 mx-auto text-muted-foreground/50" />
-                                        <p className="text-sm text-muted-foreground">Klik atau seret file .xlsx ke sini</p>
-                                    </div>
-                                )}
-                            </div>
+                    <div className="space-y-2">
+                        <p className="text-sm font-medium">
+                            Langkah 2: Upload File
+                        </p>
+                        <div
+                            className="relative rounded-lg border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer p-6 text-center"
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={handleDrop}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".xlsx"
+                                onChange={handleFileChange}
+                                className="hidden"
+                            />
+                            {selectedFile ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <FileSpreadsheet className="h-5 w-5 text-green-600" />
+                                    <span className="text-sm font-medium">
+                                        {selectedFile.name}
+                                    </span>
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedFile(null);
+                                            setResult(null);
+                                            if (fileInputRef.current)
+                                                fileInputRef.current.value = "";
+                                        }}
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="space-y-1">
+                                    <Upload className="h-8 w-8 mx-auto text-muted-foreground/50" />
+                                    <p className="text-sm text-muted-foreground">
+                                        Klik atau seret file .xlsx ke sini
+                                    </p>
+                                </div>
+                            )}
                         </div>
-                    )}
+                    </div>
 
-                    {/* Progress saat processing */}
-                    {isProcessing && (
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                                <span>{statusLabel[jobStatus]}</span>
-                            </div>
+                    {/* Progress */}
+                    {isPending && (
+                        <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Proses berjalan di server...</span>
-                                <span className="font-medium">{Math.round(progress)}%</span>
+                                <span className="text-muted-foreground">
+                                    Mensinkronisasi data...
+                                </span>
+                                <span className="font-medium">
+                                    {Math.round(progress)}%
+                                </span>
                             </div>
                             <Progress value={progress} className="h-2" />
-                            <p className="text-xs text-muted-foreground">
-                                Proses ini membutuhkan beberapa menit. Halaman ini akan otomatis diperbarui setelah selesai.
-                            </p>
                         </div>
                     )}
 
-                    {/* Hasil */}
-                    {isDone && result && (
+                    {/* Results */}
+                    {result && !isPending && (
                         <div className="rounded-lg border p-4 space-y-3">
                             <div className="flex items-center gap-2">
                                 {result.success && result.errors.length === 0 ? (
@@ -330,7 +233,9 @@ export function ImportAhoTicketsDialog() {
                                     <XCircle className="h-5 w-5 text-red-600" />
                                 )}
                                 <span className="font-medium text-sm">
-                                    {result.success ? "Sinkronisasi Selesai" : "Sinkronisasi Gagal"}
+                                    {result.success
+                                        ? "Sinkronisasi Selesai"
+                                        : "Sinkronisasi Gagal"}
                                 </span>
                             </div>
 
@@ -340,8 +245,12 @@ export function ImportAhoTicketsDialog() {
                                     { label: "Dilewati (Duplikat atau bukan New/Progress)", value: result.skipped, color: "text-yellow-600" },
                                 ].map(({ label, value, color }) => (
                                     <div key={label} className="rounded-md bg-muted/50 p-2">
-                                        <p className={`text-lg font-semibold ${color}`}>{value}</p>
-                                        <p className="text-[10px] text-muted-foreground">{label}</p>
+                                        <p className={`text-lg font-semibold ${color}`}>
+                                            {value}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground">
+                                            {label}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -349,26 +258,17 @@ export function ImportAhoTicketsDialog() {
                             {(result.errors.length > 0 || result.duplicates.length > 0) && (
                                 <div className="max-h-32 overflow-y-auto rounded-md bg-destructive/5 p-3 space-y-1">
                                     {result.duplicates.map((dup, i) => (
-                                        <p key={`dup-${i}`} className="text-xs text-amber-600">{dup}</p>
+                                        <p key={`dup-${i}`} className="text-xs text-amber-600">
+                                            {dup}
+                                        </p>
                                     ))}
                                     {result.errors.map((err, i) => (
-                                        <p key={`err-${i}`} className="text-xs text-destructive">{err}</p>
+                                        <p key={`err-${i}`} className="text-xs text-destructive">
+                                            {err}
+                                        </p>
                                     ))}
                                 </div>
                             )}
-                        </div>
-                    )}
-
-                    {/* Gagal tanpa result detail */}
-                    {isDone && !result && jobStatus === "failed" && (
-                        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
-                            <div className="flex items-center gap-2">
-                                <XCircle className="h-5 w-5 text-destructive" />
-                                <span className="font-medium text-sm text-destructive">Sinkronisasi Gagal</span>
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Terjadi kesalahan saat memproses file. Silakan coba lagi atau hubungi administrator.
-                            </p>
                         </div>
                     )}
                 </div>
@@ -382,12 +282,12 @@ export function ImportAhoTicketsDialog() {
                             resetState();
                         }}
                     >
-                        {isDone ? "Tutup" : "Batal"}
+                        {result ? "Tutup" : "Batal"}
                     </Button>
-                    {!isProcessing && !isDone && (
+                    {!result && (
                         <Button
                             type="button"
-                            disabled={!selectedFile}
+                            disabled={!selectedFile || isPending}
                             onClick={handleImport}
                             className="gap-1.5"
                         >
