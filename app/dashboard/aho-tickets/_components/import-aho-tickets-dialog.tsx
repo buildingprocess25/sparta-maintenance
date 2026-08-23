@@ -33,12 +33,14 @@ export function ImportAhoTicketsDialog() {
     const [isPending, startTransition] = useTransition();
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [result, setResult] = useState<ImportResult | null>(null);
+    const [isTimeout, setIsTimeout] = useState(false);
     const [progress, setProgress] = useState(0);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetState = useCallback(() => {
         setSelectedFile(null);
         setResult(null);
+        setIsTimeout(false);
         setProgress(0);
     }, []);
 
@@ -107,9 +109,7 @@ export function ImportAhoTicketsDialog() {
                     });
                 }
             } catch {
-                toast.error("Import gagal", {
-                    description: "Silakan coba lagi.",
-                });
+                setIsTimeout(true);
             } finally {
                 clearInterval(progressInterval);
                 setProgress(100);
@@ -271,6 +271,21 @@ export function ImportAhoTicketsDialog() {
                             )}
                         </div>
                     )}
+
+                    {/* Timeout Warning */}
+                    {isTimeout && !isPending && !result && (
+                        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle className="h-5 w-5 text-blue-600" />
+                                <span className="font-medium text-sm text-blue-800">
+                                    Memproses di Latar Belakang...
+                                </span>
+                            </div>
+                            <p className="text-sm text-blue-700">
+                                Karena ukuran data cukup besar, proses import sedang dilanjutkan oleh server di belakang layar. Anda bisa menutup jendela ini dan refresh halaman beberapa saat lagi.
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 <DialogFooter>
@@ -282,9 +297,9 @@ export function ImportAhoTicketsDialog() {
                             resetState();
                         }}
                     >
-                        {result ? "Tutup" : "Batal"}
+                        {result || isTimeout ? "Tutup" : "Batal"}
                     </Button>
-                    {!result && (
+                    {!result && !isTimeout && (
                         <Button
                             type="button"
                             disabled={!selectedFile || isPending}
