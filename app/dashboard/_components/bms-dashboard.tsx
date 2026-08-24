@@ -28,8 +28,8 @@ import {
 } from "./bms-mobile-dashboard-stats";
 import { BmsWelcomeCard } from "./bms-welcome-card";
 import { BmsMobileActivityItem } from "@/components/bms-mobile/bms-activity-item";
-
-
+import { BmsPreventiveCard } from "./bms-preventive-card";
+import { getBmsPreventiveCoverage } from "../preventive/actions";
 
 function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
   return (
@@ -65,9 +65,10 @@ function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
 }
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
-  const [stats, activities] = await Promise.all([
+  const [stats, activities, coverage] = await Promise.all([
     getUserStats(user.NIK),
     getBMSActivity(user.NIK),
+    getBmsPreventiveCoverage(user as any), // Type assertion might be needed if user type is broader
   ]);
   const formattedDate = new Intl.DateTimeFormat("id-ID", {
     weekday: "long",
@@ -126,6 +127,8 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
         .join("")}
     >
       <BmsWelcomeCard name={user.name} />
+
+      <BmsPreventiveCard coverage={coverage} />
 
       <Button asChild size="lg" className="h-12 w-full">
         <Link href="/reports/create">
