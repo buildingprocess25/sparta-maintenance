@@ -43,6 +43,7 @@ export default function CreateReportForm({
   userInfo,
   editMode,
   autoRestoreOnMount,
+  initialStoreCode,
 }: CreateReportFormProps) {
   const router = useRouter();
   // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
@@ -69,7 +70,7 @@ export default function CreateReportForm({
     validateStep1,
     openCategories,
     devAutofill,
-  } = useChecklist(stores, isEditMode);
+  } = useChecklist(stores, isEditMode, initialStoreCode);
 
   const {
     bmsItems,

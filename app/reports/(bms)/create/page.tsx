@@ -6,10 +6,10 @@ import CreateReportForm from "./create-form";
 export default async function CreateReportPage({
     searchParams,
 }: {
-    searchParams: Promise<{ restore?: string }>;
+    searchParams: Promise<{ restore?: string; storeCode?: string }>;
 }) {
     const user = await requireRole("BMS");
-    const { restore } = await searchParams;
+    const { restore, storeCode } = await searchParams;
     const autoRestoreOnMount = restore === "1";
 
     const [stores, materialNames] = await Promise.all([
@@ -30,6 +30,7 @@ export default async function CreateReportPage({
             }}
             existingDraft={undefined} // No longer pulled from DB for DRAFT
             autoRestoreOnMount={autoRestoreOnMount}
+            initialStoreCode={storeCode}
         />
     );
 }
