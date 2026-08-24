@@ -186,7 +186,7 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             }
 
             // Validate version
-            if (draft.version !== 2) return null;
+            if (draft.version !== 3) return null;
 
             // Restore selfie photos from IDB
             const selfiePhotos: LocalPhoto[] = [];
@@ -265,19 +265,24 @@ export function useCompletionAutosave(): UseCompletionAutosave {
                 }
             }
 
+            const startWorkMaterialStores: StartWorkMaterialStoreEntry[] = [];
+            for (const store of draft.startWorkMaterialStores ?? []) {
+                startWorkMaterialStores.push({
+                    ...store,
+                    photos: await restorePhotosFromIds(store.photoIds || []),
+                });
+            }
+
             return {
                 globalNotes: draft.globalNotes,
                 selfiePhotos,
                 startWorkSelfiePhotos: await restorePhotosFromIds(
                     draft.startWorkSelfiePhotoIds ?? [],
                 ),
-                startWorkMaterialStorePhotos: await restorePhotosFromIds(
-                    draft.startWorkMaterialStorePhotoIds ?? [],
-                ),
                 startWorkReceiptPhotos: await restorePhotosFromIds(
                     draft.startWorkReceiptPhotoIds ?? [],
                 ),
-                startWorkMaterialStores: draft.startWorkMaterialStores ?? [],
+                startWorkMaterialStores,
                 startWorkSkipPhotos: draft.startWorkSkipPhotos ?? false,
                 additionalDocumentationPhotos,
                 additionalDocumentationNote:

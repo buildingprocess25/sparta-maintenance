@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
   useTransition,
-  type ChangeEvent,
   type ComponentType,
   type ReactNode,
 } from "react";
@@ -20,7 +19,6 @@ import {
   Plus,
   ReceiptText,
   SendHorizonal,
-  Store,
   Trash2,
   User,
   X,
@@ -56,11 +54,13 @@ import {
 } from "./use-start-work-autosave";
 
 type StartWorkReport = NonNullable<ReportForStartWork>;
-type CameraTarget = "selfie" | "receipt" | "store" | null;
+type CameraTarget =
+  "selfie" | "receipt" | { type: "store"; storeId: string } | null;
 type MaterialStoreEntry = {
   id: string;
   name: string;
   city: string;
+  photos: StartWorkLocalPhoto[];
 };
 
 type StartWorkClientProps = {
@@ -175,13 +175,10 @@ export function StartWorkClient({
 
   const [isRestoringDraft, setIsRestoringDraft] = useState(true);
   const [selfiePhotos, setSelfiePhotos] = useState<StartWorkLocalPhoto[]>([]);
-  const [materialStorePhotos, setMaterialStorePhotos] = useState<
-    StartWorkLocalPhoto[]
-  >([]);
   const [receiptPhotos, setReceiptPhotos] = useState<StartWorkLocalPhoto[]>([]);
-  const [materialStores, setMaterialStores] = useState<MaterialStoreEntry[]>(
-    [],
-  );
+  const [materialStores, setMaterialStores] = useState<MaterialStoreEntry[]>(() => [
+    { id: genId(), name: "", city: "", photos: [] },
+  ]);
   const [skipPhotos, setSkipPhotos] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -196,23 +193,20 @@ export function StartWorkClient({
 
   const buildDraftData = useCallback(
     (): StartWorkDraftData => ({
-      version: 1,
+      version: 2,
       reportNumber,
       savedAt: new Date().toISOString(),
       selfiePhotoIds: selfiePhotos.map((photo) => photo.id),
-      materialStorePhotoIds: materialStorePhotos.map((photo) => photo.id),
       receiptPhotoIds: receiptPhotos.map((photo) => photo.id),
-      materialStores,
+      materialStores: materialStores.map((store) => ({
+        id: store.id,
+        name: store.name,
+        city: store.city,
+        photoIds: store.photos.map((p) => p.id),
+      })),
       skipPhotos,
     }),
-    [
-      reportNumber,
-      selfiePhotos,
-      materialStorePhotos,
-      receiptPhotos,
-      materialStores,
-      skipPhotos,
-    ],
+    [reportNumber, selfiePhotos, receiptPhotos, materialStores, skipPhotos],
   );
 
   useEffect(() => {
@@ -221,9 +215,15 @@ export function StartWorkClient({
       .then((draft) => {
         if (!draft) return;
         setSelfiePhotos(draft.selfiePhotos);
-        setMaterialStorePhotos(draft.materialStorePhotos);
         setReceiptPhotos(draft.receiptPhotos);
-        setMaterialStores(draft.materialStores);
+        setMaterialStores(
+          draft.materialStores.length > 0
+            ? draft.materialStores.map((store) => ({
+                ...store,
+                photos: store.photos || [],
+              }))
+            : [{ id: genId(), name: "", city: "", photos: [] }]
+        );
         setSkipPhotos(draft.skipPhotos);
       })
       .finally(() => setIsRestoringDraft(false));
@@ -235,7 +235,7 @@ export function StartWorkClient({
   }, [autosave, buildDraftData, isRestoringDraft, reportNumber]);
 
   const handleAddMaterialStorePhoto = useCallback(
-    (file: File) => {
+    (storeId: string, file: File) => {
       void (async () => {
         try {
           const compressedFile = await compressMaterialStorePhoto(file);
@@ -244,11 +244,19 @@ export function StartWorkClient({
             compressedFile,
             "store",
           );
-          setMaterialStorePhotos((prev) => [...prev, photo]);
+          setMaterialStores((prev) =>
+            prev.map((s) =>
+              s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
+            ),
+          );
         } catch (error) {
           console.warn("Gagal mengompres foto toko material:", error);
           const photo = await autosave.addPhoto(reportNumber, file, "store");
-          setMaterialStorePhotos((prev) => [...prev, photo]);
+          setMaterialStores((prev) =>
+            prev.map((s) =>
+              s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
+            ),
+          );
         }
       })();
     },
@@ -258,15 +266,20 @@ export function StartWorkClient({
   const handlePhotoCaptured = useCallback(
     async (file: File) => {
       if (!cameraTarget) return;
+      const target = cameraTarget;
       setCameraTarget(null);
 
-      if (cameraTarget === "store") {
-        handleAddMaterialStorePhoto(file);
+      if (typeof target === "object" && target.type === "store") {
+        handleAddMaterialStorePhoto(target.storeId, file);
         return;
       }
 
-      const photo = await autosave.addPhoto(reportNumber, file, cameraTarget);
-      if (cameraTarget === "selfie") {
+      const photo = await autosave.addPhoto(
+        reportNumber,
+        file,
+        target as string,
+      );
+      if (target === "selfie") {
         setSelfiePhotos((prev) => [...prev, photo]);
         return;
       }
@@ -274,7 +287,7 @@ export function StartWorkClient({
       setReceiptPhotos((prev) => {
         const next = [...prev, photo];
         if (prev.length === 0) {
-          setMaterialStores([{ id: genId(), name: "", city: "" }]);
+          setMaterialStores([{ id: genId(), name: "", city: "", photos: [] }]);
         }
         return next;
       });
@@ -295,7 +308,6 @@ export function StartWorkClient({
       void autosave.removePhoto(id);
       setReceiptPhotos((prev) => {
         const next = prev.filter((photo) => photo.id !== id);
-        if (next.length === 0) setMaterialStores([]);
         return next;
       });
     },
@@ -303,24 +315,24 @@ export function StartWorkClient({
   );
 
   const handleRemoveStorePhoto = useCallback(
-    (id: string) => {
-      void autosave.removePhoto(id);
-      setMaterialStorePhotos((prev) => prev.filter((photo) => photo.id !== id));
+    (storeId: string, photoId: string) => {
+      void autosave.removePhoto(photoId);
+      setMaterialStores((prev) =>
+        prev.map((s) =>
+          s.id === storeId
+            ? { ...s, photos: s.photos.filter((p) => p.id !== photoId) }
+            : s,
+        ),
+      );
     },
     [autosave],
   );
 
-  const handleStoreGalleryChange = useCallback(
-    (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files ?? []);
-      files.forEach((file) => handleAddMaterialStorePhoto(file));
-      event.target.value = "";
-    },
-    [handleAddMaterialStorePhoto],
-  );
-
   const handleAddStore = useCallback(() => {
-    setMaterialStores((prev) => [...prev, { id: genId(), name: "", city: "" }]);
+    setMaterialStores((prev) => [
+      ...prev,
+      { id: genId(), name: "", city: "", photos: [] },
+    ]);
   }, []);
 
   const handleRemoveStore = useCallback((id: string) => {
@@ -343,9 +355,16 @@ export function StartWorkClient({
       isZeroCost,
       skipPhotos,
       selfieCount: selfiePhotos.length,
-      materialStorePhotoCount: materialStorePhotos.length,
+      materialStorePhotoCount: materialStores.reduce(
+        (acc, store) => acc + store.photos.length,
+        0,
+      ),
       receiptCount: receiptPhotos.length,
-      materialStores,
+      materialStores: materialStores.map((store) => ({
+        name: store.name,
+        city: store.city,
+        photoCount: store.photos.length,
+      })),
     });
 
     if (validationError) {
@@ -359,8 +378,6 @@ export function StartWorkClient({
       );
       const selfiePhotosToUpload = skipPhotos ? [] : selfiePhotos;
       const receiptPhotosToUpload = skipPhotos ? [] : receiptPhotos;
-      const materialStorePhotosToUpload = skipPhotos ? [] : materialStorePhotos;
-
       const uploadedSelfieUrls: string[] = [];
       const uploadedSelfieFileIds: string[] = [];
       for (const photo of selfiePhotosToUpload) {
@@ -387,17 +404,34 @@ export function StartWorkClient({
         uploadedReceiptFileIds.push(result.fileId);
       }
 
-      const uploadedStoreUrls: string[] = [];
+      let allStorePhotosUploadFailed = false;
       const uploadedStoreFileIds: string[] = [];
-      for (const photo of materialStorePhotosToUpload) {
-        const result = await uploadPhoto(photo.file);
-        if (!result) {
-          toast.dismiss(loadingId);
-          toast.error("Gagal mengunggah foto toko material");
-          return;
-        }
-        uploadedStoreUrls.push(result.url);
-        uploadedStoreFileIds.push(result.fileId);
+      const finalizedStores = skipPhotos
+        ? []
+        : await Promise.all(
+            materialStores.map(async (store) => {
+              const urls: string[] = [];
+              for (const photo of store.photos) {
+                const result = await uploadPhoto(photo.file);
+                if (!result) {
+                  allStorePhotosUploadFailed = true;
+                  continue;
+                }
+                urls.push(result.url);
+                if (result.fileId) uploadedStoreFileIds.push(result.fileId);
+              }
+              return {
+                name: store.name.trim(),
+                city: store.city.trim(),
+                ...(urls.length > 0 ? { photoUrls: urls } : {}),
+              };
+            }),
+          );
+
+      if (allStorePhotosUploadFailed) {
+        toast.dismiss(loadingId);
+        toast.error("Gagal mengunggah foto toko material");
+        return;
       }
 
       const result = await startWorkWithPhotos(reportNumber, {
@@ -405,15 +439,7 @@ export function StartWorkClient({
         selfieFileIds: uploadedSelfieFileIds,
         receiptUrls: uploadedReceiptUrls,
         receiptFileIds: uploadedReceiptFileIds,
-        materialStores: skipPhotos
-          ? []
-          : materialStores.map((store, index) => ({
-              name: store.name.trim(),
-              city: store.city.trim(),
-              ...(index === 0 && uploadedStoreUrls.length > 0
-                ? { photoUrls: uploadedStoreUrls }
-                : {}),
-            })),
+        materialStores: finalizedStores,
         materialStorePhotoFileIds: uploadedStoreFileIds,
         skipPhotos,
       });
@@ -436,7 +462,6 @@ export function StartWorkClient({
   }, [
     autosave,
     isZeroCost,
-    materialStorePhotos,
     materialStores,
     receiptPhotos,
     reportNumber,
@@ -527,48 +552,6 @@ export function StartWorkClient({
         />
 
         <EvidenceCaptureSection
-          title="Toko material"
-          description="Foto tampak depan toko tempat pembelian material."
-          icon={Store}
-          photos={materialStorePhotos}
-          disabled={skipPhotos}
-          onRemove={handleRemoveStorePhoto}
-          onPreview={setPreviewUrl}
-          actions={
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={skipPhotos}
-                onClick={() => setCameraTarget("store")}
-              >
-                <Camera data-icon="inline-start" />
-                Kamera
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                disabled={skipPhotos}
-                onClick={() => storeGalleryInputRef.current?.click()}
-              >
-                <ImagePlus data-icon="inline-start" />
-                Galeri
-              </Button>
-              <input
-                ref={storeGalleryInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={handleStoreGalleryChange}
-              />
-            </>
-          }
-        />
-
-        <EvidenceCaptureSection
           title="Nota pembelian"
           description="Foto nota atau struk material yang dibawa ke lokasi."
           icon={ReceiptText}
@@ -593,7 +576,7 @@ export function StartWorkClient({
         <section
           className={cn(
             "border-b border-border/40 py-4",
-            (skipPhotos || receiptPhotos.length === 0) && "opacity-45",
+            skipPhotos && "opacity-45",
           )}
         >
           <div className="flex gap-3">
@@ -616,17 +599,37 @@ export function StartWorkClient({
               <div className="mt-3 flex flex-col gap-3">
                 {materialStores.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 py-3 text-xs text-muted-foreground">
-                    Data toko muncul setelah foto nota ditambahkan.
+                    Belum ada toko material. Silakan tambah toko.
                   </p>
                 ) : (
                   materialStores.map((store, index) => (
                     <div key={store.id} className="flex gap-2">
                       <div className="grid flex-1 grid-cols-1 gap-2">
-                        <Label className="text-xs">Toko {index + 1}</Label>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-xs font-semibold">
+                            Toko {index + 1}
+                          </Label>
+                          {materialStores.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={skipPhotos}
+                              onClick={() => handleRemoveStore(store.id)}
+                              aria-label={`Hapus toko ${index + 1}`}
+                            >
+                              <X />
+                            </Button>
+                          )}
+                        </div>
                         <Input
-                          placeholder="Nama toko material"
+                          placeholder={
+                            receiptPhotos.length === 0
+                              ? "Nama toko material (Upload foto nota terlebih dahulu)"
+                              : "Nama toko material"
+                          }
                           value={store.name}
-                          disabled={skipPhotos}
+                          disabled={skipPhotos || receiptPhotos.length === 0}
                           onChange={(event) =>
                             handleStoreChange(
                               store.id,
@@ -636,10 +639,14 @@ export function StartWorkClient({
                           }
                         />
                         <Textarea
-                          placeholder="Alamat"
+                          placeholder={
+                            receiptPhotos.length === 0
+                              ? "Alamat (Upload foto nota terlebih dahulu)"
+                              : "Alamat"
+                          }
                           value={store.city}
-                          disabled={skipPhotos}
-                          className="min-h-20 resize-none"
+                          disabled={skipPhotos || receiptPhotos.length === 0}
+                          className="min-h-16 resize-none"
                           onChange={(event) =>
                             handleStoreChange(
                               store.id,
@@ -648,19 +655,72 @@ export function StartWorkClient({
                             )
                           }
                         />
+                        <div className="mt-1 space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label className="text-[11px] font-semibold text-muted-foreground">
+                              Foto Toko
+                            </Label>
+                            <div className="flex gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-[10px]"
+                                disabled={skipPhotos}
+                                onClick={() =>
+                                  setCameraTarget({
+                                    type: "store",
+                                    storeId: store.id,
+                                  })
+                                }
+                              >
+                                <Camera
+                                  data-icon="inline-start"
+                                  className="mr-1 size-3"
+                                />
+                                Kamera
+                              </Button>
+                              <label
+                                className={cn(
+                                  "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-md text-[10px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+                                  "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground h-6 px-2",
+                                  skipPhotos &&
+                                    "pointer-events-none opacity-50",
+                                )}
+                              >
+                                <ImagePlus className="mr-1 size-3" />
+                                Galeri
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  disabled={skipPhotos}
+                                  onChange={(e) => {
+                                    const files = Array.from(
+                                      e.target.files ?? [],
+                                    );
+                                    files.forEach((file) =>
+                                      handleAddMaterialStorePhoto(
+                                        store.id,
+                                        file,
+                                      ),
+                                    );
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                          <PhotoStrip
+                            photos={store.photos}
+                            onRemove={(photoId) =>
+                              handleRemoveStorePhoto(store.id, photoId)
+                            }
+                            onPreview={setPreviewUrl}
+                          />
+                        </div>
                       </div>
-                      {materialStores.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={skipPhotos}
-                          onClick={() => handleRemoveStore(store.id)}
-                          aria-label={`Hapus toko ${index + 1}`}
-                        >
-                          <X />
-                        </Button>
-                      )}
                     </div>
                   ))
                 )}
@@ -669,7 +729,7 @@ export function StartWorkClient({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={skipPhotos || receiptPhotos.length === 0}
+                  disabled={skipPhotos}
                   onClick={handleAddStore}
                   className="self-start"
                 >
