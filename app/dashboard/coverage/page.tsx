@@ -22,7 +22,7 @@ export default async function BmsCoveragePage() {
 
     return (
         <BmsMobilePage
-            navItem="dashboard"
+            navItem="coverage"
             userInitials={user.name
                 .split(" ")
                 .slice(0, 2)
