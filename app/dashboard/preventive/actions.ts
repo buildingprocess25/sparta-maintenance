@@ -572,29 +572,30 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
     const quarter = getJakartaCurrentQuarter();
     const quarterLabels: Record<number, string> = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4" };
     
-    // Define quarter date ranges
-    let startDate = "";
-    let endDate = "";
-    if (quarter === 1) { startDate = `${year}-01-01`; endDate = `${year}-03-31`; }
-    else if (quarter === 2) { startDate = `${year}-04-01`; endDate = `${year}-06-30`; }
-    else if (quarter === 3) { startDate = `${year}-07-01`; endDate = `${year}-09-30`; }
-    else { startDate = `${year}-10-01`; endDate = `${year}-12-31`; }
+    if (user.branchNames.length === 0) {
+        return { completed: [], pending: [], total: 0, completionRate: 0, quarterLabel: quarterLabels[quarter] + " " + year };
+    }
 
-    // Use Prisma raw query to get stores and their preventive status for the current quarter
-    const branchNamesList = user.branchNames.map(b => `'${b}'`).join(",");
-    const branchFilter = branchNamesList.length > 0 ? `AND s."branchName" IN (${branchNamesList})` : "";
+    const { start: yearStart, endExclusive: yearEnd } = getJakartaQuarterWindow(year, quarter);
 
-    const sql = `
+    const reportPredicates: Prisma.Sql[] = [
+        Prisma.sql`r."status" = 'COMPLETED'`,
+        Prisma.sql`r."finishedAt" >= ${yearStart}`,
+        Prisma.sql`r."finishedAt" < ${yearEnd}`,
+        completePreventiveEvidenceSql({
+            statusColumn: Prisma.sql`r."status"`,
+            itemsColumn: Prisma.sql`r."items"`,
+        })
+    ];
+
+    const rawRows = await prisma.$queryRaw<any[]>`
         WITH QuarterReports AS (
             SELECT 
                 r."storeCode",
                 r."reportNumber",
                 r."finishedAt"
             FROM "Report" r
-            WHERE r.status = 'COMPLETED'
-              AND r."finishedAt" >= '${startDate} 00:00:00+07'::timestamptz
-              AND r."finishedAt" <= '${endDate} 23:59:59+07'::timestamptz
-              AND (${completePreventiveEvidenceSql('r')})
+            WHERE ${Prisma.join(reportPredicates, " AND ")}
         ),
         RankedReports AS (
             SELECT 
@@ -613,11 +614,9 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
         FROM "Store" s
         LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
         WHERE s."isActive" = true
-        ${branchFilter}
+          AND s."branchName" IN (${Prisma.join(user.branchNames)})
         ORDER BY s.code ASC;
     `;
-
-    const rawRows = await prisma.$queryRawUnsafe<any[]>(sql);
 
     const completed: BmsStoreCoverage[] = [];
     const pending: BmsStoreCoverage[] = [];
