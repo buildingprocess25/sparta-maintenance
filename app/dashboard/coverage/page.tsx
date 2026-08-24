@@ -88,8 +88,8 @@ export default async function BmsCoveragePage() {
                                             <div className="font-semibold">{store.storeCode} - {store.storeName}</div>
                                             {store.brand && <div className="text-xs text-muted-foreground mt-0.5">{store.brand}</div>}
                                         </div>
-                                        <Badge variant="default" className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border-none shrink-0">
-                                            Selesai
+                                        <Badge variant="default" className="bg-primary/10 text-primary hover:bg-primary/20 border-none shrink-0">
+                                            Sudah Preventif
                                         </Badge>
                                     </div>
                                     <div className="text-xs text-muted-foreground flex flex-col mt-1">

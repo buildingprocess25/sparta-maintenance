@@ -75,7 +75,7 @@ interface BmsReportsMobileProps {
 
 export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
     return (
-        <div className="md:hidden flex flex-col">
+        <div className="flex flex-col">
             {reports.map((report) => {
                 const cfg = STATUS_CONFIG[report.status] ?? {
                     label: getReportStatusLabel(report.status) || report.status,
