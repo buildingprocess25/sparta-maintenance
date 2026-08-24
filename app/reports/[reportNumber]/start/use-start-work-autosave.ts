@@ -18,24 +18,27 @@ export type StartWorkMaterialStoreDraft = {
     id: string;
     name: string;
     city: string;
+    photoIds: string[];
 };
 
 export type StartWorkDraftData = {
-    version: 1;
+    version: 2;
     reportNumber: string;
     savedAt: string;
     selfiePhotoIds: string[];
-    materialStorePhotoIds: string[];
     receiptPhotoIds: string[];
     materialStores: StartWorkMaterialStoreDraft[];
     skipPhotos: boolean;
 };
 
+export type RestoredStartWorkMaterialStore = StartWorkMaterialStoreDraft & {
+    photos: StartWorkLocalPhoto[];
+};
+
 export type RestoredStartWorkDraft = {
     selfiePhotos: StartWorkLocalPhoto[];
-    materialStorePhotos: StartWorkLocalPhoto[];
     receiptPhotos: StartWorkLocalPhoto[];
-    materialStores: StartWorkMaterialStoreDraft[];
+    materialStores: RestoredStartWorkMaterialStore[];
     skipPhotos: boolean;
 };
 
@@ -182,20 +185,25 @@ export function useStartWorkAutosave() {
                 return null;
             }
 
-            if (draft.version !== 1) return null;
+            if (draft.version !== 2) return null;
 
-            const [selfiePhotos, materialStorePhotos, receiptPhotos] =
-                await Promise.all([
-                    restorePhotos(draft.selfiePhotoIds),
-                    restorePhotos(draft.materialStorePhotoIds),
-                    restorePhotos(draft.receiptPhotoIds),
-                ]);
+            const [selfiePhotos, receiptPhotos] = await Promise.all([
+                restorePhotos(draft.selfiePhotoIds),
+                restorePhotos(draft.receiptPhotoIds),
+            ]);
+
+            const materialStores: RestoredStartWorkMaterialStore[] = [];
+            for (const store of draft.materialStores ?? []) {
+                materialStores.push({
+                    ...store,
+                    photos: await restorePhotos(store.photoIds || []),
+                });
+            }
 
             return {
                 selfiePhotos,
-                materialStorePhotos,
                 receiptPhotos,
-                materialStores: draft.materialStores ?? [],
+                materialStores,
                 skipPhotos: draft.skipPhotos,
             };
         },

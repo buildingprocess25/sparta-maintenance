@@ -119,9 +119,9 @@ export async function startWorkWithPhotos(
       : [];
     const newFileIds = [
       ...existingFileIds,
-      ...photos.selfieFileIds.filter((id) => id.trim().length > 0),
-      ...photos.receiptFileIds.filter((id) => id.trim().length > 0),
-      ...photos.materialStorePhotoFileIds.filter((id) => id.trim().length > 0),
+      ...photos.selfieFileIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+      ...photos.receiptFileIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0),
+      ...photos.materialStorePhotoFileIds.filter((id): id is string => typeof id === "string" && id.trim().length > 0),
     ];
 
     await prisma.$transaction([
