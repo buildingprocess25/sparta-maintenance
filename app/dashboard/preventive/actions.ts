@@ -579,9 +579,8 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
     const { start: yearStart, endExclusive: yearEnd } = getJakartaQuarterWindow(year, quarter);
 
     const reportPredicates: Prisma.Sql[] = [
-        Prisma.sql`r."status" = 'COMPLETED'`,
-        Prisma.sql`r."finishedAt" >= ${yearStart}`,
-        Prisma.sql`r."finishedAt" < ${yearEnd}`,
+        Prisma.sql`r."createdAt" >= ${yearStart}`,
+        Prisma.sql`r."createdAt" < ${yearEnd}`,
         completePreventiveEvidenceSql({
             statusColumn: Prisma.sql`r."status"`,
             itemsColumn: Prisma.sql`r."items"`,
@@ -593,7 +592,7 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
             SELECT 
                 r."storeCode",
                 r."reportNumber",
-                r."finishedAt"
+                r."createdAt"
             FROM "Report" r
             WHERE ${Prisma.join(reportPredicates, " AND ")}
         ),
@@ -601,8 +600,8 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
             SELECT 
                 "storeCode",
                 "reportNumber",
-                "finishedAt",
-                ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "finishedAt" DESC) as rn
+                "createdAt",
+                ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "createdAt" DESC) as rn
             FROM QuarterReports
         )
         SELECT 
@@ -610,7 +609,7 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
             s.name as "storeName",
             s.brand,
             rr."reportNumber",
-            rr."finishedAt" as "doneAt"
+            rr."createdAt" as "doneAt"
         FROM "Store" s
         LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
         WHERE s."isActive" = true
