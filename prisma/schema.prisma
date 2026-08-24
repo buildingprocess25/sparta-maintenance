@@ -58,6 +58,13 @@ enum HandlerType {
   REKANAN
 }
 
+enum AhoImportStatus {
+  pending
+  processing
+  done
+  failed
+}
+
 enum ActivityAction {
   SUBMITTED // BMS submitted initial report
   RESUBMITTED_ESTIMATION // BMS resubmitted after estimation rejection/revision
@@ -171,6 +178,21 @@ model MasterAhoTicket {
 
   @@unique([storeCode, problemNo])
   @@index([storeCode])
+}
+
+model AhoImportJob {
+  id               String          @id @default(uuid())
+  status           AhoImportStatus @default(pending)
+  requestedByNIK   String
+  fileBuffer       Bytes           // file XLSX disimpan sementara di sini
+  result           Json?           // { created, updated, deleted, skipped, total, errors[], duplicates[] }
+  errorMessage     String?
+  createdAt        DateTime        @default(now()) @db.Timestamptz(3)
+  startedAt        DateTime?       @db.Timestamptz(3)
+  completedAt      DateTime?       @db.Timestamptz(3)
+
+  @@index([status, createdAt])
+  @@index([requestedByNIK])
 }
 
 model Report {
