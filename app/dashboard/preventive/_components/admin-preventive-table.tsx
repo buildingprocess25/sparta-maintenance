@@ -65,6 +65,7 @@ import {
     getPreventiveCompletionForTab,
 } from "../preventive-dashboard";
 import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
+import { ExportPreventiveMatrixDialog } from "./export-preventive-matrix-dialog";
 
 const quarterOptions: { value: PreventiveQuarter; label: string; period: string }[] = [
     { value: 1, label: "Triwulan 1", period: "Jan-Mar" },
@@ -859,6 +860,18 @@ export function AdminPreventiveTable({
                     </TabsContent>
 
                     <TabsContent value="matrix" className="mt-0">
+                        <div className="mb-3 flex justify-end">
+                            <ExportPreventiveMatrixDialog
+                                branches={branches}
+                                availableYears={availableYears}
+                                defaultBranch={branchName}
+                                currentBrand={brand}
+                                currentYear={year}
+                                currentQuarter={quarter}
+                                showBranchFilter={showBranchControls}
+                                showBrandFilter={showBrandFilter}
+                            />
+                        </div>
                         <div className="overflow-hidden rounded-lg border bg-background">
                             <Table>
                                 <TableHeader>
