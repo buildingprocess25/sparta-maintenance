@@ -51,11 +51,11 @@ function percentCell(value: number): XLSX.CellObject {
     return { t: "n", v: value / 100, z: "0%" };
 }
 
-function formatQuarterCell(cell: PreventiveMatrixQuarterCell | null) {
+export function formatQuarterCellForExport(cell: PreventiveMatrixQuarterCell | null) {
     if (!cell) return "Belum";
 
     const bms = cell.bmsName || cell.bmsNIK || "-";
-    return `${formatJakartaDate(cell.doneAt.toISOString())}\n${bms}`;
+    return `${formatJakartaDate(cell.doneAt.toISOString())} - ${bms}`;
 }
 
 function buildSheet(
@@ -109,7 +109,7 @@ function buildMatrixSheet(
         ...QUARTER_HEADERS.flatMap((quarter) => {
             const cell = row[quarter.key];
             return [
-                textCell(formatQuarterCell(cell)),
+                textCell(formatQuarterCellForExport(cell)),
                 moneyCell(cell?.totalReal),
             ];
         }),
