@@ -16,10 +16,7 @@ import { StoreStep } from "./components/store-step";
 import { ChecklistStep } from "./components/checklist-step";
 import { BmsEstimationStep } from "./components/bms-estimation-step";
 import { ReviewStep } from "./components/review-step";
-import {
-  ReportWizardShell,
-  type ReportWizardStep,
-} from "./components/report-wizard-shell";
+import { ReportWizardShell, type ReportWizardStep } from "./components/report-wizard-shell";
 import { BmsBalanceCard } from "@/components/bms-balance-card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, Lock } from "lucide-react";
@@ -38,66 +35,25 @@ const WIZARD_STEPS: ReportWizardStep[] = [
   { key: "review", label: "Review" },
 ];
 
-export default function CreateReportForm({
-  stores,
-  materialNames,
-  userBranchName,
-  existingDraft,
-  userInfo,
-  editMode,
-  autoRestoreOnMount,
-  balanceInfo,
-}: CreateReportFormProps) {
+export default function CreateReportForm({ stores, materialNames, userBranchName, existingDraft, userInfo, editMode, autoRestoreOnMount, initialStoreCode, balanceInfo }: CreateReportFormProps) {
   const router = useRouter();
   // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
   // However, the v2 flow might just have edit skip store step logic by checking selectedStoreCode.
-  const [step, setStep] = useState<
-    "store" | "checklist" | "estimation" | "review"
-  >(editMode ? "checklist" : "store");
+  const [step, setStep] = useState<"store" | "checklist" | "estimation" | "review">(editMode ? "checklist" : "store");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isEditMode = !!editMode;
   const shouldAutoRestore = isEditMode || !!autoRestoreOnMount;
 
-  const {
-    checklist,
-    setChecklist,
-    setOpenCategories,
-    selectedStoreCode,
-    store,
-    isCategoryICoolingDown,
-    activeCategories,
-    handleStoreChange,
-    toggleCategory,
-    updateChecklistItem,
-    validateStep1,
-    openCategories,
-    devAutofill,
-  } = useChecklist(stores, isEditMode);
+  const { checklist, setChecklist, setOpenCategories, selectedStoreCode, store, isCategoryICoolingDown, activeCategories, handleStoreChange, toggleCategory, updateChecklistItem, validateStep1, openCategories, devAutofill } = useChecklist(
+    stores,
+    isEditMode,
+    initialStoreCode,
+  );
 
-  const {
-    bmsItems,
-    setBmsItems,
-    grandTotalBms,
-    buildBmsMapFromChecklist,
-    addBmsEntryWithDetails,
-    updateBmsEntryWithDetails,
-    removeBmsEntry,
-    validateStep2,
-    devAutofillBms,
-  } = useBmsEstimation();
+  const { bmsItems, setBmsItems, grandTotalBms, buildBmsMapFromChecklist, addBmsEntryWithDetails, updateBmsEntryWithDetails, removeBmsEntry, validateStep2, devAutofillBms } = useBmsEstimation();
 
-  const {
-    draftReportId,
-    setDraftReportId,
-    showDraftDialog,
-    localDraftData,
-    isRestoringDraft,
-    isDeletingDraft,
-    handleContinueDraft,
-    handleCreateNew,
-    buildDraftData,
-  } = useDraft({
+  const { draftReportId, setDraftReportId, showDraftDialog, localDraftData, isRestoringDraft, isDeletingDraft, handleContinueDraft, handleCreateNew, buildDraftData } = useDraft({
     existingDraft,
     stores,
     checklist,
@@ -116,16 +72,7 @@ export default function CreateReportForm({
     disableAutoSave: isEditMode,
   });
 
-  const {
-    isCameraOpen,
-    setIsCameraOpen,
-    previewPhoto,
-    handleOpenCamera,
-    handlePhotoCaptured,
-    removePhoto,
-    handlePreviewPhoto,
-    closePreview,
-  } = usePhotoUpload({
+  const { isCameraOpen, setIsCameraOpen, previewPhoto, handleOpenCamera, handlePhotoCaptured, removePhoto, handlePreviewPhoto, closePreview } = usePhotoUpload({
     checklist,
     setChecklist,
     selectedStoreCode,
@@ -135,9 +82,7 @@ export default function CreateReportForm({
     setDraftReportId,
   });
 
-  const rusakItems = Array.from(checklist.values()).filter(
-    (i) => i.condition === "rusak",
-  );
+  const rusakItems = Array.from(checklist.values()).filter((i) => i.condition === "rusak");
   const bmsItemsList = rusakItems.filter((i) => i.handler === "BMS");
 
   // Handlers
@@ -237,12 +182,9 @@ export default function CreateReportForm({
       router.push("/reports");
     } catch {
       setIsSubmitting(false);
-      toast.error(
-        isEditMode ? "Gagal mengajukan ulang laporan" : "Gagal membuat laporan",
-        {
-          description: "Terjadi kesalahan internal. Silakan coba lagi.",
-        },
-      );
+      toast.error(isEditMode ? "Gagal mengajukan ulang laporan" : "Gagal membuat laporan", {
+        description: "Terjadi kesalahan internal. Silakan coba lagi.",
+      });
     }
   };
 
@@ -252,30 +194,17 @@ export default function CreateReportForm({
   const storeObj = stores.find((s) => s.code === selectedStoreCode);
 
   const isLocked = balanceInfo?.isLocked ?? false;
-  const isOverbudget = balanceInfo
-    ? grandTotalBms > balanceInfo.availableBalance
-    : false;
+  const isOverbudget = balanceInfo ? grandTotalBms > balanceInfo.availableBalance : false;
 
   return (
     <>
-      {!showDraftDialog && (
-        <BmsReportTour
-          key={`${isEditMode ? "revision" : "create"}:${step}:${isRepairOnlyMode}`}
-          activeStep={step}
-          isEditMode={isEditMode}
-          isRepairOnlyMode={isRepairOnlyMode}
-        />
-      )}
+      {!showDraftDialog && <BmsReportTour key={`${isEditMode ? "revision" : "create"}:${step}:${isRepairOnlyMode}`} activeStep={step} isEditMode={isEditMode} isRepairOnlyMode={isRepairOnlyMode} />}
 
       {showDraftDialog && (
         <DraftDialog
           open={showDraftDialog}
           draftStoreName={localDraftData?.storeName || existingDraft?.storeName}
-          draftUpdatedAt={
-            (localDraftData as { savedAt?: string } | null)?.savedAt ||
-            existingDraft?.updatedAt ||
-            undefined
-          }
+          draftUpdatedAt={(localDraftData as { savedAt?: string } | null)?.savedAt || existingDraft?.updatedAt || undefined}
           isLoading={isRestoringDraft}
           isDeleting={isDeletingDraft}
           onContinueDraft={handleContinueDraft}
@@ -283,10 +212,7 @@ export default function CreateReportForm({
         />
       )}
 
-      <LoadingOverlay
-        isOpen={isSubmitting}
-        message={isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."}
-      />
+      <LoadingOverlay isOpen={isSubmitting} message={isEditMode ? "Mengajukan laporan..." : "Membuat laporan..."} />
 
       <CameraModal
         isOpen={isCameraOpen}
@@ -301,24 +227,11 @@ export default function CreateReportForm({
       />
 
       {previewPhoto && (
-        <div
-          className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4"
-          onClick={closePreview}
-        >
-          <div
-            className="relative max-w-4xl max-h-[90vh] w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4" onClick={closePreview}>
+          <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewPhoto}
-              alt="Preview Foto"
-              className="w-full h-full object-contain rounded-lg max-h-[85vh]"
-            />
-            <button
-              onClick={closePreview}
-              className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold"
-            >
+            <img src={previewPhoto} alt="Preview Foto" className="w-full h-full object-contain rounded-lg max-h-[85vh]" />
+            <button onClick={closePreview} className="absolute -top-3 -right-3 h-8 w-8 rounded-full bg-white text-black flex items-center justify-center shadow-lg hover:bg-gray-100 transition-colors text-lg font-bold">
               ×
             </button>
           </div>
@@ -336,13 +249,7 @@ export default function CreateReportForm({
             size="lg"
             className="w-full text-base shadow-sm"
             onClick={step === "review" ? handleSubmit : handleNext}
-            disabled={
-              isSubmitting ||
-              (step === "store" && !selectedStoreCode) ||
-              isLocked ||
-              (step === "estimation" && isOverbudget) ||
-              (step === "review" && isOverbudget)
-            }
+            disabled={isSubmitting || (step === "store" && !selectedStoreCode) || isLocked || (step === "estimation" && isOverbudget) || (step === "review" && isOverbudget)}
             data-tour={step === "review" ? "bms-report-submit" : undefined}
           >
             {step === "review" ? (
@@ -360,18 +267,13 @@ export default function CreateReportForm({
         }
       >
         <div className="mb-6 space-y-4">
-          {balanceInfo && (
-            <BmsBalanceCard balance={balanceInfo} compact={step !== "store"} />
-          )}
+          {balanceInfo && <BmsBalanceCard balance={balanceInfo} compact={step !== "store"} />}
 
           {isLocked && (
             <Alert variant="destructive">
               <Lock className="h-4 w-4" />
               <AlertTitle>Saldo Terkunci</AlertTitle>
-              <AlertDescription>
-                Anda tidak dapat membuat laporan baru karena periode saldo
-                sedang terkunci oleh PJUM yang menunggu persetujuan BNM Manager.
-              </AlertDescription>
+              <AlertDescription>Anda tidak dapat membuat laporan baru karena periode saldo sedang terkunci oleh PJUM yang menunggu persetujuan BNM Manager.</AlertDescription>
             </Alert>
           )}
 
@@ -404,18 +306,10 @@ export default function CreateReportForm({
             isRepairOnlyMode={isRepairOnlyMode}
             activeCategories={activeCategories}
             checklist={checklist}
-            onConditionChange={(itemId, itemName, value) =>
-              updateChecklistItem(itemId, itemName, "condition", value)
-            }
-            onNotesChange={(itemId, itemName, value) =>
-              updateChecklistItem(itemId, itemName, "notes", value)
-            }
-            onAhoTicketNumberChange={(itemId, itemName, value) =>
-              updateChecklistItem(itemId, itemName, "ahoTicketNumber", value)
-            }
-            onHandlerChange={(itemId, itemName, value) =>
-              updateChecklistItem(itemId, itemName, "handler", value)
-            }
+            onConditionChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "condition", value)}
+            onNotesChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "notes", value)}
+            onAhoTicketNumberChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "ahoTicketNumber", value)}
+            onHandlerChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "handler", value)}
             onOpenCamera={handleOpenCamera}
             onPreviewPhoto={handlePreviewPhoto}
             onRemovePhoto={removePhoto}
@@ -438,15 +332,7 @@ export default function CreateReportForm({
           />
         )}
 
-        {step === "review" && (
-          <ReviewStep
-            store={storeObj}
-            isRepairOnlyMode={isRepairOnlyMode}
-            checklist={checklist}
-            bmsItems={bmsItems}
-            grandTotalBms={grandTotalBms}
-          />
-        )}
+        {step === "review" && <ReviewStep store={storeObj} isRepairOnlyMode={isRepairOnlyMode} checklist={checklist} bmsItems={bmsItems} grandTotalBms={grandTotalBms} />}
       </ReportWizardShell>
     </>
   );

@@ -1,73 +1,50 @@
 import Link from "next/link";
-import {
-  AlertCircle,
-  CheckCircle2,
-  Clock,
-  PlusCircle,
-  Wrench,
-  XCircle,
-  FileText,
-  type LucideIcon,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, PlusCircle, Wrench, XCircle, FileText, type LucideIcon } from "lucide-react";
 
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  getActivityActionLabel,
-  getActionBadgeClass,
-} from "@/app/dashboard/activity/activity-format";
+import { getActivityActionLabel, getActionBadgeClass } from "@/app/dashboard/activity/activity-format";
 import { formatJakartaDate } from "@/lib/time";
 import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
 import { getBMSActivity, getUserStats, type ActivityItem } from "../queries";
-import {
-  BmsMobileDashboardStats,
-  type BmsMobileDashboardStatItem,
-} from "./bms-mobile-dashboard-stats";
+import { BmsMobileDashboardStats, type BmsMobileDashboardStatItem } from "./bms-mobile-dashboard-stats";
 import { BmsWelcomeCard } from "./bms-welcome-card";
 import { BmsMobileActivityItem } from "@/components/bms-mobile/bms-activity-item";
 import { calculateBmsBalance } from "@/lib/balance";
-
+import { BmsPreventiveCard } from "./bms-preventive-card";
+import { getBmsPreventiveCoverage } from "../preventive/actions";
 
 function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
   return (
-        <section className="flex flex-col gap-3">
-            <div className="flex items-end justify-between">
-                <h2 className="font-heading text-lg font-semibold tracking-tight">
-                    History Aktivitas
-                </h2>
-                <Button asChild variant="link" size="sm" className="h-auto p-0">
-                    <Link href="/activity" className="text-xs font-semibold uppercase">
-                        Lihat Semua
-                    </Link>
-                </Button>
-            </div>
+    <section className="flex flex-col gap-3">
+      <div className="flex items-end justify-between">
+        <h2 className="font-heading text-lg font-semibold tracking-tight">History Aktivitas</h2>
+        <Button asChild variant="link" size="sm" className="h-auto p-0">
+          <Link href="/activity" className="text-xs font-semibold uppercase">
+            Lihat Semua
+          </Link>
+        </Button>
+      </div>
 
-            <div className="flex flex-col">
-                {activities.length === 0 ? (
-                    <div className="flex min-h-28 items-center justify-center text-center text-sm text-muted-foreground p-4">
-                        Laporan dan aktivitas terbaru Anda akan muncul di sini.
-                    </div>
-                ) : (
-                    activities.map((item) => (
-                        <BmsMobileActivityItem 
-                            key={item.id} 
-                            item={item} 
-                            showRelativeTime={true} 
-                        />
-                    ))
-                )}
-            </div>
-        </section>
+      <div className="flex flex-col">
+        {activities.length === 0 ? (
+          <div className="flex min-h-28 items-center justify-center text-center text-sm text-muted-foreground p-4">Laporan dan aktivitas terbaru Anda akan muncul di sini.</div>
+        ) : (
+          activities.map((item) => <BmsMobileActivityItem key={item.id} item={item} showRelativeTime={true} />)
+        )}
+      </div>
+    </section>
   );
 }
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
-  const [stats, activities, balanceInfo] = await Promise.all([
+  const [stats, activities, coverage, balanceInfo] = await Promise.all([
     getUserStats(user.NIK),
     getBMSActivity(user.NIK),
+    getBmsPreventiveCoverage(user as any), // Type assertion might be needed if user type is broader
     calculateBmsBalance(user.NIK),
   ]);
   const formattedDate = new Intl.DateTimeFormat("id-ID", {
@@ -134,6 +111,8 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
           Buat Laporan Baru
         </Link>
       </Button>
+
+      <BmsPreventiveCard coverage={coverage} />
 
       <BmsMobileDashboardStats items={statItems} />
       <BmsMobileActivityList activities={activities} />

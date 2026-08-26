@@ -9,11 +9,13 @@ import {
   IconClockFilled,
   IconLayoutDashboard,
   IconLayoutDashboardFilled,
+  IconShieldCheck,
+  IconShieldCheckFilled,
 } from "@tabler/icons-react";
 
 import { cn } from "@/lib/utils";
 
-export type BmsMobileNavItem = "dashboard" | "reports" | "activity" | "menu";
+export type BmsMobileNavItem = "dashboard" | "reports" | "activity" | "coverage" | "menu";
 
 type BmsMobileBottomNavProps = {
   activeItem: BmsMobileNavItem;
@@ -49,6 +51,13 @@ const LINK_ITEMS: LinkItem[] = [
     href: "/activity",
     icon: IconClock,
     activeIcon: IconClockFilled,
+  },
+  {
+    key: "coverage",
+    label: "Preventif",
+    href: "/dashboard/coverage",
+    icon: IconShieldCheck,
+    activeIcon: IconShieldCheckFilled,
   },
 ];
 
@@ -92,7 +101,7 @@ export function BmsMobileBottomNav({
         className,
       )}
     >
-      <div className="mx-auto grid w-full max-w-lg grid-cols-3 gap-1 px-4 pb-3 pt-2">
+      <div className="mx-auto grid w-full max-w-lg grid-cols-4 gap-1 px-4 pb-3 pt-2">
         {LINK_ITEMS.map((item) => {
           const isActive = item.key === activeItem;
 

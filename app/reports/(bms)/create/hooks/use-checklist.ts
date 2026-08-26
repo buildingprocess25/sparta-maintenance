@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { getLastCategoryIDate } from "@/app/reports/actions";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/lib/checklist-data";
 import type { StoreOption } from "../components/types";
 
-export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
+export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initialStoreCode?: string) {
     const [checklist, setChecklist] = useState<Map<string, ChecklistItem>>(
         new Map(),
     );
@@ -78,6 +78,12 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean) {
         },
         [stores],
     );
+
+    useEffect(() => {
+        if (initialStoreCode && stores.some(s => s.code === initialStoreCode)) {
+            handleStoreChange(initialStoreCode);
+        }
+    }, [initialStoreCode, stores, handleStoreChange]);
 
     const toggleCategory = useCallback((categoryId: string) => {
         setOpenCategories((prev) => {

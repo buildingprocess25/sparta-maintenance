@@ -549,3 +549,102 @@ export async function getPreventiveBranchOptions(): Promise<string[]> {
     });
     return stores.map((s) => s.branchName);
 }
+
+export type BmsStoreCoverage = {
+    storeCode: string;
+    storeName: string;
+    brand: string | null;
+    isCompleted: boolean;
+    reportNumber?: string;
+    doneAt?: string;
+};
+
+export type BmsPreventiveCoverageResult = {
+    completed: BmsStoreCoverage[];
+    pending: BmsStoreCoverage[];
+    total: number;
+    completionRate: number;
+    quarterLabel: string;
+};
+
+export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames: string[] }): Promise<BmsPreventiveCoverageResult> {
+    const year = getJakartaYear();
+    const quarter = getJakartaCurrentQuarter();
+    const quarterLabels: Record<number, string> = { 1: "Q1", 2: "Q2", 3: "Q3", 4: "Q4" };
+    
+    if (user.branchNames.length === 0) {
+        return { completed: [], pending: [], total: 0, completionRate: 0, quarterLabel: quarterLabels[quarter] + " " + year };
+    }
+
+    const { start: yearStart, endExclusive: yearEnd } = getJakartaQuarterWindow(year, quarter);
+
+    const reportPredicates: Prisma.Sql[] = [
+        Prisma.sql`r."createdAt" >= ${yearStart}`,
+        Prisma.sql`r."createdAt" < ${yearEnd}`,
+        completePreventiveEvidenceSql({
+            statusColumn: Prisma.sql`r."status"`,
+            itemsColumn: Prisma.sql`r."items"`,
+        })
+    ];
+
+    const rawRows = await prisma.$queryRaw<any[]>`
+        WITH QuarterReports AS (
+            SELECT 
+                r."storeCode",
+                r."reportNumber",
+                r."createdAt"
+            FROM "Report" r
+            WHERE ${Prisma.join(reportPredicates, " AND ")}
+        ),
+        RankedReports AS (
+            SELECT 
+                "storeCode",
+                "reportNumber",
+                "createdAt",
+                ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "createdAt" DESC) as rn
+            FROM QuarterReports
+        )
+        SELECT 
+            s.code as "storeCode",
+            s.name as "storeName",
+            s.brand,
+            rr."reportNumber",
+            rr."createdAt" as "doneAt"
+        FROM "Store" s
+        LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
+        WHERE s."isActive" = true
+          AND s."branchName" IN (${Prisma.join(user.branchNames)})
+        ORDER BY s.code ASC;
+    `;
+
+    const completed: BmsStoreCoverage[] = [];
+    const pending: BmsStoreCoverage[] = [];
+
+    for (const row of rawRows) {
+        const item: BmsStoreCoverage = {
+            storeCode: row.storeCode,
+            storeName: row.storeName,
+            brand: row.brand,
+            isCompleted: !!row.reportNumber,
+            reportNumber: row.reportNumber || undefined,
+            doneAt: row.doneAt ? row.doneAt.toISOString() : undefined,
+        };
+
+        if (item.isCompleted) {
+            completed.push(item);
+        } else {
+            pending.push(item);
+        }
+    }
+
+    const total = completed.length + pending.length;
+    const completionRate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+
+    return {
+        completed,
+        pending,
+        total,
+        completionRate,
+        quarterLabel: quarterLabels[quarter] + " " + year
+    };
+}

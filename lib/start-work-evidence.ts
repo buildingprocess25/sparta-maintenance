@@ -1,6 +1,7 @@
 type MaterialStoreInput = {
     name: string;
     city: string;
+    photoCount?: number;
 };
 
 type StartWorkEvidenceInput = {
@@ -31,7 +32,7 @@ export function getStartWorkEvidenceError({
     }
 
     if (materialStorePhotoCount === 0) {
-        return "Foto toko material wajib diunggah";
+        return "Setiap toko material wajib melampirkan foto";
     }
 
     if (receiptCount === 0) {
@@ -43,6 +44,10 @@ export function getStartWorkEvidenceError({
         materialStores.some((store) => !store.name.trim() || !store.city.trim())
     ) {
         return "Semua toko material harus memiliki nama dan alamat";
+    }
+
+    if (materialStores.some((store) => store.photoCount === 0)) {
+        return "Setiap toko material wajib melampirkan foto";
     }
 
     return null;

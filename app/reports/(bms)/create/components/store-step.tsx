@@ -88,6 +88,33 @@ export function StoreStep({
 
   const displayedStores = filteredStores.slice(0, visibleCount);
 
+  const selectedIndex = useMemo(() => {
+    return filteredStores.findIndex((s) => s.code === selectedStoreCode);
+  }, [filteredStores, selectedStoreCode]);
+
+  // Expand visible count if selected store is outside current view
+  useEffect(() => {
+    if (selectedIndex >= visibleCount) {
+      setVisibleCount(selectedIndex + 5);
+    }
+  }, [selectedIndex, visibleCount]);
+
+  // Auto-scroll on initial load if selectedStoreCode is present
+  const hasAutoScrolled = useRef(false);
+
+  useEffect(() => {
+    if (selectedStoreCode && !hasAutoScrolled.current && selectedIndex >= 0 && selectedIndex < visibleCount) {
+      const el = document.getElementById(`store-card-${selectedStoreCode}`);
+      if (el) {
+        // Small delay to ensure the DOM is fully painted and layout is stable
+        setTimeout(() => {
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 300);
+        hasAutoScrolled.current = true;
+      }
+    }
+  }, [selectedStoreCode, selectedIndex, visibleCount]);
+
   const handleStoreSelect = (storeCode: string) => {
     if (storeCode === selectedStoreCode) {
       return;
@@ -142,6 +169,7 @@ export function StoreStep({
           const brandLogo = getBrandLogo(store.brand);
           return (
             <Card
+              id={`store-card-${store.code}`}
               key={store.code}
               size="sm"
               role="button"
