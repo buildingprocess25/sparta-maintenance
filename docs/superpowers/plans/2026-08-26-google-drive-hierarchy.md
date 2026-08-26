@@ -773,7 +773,7 @@ git commit -m "feat: archive PJUM at branch level"
 - Consumes: expired DRAFT rows, tracked `drivePhotoFileIds`, CDN delete service, and root env values.
 - Produces: idempotent draft cleanup and one canonical operational root.
 
-- [ ] **Step 1: Write failing cleanup and config assertions**
+- [x] **Step 1: Write failing cleanup and config assertions**
 
 Inject a fake report repository and delete function. Assert all tracked file IDs
 are attempted before a DRAFT row is deleted, a failed file delete leaves the row
@@ -787,7 +787,7 @@ assert.equal(resolveDriveCdnRoot({ DRIVE_CDN_ROOT_FOLDER_ID: "legacy" }), "legac
 assert.throws(() => resolveDriveCdnRoot({}), /GOOGLE_DRIVE_ROOT_FOLDER_ID/);
 ```
 
-- [ ] **Step 2: Run cleanup/config specs and confirm failure**
+- [x] **Step 2: Run cleanup/config specs and confirm failure**
 
 Run:
 
@@ -798,20 +798,20 @@ npx tsx lib/google-drive/cdn-client-config.spec.ts
 
 Expected: FAIL because dependency injection and root resolver are absent.
 
-- [ ] **Step 3: Implement idempotent DRAFT cleanup**
+- [x] **Step 3: Implement idempotent DRAFT cleanup**
 
 Query expired `DRAFT` rows with `reportNumber` and `drivePhotoFileIds`. Delete
 each valid Drive file ID. Only after every tracked deletion succeeds, remove
 logs and the report transactionally. Keep existing pending cleanup behavior
 unchanged unless its status selection is proven intentional by tests.
 
-- [ ] **Step 4: Add canonical root fallback**
+- [x] **Step 4: Add canonical root fallback**
 
 Export a pure `resolveDriveCdnRoot` and set CDN config with
 `GOOGLE_DRIVE_ROOT_FOLDER_ID ?? DRIVE_CDN_ROOT_FOLDER_ID`. Log one deprecation
 warning when only the legacy variable is used. Do not change CDN OAuth credentials.
 
-- [ ] **Step 5: Remove obsolete post-approval photo archiving**
+- [x] **Step 5: Remove obsolete post-approval photo archiving**
 
 Run:
 
@@ -823,7 +823,7 @@ Expected before removal: no active imports outside `lib/google-drive/photos.ts`.
 Delete that file. If a real caller appears, replace it with a no-op-free direct
 hierarchy call and add that caller to the focused TypeScript check.
 
-- [ ] **Step 6: Run cleanup/config and TypeScript checks**
+- [x] **Step 6: Run cleanup/config and TypeScript checks**
 
 Run:
 
@@ -835,7 +835,7 @@ npx tsc --noEmit
 
 Expected: all checks pass.
 
-- [ ] **Step 7: Commit cleanup and root config**
+- [x] **Step 7: Commit cleanup and root config**
 
 ```bash
 git add lib/jobs/cleanup-pending-reports.ts lib/jobs/cleanup-pending-reports.spec.ts lib/google-drive/cdn-client.ts lib/google-drive/cdn-client-config.spec.ts lib/google-drive/photos.ts

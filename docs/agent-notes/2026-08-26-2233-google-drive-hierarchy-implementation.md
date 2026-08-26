@@ -91,6 +91,17 @@ Legacy Drive file migration is outside this scope.
   PDF publication to upload through the canonical revision archive function.
 - `app/reports/pjum/approval-actions.ts`: changed final report fallback upload
   during PJUM approval to use the canonical final report archive function.
+- `lib/jobs/cleanup-pending-reports.ts`: added injected cleanup job behavior
+  and deletes tracked DRAFT Drive photo IDs before deleting expired DRAFT rows.
+- `lib/jobs/cleanup-pending-reports.spec.ts`: added cleanup assertions for
+  successful DRAFT file deletion and failed-file retry behavior.
+- `lib/google-drive/cdn-client.ts`: added canonical Drive root resolution with
+  `GOOGLE_DRIVE_ROOT_FOLDER_ID` winning over legacy
+  `DRIVE_CDN_ROOT_FOLDER_ID`.
+- `lib/google-drive/cdn-client-config.spec.ts`: added pure root resolution
+  assertions for canonical, legacy fallback, and missing root cases.
+- `lib/google-drive/photos.ts`: removed obsolete post-approval photo archive
+  path code after confirming no active imports.
 
 ## Decisions
 
@@ -117,6 +128,10 @@ Legacy Drive file migration is outside this scope.
 - PJUM approval PDFs now resolve the branch-level
   `PJUM Sparta-Maintenance/<NIK> - <name>/<year>/<month>` folder.
 - Legacy snapshot storage no longer owns canonical final report Drive paths.
+- Expired DRAFT cleanup attempts every tracked Drive photo delete before
+  deleting the report row; any failed file delete leaves the row for retry.
+- `GOOGLE_DRIVE_ROOT_FOLDER_ID` is now the canonical root for CDN uploads, with
+  `DRIVE_CDN_ROOT_FOLDER_ID` retained only as a compatibility fallback.
 
 ## Verification
 
@@ -152,9 +167,16 @@ Legacy Drive file migration is outside this scope.
   - `lib/google-drive/report-archive.spec.ts`
 - `tsc --noEmit --incremental false` after Task 6/7: same single pre-existing
   `vitest` dependency error only.
+- Esbuild `write:false` execution of Task 8 focused specs passed:
+  - `lib/jobs/cleanup-pending-reports.spec.ts`
+  - `lib/google-drive/cdn-client-config.spec.ts`
+- Scan for obsolete photo archive callers returned no active imports outside
+  the deleted file.
+- `tsc --noEmit --incremental false` after Task 8: same single pre-existing
+  `vitest` dependency error only.
 
 ## Remaining Work and Risks
 
-- Cleanup, root env config, docs, and full verification are still pending.
+- Documentation and full verification are still pending.
 - Repository-wide TypeScript verification needs the existing `vitest`
   dependency gap resolved or that spec excluded from production type checks.

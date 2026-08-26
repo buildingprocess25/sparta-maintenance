@@ -6,6 +6,7 @@ export type DriveCdnConfig = {
 
 let _cdnDrive: drive_v3.Drive | null = null;
 let _cdnConfig: DriveCdnConfig | null = null;
+let _legacyRootWarningLogged = false;
 
 function requiredEnv(name: string): string {
     const value = process.env[name];
@@ -13,6 +14,21 @@ function requiredEnv(name: string): string {
         throw new Error(`${name} env variable is not set`);
     }
     return value;
+}
+
+export function resolveDriveCdnRoot(env: {
+    GOOGLE_DRIVE_ROOT_FOLDER_ID?: string;
+    DRIVE_CDN_ROOT_FOLDER_ID?: string;
+}): string {
+    const canonicalRoot = env.GOOGLE_DRIVE_ROOT_FOLDER_ID?.trim();
+    if (canonicalRoot) return canonicalRoot;
+
+    const legacyRoot = env.DRIVE_CDN_ROOT_FOLDER_ID?.trim();
+    if (legacyRoot) return legacyRoot;
+
+    throw new Error(
+        "GOOGLE_DRIVE_ROOT_FOLDER_ID env variable is not set. DRIVE_CDN_ROOT_FOLDER_ID is supported only as a compatibility fallback.",
+    );
 }
 
 export function getDriveCdnClient(): {
@@ -36,9 +52,22 @@ export function getDriveCdnClient(): {
     });
 
     _cdnDrive = google.drive({ version: "v3", auth: oauth2Client });
-    _cdnConfig = {
-        rootFolderId: requiredEnv("DRIVE_CDN_ROOT_FOLDER_ID"),
-    };
+    const rootFolderId = resolveDriveCdnRoot({
+        GOOGLE_DRIVE_ROOT_FOLDER_ID: process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID,
+        DRIVE_CDN_ROOT_FOLDER_ID: process.env.DRIVE_CDN_ROOT_FOLDER_ID,
+    });
+    if (
+        !process.env.GOOGLE_DRIVE_ROOT_FOLDER_ID &&
+        process.env.DRIVE_CDN_ROOT_FOLDER_ID &&
+        !_legacyRootWarningLogged
+    ) {
+        console.warn(
+            "DRIVE_CDN_ROOT_FOLDER_ID is deprecated for Drive CDN root selection; set GOOGLE_DRIVE_ROOT_FOLDER_ID instead.",
+        );
+        _legacyRootWarningLogged = true;
+    }
+
+    _cdnConfig = { rootFolderId };
 
     return { drive: _cdnDrive, config: _cdnConfig };
 }
