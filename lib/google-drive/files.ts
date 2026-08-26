@@ -1,5 +1,6 @@
 import { Readable } from "stream";
 import { getGoogleDriveClient } from "@/lib/google-drive/client";
+import { createGoogleFolderGateway } from "@/lib/google-drive/folder-gateway";
 
 const folderPathCache = new Map<string, string>();
 const folderLookupCache = new Map<string, string>();
@@ -17,33 +18,16 @@ export type DriveFileResult = {
 
 async function findFolderByName(parentId: string, folderName: string) {
     const { drive } = getGoogleDriveClient();
+    const gateway = createGoogleFolderGateway(drive);
 
-    const safeFolderName = escapeDriveQueryValue(folderName);
-    const response = await drive.files.list({
-        q: `'${parentId}' in parents and name='${safeFolderName}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-        fields: "files(id,name)",
-        includeItemsFromAllDrives: true,
-        supportsAllDrives: true,
-        pageSize: 1,
-    });
-
-    return response.data.files?.[0] ?? null;
+    return (await gateway.listChildFolders(parentId)).find((folder) => folder.name === folderName) ?? null;
 }
 
 async function createFolder(parentId: string, folderName: string) {
     const { drive } = getGoogleDriveClient();
+    const gateway = createGoogleFolderGateway(drive);
 
-    const response = await drive.files.create({
-        requestBody: {
-            name: folderName,
-            mimeType: "application/vnd.google-apps.folder",
-            parents: [parentId],
-        },
-        fields: "id,name",
-        supportsAllDrives: true,
-    });
-
-    return response.data;
+    return gateway.createFolder(parentId, folderName);
 }
 
 export async function ensureDriveFolderPath(

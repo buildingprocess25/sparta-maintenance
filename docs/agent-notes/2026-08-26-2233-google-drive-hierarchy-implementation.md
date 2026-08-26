@@ -23,6 +23,17 @@ Legacy Drive file migration is outside this scope.
   relative path policy for stores, reports, evidence folders, PDFs, and PJUM.
 - `lib/google-drive/hierarchy-policy.spec.ts`: added executable assertions for
   the approved folder policy.
+- `lib/google-drive/folder-gateway.ts`: added a narrow Google Drive folder
+  gateway with paginated list, read, create, and rename operations.
+- `lib/google-drive/hierarchy-service.ts`: added code-first store folder
+  resolution, safe code repair, cache validation, report folder, evidence
+  folder, document folder, and branch-level PJUM folder ensures.
+- `lib/google-drive/hierarchy-service.spec.ts`: added fake-gateway coverage for
+  code precedence, name fallback, placeholder/wrong-code repair, ambiguity
+  failures, Maintenance creation, cache invalidation, evidence paths, document
+  folders, and PJUM folders.
+- `lib/google-drive/files.ts`: routed legacy folder path ensure operations
+  through the shared Drive folder gateway.
 
 ## Decisions
 
@@ -30,6 +41,10 @@ Legacy Drive file migration is outside this scope.
 - Evidence category folders are built only from semantic upload destinations.
 - PJUM folder naming is centralized in the pure policy so runtime code and tests
   cannot drift from the approved structure.
+- Existing branch and `Toko` folders are required. The resolver does not create
+  them, which keeps accidental writes away from the wrong Drive root.
+- Store cache keys include root, branch, and authoritative database store code;
+  invalid cached folders are deleted before a fresh Drive scan.
 
 ## Verification
 
@@ -37,8 +52,13 @@ Legacy Drive file migration is outside this scope.
   `npx` is missing `npx-cli.js` in the current Windows profile.
 - Esbuild-bundled execution of `lib/google-drive/hierarchy-policy.spec.ts`
   from the isolated worktree: passed.
+- Esbuild `write:false` execution of focused specs: passed.
+  - `lib/google-drive/hierarchy-policy.spec.ts`
+  - `lib/google-drive/hierarchy-service.spec.ts`
+  - `lib/google-drive/dev-proxy.spec.ts`
+  - `lib/storage/photo-url.spec.ts`
 
 ## Remaining Work and Risks
 
-- Store resolver, DRAFT lifecycle, photo route, client contexts, PDF/PJUM
-  archive routing, cleanup, docs, and full verification are still pending.
+- DRAFT lifecycle, photo route, client contexts, PDF/PJUM archive routing,
+  cleanup, docs, and full verification are still pending.
