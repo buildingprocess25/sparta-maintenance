@@ -128,14 +128,14 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
     >
       <BmsWelcomeCard name={user.name} />
 
-      <BmsPreventiveCard coverage={coverage} />
-
       <Button asChild size="lg" className="h-12 w-full">
         <Link href="/reports/create">
           <PlusCircle data-icon="inline-start" />
           Buat Laporan Baru
         </Link>
       </Button>
+
+      <BmsPreventiveCard coverage={coverage} />
 
       <BmsMobileDashboardStats items={statItems} />
       <BmsMobileActivityList activities={activities} />
