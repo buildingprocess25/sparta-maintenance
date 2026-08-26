@@ -74,6 +74,26 @@ Env terkait:
 
 Simpan backup sebelum migration destructive atau script data massal.
 
+Folder backup database harus terpisah dari root operasional `DOKUMEN SPARTA`.
+Struktur yang direkomendasikan:
+
+```text
+SPARTA SYSTEM BACKUP/
+  Database/
+    Production/
+```
+
+`BACKUP_DRIVE_FOLDER_ID` menunjuk langsung ke folder `Production`. Script
+memakai credential Google utama dan mempertahankan 10 file Drive terbaru;
+credential Drive CDN tidak memerlukan akses ke folder backup.
+
+Migrasi hierarchy Drive operasional masih berstatus approved design dan belum
+aktif. Saat implementasi selesai, cutover harus menyimpan root lama, deploy
+image hierarchy-aware, mengubah kedua root operasional ke `DOKUMEN SPARTA`,
+menekan Deploy agar container dibuat ulang, lalu smoke-test semua kategori
+foto, PDF final/revisi, dan PJUM. Rollback memulihkan image dan kedua root lama
+tanpa menghapus file yang telanjur ditulis ke root baru.
+
 ## Script Penting
 
 | Command | Fungsi |

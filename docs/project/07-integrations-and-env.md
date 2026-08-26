@@ -57,6 +57,36 @@ Jangan isi env development-only di production kecuali memang route dan risikonya
 - File final seperti `completedPdfPath`, `reportFinalDriveUrl`, `pjumPdfPath`, dan `pjumFinalDriveUrl` jangan dihapus tanpa memastikan field database dan UI tidak lagi memakai link tersebut.
 - `GoogleDriveFolderCache` dipakai untuk mengurangi pembuatan folder berulang.
 
+### Approved hierarchy migration (not active yet)
+
+Target yang sudah disetujui tetapi belum diimplementasikan memakai
+`DOKUMEN SPARTA` sebagai root bersama:
+
+```text
+<CABANG>/
+  Toko/
+    <NO ULOK> - <NAMA TOKO> - <KODE TOKO>/
+      Building/
+      Maintenance/
+        <NOMOR LAPORAN>/
+          01 - Dokumen/
+          02 - Foto Checklist/
+          03 - Foto Mulai Pekerjaan/
+          04 - Foto Penyelesaian/
+  PJUM Sparta-Maintenance/
+```
+
+`GOOGLE_DRIVE_ROOT_FOLDER_ID` akan menjadi root canonical. Selama cutover,
+`DRIVE_CDN_ROOT_FOLDER_ID` menunjuk ID yang sama untuk kompatibilitas, tetapi
+credential `DRIVE_CDN_*` tetap dipakai untuk upload/proxy foto. Jangan mengganti
+root production sebelum kode hierarchy-aware dideploy karena kode aktif masih
+membuat path legacy dan upload foto langsung ke root CDN.
+
+`BACKUP_DRIVE_FOLDER_ID` tetap independen dan harus menunjuk folder backup
+terbatas di luar `DOKUMEN SPARTA`.
+
+Desain lengkap: `docs/superpowers/specs/2026-08-26-google-drive-hierarchy-design.md`.
+
 ## Gmail
 
 Email memakai Nodemailer dengan Gmail OAuth2.
