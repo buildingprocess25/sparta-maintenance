@@ -853,14 +853,14 @@ git commit -m "chore: retire flat Drive photo root"
 - Consumes: completed implementation and approved design.
 - Produces: operator-ready env/cutover/rollback instructions and required task note.
 
-- [ ] **Step 1: Update canonical integration documentation**
+- [x] **Step 1: Update canonical integration documentation**
 
 Document that `GOOGLE_DRIVE_ROOT_FOLDER_ID` points to `DOKUMEN SPARTA`, the CDN
 credentials remain active, the CDN root variable is compatibility-only, both
 OAuth identities need Editor access, and `BACKUP_DRIVE_FOLDER_ID` stays outside
 the operational hierarchy.
 
-- [ ] **Step 2: Add exact Dokploy cutover and rollback checks**
+- [x] **Step 2: Add exact Dokploy cutover and rollback checks**
 
 Add this sequence to operations documentation:
 
@@ -873,7 +873,7 @@ Add this sequence to operations documentation:
 6. Roll back by restoring the previous image and both previous root IDs; never delete new-root files during rollback.
 ```
 
-- [ ] **Step 3: Run every focused spec**
+- [x] **Step 3: Run every focused spec**
 
 Run:
 
@@ -891,7 +891,7 @@ npx tsx lib/google-drive/cdn-client-config.spec.ts
 
 Expected: every command exits 0.
 
-- [ ] **Step 4: Run repository-wide verification**
+- [x] **Step 4: Run repository-wide verification**
 
 Run:
 
@@ -924,13 +924,13 @@ store, one placeholder-code store, and one wrong-code store, verify:
 - backup folder is not touched.
 ```
 
-- [ ] **Step 6: Write the dated task note**
+- [x] **Step 6: Write the dated task note**
 
 Use `docs/agent-notes/TEMPLATE.md`, list exact changed files, verification
 results, deployment still pending, legacy migration excluded, and the manual
 duplicate-folder remediation risk.
 
-- [ ] **Step 7: Commit documentation and verification record**
+- [x] **Step 7: Commit documentation and verification record**
 
 ```bash
 git add docs/project/07-integrations-and-env.md docs/project/08-operations.md docs/agent-notes/YYYY-MM-DD-HHMM-google-drive-hierarchy.md

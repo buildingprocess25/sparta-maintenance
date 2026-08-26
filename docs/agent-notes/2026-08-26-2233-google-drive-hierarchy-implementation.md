@@ -102,6 +102,13 @@ Legacy Drive file migration is outside this scope.
   assertions for canonical, legacy fallback, and missing root cases.
 - `lib/google-drive/photos.ts`: removed obsolete post-approval photo archive
   path code after confirming no active imports.
+- `docs/project/07-integrations-and-env.md`: documented the active
+  hierarchy-aware Drive structure, root env precedence, credential access, and
+  backup separation.
+- `docs/project/08-operations.md`: documented Dokploy cutover and rollback
+  steps for the Drive hierarchy rollout.
+- `docs/superpowers/plans/2026-08-26-google-drive-hierarchy.md`: marked the
+  implemented plan steps through cleanup/root config.
 
 ## Decisions
 
@@ -174,9 +181,37 @@ Legacy Drive file migration is outside this scope.
   the deleted file.
 - `tsc --noEmit --incremental false` after Task 8: same single pre-existing
   `vitest` dependency error only.
+- Esbuild `write:false` execution of all focused Drive hierarchy specs passed:
+  - `lib/google-drive/hierarchy-policy.spec.ts`
+  - `lib/google-drive/hierarchy-service.spec.ts`
+  - `lib/reports/drive-draft-service.spec.ts`
+  - `lib/google-drive/photo-upload-context.spec.ts`
+  - `app/api/photos/upload/route.spec.ts`
+  - `lib/hooks/use-photo-upload.spec.ts`
+  - `lib/google-drive/report-archive.spec.ts`
+  - `lib/jobs/cleanup-pending-reports.spec.ts`
+  - `lib/google-drive/cdn-client-config.spec.ts`
+- `eslint .`: failed on pre-existing repository lint issues outside this Drive
+  hierarchy change, including React Compiler set-state-in-effect errors in
+  `app/admin/database/_components/store-table.tsx`,
+  `app/admin/database/_components/user-table.tsx`, and other UI components,
+  plus existing `no-explicit-any` errors.
+- `tsc --noEmit --incremental false`: failed only on pre-existing
+  `lib/utils.spec.ts(1,30): Cannot find module 'vitest'`.
+- `prisma validate`: passed.
+- `node scripts/check-agent-task-note.mjs`: passed when run with full git
+  worktree access.
+- `git diff --check`: passed.
+- `next build`: sandboxed run failed to create `.next`; escalated run failed
+  because Turbopack rejects this worktree's `node_modules` junction pointing
+  outside the project root.
 
 ## Remaining Work and Risks
 
-- Documentation and full verification are still pending.
+- Production deployment and non-production Drive smoke testing are still
+  pending.
 - Repository-wide TypeScript verification needs the existing `vitest`
   dependency gap resolved or that spec excluded from production type checks.
+- Repository-wide lint is blocked by existing non-Drive lint errors.
+- Full Next build should be rerun in a workspace with a real local
+  `node_modules` directory rather than the temporary worktree junction.

@@ -87,12 +87,20 @@ SPARTA SYSTEM BACKUP/
 memakai credential Google utama dan mempertahankan 10 file Drive terbaru;
 credential Drive CDN tidak memerlukan akses ke folder backup.
 
-Migrasi hierarchy Drive operasional masih berstatus approved design dan belum
-aktif. Saat implementasi selesai, cutover harus menyimpan root lama, deploy
-image hierarchy-aware, mengubah kedua root operasional ke `DOKUMEN SPARTA`,
-menekan Deploy agar container dibuat ulang, lalu smoke-test semua kategori
-foto, PDF final/revisi, dan PJUM. Rollback memulihkan image dan kedua root lama
-tanpa menghapus file yang telanjur ditulis ke root baru.
+Cutover hierarchy Drive operasional:
+
+1. Catat nilai lama `GOOGLE_DRIVE_ROOT_FOLDER_ID` dan
+   `DRIVE_CDN_ROOT_FOLDER_ID`.
+2. Deploy image aplikasi yang sudah hierarchy-aware.
+3. Set `GOOGLE_DRIVE_ROOT_FOLDER_ID` ke folder root `DOKUMEN SPARTA`.
+4. Untuk rollout kompatibilitas, set `DRIVE_CDN_ROOT_FOLDER_ID` ke ID yang sama
+   dengan `GOOGLE_DRIVE_ROOT_FOLDER_ID`.
+5. Klik Deploy di Dokploy agar container dibuat ulang dengan environment baru.
+6. Verifikasi satu upload foto checklist, foto mulai kerja, foto penyelesaian,
+   PDF final, PDF revisi, dan PJUM. Pastikan parent foldernya sesuai
+   `Maintenance/<nomor laporan>/...` atau `PJUM Sparta-Maintenance/...`.
+7. Rollback dengan memulihkan image sebelumnya dan kedua root ID lama. Jangan
+   hapus file yang telanjur ditulis ke root baru saat rollback.
 
 ## Script Penting
 
@@ -104,8 +112,6 @@ tanpa menghapus file yang telanjur ditulis ke root baru.
 | `npm run create-user` | Buat user dari CLI. |
 | `npm run backup:db` | Backup database. |
 | `npm run cleanup:pending` | Cleanup laporan pending lama. |
-| `npm run cleanup-photos` | Dry-run archive foto PJUM approved. |
-| `npm run cleanup-photos:execute` | Execute archive foto PJUM approved. |
 | `npm run cleanup-photos-v2` | Dry-run cleanup foto approved versi baru. |
 | `npm run cleanup-photos-v2:execute` | Execute cleanup foto approved versi baru. |
 | `npm run import:stores` | Import data toko. |
