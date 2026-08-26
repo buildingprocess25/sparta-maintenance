@@ -54,6 +54,18 @@ Legacy Drive file migration is outside this scope.
   `draftReportNumber` and removes the old `LCL-*` pseudo ID.
 - `app/reports/(bms)/create/hooks/use-photo-upload.ts`: reserves a real DRAFT
   report before the first checklist photo upload.
+- `lib/google-drive/photo-upload-context.ts`: added upload context schema,
+  ownership/status validation, and mapping to hierarchy evidence destinations.
+- `lib/google-drive/photo-upload-context.spec.ts`: added context parsing,
+  status authorization, ownership, and unknown item assertions.
+- `app/api/photos/upload/route.ts`: added injectable context-aware upload
+  handler that resolves the report evidence folder before writing to Drive.
+- `app/api/photos/upload/route.spec.ts`: added route contract checks for
+  evidence-folder parent upload and no storage call on ambiguous Drive folders.
+- `lib/storage/drive-photo-service.ts`: changed photo upload to require an
+  explicit parent folder ID instead of using the CDN root as the file parent.
+- `lib/google-drive/folder-cache.ts`: added Prisma-backed folder cache adapter
+  for runtime hierarchy resolution.
 
 ## Decisions
 
@@ -69,6 +81,9 @@ Legacy Drive file migration is outside this scope.
   when the selected store changes.
 - Submit can now promote a reserved DRAFT row instead of always creating a new
   report row. The fallback path remains until all upload contexts are wired.
+- Photo upload requests without a validated semantic context are rejected before
+  Drive writes happen.
+- Drive upload no longer has a root-folder parent fallback for photo files.
 
 ## Verification
 
@@ -88,10 +103,16 @@ Legacy Drive file migration is outside this scope.
 - `tsc --noEmit` with `NODE_OPTIONS=--max-old-space-size=8192`: code changes
   reached a single pre-existing dependency error:
   `lib/utils.spec.ts(1,30): Cannot find module 'vitest'`.
+- Esbuild `write:false` execution of Task 4 focused specs: passed.
+  - `lib/google-drive/photo-upload-context.spec.ts`
+  - `app/api/photos/upload/route.spec.ts`
+  - `lib/storage/photo-url.spec.ts`
+- `tsc --noEmit` after Task 4: same single pre-existing `vitest` dependency
+  error only.
 
 ## Remaining Work and Risks
 
-- Photo route, client contexts, PDF/PJUM archive routing, cleanup, docs, and
-  full verification are still pending.
+- Client contexts, PDF/PJUM archive routing, cleanup, docs, and full
+  verification are still pending.
 - Repository-wide TypeScript verification needs the existing `vitest`
   dependency gap resolved or that spec excluded from production type checks.
