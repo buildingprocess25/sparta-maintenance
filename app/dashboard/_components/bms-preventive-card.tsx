@@ -26,14 +26,14 @@ function getDynamicNarration(completionRate: number, quarterLabel: string, compl
     const isUrgent = remainingDays <= 30 && remainingDays >= 0;
     
     if (isUrgent) {
-        if (completionRate < 50) return `Waktu makin mepet nih! Ayo kejar ketertinggalan, masih ada ${totalCount - completedCount} toko lagi. Semangat!`;
-        if (completionRate < 100) return `Akhir kuartal sebentar lagi. Tinggal ${totalCount - completedCount} toko tersisa, sedikit lagi pasti bisa!`;
-        return "Mantap! Tepat pada waktunya, semua target selesai dengan sempurna. 🏆";
+        if (completionRate < 50) return `Akhir kuartal udah dekat nih, masih ada sisa ${totalCount - completedCount} toko lagi. Ayo pelan-pelan dikejar, semangat pasti kekejar!`;
+        if (completionRate < 100) return `Tinggal ${totalCount - completedCount} toko lagi menuju akhir kuartal. Sedikit lagi pasti bisa, semangat menyelesaikannya!`;
+        return "Mantap! Tepat pada waktunya, semua target selesai dengan sempurna. Semangat kerjanya luar biasa! 🏆";
     } else {
-        if (completionRate === 0) return "Belum ada preventif. Yuk mulai cicil dari sekarang biar nggak menumpuk!";
-        if (completionRate < 50) return `Awal yang baik! Kamu udah preventif ${completedCount} dari ${totalCount} toko. Yuk lanjutin!`;
-        if (completionRate < 100) return "Kerja bagus! Udah lebih dari setengah perjalanan. Pertahankan!";
-        return "Luar biasa! Semua target preventif kuartal ini sudah selesai lebih awal. 🎉";
+        if (completionRate === 0) return "Belum ada progres preventif nih. Yuk mulai dicicil dari sekarang, tetap semangat ya!";
+        if (completionRate < 50) return `Awal yang baik! Kamu udah preventif ${completedCount} dari ${totalCount} toko. Tetap semangat ngelanjutin sisanya!`;
+        if (completionRate < 100) return "Kerja bagus, udah lebih dari setengah perjalanan. Semangat terus, targetnya udah dekat!";
+        return "Luar biasa! Semua target preventif selesai lebih awal. Semangat terus pertahankan performanya! 🎉";
     }
 }
 
