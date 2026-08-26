@@ -50,7 +50,10 @@ export function CompletionClient({
     handlePhotoCaptured,
     handleRemovePhoto,
     handleStartWorkStoreChange,
-    handleStartWorkStoreGalleryChange,
+    handleAddStartWorkMaterialStorePhoto,
+    handleRemoveStartWorkStorePhoto,
+    handleAddStartWorkStore,
+    handleRemoveStartWorkStore,
     handleSubmit,
     validationErrors,
     isPending,
@@ -65,17 +68,14 @@ export function CompletionClient({
     setGlobalNotes,
     setPreviewUrl,
     setStartWorkMaterialStores,
-    setStartWorkMaterialStorePhotos,
     setStartWorkReceiptPhotos,
     setStartWorkSelfiePhotos,
     setStartWorkSkipPhotos,
     shouldReviseStartWork,
-    startWorkMaterialStorePhotos,
     startWorkMaterialStores,
     startWorkReceiptPhotos,
     startWorkSelfiePhotos,
     startWorkSkipPhotos,
-    startWorkStoreGalleryInputRef,
     totalEstimation,
     updateItemState,
   } = useCompletionWorkForm(report);
@@ -164,12 +164,14 @@ export function CompletionClient({
             skipPhotos={startWorkSkipPhotos}
             onSkipPhotosChange={setStartWorkSkipPhotos}
             selfiePhotos={startWorkSelfiePhotos}
-            materialStorePhotos={startWorkMaterialStorePhotos}
             receiptPhotos={startWorkReceiptPhotos}
             materialStores={startWorkMaterialStores}
             onOpenCamera={(target) => setCameraTarget({ target })}
-            onOpenStoreGallery={() =>
-              startWorkStoreGalleryInputRef.current?.click()
+            onOpenStoreCamera={(storeId) =>
+              setCameraTarget({ target: "startStore", storeId })
+            }
+            onAddStorePhoto={(storeId, file) =>
+              handleAddStartWorkMaterialStorePhoto(storeId, file)
             }
             onRemoveSelfie={(id) =>
               handleRemovePhoto(id, () =>
@@ -178,12 +180,8 @@ export function CompletionClient({
                 ),
               )
             }
-            onRemoveStorePhoto={(id) =>
-              handleRemovePhoto(id, () =>
-                setStartWorkMaterialStorePhotos((prev) =>
-                  prev.filter((photo) => photo.id !== id),
-                ),
-              )
+            onRemoveStorePhoto={(storeId, photoId) =>
+              handleRemoveStartWorkStorePhoto(storeId, photoId)
             }
             onRemoveReceipt={(id) =>
               handleRemovePhoto(id, () =>
@@ -192,30 +190,12 @@ export function CompletionClient({
                 ),
               )
             }
-            onAddStore={() =>
-              setStartWorkMaterialStores((prev) => [
-                ...prev,
-                { id: genId(), name: "", city: "" },
-              ])
-            }
-            onRemoveStore={(id) =>
-              setStartWorkMaterialStores((prev) =>
-                prev.filter((store) => store.id !== id),
-              )
-            }
+            onAddStore={handleAddStartWorkStore}
+            onRemoveStore={handleRemoveStartWorkStore}
             onStoreChange={handleStartWorkStoreChange}
             onPreview={setPreviewUrl}
           />
         )}
-
-        <input
-          ref={startWorkStoreGalleryInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          className="hidden"
-          onChange={handleStartWorkStoreGalleryChange}
-        />
 
         <div className="mb-2 mt-8">
           <div className="flex items-center gap-2">

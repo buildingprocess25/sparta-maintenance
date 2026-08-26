@@ -289,6 +289,6 @@ function normalizeStartWorkRevision(input: StartWorkRevisionInput) {
     };
 }
 
-function cleanStringArray(values: string[]): string[] {
-    return values.map((value) => value.trim()).filter((value) => value.length > 0);
+function cleanStringArray(values: (string | null | undefined)[]): string[] {
+    return values.filter((v): v is string => typeof v === "string").map((v) => v.trim()).filter((v) => v.length > 0);
 }
