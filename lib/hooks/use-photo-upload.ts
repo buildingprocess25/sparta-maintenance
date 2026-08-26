@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
 
 export type PhotoUploadResult = {
     url: string;
@@ -18,12 +19,14 @@ export function usePhotoUpload() {
 
     const uploadPhoto = async (
         file: File,
+        context: PhotoUploadContext,
     ): Promise<PhotoUploadResult | null> => {
         setIsUploading(true);
 
         try {
             const formData = new FormData();
             formData.append("file", file);
+            formData.append("context", JSON.stringify(context));
 
             const response = await fetch("/api/photos/upload", {
                 method: "POST",

@@ -121,6 +121,14 @@ export function usePhotoUpload({
 
                 const formData = new FormData();
                 formData.append("file", finalFile);
+                formData.append(
+                    "context",
+                    JSON.stringify({
+                        kind: "CHECKLIST",
+                        reportNumber,
+                        itemId: activePhotoItemId,
+                    }),
+                );
 
                 const response = await fetch("/api/photos/upload", {
                     method: "POST",

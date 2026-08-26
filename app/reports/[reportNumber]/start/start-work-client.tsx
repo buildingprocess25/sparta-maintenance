@@ -381,7 +381,10 @@ export function StartWorkClient({
       const uploadedSelfieUrls: string[] = [];
       const uploadedSelfieFileIds: string[] = [];
       for (const photo of selfiePhotosToUpload) {
-        const result = await uploadPhoto(photo.file);
+        const result = await uploadPhoto(photo.file, {
+          kind: "START_SELFIE",
+          reportNumber,
+        });
         if (!result) {
           toast.dismiss(loadingId);
           toast.error("Gagal mengunggah foto selfie");
@@ -394,7 +397,10 @@ export function StartWorkClient({
       const uploadedReceiptUrls: string[] = [];
       const uploadedReceiptFileIds: string[] = [];
       for (const photo of receiptPhotosToUpload) {
-        const result = await uploadPhoto(photo.file);
+        const result = await uploadPhoto(photo.file, {
+          kind: "START_RECEIPT",
+          reportNumber,
+        });
         if (!result) {
           toast.dismiss(loadingId);
           toast.error("Gagal mengunggah foto nota");
@@ -411,8 +417,18 @@ export function StartWorkClient({
         : await Promise.all(
             materialStores.map(async (store) => {
               const urls: string[] = [];
+              const storeIndex = materialStores.findIndex(
+                (candidate) => candidate.id === store.id,
+              );
               for (const photo of store.photos) {
-                const result = await uploadPhoto(photo.file);
+                const result = await uploadPhoto(photo.file, {
+                  kind: "START_MATERIAL_STORE",
+                  reportNumber,
+                  entryId: store.id,
+                  index: storeIndex,
+                  name: store.name,
+                  city: store.city,
+                });
                 if (!result) {
                   allStorePhotosUploadFailed = true;
                   continue;

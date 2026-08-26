@@ -66,6 +66,17 @@ Legacy Drive file migration is outside this scope.
   explicit parent folder ID instead of using the CDN root as the file parent.
 - `lib/google-drive/folder-cache.ts`: added Prisma-backed folder cache adapter
   for runtime hierarchy resolution.
+- `lib/hooks/use-photo-upload.ts`: requires a semantic
+  `PhotoUploadContext` and serializes it with every upload request.
+- `lib/hooks/use-photo-upload.spec.ts`: added source-level upload contract
+  assertions for shared, checklist, start-work, and completion flows.
+- `app/reports/(bms)/create/hooks/use-photo-upload.ts`: sends `CHECKLIST`
+  context with the reserved report number and checklist item ID.
+- `app/reports/[reportNumber]/start/start-work-client.tsx`: sends
+  `START_SELFIE`, `START_RECEIPT`, and `START_MATERIAL_STORE` contexts.
+- `app/reports/[reportNumber]/completion/use-completion-work-form.ts`: sends
+  `COMPLETION_RESULT`, `COMPLETION_RECEIPT`,
+  `COMPLETION_ADDITIONAL`, and start-work revision contexts.
 
 ## Decisions
 
@@ -84,6 +95,8 @@ Legacy Drive file migration is outside this scope.
 - Photo upload requests without a validated semantic context are rejected before
   Drive writes happen.
 - Drive upload no longer has a root-folder parent fallback for photo files.
+- Completion receipt photos now upload into the canonical nota realisasi
+  evidence folder instead of being omitted from completion payloads.
 
 ## Verification
 
@@ -109,10 +122,16 @@ Legacy Drive file migration is outside this scope.
   - `lib/storage/photo-url.spec.ts`
 - `tsc --noEmit` after Task 4: same single pre-existing `vitest` dependency
   error only.
+- Esbuild `write:false` execution of Task 5 focused specs: passed.
+  - `lib/hooks/use-photo-upload.spec.ts`
+  - `lib/start-work-evidence.spec.ts`
+  - `lib/completion-evidence.spec.ts`
+- `tsc --noEmit` after Task 5: same single pre-existing `vitest` dependency
+  error only.
 
 ## Remaining Work and Risks
 
-- Client contexts, PDF/PJUM archive routing, cleanup, docs, and full
-  verification are still pending.
+- PDF/PJUM archive routing, cleanup, docs, and full verification are still
+  pending.
 - Repository-wide TypeScript verification needs the existing `vitest`
   dependency gap resolved or that spec excluded from production type checks.
