@@ -4,12 +4,8 @@ import { requireRole } from "@/lib/authorization";
 import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import prisma from "@/lib/prisma";
 import { generateRevisionPdf } from "@/lib/pdf/generate-revision-pdf";
-import {
-    uploadPdfToDrive,
-    ensureDriveFolderPath,
-    deleteFileFromDrive,
-} from "@/lib/google-drive/files";
-import { buildDriveFolderUrl } from "@/lib/google-drive/archive";
+import { deleteFileFromDrive } from "@/lib/google-drive/files";
+import { uploadRevisionReportToDrive } from "@/lib/google-drive/archive";
 import { logger } from "@/lib/logger";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
 import { JAKARTA_TIME_ZONE, getJakartaYear } from "@/lib/time";
@@ -20,10 +16,6 @@ import type {
     RealisasiItemJson,
 } from "@/types/report";
 import { revalidatePath } from "next/cache";
-
-function sanitizeDriveName(value: string): string {
-    return value.replaceAll("/", "-").trim() || "-";
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -302,22 +294,8 @@ export async function applyRealisasiRevision(
         }
 
         // ── 2. Resolve Drive folder ──────────────────────────────────────────
-        const branchName = sanitizeDriveName(report.branchName);
-        const bmsFolder = `${sanitizeDriveName(report.createdByNIK)}-${sanitizeDriveName(report.createdBy.name)}`;
         const storeName = report.store?.name ?? report.storeName;
         const storeCode = report.store?.code ?? report.storeCode;
-        const storeFolderName = `${sanitizeDriveName(storeCode ?? "-")}-${sanitizeDriveName(storeName)}`;
-        const reportFolderName = sanitizeDriveName(reportNumber);
-
-        const reportFolderId = await ensureDriveFolderPath([
-            "Laporan Maintenance",
-            branchName,
-            bmsFolder,
-            storeFolderName,
-            reportFolderName,
-        ]);
-
-        const folderUrl = buildDriveFolderUrl(reportFolderId);
 
         // ── 3. Parse items & estimations ─────────────────────────────────────
         const items = (report.items ?? []) as unknown as ReportItemJson[];
@@ -372,17 +350,20 @@ export async function applyRealisasiRevision(
         }
 
         // ── 6. Upload ────────────────────────────────────────────────────────
-        const revisionFileName = `${sanitizeDriveName(reportNumber)}-Revisi.pdf`;
-        const revisionUploaded = await uploadPdfToDrive({
-            fileName: revisionFileName,
-            folderId: reportFolderId,
-            buffer: finalPdfBuffer,
-            overwriteIfExists: true,
+        const revisionUploaded = await uploadRevisionReportToDrive({
+            branchName: report.branchName,
+            bmsNIK: report.createdByNIK,
+            bmsName: report.createdBy.name,
+            storeCode,
+            storeName,
+            reportNumber,
+            pdfBuffer: finalPdfBuffer,
         });
 
         const revisedPdfUrl =
             revisionUploaded.webViewLink ??
             `https://drive.google.com/file/d/${revisionUploaded.fileId}/view`;
+        const folderUrl = revisionUploaded.folderUrl;
 
         // ── 7. Save to DB ────────────────────────────────────────────────────
         try {

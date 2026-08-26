@@ -77,6 +77,20 @@ Legacy Drive file migration is outside this scope.
 - `app/reports/[reportNumber]/completion/use-completion-work-form.ts`: sends
   `COMPLETION_RESULT`, `COMPLETION_RECEIPT`,
   `COMPLETION_ADDITIONAL`, and start-work revision contexts.
+- `lib/google-drive/archive.ts`: refactored report/PJUM archive uploads behind
+  an injected service and routed final PDFs, revision PDFs, and PJUM PDFs into
+  the approved hierarchy.
+- `lib/google-drive/report-archive.spec.ts`: added archive service assertions
+  for final report documents, revision report documents, and branch-level PJUM
+  upload destinations.
+- `lib/pdf/report-snapshots.ts`: changed `COMPLETED` report snapshot
+  publication to upload through the canonical final report archive function.
+- `lib/pdf/snapshot-storage.ts`: removed the legacy final report Drive path
+  builder; remaining APIs are for transient snapshot paths.
+- `app/dashboard/intervensi/revisi-laporan/actions.ts`: changed admin revision
+  PDF publication to upload through the canonical revision archive function.
+- `app/reports/pjum/approval-actions.ts`: changed final report fallback upload
+  during PJUM approval to use the canonical final report archive function.
 
 ## Decisions
 
@@ -97,6 +111,12 @@ Legacy Drive file migration is outside this scope.
 - Drive upload no longer has a root-folder parent fallback for photo files.
 - Completion receipt photos now upload into the canonical nota realisasi
   evidence folder instead of being omitted from completion payloads.
+- Final and revision report PDFs now resolve
+  `Maintenance/<reportNumber>/01 - Dokumen` under the authoritative store
+  folder.
+- PJUM approval PDFs now resolve the branch-level
+  `PJUM Sparta-Maintenance/<NIK> - <name>/<year>/<month>` folder.
+- Legacy snapshot storage no longer owns canonical final report Drive paths.
 
 ## Verification
 
@@ -128,10 +148,13 @@ Legacy Drive file migration is outside this scope.
   - `lib/completion-evidence.spec.ts`
 - `tsc --noEmit` after Task 5: same single pre-existing `vitest` dependency
   error only.
+- Esbuild `write:false` execution of Task 6/7 focused spec passed:
+  - `lib/google-drive/report-archive.spec.ts`
+- `tsc --noEmit --incremental false` after Task 6/7: same single pre-existing
+  `vitest` dependency error only.
 
 ## Remaining Work and Risks
 
-- PDF/PJUM archive routing, cleanup, docs, and full verification are still
-  pending.
+- Cleanup, root env config, docs, and full verification are still pending.
 - Repository-wide TypeScript verification needs the existing `vitest`
   dependency gap resolved or that spec excluded from production type checks.

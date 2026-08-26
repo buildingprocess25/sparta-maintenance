@@ -649,7 +649,7 @@ git commit -m "feat: attach context to photo uploads"
 - Consumes: `ensureReportDocumentFolder`, final/revision filename policy, PDF buffers, and report/store metadata.
 - Produces: `uploadCompletedReportToDrive` and `uploadRevisionReportToDrive`, each returning file and folder URLs.
 
-- [ ] **Step 1: Write archive destination assertions**
+- [x] **Step 1: Write archive destination assertions**
 
 With an injected fake hierarchy/upload adapter, assert final and revision use
 the same document folder, separate deterministic names, and overwrite enabled:
@@ -667,32 +667,32 @@ assert.deepEqual(revisionUpload, {
 });
 ```
 
-- [ ] **Step 2: Run the archive spec and confirm failure**
+- [x] **Step 2: Run the archive spec and confirm failure**
 
 Run: `npx tsx lib/google-drive/report-archive.spec.ts`
 
 Expected: FAIL because the archive service still builds the legacy BMS/store path.
 
-- [ ] **Step 3: Replace legacy path construction with hierarchy resolution**
+- [x] **Step 3: Replace legacy path construction with hierarchy resolution**
 
 `uploadCompletedReportToDrive` receives branch/store/report metadata only,
 resolves `Maintenance/<report>/01 - Dokumen`, and uploads the final filename.
 Add `uploadRevisionReportToDrive` with the same folder resolver and revision
 filename. Remove BMS folders from report paths.
 
-- [ ] **Step 4: Update snapshot and PJUM approval callers**
+- [x] **Step 4: Update snapshot and PJUM approval callers**
 
 Replace `buildFinalReportDrivePath` plus `uploadPdfSnapshot` for final report
 publication with `uploadCompletedReportToDrive`. Keep transient snapshot APIs
 for workflow snapshots only; they must not produce a canonical final path.
 
-- [ ] **Step 5: Update Admin revision action**
+- [x] **Step 5: Update Admin revision action**
 
 Remove its manual legacy `ensureDriveFolderPath` construction. Call
 `uploadRevisionReportToDrive`, persist `revisedPdfDriveUrl` and the returned
 document folder URL, and retain rollback deletion if the database update fails.
 
-- [ ] **Step 6: Run archive, PDF, and revision-focused checks**
+- [x] **Step 6: Run archive, PDF, and revision-focused checks**
 
 Run:
 
@@ -703,7 +703,7 @@ npx tsc --noEmit
 
 Expected: spec exits 0 and TypeScript reports no errors.
 
-- [ ] **Step 7: Commit canonical report documents**
+- [x] **Step 7: Commit canonical report documents**
 
 ```bash
 git add lib/google-drive/archive.ts lib/google-drive/report-archive.spec.ts lib/pdf/snapshot-storage.ts app/dashboard/intervensi/revisi-laporan/actions.ts app/reports/pjum/approval-actions.ts
@@ -721,7 +721,7 @@ git commit -m "feat: archive reports in store Maintenance"
 - Consumes: branch, BMS identity, year, month, week, report count, document code, and PDF buffer.
 - Produces: PJUM in `<branch>/PJUM Sparta-Maintenance/<NIK> - <name>/<year>/<month>`.
 
-- [ ] **Step 1: Add a failing PJUM path assertion**
+- [x] **Step 1: Add a failing PJUM path assertion**
 
 ```ts
 assert.deepEqual(pjumFolderRequest, {
@@ -734,25 +734,25 @@ assert.equal(
 );
 ```
 
-- [ ] **Step 2: Run the archive spec and confirm the PJUM assertion fails**
+- [x] **Step 2: Run the archive spec and confirm the PJUM assertion fails**
 
 Run: `npx tsx lib/google-drive/report-archive.spec.ts`
 
 Expected: FAIL showing the legacy `PJUM/<branch>` path.
 
-- [ ] **Step 3: Implement branch-level PJUM resolution**
+- [x] **Step 3: Implement branch-level PJUM resolution**
 
 Use `ensurePjumMonthFolder`; preserve deterministic overwrite semantics and
 sanitize month/document code. Remove `ensureBmcPjumArchiveFolder` if no caller
 remains.
 
-- [ ] **Step 4: Run the archive spec**
+- [x] **Step 4: Run the archive spec**
 
 Run: `npx tsx lib/google-drive/report-archive.spec.ts`
 
 Expected: PASS with exit code 0.
 
-- [ ] **Step 5: Commit PJUM placement**
+- [x] **Step 5: Commit PJUM placement**
 
 ```bash
 git add lib/google-drive/archive.ts lib/google-drive/report-archive.spec.ts app/reports/pjum/approval-actions.ts
