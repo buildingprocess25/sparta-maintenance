@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import imageCompression from "browser-image-compression";
+import { ensureDriveDraftReport } from "@/app/reports/actions";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import {
     checklistCategories,
@@ -45,6 +46,8 @@ export function usePhotoUpload({
     checklist,
     setChecklist,
     selectedStoreCode,
+    draftReportId,
+    setDraftReportId,
 }: UsePhotoUploadParams) {
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [activePhotoItemId, setActivePhotoItemId] = useState<string | null>(
@@ -86,6 +89,17 @@ export function usePhotoUpload({
             const uploadingToastId = toast.loading("Mengunggah foto...");
 
             try {
+                let reportNumber = draftReportId;
+                if (!reportNumber) {
+                    const draftResult =
+                        await ensureDriveDraftReport(selectedStoreCode);
+                    if ("error" in draftResult) {
+                        throw new Error(draftResult.detail ?? draftResult.error);
+                    }
+                    reportNumber = draftResult.reportNumber;
+                    setDraftReportId(reportNumber);
+                }
+
                 const compressedFile = await imageCompression(file, {
                     maxSizeMB: 0.07, // Target max size in megabytes (70KB)
                     maxWidthOrHeight: 1280,
@@ -160,7 +174,13 @@ export function usePhotoUpload({
 
             setActivePhotoItemId(null);
         },
-        [activePhotoItemId, selectedStoreCode, setChecklist],
+        [
+            activePhotoItemId,
+            draftReportId,
+            selectedStoreCode,
+            setChecklist,
+            setDraftReportId,
+        ],
     );
 
     const removePhoto = useCallback(

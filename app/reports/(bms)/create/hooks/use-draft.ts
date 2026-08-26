@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
-import { discardLocalDraftFiles } from "@/app/reports/actions";
+import {
+    discardDriveDraftReport,
+    discardLocalDraftFiles,
+} from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
 import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import {
@@ -157,6 +160,9 @@ export function useDraft({
                     if (s) {
                         await handleStoreChange(s.code);
                     }
+                }
+                if (!autoRestore && localDraftData?.draftReportNumber) {
+                    setDraftReportId(localDraftData.draftReportNumber);
                 }
 
                 const fetchPhotoFromUrl = async (
@@ -389,6 +395,7 @@ export function useDraft({
             setOpenCategories,
             setBmsItems,
             handleStoreChange,
+            setDraftReportId,
         ],
     );
 
@@ -403,6 +410,12 @@ export function useDraft({
 
                 if (fileKeys.length > 0) {
                     await discardLocalDraftFiles(fileKeys);
+                }
+                if (localDraftData.draftReportNumber) {
+                    await discardDriveDraftReport(
+                        localDraftData.draftReportNumber,
+                    );
+                    setDraftReportId(null);
                 }
                 localStorage.removeItem(LOCAL_STORAGE_KEY);
                 await clearDraftPhotos().catch((error) => {
@@ -469,6 +482,7 @@ export function useDraft({
 
         const draftCreatedAt = getOrSetDraftCreatedAt();
         const draftDataPayload: DraftData = {
+            draftReportNumber: draftReportId || undefined,
             storeCode: debouncedStoreCode || undefined,
             storeName: store,
             branchName: userBranchName,
@@ -486,9 +500,6 @@ export function useDraft({
                     savedAt: new Date().toISOString(),
                 }),
             );
-            if (!draftReportId) {
-                setDraftReportId(`LCL-${Date.now()}`); // Pseudo local ID
-            }
         } catch (err) {
             console.error(
                 "[Auto-save exception] failed to write localStorage",
@@ -530,6 +541,7 @@ export function useDraft({
 
         const draftCreatedAt = getOrSetDraftCreatedAt();
         return {
+            draftReportNumber: draftReportId || undefined,
             storeCode: selectedStoreCode || undefined,
             storeName: store,
             branchName: userBranchName,
@@ -546,6 +558,7 @@ export function useDraft({
         userBranchName,
         activeCategories,
         grandTotalBms,
+        draftReportId,
     ]);
 
     return {

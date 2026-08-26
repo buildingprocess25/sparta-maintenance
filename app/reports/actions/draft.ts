@@ -66,3 +66,36 @@ export async function discardLocalDraftFiles(fileKeys: string[]) {
         };
     }
 }
+
+export async function discardDriveDraftReport(reportNumber: string) {
+    try {
+        const user = await requireRole("BMS");
+        const headersList = await headers();
+        await validateCSRF(headersList);
+
+        const parsed = deleteDraftSchema.safeParse({ reportNumber });
+        if (!parsed.success) {
+            return { error: "Nomor draft tidak valid" };
+        }
+
+        await prisma.report.deleteMany({
+            where: {
+                reportNumber: parsed.data.reportNumber,
+                createdByNIK: user.NIK,
+                status: "DRAFT",
+            },
+        });
+
+        return { success: true };
+    } catch (error) {
+        logger.error(
+            { operation: "discardDriveDraftReport" },
+            "Failed to discard reserved Drive draft report",
+            error,
+        );
+        return {
+            error: "Gagal menghapus draft laporan",
+            detail: getErrorDetail(error),
+        };
+    }
+}

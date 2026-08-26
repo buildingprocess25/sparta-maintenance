@@ -34,6 +34,26 @@ Legacy Drive file migration is outside this scope.
   folders, and PJUM folders.
 - `lib/google-drive/files.ts`: routed legacy folder path ensure operations
   through the shared Drive folder gateway.
+- `lib/reports/drive-draft-service.ts`: added injected DRAFT reservation and
+  promotion rules for real report numbers before checklist photo upload.
+- `lib/reports/drive-draft-service.spec.ts`: added fake-repository coverage for
+  DRAFT reuse, store-change replacement, branch validation, ownership rejection,
+  and promotion without creating another row.
+- `lib/reports/drive-draft-prisma-repository.ts`: added Prisma transaction
+  adapter for Drive DRAFT reservation and promotion.
+- `app/reports/actions/ensure-drive-draft.ts`: added authenticated BMS server
+  action that reserves a real DRAFT report number.
+- `app/reports/actions/submit.ts`: promotes a reserved DRAFT report when
+  `draftReportNumber` is present, with legacy create fallback retained during
+  the migration.
+- `app/reports/actions/draft.ts` and `app/reports/actions.ts`: added/exported
+  reserved DRAFT discard behavior.
+- `app/reports/actions/types.ts`: allowed `draftReportNumber` in create draft
+  payloads.
+- `app/reports/(bms)/create/hooks/use-draft.ts`: persists real
+  `draftReportNumber` and removes the old `LCL-*` pseudo ID.
+- `app/reports/(bms)/create/hooks/use-photo-upload.ts`: reserves a real DRAFT
+  report before the first checklist photo upload.
 
 ## Decisions
 
@@ -45,6 +65,10 @@ Legacy Drive file migration is outside this scope.
   them, which keeps accidental writes away from the wrong Drive root.
 - Store cache keys include root, branch, and authoritative database store code;
   invalid cached folders are deleted before a fresh Drive scan.
+- Reserved Drive DRAFT numbers are reused for the same BMS/store and replaced
+  when the selected store changes.
+- Submit can now promote a reserved DRAFT row instead of always creating a new
+  report row. The fallback path remains until all upload contexts are wired.
 
 ## Verification
 
@@ -57,8 +81,17 @@ Legacy Drive file migration is outside this scope.
   - `lib/google-drive/hierarchy-service.spec.ts`
   - `lib/google-drive/dev-proxy.spec.ts`
   - `lib/storage/photo-url.spec.ts`
+- Esbuild `write:false` execution of Task 3 focused specs: passed.
+  - `lib/reports/drive-draft-service.spec.ts`
+  - `app/reports/actions/types.spec.ts`
+  - `app/reports/actions/report-json-helpers.spec.ts`
+- `tsc --noEmit` with `NODE_OPTIONS=--max-old-space-size=8192`: code changes
+  reached a single pre-existing dependency error:
+  `lib/utils.spec.ts(1,30): Cannot find module 'vitest'`.
 
 ## Remaining Work and Risks
 
-- DRAFT lifecycle, photo route, client contexts, PDF/PJUM archive routing,
-  cleanup, docs, and full verification are still pending.
+- Photo route, client contexts, PDF/PJUM archive routing, cleanup, docs, and
+  full verification are still pending.
+- Repository-wide TypeScript verification needs the existing `vitest`
+  dependency gap resolved or that spec excluded from production type checks.
