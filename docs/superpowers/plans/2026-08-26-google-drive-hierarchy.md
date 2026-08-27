@@ -16,7 +16,10 @@
 - Name fallback ignores case, outer whitespace, and repeated whitespace only; it is not fuzzy matching.
 - Existing no-ulok and Drive store-name segments are preserved when correcting the final code segment.
 - New store folders use `BELUM DIISI - <NAMA TOKO DB> - <KODE TOKO DB>`.
-- Multiple code or normalized-name matches fail without rename, merge, or fallback creation.
+- Every folder level below the root is ensured on demand: reuse when present,
+  create when missing.
+- Multiple code or normalized-name matches reuse the first folder returned by
+  Google Drive without merge or fallback creation.
 - `Maintenance` is created beside `Building`; Building-owned content is never modified.
 - Empty evidence category folders are not pre-created.
 - Existing legacy files are not migrated or deleted in this implementation.

@@ -171,58 +171,66 @@ const duplicateCodeGateway = baseGateway([
   { id: "store-a", name: "ULOK-1 - A - Q001", parentId: "toko-bali" },
   { id: "store-b", name: "ULOK-2 - B - Q001", parentId: "toko-bali" },
 ]);
-await assert.rejects(
-  resolveStoreFolder(deps(duplicateCodeGateway), {
-    rootFolderId: "root",
-    branchName: "BALI",
-    storeCode: "Q001",
-    storeName: "A",
-  }),
-  /Ambiguous Drive store folder code match/,
-);
-assert.equal(duplicateCodeGateway.creates.length, 0);
+const duplicateCode = await resolveStoreFolder(deps(duplicateCodeGateway), {
+  rootFolderId: "root",
+  branchName: "BALI",
+  storeCode: "Q001",
+  storeName: "A",
+});
+assert.equal(duplicateCode.storeFolderId, "store-a");
+assert.deepEqual(duplicateCodeGateway.creates[0], {
+  parentId: "store-a",
+  name: "Maintenance",
+  id: "created-1",
+});
 
 const duplicateNameGateway = baseGateway([
   { id: "store-a", name: "ULOK-1 - ALFAMART A - -", parentId: "toko-bali" },
   { id: "store-b", name: "ULOK-2 - ALFAMART  A - -", parentId: "toko-bali" },
 ]);
-await assert.rejects(
-  resolveStoreFolder(deps(duplicateNameGateway), {
-    rootFolderId: "root",
-    branchName: "BALI",
-    storeCode: "Q001",
-    storeName: "ALFAMART A",
-  }),
-  /Ambiguous Drive store folder name match/,
-);
-assert.equal(duplicateNameGateway.creates.length, 0);
+const duplicateName = await resolveStoreFolder(deps(duplicateNameGateway), {
+  rootFolderId: "root",
+  branchName: "BALI",
+  storeCode: "Q001",
+  storeName: "ALFAMART A",
+});
+assert.equal(duplicateName.storeFolderId, "store-a");
+assert.deepEqual(duplicateNameGateway.renames[0], {
+  id: "store-a",
+  name: "ULOK-1 - ALFAMART A - Q001",
+});
 
 const missingBranchGateway = new FakeGateway([{ id: "root", name: "DOKUMEN SPARTA" }]);
-await assert.rejects(
-  resolveStoreFolder(deps(missingBranchGateway), {
-    rootFolderId: "root",
-    branchName: "BALI",
-    storeCode: "Q001",
-    storeName: "ALFAMART A",
-  }),
-  /Branch folder 'BALI' not found/,
-);
-assert.equal(missingBranchGateway.creates.length, 0);
+const missingBranch = await resolveStoreFolder(deps(missingBranchGateway), {
+  rootFolderId: "root",
+  branchName: "BALI",
+  storeCode: "Q001",
+  storeName: "ALFAMART A",
+});
+assert.equal(missingBranch.createdStoreFolder, true);
+assert.deepEqual(missingBranchGateway.creates.map((create) => create.name), [
+  "BALI",
+  "Toko",
+  "BELUM DIISI - ALFAMART A - Q001",
+  "Maintenance",
+]);
 
 const missingTokoGateway = new FakeGateway([
   { id: "root", name: "DOKUMEN SPARTA" },
   { id: "branch-bali", name: "BALI", parentId: "root" },
 ]);
-await assert.rejects(
-  resolveStoreFolder(deps(missingTokoGateway), {
-    rootFolderId: "root",
-    branchName: "BALI",
-    storeCode: "Q001",
-    storeName: "ALFAMART A",
-  }),
-  /Toko folder not found/,
-);
-assert.equal(missingTokoGateway.creates.length, 0);
+const missingToko = await resolveStoreFolder(deps(missingTokoGateway), {
+  rootFolderId: "root",
+  branchName: "BALI",
+  storeCode: "Q001",
+  storeName: "ALFAMART A",
+});
+assert.equal(missingToko.tokoFolderId, "created-1");
+assert.deepEqual(missingTokoGateway.creates.map((create) => create.name), [
+  "Toko",
+  "BELUM DIISI - ALFAMART A - Q001",
+  "Maintenance",
+]);
 
 const cacheGateway = byCodeGateway;
 const cache = new FakeCache();

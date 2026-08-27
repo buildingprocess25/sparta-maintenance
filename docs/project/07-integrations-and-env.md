@@ -100,8 +100,11 @@ Struktur folder baru:
 
 Aturan resolver:
 
-- Folder cabang dan folder `Toko` harus sudah ada di root. Kode tidak membuat
-  keduanya untuk menghindari salah root.
+- Setiap level folder di bawah root dibuat on demand. Jika folder sudah ada,
+  sistem memakai folder yang ada; jika belum ada, sistem membuat folder baru.
+- Jika ada lebih dari satu folder dengan nama/kriteria yang sama di level yang
+  sama, sistem memakai folder pertama dari hasil Google Drive API agar flow
+  upload tidak berhenti karena duplicate folder.
 - Folder toko dicari berdasarkan kode toko database lebih dulu. Jika kode tidak
   cocok tetapi nama toko match secara normalisasi sederhana, kode di segmen
   terakhir folder Drive diganti dengan kode database.

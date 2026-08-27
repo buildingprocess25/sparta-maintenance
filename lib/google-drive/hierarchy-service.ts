@@ -61,32 +61,30 @@ export async function resolveStoreFolder(
   deps: DriveHierarchyDeps,
   input: StoreResolutionInput,
 ): Promise<StoreResolution> {
-  const branchFolder = await findRequiredChildFolder(
+  const branchFolderId = await ensureNamedChildFolder(
     deps.gateway,
     input.rootFolderId,
     input.branchName,
-    `Branch folder '${input.branchName}' not found`,
   );
-  const tokoFolder = await findRequiredChildFolder(
+  const tokoFolderId = await ensureNamedChildFolder(
     deps.gateway,
-    branchFolder.id,
+    branchFolderId,
     STORE_COLLECTION_FOLDER,
-    `Toko folder not found under branch '${input.branchName}'`,
   );
   const storeCacheKey = buildStoreCacheKey(input);
   const cachedStoreId = await deps.cache?.get(storeCacheKey);
 
   if (cachedStoreId) {
     const cachedStore = await deps.gateway.getFolder(cachedStoreId);
-    if (cachedStore?.parentIds.includes(tokoFolder.id)) {
+    if (cachedStore?.parentIds.includes(tokoFolderId)) {
       const maintenanceFolderId = await ensureNamedChildFolder(
         deps.gateway,
         cachedStore.id,
         MAINTENANCE_FOLDER,
       );
       return {
-        branchFolderId: branchFolder.id,
-        tokoFolderId: tokoFolder.id,
+        branchFolderId,
+        tokoFolderId,
         storeFolderId: cachedStore.id,
         maintenanceFolderId,
         repairedStoreCode: false,
@@ -96,7 +94,7 @@ export async function resolveStoreFolder(
     await deps.cache?.delete(storeCacheKey);
   }
 
-  const storeFolders = await deps.gateway.listChildFolders(tokoFolder.id);
+  const storeFolders = await deps.gateway.listChildFolders(tokoFolderId);
   const parsedStoreFolders = storeFolders
     .map((folder) => ({ folder, parsed: parseStoreFolderName(folder.name) }))
     .filter((entry): entry is { folder: DriveFolder; parsed: ParsedStoreFolderName } =>
@@ -108,30 +106,18 @@ export async function resolveStoreFolder(
     ({ parsed }) => normalizeStoreIdentity(parsed.storeCode) === normalizedStoreCode,
   );
 
-  if (codeMatches.length > 1) {
-    throw new Error(
-      `Ambiguous Drive store folder code match for '${input.storeCode}' in branch '${input.branchName}'`,
-    );
-  }
-
   let selectedFolder: DriveFolder | null = null;
   let repairedStoreCode = false;
   let createdStoreFolder = false;
 
-  if (codeMatches.length === 1) {
+  if (codeMatches.length > 0) {
     selectedFolder = codeMatches[0]!.folder;
   } else {
     const nameMatches = parsedStoreFolders.filter(
       ({ parsed }) => normalizeStoreIdentity(parsed.storeName) === normalizedStoreName,
     );
 
-    if (nameMatches.length > 1) {
-      throw new Error(
-        `Ambiguous Drive store folder name match for '${input.storeName}' in branch '${input.branchName}'`,
-      );
-    }
-
-    if (nameMatches.length === 1) {
+    if (nameMatches.length > 0) {
       const match = nameMatches[0]!;
       const repairedName = `${match.parsed.noUlok} - ${match.parsed.storeName} - ${input.storeCode.trim()}`;
       await deps.cache?.delete(storeCacheKey);
@@ -143,7 +129,7 @@ export async function resolveStoreFolder(
 
   if (!selectedFolder) {
     selectedFolder = await deps.gateway.createFolder(
-      tokoFolder.id,
+      tokoFolderId,
       buildNewStoreFolderName({
         storeName: input.storeName,
         storeCode: input.storeCode,
@@ -161,8 +147,8 @@ export async function resolveStoreFolder(
   await deps.cache?.upsert(storeCacheKey, selectedFolder.id);
 
   return {
-    branchFolderId: branchFolder.id,
-    tokoFolderId: tokoFolder.id,
+    branchFolderId,
+    tokoFolderId,
     storeFolderId: selectedFolder.id,
     maintenanceFolderId,
     repairedStoreCode,
@@ -225,34 +211,19 @@ export async function ensurePjumMonthFolder(
     await deps.cache?.delete(pjumCacheKey);
   }
 
-  const branchFolder = await findRequiredChildFolder(
+  const branchFolderId = await ensureNamedChildFolder(
     deps.gateway,
     input.rootFolderId,
     input.branchName,
-    `Branch folder '${input.branchName}' not found`,
   );
   const pjumFolderId = await ensureFolderPath(
     deps.gateway,
-    branchFolder.id,
+    branchFolderId,
     buildPjumRelativePath(input),
   );
 
   await deps.cache?.upsert(pjumCacheKey, pjumFolderId);
   return pjumFolderId;
-}
-
-async function findRequiredChildFolder(
-  gateway: DriveFolderGateway,
-  parentId: string,
-  name: string,
-  errorMessage: string,
-): Promise<DriveFolder> {
-  const folders = await gateway.listChildFolders(parentId);
-  const match = folders.find((folder) => folder.name === name);
-  if (!match) {
-    throw new Error(errorMessage);
-  }
-  return match;
 }
 
 async function ensureFolderPath(

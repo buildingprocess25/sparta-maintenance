@@ -109,6 +109,11 @@ Legacy Drive file migration is outside this scope.
   steps for the Drive hierarchy rollout.
 - `docs/superpowers/plans/2026-08-26-google-drive-hierarchy.md`: marked the
   implemented plan steps through cleanup/root config.
+- `lib/google-drive/hierarchy-service.ts`: later updated so missing branch and
+  `Toko` folders are also created on demand, and duplicate store matches reuse
+  the first Drive result instead of stopping the upload flow.
+- `docs/agent-notes/2026-08-27-1045-drive-folder-ensure-all-levels.md`: added
+  the follow-up decision record for ensure-all-level folder behavior.
 
 ## Decisions
 
@@ -116,8 +121,10 @@ Legacy Drive file migration is outside this scope.
 - Evidence category folders are built only from semantic upload destinations.
 - PJUM folder naming is centralized in the pure policy so runtime code and tests
   cannot drift from the approved structure.
-- Existing branch and `Toko` folders are required. The resolver does not create
-  them, which keeps accidental writes away from the wrong Drive root.
+- Every folder level below the configured root is now ensure-on-missing. If a
+  direct child already exists it is reused; if it does not exist it is created.
+- Duplicate folder matches reuse the first result returned by Google Drive
+  instead of failing the upload flow.
 - Store cache keys include root, branch, and authoritative database store code;
   invalid cached folders are deleted before a fresh Drive scan.
 - Reserved Drive DRAFT numbers are reused for the same BMS/store and replaced
