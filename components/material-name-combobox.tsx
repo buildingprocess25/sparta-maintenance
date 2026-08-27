@@ -39,7 +39,7 @@ export function MaterialNameCombobox({
       value={value}
       inputValue={value}
       onInputValueChange={onValueChange}
-      onValueChange={(nextValue) => {
+      onValueChange={(nextValue: string | null) => {
         if (nextValue !== null) onValueChange(nextValue);
       }}
       autoHighlight
@@ -55,7 +55,7 @@ export function MaterialNameCombobox({
           Nama belum ada di master. Teks tetap dapat digunakan.
         </ComboboxEmpty>
         <ComboboxList>
-          {(option) => (
+          {(option: string) => (
             <ComboboxItem key={option} value={option}>
               {option}
             </ComboboxItem>

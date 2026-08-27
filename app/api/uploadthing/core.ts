@@ -29,7 +29,8 @@ export const ourFileRouter = {
   })
     .middleware(authMiddleware)
     .onUploadComplete(async ({ file }) => {
-      return { url: file.ufsUrl, key: file.key };
+      const f = file as any;
+      return { url: f.url, key: f.key };
     }),
 
   /**
@@ -41,7 +42,8 @@ export const ourFileRouter = {
   })
     .middleware(authMiddleware)
     .onUploadComplete(async ({ file }) => {
-      return { url: file.ufsUrl, key: file.key };
+      const f = file as any;
+      return { url: f.url, key: f.key };
     }),
 
   /**
@@ -53,7 +55,8 @@ export const ourFileRouter = {
   })
     .middleware(authMiddleware)
     .onUploadComplete(async ({ file }) => {
-      return { url: file.ufsUrl, key: file.key };
+      const f = file as any;
+      return { url: f.url, key: f.key };
     }),
 } satisfies FileRouter;
 

@@ -45,9 +45,10 @@ export async function compressAndUploadToUT(
             files: [compressedFile],
         });
 
-        if (!result?.url || !result?.key) return null;
+        const res = result as any;
+        if (!res?.serverData?.url || !res?.serverData?.key) return null;
 
-        return { url: result.url, key: result.key };
+        return { url: res.serverData.url, key: res.serverData.key };
     } catch (err) {
         console.error("[compressAndUploadToUT] Upload error:", err);
         return null;
