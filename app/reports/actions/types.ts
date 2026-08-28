@@ -23,6 +23,7 @@ export type BmsEstimationData = {
 };
 
 export type DraftData = {
+    draftReportNumber?: string;
     storeCode?: string;
     storeName?: string;
     branchName?: string;
@@ -181,6 +182,7 @@ function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
 
     return z
         .object({
+            draftReportNumber: z.string().trim().min(1).max(100).optional(),
             storeCode: z.string().max(50).optional(),
             storeName: z.string().max(300).optional(),
             branchName: z.string().max(200).optional(),

@@ -15,12 +15,12 @@
 | `GOOGLE_CLIENT_ID` | Google OAuth client untuk Drive/Gmail utama. |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth secret untuk Drive/Gmail utama. |
 | `GOOGLE_REFRESH_TOKEN` | Refresh token Google utama. |
-| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Root folder arsip PDF laporan dan PJUM. |
+| `GOOGLE_DRIVE_ROOT_FOLDER_ID` | Root canonical `DOKUMEN SPARTA` untuk foto, PDF laporan, dan PJUM setelah cutover. |
 | `GMAIL_USER` | Email sender Gmail OAuth2. |
 | `DRIVE_CDN_CLIENT_ID` | Google OAuth client untuk foto/Drive CDN. |
 | `DRIVE_CDN_CLIENT_SECRET` | Google OAuth secret untuk foto/Drive CDN. |
 | `DRIVE_CDN_REFRESH_TOKEN` | Refresh token foto/Drive CDN. |
-| `DRIVE_CDN_ROOT_FOLDER_ID` | Root folder foto. |
+| `DRIVE_CDN_ROOT_FOLDER_ID` | Compatibility fallback root foto. Setelah cutover isi sama dengan `GOOGLE_DRIVE_ROOT_FOLDER_ID`; kode baru memprioritaskan `GOOGLE_DRIVE_ROOT_FOLDER_ID`. |
 | `DRIVE_CDN_SHARE_MODE` | Mode share foto: `private`, `domain`, atau mode yang didukung service. |
 | `DRIVE_CDN_SHARE_DOMAIN` | Domain share jika `DRIVE_CDN_SHARE_MODE=domain`. |
 | `CRON_SECRET` | Secret endpoint cron. |
@@ -56,6 +56,71 @@ Jangan isi env development-only di production kecuali memang route dan risikonya
 - Foto memakai Drive CDN/proxy agar file dari akun perusahaan tetap bisa diakses aplikasi.
 - File final seperti `completedPdfPath`, `reportFinalDriveUrl`, `pjumPdfPath`, dan `pjumFinalDriveUrl` jangan dihapus tanpa memastikan field database dan UI tidak lagi memakai link tersebut.
 - `GoogleDriveFolderCache` dipakai untuk mengurangi pembuatan folder berulang.
+
+### Google Drive hierarchy
+
+Kode hierarchy-aware memakai `GOOGLE_DRIVE_ROOT_FOLDER_ID` sebagai root bersama
+`DOKUMEN SPARTA`. Foto tetap di-upload memakai credential `DRIVE_CDN_*`, tetapi
+root folder operasionalnya diselesaikan dari `GOOGLE_DRIVE_ROOT_FOLDER_ID`
+dengan fallback sementara ke `DRIVE_CDN_ROOT_FOLDER_ID`.
+
+Struktur folder baru:
+
+```text
+<CABANG>/
+  Toko/
+    <NO ULOK> - <NAMA TOKO> - <KODE TOKO>/
+      Building/
+      Maintenance/
+        <NOMOR LAPORAN>/
+          01 - Dokumen/
+            <NOMOR LAPORAN> - Laporan Final.pdf
+            <NOMOR LAPORAN> - Laporan Revisi.pdf
+          02 - Foto Checklist/
+            <KATEGORI CHECKLIST>/
+              <ITEM ID> - <NAMA ITEM>/
+          03 - Foto Mulai Pekerjaan/
+            01 - Selfie BMS/
+            02 - Nota Pembelian/
+            03 - Toko Material/
+              <URUTAN> - <NAMA TOKO MATERIAL> - <KOTA>/
+          04 - Foto Penyelesaian/
+            01 - Hasil Pekerjaan/
+              <KATEGORI CHECKLIST>/
+                <ITEM ID> - <NAMA ITEM>/
+            02 - Nota Realisasi/
+              <ITEM ID> - <NAMA ITEM>/
+            03 - Dokumentasi Tambahan/
+  PJUM Sparta-Maintenance/
+    <NIK BMS> - <NAMA BMS>/
+      <TAHUN>/
+        <BULAN>/
+          PJUM <BULAN> Minggu ke <N> - <JUMLAH> Laporan - <KODE>.pdf
+```
+
+Aturan resolver:
+
+- Setiap level folder di bawah root dibuat on demand. Jika folder sudah ada,
+  sistem memakai folder yang ada; jika belum ada, sistem membuat folder baru.
+- Jika ada lebih dari satu folder dengan nama/kriteria yang sama di level yang
+  sama, sistem memakai folder pertama dari hasil Google Drive API agar flow
+  upload tidak berhenti karena duplicate folder.
+- Folder toko dicari berdasarkan kode toko database lebih dulu. Jika kode tidak
+  cocok tetapi nama toko match secara normalisasi sederhana, kode di segmen
+  terakhir folder Drive diganti dengan kode database.
+- Placeholder kode Drive `BELUM DIISI` atau `-` diperlakukan sebagai kode yang
+  perlu diperbaiki jika folder tersebut terbukti toko yang sama.
+- Folder toko baru dibuat sebagai
+  `BELUM DIISI - <NAMA TOKO DB> - <KODE TOKO DB>`.
+- `Maintenance` dibuat sejajar dengan `Building`; isi `Building` tidak disentuh.
+- Folder kategori evidence dibuat on demand, bukan dipre-create kosong.
+
+`BACKUP_DRIVE_FOLDER_ID` tetap independen dan harus menunjuk folder backup
+terbatas di luar `DOKUMEN SPARTA`. Credential Google utama harus punya akses
+Editor ke root operasional dan folder backup. Credential Drive CDN harus punya
+akses Editor ke root operasional; tidak perlu akses ke folder backup.
+
+Desain lengkap: `docs/superpowers/specs/2026-08-26-google-drive-hierarchy-design.md`.
 
 ## Gmail
 

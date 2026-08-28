@@ -8,7 +8,10 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
-import { uploadPjumToDrive } from "@/lib/google-drive/archive";
+import {
+    uploadCompletedReportToDrive,
+    uploadPjumToDrive,
+} from "@/lib/google-drive/archive";
 import { sendPjumNotification } from "@/lib/email/send-pjum-notification";
 import type { PjumFormData } from "@/lib/pdf/generate-pjum-form-pdf";
 import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
@@ -22,10 +25,8 @@ import {
     getTodayJakartaRange,
 } from "@/lib/time";
 import {
-    buildFinalReportDrivePath,
     deletePdfSnapshots,
     downloadPdfSnapshot,
-    uploadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
 import { resetBmsBalanceAfterPjumApproval } from "@/lib/balance";
@@ -464,16 +465,19 @@ export async function approvePjumExport(input: {
                     reportPdfBuffer = rebuilt.buffer;
                 }
 
-                const finalPath = buildFinalReportDrivePath({
+                const finalUploaded = await uploadCompletedReportToDrive({
                     branchName: report.branchName,
                     bmsNIK: report.createdByNIK,
                     bmsName: report.createdBy.name,
                     storeCode: report.storeCode,
                     storeName: report.storeName,
                     reportNumber: report.reportNumber,
+                    pdfBuffer: reportPdfBuffer,
                 });
 
-                finalDriveUrl = await uploadPdfSnapshot(finalPath, reportPdfBuffer);
+                finalDriveUrl =
+                    finalUploaded.webViewLink ??
+                    `https://drive.google.com/file/d/${finalUploaded.fileId}/view`;
             }
 
             await prisma.report.update({

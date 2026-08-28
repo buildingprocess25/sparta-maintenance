@@ -1,187 +1,231 @@
-import "server-only";
-
-import { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
+import type { DriveFileResult } from "@/lib/google-drive/files";
+import type {
+  PjumFolderInput,
+  ReportFolderInput,
+} from "@/lib/google-drive/hierarchy-service";
 import {
-    ensureDriveFolderPath,
-    uploadPdfToDrive,
-} from "@/lib/google-drive/files";
+  buildFinalPdfName,
+  buildRevisionPdfName,
+  sanitizeDriveSegment,
+} from "@/lib/google-drive/hierarchy-policy";
 
-function sanitizeDriveName(value: string): string {
-    // Google Drive forbids '/' in names; trim and collapse empty values.
-    return value.replaceAll("/", "-").trim() || "-";
-}
+export type ReportArchiveUploadRequest = {
+  fileName: string;
+  folderId: string;
+  buffer: Buffer;
+  overwriteIfExists: boolean;
+};
+
+type ReportArchiveUploadResult = DriveFileResult & {
+  folderId: string;
+  folderUrl: string;
+  bmsRootFolderId?: string;
+};
+
+type ReportArchiveInput = {
+  branchName: string;
+  bmsNIK: string;
+  bmsName: string;
+  storeCode: string | null;
+  storeName: string;
+  reportNumber: string;
+  pdfBuffer: Buffer;
+};
+
+type PjumArchiveInput = {
+  branchName: string;
+  bmsNIK: string;
+  bmsName: string;
+  year: number;
+  monthName: string;
+  weekNumber: number;
+  reportCount?: number;
+  documentCode?: string;
+  pdfBuffer: Buffer;
+};
+
+type ReportArchiveDeps = {
+  rootFolderId: string;
+  ensureReportDocumentFolder(input: ReportFolderInput): Promise<string>;
+  ensurePjumMonthFolder(input: PjumFolderInput): Promise<string>;
+  uploadPdf(request: ReportArchiveUploadRequest): Promise<DriveFileResult>;
+};
 
 export function buildDriveFolderUrl(folderId: string): string {
-    return `https://drive.google.com/drive/folders/${folderId}`;
+  return `https://drive.google.com/drive/folders/${folderId}`;
 }
 
-async function getCachedFolderId(cacheKey: string): Promise<string | null> {
-    const rows = await prisma.$queryRaw<Array<{ folderId: string }>>(
-        Prisma.sql`
-            SELECT "folderId"
-            FROM "GoogleDriveFolderCache"
-            WHERE "cacheKey" = ${cacheKey}
-            LIMIT 1
-        `,
-    );
-
-    return rows[0]?.folderId ?? null;
-}
-
-async function saveCachedFolderId(
-    cacheKey: string,
+export function createReportArchiveService(deps: ReportArchiveDeps) {
+  async function uploadToFolder(
     folderId: string,
-): Promise<void> {
-    await prisma.$executeRaw(
-        Prisma.sql`
-            INSERT INTO "GoogleDriveFolderCache" ("id", "cacheKey", "folderId", "createdAt", "updatedAt")
-            VALUES (gen_random_uuid()::text, ${cacheKey}, ${folderId}, NOW(), NOW())
-            ON CONFLICT ("cacheKey")
-            DO UPDATE SET
-                "folderId" = EXCLUDED."folderId",
-                "updatedAt" = NOW()
-        `,
-    );
-}
+    request: Omit<ReportArchiveUploadRequest, "folderId" | "overwriteIfExists">,
+  ): Promise<ReportArchiveUploadResult> {
+    const uploaded = await deps.uploadPdf({
+      ...request,
+      folderId,
+      overwriteIfExists: true,
+    });
 
-export async function ensureBmsReportArchiveFolder(params: {
-    branchName: string;
-    bmsNIK: string;
-    bmsName: string;
-}): Promise<string> {
-    const branchName = sanitizeDriveName(params.branchName);
-    const bmsFolder = `${sanitizeDriveName(params.bmsNIK)}-${sanitizeDriveName(params.bmsName)}`;
-    const cacheKey = `BMS_REPORT_ARCHIVE:${branchName}:${params.bmsNIK}`;
+    return {
+      ...uploaded,
+      folderId,
+      folderUrl: buildDriveFolderUrl(folderId),
+    };
+  }
 
-    const cachedFolderId = await getCachedFolderId(cacheKey);
-    if (cachedFolderId) {
-        return cachedFolderId;
-    }
+  return {
+    async uploadCompletedReportToDrive(
+      params: ReportArchiveInput,
+    ): Promise<ReportArchiveUploadResult> {
+      const documentFolderId = await deps.ensureReportDocumentFolder({
+        rootFolderId: deps.rootFolderId,
+        branchName: params.branchName,
+        storeCode: requiredStoreCode(params.storeCode),
+        storeName: params.storeName,
+        reportNumber: params.reportNumber,
+      });
 
-    const folderId = await ensureDriveFolderPath([
-        "Laporan Maintenance",
-        branchName,
-        bmsFolder,
-    ]);
+      return uploadToFolder(documentFolderId, {
+        fileName: buildFinalPdfName(params.reportNumber),
+        buffer: params.pdfBuffer,
+      });
+    },
 
-    await saveCachedFolderId(cacheKey, folderId);
-    return folderId;
-}
+    async uploadRevisionReportToDrive(
+      params: ReportArchiveInput,
+    ): Promise<ReportArchiveUploadResult> {
+      const documentFolderId = await deps.ensureReportDocumentFolder({
+        rootFolderId: deps.rootFolderId,
+        branchName: params.branchName,
+        storeCode: requiredStoreCode(params.storeCode),
+        storeName: params.storeName,
+        reportNumber: params.reportNumber,
+      });
 
-export async function ensureBmcReportArchiveFolder(params: {
-    branchName: string;
-}): Promise<string> {
-    const branchName = sanitizeDriveName(params.branchName);
-    const cacheKey = `BMC_REPORT_ARCHIVE:${branchName}`;
+      return uploadToFolder(documentFolderId, {
+        fileName: buildRevisionPdfName(params.reportNumber),
+        buffer: params.pdfBuffer,
+      });
+    },
 
-    const cachedFolderId = await getCachedFolderId(cacheKey);
-    if (cachedFolderId) {
-        return cachedFolderId;
-    }
-
-    const folderId = await ensureDriveFolderPath([
-        "Laporan Maintenance",
-        branchName,
-    ]);
-
-    await saveCachedFolderId(cacheKey, folderId);
-    return folderId;
-}
-
-export async function ensureBmcPjumArchiveFolder(params: {
-    branchName: string;
-}): Promise<string> {
-    const branchName = sanitizeDriveName(params.branchName);
-    const cacheKey = `BMC_PJUM_ARCHIVE:${branchName}`;
-
-    const cachedFolderId = await getCachedFolderId(cacheKey);
-    if (cachedFolderId) {
-        return cachedFolderId;
-    }
-
-    const folderId = await ensureDriveFolderPath(["PJUM", branchName]);
-    await saveCachedFolderId(cacheKey, folderId);
-    return folderId;
-}
-
-export async function uploadCompletedReportToDrive(params: {
-    branchName: string;
-    bmsNIK: string;
-    bmsName: string;
-    storeCode: string | null;
-    storeName: string;
-    reportNumber: string;
-    pdfBuffer: Buffer;
-}) {
-    const bmsRootFolderId = await ensureBmsReportArchiveFolder({
+    async uploadPjumToDrive(
+      params: PjumArchiveInput,
+    ): Promise<ReportArchiveUploadResult> {
+      const monthFolderId = await deps.ensurePjumMonthFolder({
+        rootFolderId: deps.rootFolderId,
         branchName: params.branchName,
         bmsNIK: params.bmsNIK,
         bmsName: params.bmsName,
-    });
+        year: params.year,
+        monthName: params.monthName,
+      });
 
-    const storeFolderName = `${sanitizeDriveName(params.storeCode ?? "-")}-${sanitizeDriveName(params.storeName)}`;
-    const storeFolderId = await ensureDriveFolderPath([
-        "Laporan Maintenance",
-        sanitizeDriveName(params.branchName),
-        `${sanitizeDriveName(params.bmsNIK)}-${sanitizeDriveName(params.bmsName)}`,
-        storeFolderName,
-    ]);
-
-    const fileName = `${sanitizeDriveName(params.reportNumber)}.pdf`;
-
-    const uploaded = await uploadPdfToDrive({
-        fileName,
-        folderId: storeFolderId,
+      return uploadToFolder(monthFolderId, {
+        fileName: buildPjumPdfName(params),
         buffer: params.pdfBuffer,
-        overwriteIfExists: true,
-    });
-
-    return {
-        ...uploaded,
-        folderId: storeFolderId,
-        folderUrl: buildDriveFolderUrl(storeFolderId),
-        bmsRootFolderId,
-    };
+      });
+    },
+  };
 }
 
-export async function uploadPjumToDrive(params: {
-    branchName: string;
-    bmsNIK: string;
-    bmsName: string;
-    year: number;
-    monthName: string;
-    weekNumber: number;
-    reportCount?: number;
-    documentCode?: string;
-    pdfBuffer: Buffer;
-}) {
-    const monthFolderId = await ensureDriveFolderPath([
-        "PJUM",
-        sanitizeDriveName(params.branchName),
-        `${params.bmsNIK}-${sanitizeDriveName(params.bmsName)}`,
-        String(params.year),
-        sanitizeDriveName(params.monthName),
-    ]);
+export async function ensureBmsReportArchiveFolder(params: {
+  branchName: string;
+  bmsNIK: string;
+  bmsName: string;
+}): Promise<string> {
+  const { ensureDriveFolderPath } = await import("@/lib/google-drive/files");
+  return ensureDriveFolderPath([
+    sanitizeDriveSegment(params.branchName),
+    `${sanitizeDriveSegment(params.bmsNIK)} - ${sanitizeDriveSegment(params.bmsName)}`,
+  ]);
+}
 
-    const reportCount = params.reportCount
-        ? ` - ${params.reportCount} laporan`
-        : "";
-    const documentCode = params.documentCode
-        ? ` - ${sanitizeDriveName(params.documentCode)}`
-        : "";
-    const fileName = `PJUM ${sanitizeDriveName(params.monthName)} minggu ke ${params.weekNumber}${reportCount}${documentCode}.pdf`;
+export async function ensureBmcReportArchiveFolder(params: {
+  branchName: string;
+}): Promise<string> {
+  const { ensureDriveFolderPath } = await import("@/lib/google-drive/files");
+  return ensureDriveFolderPath([sanitizeDriveSegment(params.branchName)]);
+}
 
-    const uploaded = await uploadPdfToDrive({
-        fileName,
-        folderId: monthFolderId,
-        buffer: params.pdfBuffer,
-        overwriteIfExists: true,
-    });
+export async function ensureBmcPjumArchiveFolder(params: {
+  branchName: string;
+}): Promise<string> {
+  const { ensureDriveFolderPath } = await import("@/lib/google-drive/files");
+  return ensureDriveFolderPath([
+    sanitizeDriveSegment(params.branchName),
+    "PJUM Sparta-Maintenance",
+  ]);
+}
 
-    return {
-        ...uploaded,
-        folderId: monthFolderId,
-        folderUrl: buildDriveFolderUrl(monthFolderId),
-    };
+export async function uploadCompletedReportToDrive(
+  params: ReportArchiveInput,
+): Promise<ReportArchiveUploadResult> {
+  return (await createDefaultReportArchiveService()).uploadCompletedReportToDrive(
+    params,
+  );
+}
+
+export async function uploadRevisionReportToDrive(
+  params: ReportArchiveInput,
+): Promise<ReportArchiveUploadResult> {
+  return (await createDefaultReportArchiveService()).uploadRevisionReportToDrive(
+    params,
+  );
+}
+
+export async function uploadPjumToDrive(
+  params: PjumArchiveInput,
+): Promise<ReportArchiveUploadResult> {
+  return (await createDefaultReportArchiveService()).uploadPjumToDrive(params);
+}
+
+async function createDefaultReportArchiveService() {
+  const [
+    { getGoogleDriveClient },
+    { createGoogleFolderGateway },
+    { ensurePjumMonthFolder, ensureReportDocumentFolder },
+    { createPrismaDriveFolderCache },
+    { uploadPdfToDrive },
+    { default: prisma },
+  ] = await Promise.all([
+    import("@/lib/google-drive/client"),
+    import("@/lib/google-drive/folder-gateway"),
+    import("@/lib/google-drive/hierarchy-service"),
+    import("@/lib/google-drive/folder-cache"),
+    import("@/lib/google-drive/files"),
+    import("@/lib/prisma"),
+  ]);
+
+  const client = getGoogleDriveClient();
+  const deps = {
+    gateway: createGoogleFolderGateway(client.drive),
+    cache: createPrismaDriveFolderCache(prisma),
+  };
+
+  return createReportArchiveService({
+    rootFolderId: client.config.rootFolderId,
+    ensureReportDocumentFolder: (input) =>
+      ensureReportDocumentFolder(deps, input),
+    ensurePjumMonthFolder: (input) => ensurePjumMonthFolder(deps, input),
+    uploadPdf: uploadPdfToDrive,
+  });
+}
+
+function requiredStoreCode(storeCode: string | null): string {
+  const normalized = storeCode?.trim();
+  if (!normalized) {
+    throw new Error("Store code is required for canonical Drive report archive");
+  }
+  return normalized;
+}
+
+function buildPjumPdfName(params: PjumArchiveInput): string {
+  const reportCount = params.reportCount
+    ? ` - ${params.reportCount} Laporan`
+    : "";
+  const documentCode = params.documentCode
+    ? ` - ${sanitizeDriveSegment(params.documentCode)}`
+    : "";
+
+  return `PJUM ${sanitizeDriveSegment(params.monthName)} Minggu ke ${params.weekNumber}${reportCount}${documentCode}.pdf`;
 }

@@ -2,11 +2,8 @@ import "server-only";
 
 import prisma from "@/lib/prisma";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
-import {
-    buildFinalReportDrivePath,
-    type ReportPdfCheckpoint,
-    uploadPdfSnapshot,
-} from "@/lib/pdf/snapshot-storage";
+import { uploadCompletedReportToDrive } from "@/lib/google-drive/archive";
+import { type ReportPdfCheckpoint } from "@/lib/pdf/snapshot-storage";
 
 const checkpointFieldMap: Record<
     ReportPdfCheckpoint,
@@ -30,18 +27,18 @@ export async function generateAndSaveReportSnapshot(params: {
     }
     const built = await buildReportPdfBuffer(params.reportNumber);
 
-    const path = buildFinalReportDrivePath({
+    const uploaded = await uploadCompletedReportToDrive({
         branchName: built.report.branchName,
         bmsNIK: built.report.createdByNIK,
         bmsName: built.report.createdByName,
         storeCode: built.report.storeCode,
         storeName: built.report.storeName,
         reportNumber: built.report.reportNumber,
+        pdfBuffer: built.buffer,
     });
-
-    // uploadPdfSnapshot now returns the Drive webViewLink URL so we can
-    // link directly to Drive without proxying through the server.
-    const driveUrl = await uploadPdfSnapshot(path, built.buffer);
+    const driveUrl =
+        uploaded.webViewLink ??
+        `https://drive.google.com/file/d/${uploaded.fileId}/view`;
 
     const fieldName = checkpointFieldMap[params.checkpoint];
     await prisma.report.update({

@@ -21,6 +21,7 @@ import {
 import { getCompletionEvidenceErrors } from "@/lib/completion-evidence";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
+import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
 import {
   realisasiNetTotal,
   type CompletionDraftData,
@@ -506,11 +507,12 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
       const uploadPhotos = async (
         photos: LocalPhoto[],
         errorMessage: string,
+        getContext: (photo: LocalPhoto, index: number) => PhotoUploadContext,
       ) => {
         const urls: string[] = [];
         const fileIds: string[] = [];
 
-        for (const photo of photos) {
+        for (const [index, photo] of photos.entries()) {
           if (photo.id.startsWith("remote-") && photo.previewUrl) {
             urls.push(photo.previewUrl);
             continue;
@@ -522,7 +524,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
             return null;
           }
 
-          const result = await uploadPhoto(file);
+          const result = await uploadPhoto(file, getContext(photo, index));
           if (!result) {
             toast.error(errorMessage, { id: loadingId });
             return null;
@@ -553,24 +555,34 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
               const selfie = await uploadPhotos(
                 startWorkSelfiePhotos,
                 "Gagal mengunggah foto selfie mulai pekerjaan",
+                () => ({ kind: "START_SELFIE", reportNumber }),
               );
               if (!selfie) return undefined;
 
               const receipts = await uploadPhotos(
                 startWorkReceiptPhotos,
                 "Gagal mengunggah foto nota mulai pekerjaan",
+                () => ({ kind: "START_RECEIPT", reportNumber }),
               );
               if (!receipts) return undefined;
 
               let allStorePhotosUploadFailed = false;
               const uploadedStoreFileIds: string[] = [];
               const finalizedStores = await Promise.all(
-                startWorkMaterialStores.map(async (store) => {
+                startWorkMaterialStores.map(async (store, storeIndex) => {
                   const urls: string[] = [];
                   for (const photo of store.photos) {
                     const uploaded = await uploadPhotos(
                       [photo],
                       "Gagal mengunggah foto toko material",
+                      () => ({
+                        kind: "START_MATERIAL_STORE",
+                        reportNumber,
+                        entryId: store.id,
+                        index: storeIndex,
+                        name: store.name,
+                        city: store.city,
+                      }),
                     );
                     if (!uploaded) {
                       allStorePhotosUploadFailed = true;
@@ -613,10 +625,26 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         const afterPhotos = await uploadPhotos(
           state.afterPhotos,
           `Gagal mengunggah foto sesudah untuk item ${item.itemName}`,
+          () => ({
+            kind: "COMPLETION_RESULT",
+            reportNumber,
+            itemId: item.itemId,
+          }),
         );
         if (!afterPhotos) return;
 
-        completionFileIds.push(...afterPhotos.fileIds);
+        const receiptPhotos = await uploadPhotos(
+          state.receiptPhotos,
+          `Gagal mengunggah nota realisasi untuk item ${item.itemName}`,
+          () => ({
+            kind: "COMPLETION_RECEIPT",
+            reportNumber,
+            itemId: item.itemId,
+          }),
+        );
+        if (!receiptPhotos) return;
+
+        completionFileIds.push(...afterPhotos.fileIds, ...receiptPhotos.fileIds);
         completionItems.push({
           itemId: item.itemId,
           afterImages: afterPhotos.urls,
@@ -636,7 +664,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
             state.discountAmount,
           ),
           materialStores: [],
-          receiptImages: [],
+          receiptImages: receiptPhotos.urls,
           notes: state.notes.trim() || undefined,
         });
       }
@@ -644,6 +672,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
       const additionalPhotos = await uploadPhotos(
         additionalDocumentationPhotos,
         "Gagal mengunggah dokumentasi tambahan",
+        () => ({ kind: "COMPLETION_ADDITIONAL", reportNumber }),
       );
       if (!additionalPhotos) return;
       completionFileIds.push(...additionalPhotos.fileIds);

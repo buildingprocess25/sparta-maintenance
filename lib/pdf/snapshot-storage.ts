@@ -32,28 +32,6 @@ export function buildReportSnapshotPath(params: {
     return `pdf-snapshots/reports/${branch}/${storeCode}/${reportNumber}/${checkpoint}_${version}.pdf`;
 }
 
-function sanitizeDriveName(value: string): string {
-    return value.replaceAll("/", "-").trim() || "-";
-}
-
-export function buildFinalReportDrivePath(params: {
-    branchName: string;
-    bmsNIK: string;
-    bmsName: string;
-    storeCode: string | null;
-    storeName: string;
-    reportNumber: string;
-}) {
-    const branchName = sanitizeDriveName(params.branchName);
-    const bmsFolder = `${sanitizeDriveName(params.bmsNIK)}-${sanitizeDriveName(params.bmsName)}`;
-    const storeFolderName = `${sanitizeDriveName(params.storeCode ?? "-")}-${sanitizeDriveName(params.storeName)}`;
-    const reportFolderName = sanitizeDriveName(params.reportNumber);
-    const fileName = sanitizeDriveName(params.reportNumber) + ".pdf";
-
-    return `Laporan Maintenance/${branchName}/${bmsFolder}/${storeFolderName}/${reportFolderName}/${fileName}`;
-}
-
-
 export function buildPjumSnapshotPath(params: {
     branchName: string;
     bmsNIK: string;

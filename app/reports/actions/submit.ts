@@ -6,6 +6,8 @@ import { dispatchNotificationEvent } from "@/lib/notifications/dispatch";
 import { logger } from "@/lib/logger";
 import { getErrorDetail } from "@/lib/server-error";
 import { generateReportNumber } from "@/lib/report-helpers";
+import { promoteDriveDraft } from "@/lib/reports/drive-draft-service";
+import { createPrismaDriveDraftRepository } from "@/lib/reports/drive-draft-prisma-repository";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
@@ -151,6 +153,32 @@ export async function submitReport(data: DraftData) {
         .filter(Boolean) as string[];
 
     const reportId = await prisma.$transaction(async (tx) => {
+        if (data.draftReportNumber) {
+            await promoteDriveDraft(createPrismaDriveDraftRepository(tx), {
+                reportNumber: data.draftReportNumber,
+                bmsNIK: user.NIK,
+                status: initialStatus,
+                items: itemsJson as unknown as Prisma.InputJsonValue,
+                estimations: estimationsJson as unknown as Prisma.InputJsonValue,
+                totalEstimation: data.totalEstimation || 0,
+                drivePhotoFileIds:
+                    drivePhotoFileIds as unknown as Prisma.InputJsonValue,
+                ...(reportCreatedAt ? { createdAt: reportCreatedAt } : {}),
+                balancePeriodId: activePeriodId,
+            });
+
+            await tx.activityLog.create({
+                data: {
+                    reportNumber: data.draftReportNumber,
+                    actorNIK: user.NIK,
+                    action: "SUBMITTED",
+                    notes: null,
+                },
+            });
+
+            return data.draftReportNumber;
+        }
+
         const reportNumber = await generateReportNumber(store?.code, tx);
 
         const newReport = await tx.report.create({
@@ -164,7 +192,8 @@ export async function submitReport(data: DraftData) {
                 createdByNIK: user.NIK,
                 items: itemsJson,
                 estimations: estimationsJson,
-                drivePhotoFileIds: drivePhotoFileIds as unknown as Prisma.InputJsonValue,
+                drivePhotoFileIds:
+                    drivePhotoFileIds as unknown as Prisma.InputJsonValue,
                 ...(reportCreatedAt ? { createdAt: reportCreatedAt } : {}),
                 balancePeriodId: activePeriodId,
             },

@@ -32,11 +32,11 @@ export type DrivePhotoUploadOutcome =
  */
 export async function uploadPhotoToDriveCdn(
     blob: Blob | File,
-    fileName: string,
+    input: { parentFolderId: string; fileName: string },
 ): Promise<DrivePhotoUploadOutcome> {
     for (let attempt = 1; attempt <= MAX_UPLOAD_RETRIES; attempt++) {
         try {
-            const result = await attemptUpload(blob, fileName);
+            const result = await attemptUpload(blob, input);
             return { success: true, ...result };
         } catch (error) {
             const errorMessage =
@@ -47,7 +47,7 @@ export async function uploadPhotoToDriveCdn(
                     operation: "uploadPhotoToDriveCdn",
                     attempt,
                     maxAttempts: MAX_UPLOAD_RETRIES,
-                    fileName,
+                    fileName: input.fileName,
                     errorMessage,
                 },
                 "Upload photo to Drive CDN failed on attempt",
@@ -73,9 +73,9 @@ export async function uploadPhotoToDriveCdn(
 
 async function attemptUpload(
     blob: Blob | File,
-    fileName: string,
+    input: { parentFolderId: string; fileName: string },
 ): Promise<DrivePhotoUploadResult> {
-    const { drive, config } = getDriveCdnClient();
+    const { drive } = getDriveCdnClient();
 
     // Convert Blob/File to Node.js Readable stream
     const arrayBuffer = await blob.arrayBuffer();
@@ -84,11 +84,10 @@ async function attemptUpload(
 
     const contentType = blob.type || "image/jpeg";
 
-    // Upload file to Drive CDN root folder
     const created = await drive.files.create({
         requestBody: {
-            name: fileName,
-            parents: [config.rootFolderId],
+            name: input.fileName,
+            parents: [input.parentFolderId],
             mimeType: contentType,
         },
         media: {
@@ -104,7 +103,7 @@ async function attemptUpload(
         throw new Error("Google Drive create returned empty file ID");
     }
 
-    await applyConfiguredSharing(fileId, fileName);
+    await applyConfiguredSharing(fileId, input.fileName);
 
     const url = buildCdnUrl(fileId);
 
