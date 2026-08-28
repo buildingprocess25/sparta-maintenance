@@ -60,9 +60,24 @@ Alur:
 1. BMC memilih periode.
 2. Sistem menampilkan laporan periode berdasarkan `finishedAt`.
 3. BMC memilih laporan valid.
-4. BMC membuat PJUM.
+4. BMC membuat PJUM dan periode saldo BMS terkunci secara atomik.
 5. BNM Manager approve/reject.
 6. Saat approved, PDF final dapat dilihat dari detail PJUM.
+
+Laporan menggantung:
+
+- Laporan `COMPLETED` yang wajib PJUM tetapi tidak dipilih menjadi laporan
+  menggantung saat BNM menyetujui PJUM periode asal.
+- Laporan tersebut dipindahkan ke periode saldo baru dan realisasinya
+  mengurangi saldo Rp 1.000.000. Saldo tersedia boleh menjadi negatif.
+- Laporan menggantung langsung menjadi kandidat PJUM berikutnya tanpa membuka
+  kembali rentang tanggal lama dan tanpa approval Regional.
+- Toleransi berakhir saat PJUM berikutnya disetujui BNM, bukan setelah tujuh
+  hari kalender.
+- Jika masih tidak disertakan, laporan mendapat `pjumExpiredAt`, tidak dapat
+  di-PJUM-kan lagi, dan tidak membebani periode sesudahnya.
+- BNM harus mengonfirmasi secara eksplisit jika approval akan membuat laporan
+  menggantung kedaluwarsa permanen.
 
 Aturan biaya:
 

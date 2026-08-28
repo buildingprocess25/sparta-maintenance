@@ -24,6 +24,7 @@
     "create-user": "tsx scripts/create-user.ts",
     "fix:store-branch": "tsx scripts/fix-store-branch-from-xlsx.ts",
     "init:bms-balance": "tsx scripts/init-bms-balance-periods.ts",
+    "audit:bms-balance-cutover": "tsx scripts/audit-bms-balance-cutover.ts",
     "export:preventive-photos": "tsx scripts/export-preventive-photos.ts",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",

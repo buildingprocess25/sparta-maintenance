@@ -52,7 +52,6 @@ type SettingsWorkbenchProps = {
         pendingStaleDays: number;
         weeklyAdvanceAmount: number;
         periodDays: number;
-        bmsInitialBalance: number;
     };
 };
 

@@ -22,7 +22,13 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - Selama PJUM masih Review BNM, BMS tidak bisa mulai pekerjaan baru.
 
-- Jika PJUM approved BNM, saldo BMS reset ke Rp 1.000.000 dan periode kerja baru boleh dimulai.
+- Jika PJUM approved BNM, periode baru memakai saldo dasar Rp 1.000.000
+  dikurangi realisasi laporan menggantung dari periode sebelumnya.
+
+- Saldo tersedia boleh bernilai negatif jika laporan menggantung melebihi
+  saldo dasar.
+
+- Tidak ada approval Regional atau mekanisme buka laporan menggantung.
 
 - Jika PJUM rejected BNM, reset saldo dibatalkan dan lock Review BNM selesai. BMS kembali memakai saldo lama sebelum PJUM dibuat.
 
@@ -35,6 +41,12 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 - Terkunci PJUM: BMS sedang menunggu PJUM disetujui BNM.
 
 - Biaya tak terduga: selisih realisasi yang membuat biaya lebih besar dari saldo atau estimasi.
+
+- Laporan menggantung: laporan selesai dan wajib PJUM yang tidak disertakan
+  ketika PJUM periode asal disetujui BNM.
+
+- Kedaluwarsa PJUM: laporan menggantung yang kembali tidak disertakan pada
+  approval PJUM berikutnya; laporan tidak dapat di-PJUM-kan lagi.
 
 ## Alur Saldo
 
@@ -62,9 +74,17 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - 12. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
 
-- 13. Jika PJUM approved, saldo reset ke Rp 1.000.000.
+- 13. Jika PJUM approved, laporan selesai yang tidak disertakan dipindahkan ke
+  periode baru sebagai laporan menggantung.
 
-- 14. Jika PJUM rejected, saldo reset dibatalkan.
+- 14. Saldo periode baru dihitung dari Rp 1.000.000 dikurangi laporan
+  menggantung dan penggunaan baru.
+
+- 15. Laporan menggantung hanya dapat masuk PJUM periode berikutnya. Saat
+  approval berikutnya, laporan diselesaikan jika ikut atau kedaluwarsa jika
+  kembali tidak ikut.
+
+- 16. Jika PJUM rejected, saldo reset dibatalkan.
 
 
 ## Case Bisnis
@@ -77,6 +97,10 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 | Estimasi aman, realisasi membengkak | Izinkan submit penyelesaian dengan catatan wajib. |
 | Ada laporan mulai kerja tapi belum selesai | PJUM tidak bisa dibuat. |
 | PJUM sedang Review BNM | BMS tidak bisa mulai pekerjaan baru. |
+| Laporan selesai tidak dipilih dalam PJUM | Menjadi laporan menggantung saat approval BNM dan mengurangi saldo periode berikutnya. |
+| Total laporan menggantung lebih dari Rp 1.000.000 | Saldo periode berikutnya boleh negatif. |
+| Laporan menggantung ikut PJUM berikutnya | Dipertanggungjawabkan dan tidak lagi membebani periode selanjutnya. |
+| Laporan menggantung kembali tidak ikut | Kedaluwarsa permanen saat approval berikutnya dan tidak dapat di-PJUM-kan lagi. |
 | PJUM rejected BNM | Reset saldo dibatalkan. |
 | Laporan ditolak permanen setelah mulai kerja | Saldo laporan dikembalikan. |
 | Admin intervensi realisasi laporan selesai | Saldo historis disesuaikan mengikuti koreksi. |
@@ -85,4 +109,33 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 ## Periode Saldo
 
 Periode saldo aktif dimulai dari tanggal saldo terakhir reset atau dari awal default jika belum pernah PJUM approved. Setelah PJUM approved, periode baru dimulai dari waktu approval tersebut. Ini lebih cocok daripada kalender mingguan kaku karena user ingin PJUM menjadi trigger reset saldo.
+
+Saldo dasar tetap Rp 1.000.000 agar breakdown dapat dijelaskan terpisah:
+
+```text
+saldo tersedia = saldo dasar
+               - realisasi laporan menggantung aktif
+               - realisasi laporan baru
+               - estimasi laporan berjalan
+```
+
+UI BMS menampilkan saldo dasar, pengurang laporan menggantung, penggunaan
+periode berjalan, dan saldo tersedia. BMC melihat carryover sebagai kandidat
+khusus pada PJUM berikutnya. BNM melihat jumlah dan nominal carryover yang akan
+kedaluwarsa sebelum konfirmasi approval.
+
+## Go-Live
+
+- Migration menambah field nullable sehingga saldo dan periode existing tidak
+  berubah saat schema dipasang.
+- Aturan carryover berlaku untuk PJUM yang disetujui setelah cutover. PJUM yang
+  sudah approved tidak dihitung ulang secara retroaktif.
+- Periode `ACTIVE` tetap berjalan. Periode `LOCKED_PJUM` memakai aturan baru
+  ketika PJUM pending tersebut disetujui.
+- Jalankan `npm run audit:bms-balance-cutover -- --strict` sebelum deploy kode.
+  Audit bersifat read-only dan memeriksa periode ganda, BMS tanpa periode,
+  mismatch locked/pending PJUM, serta laporan berjalan tanpa periode.
+- Hentikan approval BNM sementara ketika migration dan audit cutover dilakukan.
+- Gunakan `prisma migrate deploy`; jangan gunakan `prisma db push` pada
+  production.
 

@@ -19,6 +19,17 @@ import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
     Card,
     CardContent,
     CardDescription,
@@ -53,12 +64,13 @@ export function PjumApprovalDetail({ detail }: Props) {
 
     const fromDate = new Date(detail.fromDate);
 
-    function handleApprove() {
+    function handleApprove(confirmHangingExpiry: boolean) {
         if (isLocked) return;
         setIsLocked(true);
         startApproveTransition(async () => {
             const result = await approvePjumExport({
                 pjumExportId: detail.id,
+                confirmHangingExpiry,
             });
 
             if (result.error) {
@@ -76,6 +88,35 @@ export function PjumApprovalDetail({ detail }: Props) {
     const selisih = 1_000_000 - detail.totalExpenditure;
     const periode = `${formatJakartaDate(fromDate)} – ${formatJakartaDate(detail.toDate)}`;
     const isPending = detail.status === "PENDING_APPROVAL";
+    const expiringHangingCount = detail.omittedHangingReports.length;
+    const expiringHangingTotal = detail.omittedHangingReports.reduce(
+        (sum, report) => sum + report.realizedAmount,
+        0,
+    );
+    const approvalButton = (
+        <Button
+            size="lg"
+            className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
+            onClick={
+                expiringHangingCount === 0
+                    ? () => handleApprove(false)
+                    : undefined
+            }
+            disabled={isApproving || isLocked}
+        >
+            {isApproving ? (
+                <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Menyetujui...
+                </>
+            ) : (
+                <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Setujui PJUM
+                </>
+            )}
+        </Button>
+    );
 
     return (
         <div className="min-h-screen flex flex-col bg-background">
@@ -400,24 +441,36 @@ export function PjumApprovalDetail({ detail }: Props) {
             {isPending && (
                 <div className="fixed bottom-0 inset-x-0 z-50 bg-background border-t shadow-[0_-12px_12px_-12px_rgba(0,0,0,0.1)]">
                     <div className="container mx-auto px-4 py-5 max-w-7xl flex items-center justify-end gap-4 h-24">
-                        <Button
-                            size="lg"
-                            className="gap-2 bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600"
-                            onClick={handleApprove}
-                            disabled={isApproving || isLocked}
-                        >
-                            {isApproving ? (
-                                <>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                    Menyetujui...
-                                </>
-                            ) : (
-                                <>
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    Setujui PJUM
-                                </>
-                            )}
-                        </Button>
+                        {expiringHangingCount > 0 ? (
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    {approvalButton}
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                            Laporan menggantung akan kedaluwarsa
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            PJUM ini tidak menyertakan {expiringHangingCount} laporan menggantung senilai Rp {fmtCurrency(expiringHangingTotal)}. Jika disetujui, laporan tersebut tidak dapat dimasukkan ke PJUM lagi dan tidak akan membebani saldo periode berikutnya.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel disabled={isApproving}>
+                                            Periksa Kembali
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                            disabled={isApproving}
+                                            onClick={() => handleApprove(true)}
+                                        >
+                                            Pahami dan Setujui
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        ) : (
+                            approvalButton
+                        )}
                     </div>
                 </div>
             )}

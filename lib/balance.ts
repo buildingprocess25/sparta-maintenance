@@ -17,6 +17,52 @@ import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getBmsInitialBalance } from "@/lib/app-settings";
 import type { ReportStatusKey } from "@/lib/report-status";
+import { requiresPjum } from "@/lib/realisasi";
+import { classifyPjumApprovalReports } from "@/lib/pjum-hanging";
+import { isActivePjumHangingReport } from "@/lib/pjum-hanging";
+import { summarizeBmsBalanceAmounts } from "@/lib/bms-balance-calculation";
+
+export type BmsHangingReportSummary = {
+    reportNumber: string;
+    storeName: string;
+    storeCode: string | null;
+    finishedAt: Date | null;
+    realizedAmount: number;
+};
+
+export async function getOmittedHangingReportsForPjum(input: {
+    pjumExportId: string;
+    approvedReportNumbers: string[];
+}) {
+    const reports = await prisma.report.findMany({
+        where: {
+            reportNumber: { notIn: input.approvedReportNumbers },
+            pjumHangingAt: { not: null },
+            pjumExpiredAt: null,
+            pjumExportedAt: null,
+            balancePeriod: {
+                pjumExportId: input.pjumExportId,
+                status: "LOCKED_PJUM",
+            },
+        },
+        select: {
+            reportNumber: true,
+            storeName: true,
+            storeCode: true,
+            totalReal: true,
+        },
+        orderBy: { finishedAt: "asc" },
+    });
+
+    return reports.map((report) => ({
+        reportNumber: report.reportNumber,
+        storeName: report.storeName,
+        storeCode: report.storeCode,
+        realizedAmount: report.totalReal
+            ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
+            : 0,
+    }));
+}
 
 export type BmsBalanceHistoryItem = {
     reportNumber: string;
@@ -26,6 +72,7 @@ export type BmsBalanceHistoryItem = {
     createdAt: Date;
     consumedAmount: number;
     type: "ESTIMATED" | "REALIZED";
+    isHanging: boolean;
 };
 
 export type BmsBalanceInfo = {
@@ -36,6 +83,11 @@ export type BmsBalanceInfo = {
     totalEstimated: number;
     /** Total realisasi dari laporan yang COMPLETED dalam periode ini */
     totalRealized: number;
+    /** Realisasi laporan gantung dari periode sebelumnya */
+    hangingDeduction: number;
+    /** Realisasi laporan baru pada periode berjalan */
+    currentPeriodRealized: number;
+    hangingReports: BmsHangingReportSummary[];
     /** Sisa saldo tersedia (initialBalance - totalRealized - totalEstimatedInProgress) */
     availableBalance: number;
     isLocked: boolean;
@@ -98,6 +150,9 @@ export async function calculateBmsBalance(
             initialBalance: initialBalanceVal,
             totalEstimated: 0,
             totalRealized: 0,
+            hangingDeduction: 0,
+            currentPeriodRealized: 0,
+            hangingReports: [],
             availableBalance: initialBalanceVal,
             isLocked: false,
         };
@@ -114,10 +169,18 @@ export async function calculateBmsBalance(
             totalEstimation: true,
             totalReal: true,
             items: true,
+            reportNumber: true,
+            storeName: true,
+            storeCode: true,
+            finishedAt: true,
+            pjumExportedAt: true,
+            pjumHangingAt: true,
+            pjumExpiredAt: true,
         },
     });
 
-    let totalRealized = 0;
+    const completedAmounts: Array<{ amount: number; isHanging: boolean }> = [];
+    const hangingReports: BmsHangingReportSummary[] = [];
     let totalEstimatedInProgress = 0;
 
     for (const report of reports) {
@@ -129,7 +192,17 @@ export async function calculateBmsBalance(
             const real = report.totalReal
                 ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
                 : new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
-            totalRealized += real;
+            const isHanging = isActivePjumHangingReport(report);
+            completedAmounts.push({ amount: real, isHanging });
+            if (isHanging) {
+                hangingReports.push({
+                    reportNumber: report.reportNumber,
+                    storeName: report.storeName,
+                    storeCode: report.storeCode,
+                    finishedAt: report.finishedAt,
+                    realizedAmount: real,
+                });
+            }
         } else if (
             [
                 "PENDING_ESTIMATION",
@@ -164,16 +237,22 @@ export async function calculateBmsBalance(
     }
 
     const initialBalance = new Prisma.Decimal(period.initialBalance.toString()).toNumber();
-    const availableBalance =
-        initialBalance - totalRealized - totalEstimatedInProgress;
+    const summary = summarizeBmsBalanceAmounts({
+        initialBalance,
+        completed: completedAmounts,
+        estimatedInProgress: totalEstimatedInProgress,
+    });
 
     return {
         periodId: period.id,
         periodStatus: period.status as BmsBalanceInfo["periodStatus"],
         initialBalance,
-        totalEstimated: totalEstimatedInProgress,
-        totalRealized,
-        availableBalance,
+        totalEstimated: summary.totalEstimated,
+        totalRealized: summary.totalRealized,
+        hangingDeduction: summary.hangingDeduction,
+        currentPeriodRealized: summary.currentPeriodRealized,
+        hangingReports,
+        availableBalance: summary.availableBalance,
         isLocked: period.status === "LOCKED_PJUM",
     };
 }
@@ -236,32 +315,143 @@ export async function lockBmsPeriodForPjum(
  * 1. Tutup periode lama (status CLOSED)
  * 2. Buat periode baru dengan saldo Rp 1.000.000
  */
-export async function resetBmsBalanceAfterPjumApproval(
+export async function approvePjumAndTransitionBmsBalance(
     bmsNIK: string,
-    pjumExportId: string,
+    pjumExport: {
+        id: string;
+        reportNumbers: string[];
+        fromDate: Date;
+        toDate: Date;
+        approvedByNIK: string;
+        approvedAt: Date;
+        pjumFinalDriveUrl: string;
+    },
 ) {
-    const period = await getBmsActivePeriod(bmsNIK);
     const initialBalanceVal = await getBmsInitialBalance();
+    const transitionAt = new Date();
+    const toEndExclusive = new Date(
+        pjumExport.toDate.getTime() + 24 * 60 * 60 * 1000,
+    );
 
     return prisma.$transaction(async (tx) => {
+        const approvalResult = await tx.pjumExport.updateMany({
+            where: {
+                id: pjumExport.id,
+                status: "PENDING_APPROVAL",
+            },
+            data: {
+                status: "APPROVED",
+                approvedByNIK: pjumExport.approvedByNIK,
+                approvedAt: pjumExport.approvedAt,
+                pjumFinalDriveUrl: pjumExport.pjumFinalDriveUrl,
+            },
+        });
+        if (approvalResult.count !== 1) {
+            throw new Error("PJUM sudah diproses atau statusnya berubah");
+        }
+
+        const period = await tx.bmsBalancePeriod.findFirst({
+            where: {
+                bmsNIK,
+                status: { in: ["ACTIVE", "LOCKED_PJUM"] },
+            },
+            orderBy: { createdAt: "desc" },
+        });
+
+        const reports = await tx.report.findMany({
+            where: {
+                createdByNIK: bmsNIK,
+                OR: [
+                    ...(period ? [{ balancePeriodId: period.id }] : []),
+                    {
+                        finishedAt: {
+                            gte: pjumExport.fromDate,
+                            lt: toEndExclusive,
+                        },
+                    },
+                ],
+            },
+            select: {
+                reportNumber: true,
+                status: true,
+                finishedAt: true,
+                totalReal: true,
+                items: true,
+                pjumExportedAt: true,
+                pjumHangingAt: true,
+                pjumExpiredAt: true,
+            },
+        });
+
+        const classification = classifyPjumApprovalReports({
+            reports: reports.map((report) => ({
+                reportNumber: report.reportNumber,
+                status: report.status,
+                finishedAt: report.finishedAt,
+                requiresPjum: requiresPjum(report.totalReal, report.items),
+                pjumExportedAt: report.pjumExportedAt,
+                pjumHangingAt: report.pjumHangingAt,
+                pjumExpiredAt: report.pjumExpiredAt,
+            })),
+            approvedReportNumbers: pjumExport.reportNumbers,
+            fromDate: pjumExport.fromDate,
+            toEndExclusive,
+        });
+
         if (period) {
             await tx.bmsBalancePeriod.update({
                 where: { id: period.id },
                 data: {
                     status: "CLOSED",
-                    closedAt: new Date(),
+                    closedAt: transitionAt,
                 },
             });
         }
 
-        return tx.bmsBalancePeriod.create({
+        const nextPeriod = await tx.bmsBalancePeriod.create({
             data: {
                 bmsNIK,
                 initialBalance: new Prisma.Decimal(initialBalanceVal),
                 status: "ACTIVE",
-                pjumExportId,
+                pjumExportId: pjumExport.id,
             },
         });
+
+        if (classification.expireReportNumbers.length > 0) {
+            await tx.report.updateMany({
+                where: {
+                    reportNumber: {
+                        in: classification.expireReportNumbers,
+                    },
+                    pjumHangingAt: { not: null },
+                    pjumExpiredAt: null,
+                    pjumExportedAt: null,
+                },
+                data: { pjumExpiredAt: transitionAt },
+            });
+        }
+
+        if (classification.carryReportNumbers.length > 0) {
+            await tx.report.updateMany({
+                where: {
+                    reportNumber: { in: classification.carryReportNumbers },
+                    status: "COMPLETED",
+                    pjumHangingAt: null,
+                    pjumExpiredAt: null,
+                    pjumExportedAt: null,
+                },
+                data: {
+                    balancePeriodId: nextPeriod.id,
+                    pjumHangingAt: transitionAt,
+                },
+            });
+        }
+
+        return {
+            period: nextPeriod,
+            carriedReportNumbers: classification.carryReportNumbers,
+            expiredReportNumbers: classification.expireReportNumbers,
+        };
     });
 }
 
@@ -321,6 +511,11 @@ export async function getBmsBalanceHistory(
             totalReal: true,
             createdAt: true,
             items: true,
+            storeName: true,
+            storeCode: true,
+            pjumExportedAt: true,
+            pjumHangingAt: true,
+            pjumExpiredAt: true,
             store: {
                 select: {
                     name: true,
@@ -343,12 +538,13 @@ export async function getBmsBalanceHistory(
                 : new Prisma.Decimal(report.totalEstimation.toString()).toNumber();
             history.push({
                 reportNumber: report.reportNumber,
-                storeName: report.store.name,
-                storeCode: report.store.code,
+                storeName: report.store?.name ?? report.storeName,
+                storeCode: report.store?.code ?? report.storeCode ?? "-",
                 status: report.status as ReportStatusKey,
                 createdAt: report.createdAt,
                 consumedAmount: real,
                 type: "REALIZED",
+                isHanging: isActivePjumHangingReport(report),
             });
         } else if (
             [
@@ -373,12 +569,13 @@ export async function getBmsBalanceHistory(
 
             history.push({
                 reportNumber: report.reportNumber,
-                storeName: report.store.name,
-                storeCode: report.store.code,
+                storeName: report.store?.name ?? report.storeName,
+                storeCode: report.store?.code ?? report.storeCode ?? "-",
                 status: report.status as ReportStatusKey,
                 createdAt: report.createdAt,
                 consumedAmount: reservedCost,
                 type: "ESTIMATED",
+                isHanging: false,
             });
         }
     }

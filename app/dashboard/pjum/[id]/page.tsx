@@ -35,6 +35,7 @@ import { getPjumPolicySettings } from "@/lib/app-settings";
 import { PjumApprovalButton } from "./_components/pjum-approval-button";
 import { PjumCancelButton } from "./_components/pjum-cancel-button";
 import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
+import { getOmittedHangingReportsForPjum } from "@/lib/balance";
 
 export const dynamic = "force-dynamic";
 
@@ -140,6 +141,16 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                             pjumExportId={detail.pjum.id}
                             status={detail.pjum.status}
                             viewerRole={user.role}
+                            expiringHangingCount={
+                                detail.omittedHangingReports.length
+                            }
+                            expiringHangingTotal={
+                                detail.omittedHangingReports.reduce(
+                                    (sum, report) =>
+                                        sum + report.realizedAmount,
+                                    0,
+                                )
+                            }
                         />
                         {canCancelPjum ? (
                             <PjumCancelButton
@@ -414,6 +425,14 @@ async function getPjumDetail(id: string) {
                 (reportOrder.get(b.reportNumber) ?? 0),
         );
 
+    const omittedHangingReports =
+        pjum.status === "PENDING_APPROVAL"
+            ? await getOmittedHangingReportsForPjum({
+                  pjumExportId: pjum.id,
+                  approvedReportNumbers: pjum.reportNumbers,
+              })
+            : [];
+
     return {
         pjum,
         bmsName: userMap.get(pjum.bmsNIK) ?? pjum.bmsNIK,
@@ -422,6 +441,7 @@ async function getPjumDetail(id: string) {
             ? userMap.get(pjum.approvedByNIK) ?? pjum.approvedByNIK
             : null,
         reports: orderedReports,
+        omittedHangingReports,
         totalRealization: orderedReports.reduce(
             (sum, report) => sum + (report.totalReal ?? 0),
             0,

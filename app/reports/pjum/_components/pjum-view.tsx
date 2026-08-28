@@ -500,6 +500,13 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
         (sum, r) => sum + r.totalRealisasi,
         0,
     );
+    const hangingReports = eligibleReports.filter(
+        (report) => report.isHangingReport,
+    );
+    const hangingTotal = hangingReports.reduce(
+        (sum, report) => sum + report.totalRealisasi,
+        0,
+    );
 
     const filteredHistory = useMemo(() => {
         const q = historyQuery.trim().toLowerCase();
@@ -883,6 +890,13 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                                             Masih ada laporan belum selesai,
                                             selesaikan terlebih dahulu
+                                        </span>
+                                    )}
+                                    {hangingReports.length > 0 && (
+                                        <span className="flex items-center gap-1 text-amber-700 text-xs">
+                                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                            {hangingReports.length} laporan
+                                            menggantung senilai {formatCurrency(hangingTotal)} hanya berlaku sampai PJUM periode ini disetujui BNM
                                         </span>
                                     )}
                                 </div>

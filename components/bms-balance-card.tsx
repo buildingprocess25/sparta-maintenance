@@ -1,6 +1,6 @@
 "use client";
 
-import { Wallet, Lock, TrendingDown, TrendingUp } from "lucide-react";
+import { AlertTriangle, Wallet, Lock, TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BmsBalanceInfo } from "@/lib/balance";
 
@@ -74,6 +74,15 @@ export function BmsBalanceCard({ balance, className, compact = false, compactLab
       {/* Lock Warning */}
       {isLocked && (
         <p className="mt-2 text-xs leading-relaxed text-red-600 dark:text-red-400">Saldo Anda sedang terkunci karena ada PJUM yang menunggu persetujuan BNM Manager. Anda tidak dapat memulai pekerjaan baru hingga PJUM diproses.</p>
+      )}
+
+      {balance.hangingDeduction > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-200">
+          <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+          <p className="text-xs leading-relaxed">
+            Saldo dasar {formatCurrency(balance.initialBalance)} dikurangi {formatCurrency(balance.hangingDeduction)} dari {balance.hangingReports.length} laporan menggantung periode sebelumnya.
+          </p>
+        </div>
       )}
 
       {/* Metrics Grid */}

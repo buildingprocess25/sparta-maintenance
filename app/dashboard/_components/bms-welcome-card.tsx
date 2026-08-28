@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { ChevronRight, Lock } from "lucide-react";
+import { AlertTriangle, ChevronRight, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BmsBalanceInfo } from "@/lib/balance";
 import { BalanceHistoryDrawer } from "./balance-history-drawer";
@@ -47,6 +47,15 @@ export function BmsWelcomeCard({ name, balance, className }: BmsWelcomeCardProps
           <p className="text-[10px] font-medium uppercase tracking-widest text-primary-foreground/60">Sisa Saldo Minggu Ini</p>
           <p className={cn("mt-0.5 font-mono text-2xl font-extrabold tracking-tight text-white sm:text-3xl", isDanger && "text-red-200", isWarning && "text-amber-200")}>{formatCurrency(balance.availableBalance)}</p>
         </div>
+
+        {balance.hangingDeduction > 0 ? (
+          <div className="flex items-start gap-1.5 rounded-md bg-amber-300/20 px-2 py-1.5 text-amber-50">
+            <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+            <p className="text-[10px] leading-snug">
+              Saldo dasar dikurangi {formatCurrency(balance.hangingDeduction)} dari {balance.hangingReports.length} laporan menggantung.
+            </p>
+          </div>
+        ) : null}
 
         {/* ── Progress Bar ── */}
         <div>

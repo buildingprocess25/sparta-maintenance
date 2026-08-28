@@ -191,6 +191,12 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         [selectedReports],
     );
     const validRows = result?.rows.filter((row) => row.isValid) ?? [];
+    const hangingRows =
+        result?.rows.filter((row) => row.isHangingReport) ?? [];
+    const hangingTotal = hangingRows.reduce(
+        (sum, row) => sum + row.totalRealisasi,
+        0,
+    );
     const selectedRows =
         result?.rows.filter((row) => selectedSet.has(row.reportNumber)) ?? [];
     const selectedTotal = selectedRows.reduce(
@@ -477,6 +483,15 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                     PJUM.
                                 </div>
                             ) : null}
+                            {hangingRows.length > 0 ? (
+                                <div className="inline-flex items-center gap-1.5 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-900">
+                                    <AlertTriangle className="size-3.5" />
+                                    {hangingRows.length} laporan menggantung
+                                    senilai {formatCurrency(hangingTotal)} hanya
+                                    dapat dimasukkan sampai PJUM periode ini
+                                    disetujui BNM.
+                                </div>
+                            ) : null}
                         </section>
                     ) : null}
 
@@ -565,7 +580,12 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                                     </div>
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1">
-                                                    {row.isValid ? (
+                                                    {row.isHangingReport ? (
+                                                        <Badge className="h-5 border-amber-200 bg-amber-50 px-1.5 text-[11px] text-amber-800 hover:bg-amber-50">
+                                                            <AlertTriangle data-icon="inline-start" />
+                                                            Laporan Gantung
+                                                        </Badge>
+                                                    ) : row.isValid ? (
                                                         <Badge className="h-5 border-emerald-200 bg-emerald-50 px-1.5 text-[11px] text-emerald-700 hover:bg-emerald-50">
                                                             <CheckCircle2 data-icon="inline-start" />
                                                             Valid

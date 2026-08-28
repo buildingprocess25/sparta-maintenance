@@ -11,6 +11,7 @@ import { logger } from "@/lib/logger";
 import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { getJakartaDateRange } from "@/lib/time";
+import { isActivePjumHangingReport } from "@/lib/pjum-hanging";
 import {
     buildPjumSnapshotPath,
     uploadPdfSnapshot,
@@ -31,6 +32,7 @@ export type PjumReportRow = {
     totalRealisasi: number;
     pjumExportedAt: string | null; // ISO string or null
     requiresPjum: boolean;
+    isHangingReport: boolean;
 };
 
 export type PjumBlockedRange = {
@@ -108,6 +110,8 @@ type PjumReportCandidate = {
     totalReal: unknown;
     items: unknown;
     pjumExportedAt: Date | null;
+    pjumHangingAt: Date | null;
+    pjumExpiredAt: Date | null;
 };
 
 function getPjumFilterDate(report: PjumReportCandidate): Date {
@@ -130,6 +134,7 @@ async function getReportsInRangeByPjumDate(params: {
             createdByNIK: bmsNIK,
             branchName: { in: branchNames },
             status: { in: [...SEARCHABLE_PJUM_STATUSES] },
+            pjumExpiredAt: null,
             OR: [
                 {
                     status: "COMPLETED",
@@ -144,6 +149,15 @@ async function getReportsInRangeByPjumDate(params: {
                     status: { in: [...NON_COMPLETED_PJUM_STATUSES] },
                     createdAt: { gte: fromDate, lte: toDate },
                 },
+                {
+                    status: "COMPLETED",
+                    pjumExportedAt: null,
+                    pjumHangingAt: { not: null },
+                    balancePeriod: {
+                        bmsNIK,
+                        status: { in: ["ACTIVE", "LOCKED_PJUM"] },
+                    },
+                },
             ],
         },
         select: {
@@ -157,6 +171,8 @@ async function getReportsInRangeByPjumDate(params: {
             totalReal: true,
             items: true,
             pjumExportedAt: true,
+            pjumHangingAt: true,
+            pjumExpiredAt: true,
         },
     });
 
@@ -394,6 +410,7 @@ export async function searchPjumReports(
                     ? r.pjumExportedAt.toISOString()
                     : null,
                 requiresPjum: requiresPjum(r.totalReal, r.items),
+                isHangingReport: isActivePjumHangingReport(r),
             };
         });
 
@@ -560,7 +577,7 @@ export async function exportPjum(input: {
                 );
             }
 
-            return tx.pjumExport.create({
+            const createdPjum = await tx.pjumExport.create({
                 data: {
                     status: "PENDING_APPROVAL",
                     bmsNIK,
@@ -573,6 +590,21 @@ export async function exportPjum(input: {
                     createdByNIK: user.NIK,
                 },
             });
+
+            const lockResult = await tx.bmsBalancePeriod.updateMany({
+                where: { bmsNIK, status: "ACTIVE" },
+                data: {
+                    status: "LOCKED_PJUM",
+                    pjumExportId: createdPjum.id,
+                },
+            });
+            if (lockResult.count !== 1) {
+                throw new PjumExportConflictError(
+                    "Periode saldo BMS tidak aktif atau sedang dikunci PJUM lain",
+                );
+            }
+
+            return createdPjum;
         });
 
         // Generate and upload PDF snapshot to Drive

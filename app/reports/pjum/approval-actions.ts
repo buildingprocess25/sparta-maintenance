@@ -29,7 +29,10 @@ import {
     downloadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
-import { resetBmsBalanceAfterPjumApproval } from "@/lib/balance";
+import {
+    approvePjumAndTransitionBmsBalance,
+    getOmittedHangingReportsForPjum,
+} from "@/lib/balance";
 
 function isGoogleDriveUrl(value: string | null | undefined): value is string {
     return (
@@ -76,6 +79,10 @@ export type PjumExportDetail = {
         totalRealisasi: number;
     }[];
     totalExpenditure: number;
+    omittedHangingReports: {
+        reportNumber: string;
+        realizedAmount: number;
+    }[];
     pjumFinalDriveUrl: string | null;
 };
 
@@ -270,6 +277,13 @@ export async function getPjumExportDetail(
             (sum, r) => sum + r.totalRealisasi,
             0,
         );
+        const omittedHangingReports =
+            pjumExport.status === "PENDING_APPROVAL"
+                ? await getOmittedHangingReportsForPjum({
+                      pjumExportId: pjumExport.id,
+                      approvedReportNumbers: pjumExport.reportNumbers,
+                  })
+                : [];
 
         const data: PjumExportDetail = {
             id: pjumExport.id,
@@ -292,6 +306,10 @@ export async function getPjumExportDetail(
                 totalRealisasi: r.totalRealisasi,
             })),
             totalExpenditure,
+            omittedHangingReports: omittedHangingReports.map((report) => ({
+                reportNumber: report.reportNumber,
+                realizedAmount: report.realizedAmount,
+            })),
             pjumFinalDriveUrl: pjumExport.pjumFinalDriveUrl,
         };
 
@@ -308,6 +326,7 @@ export async function getPjumExportDetail(
 
 const approveSchema = z.object({
     pjumExportId: z.string().uuid(),
+    confirmHangingExpiry: z.boolean().default(false),
 });
 
 /**
@@ -316,6 +335,7 @@ const approveSchema = z.object({
  */
 export async function approvePjumExport(input: {
     pjumExportId: string;
+    confirmHangingExpiry?: boolean;
 }): Promise<{ error: string | null }> {
     const startTime = Date.now();
     try {
@@ -349,6 +369,19 @@ export async function approvePjumExport(input: {
         }
         if (pjumExport.status !== "PENDING_APPROVAL") {
             return { error: "PJUM sudah diproses sebelumnya" };
+        }
+
+        const omittedHangingReports = await getOmittedHangingReportsForPjum({
+            pjumExportId: pjumExport.id,
+            approvedReportNumbers: pjumExport.reportNumbers,
+        });
+        if (
+            omittedHangingReports.length > 0 &&
+            !validated.confirmHangingExpiry
+        ) {
+            return {
+                error: `${omittedHangingReports.length} laporan menggantung akan kedaluwarsa permanen. Konfirmasi konsekuensi ini sebelum menyetujui PJUM.`,
+            };
         }
 
         // Fetch BMS + BMC info
@@ -488,20 +521,17 @@ export async function approvePjumExport(input: {
             });
         }
 
-        // Update PjumExport record
-        await prisma.pjumExport.update({
-            where: { id: pjumExport.id },
-            data: {
-                status: "APPROVED",
-                approvedByNIK: user.NIK,
-                approvedAt: approvedAtDate,
-                pjumFinalDriveUrl:
-                    uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
-            },
+        // Approve PJUM and transition BMS balance atomically.
+        await approvePjumAndTransitionBmsBalance(pjumExport.bmsNIK, {
+            id: pjumExport.id,
+            reportNumbers: pjumExport.reportNumbers,
+            fromDate: pjumExport.fromDate,
+            toDate: pjumExport.toDate,
+            approvedByNIK: user.NIK,
+            approvedAt: approvedAtDate,
+            pjumFinalDriveUrl:
+                uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
         });
-
-        // Reset BMS balance for the next period
-        await resetBmsBalanceAfterPjumApproval(pjumExport.bmsNIK, pjumExport.id);
 
         dispatchNotificationEvent({
             type: "PJUM_APPROVED",

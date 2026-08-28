@@ -13,6 +13,6 @@ export async function fetchBalanceHistoryAction(): Promise<BmsBalanceHistoryItem
         throw new Error("Forbidden");
     }
 
-    const history = await getBmsBalanceHistory(user.nik);
+    const history = await getBmsBalanceHistory(user.NIK);
     return history;
 }

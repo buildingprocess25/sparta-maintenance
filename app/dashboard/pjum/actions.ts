@@ -76,7 +76,6 @@ export type DashboardPjumCandidateRow = {
     isValid: boolean;
     invalidReason: string | null;
     isHangingReport?: boolean;
-    unlockStatus?: string | null;
 };
 
 export type DashboardPjumCandidateResult = {
@@ -101,7 +100,8 @@ type DashboardPjumCandidate = {
     pjumExportedAt: Date | null;
     balancePeriodId: string | null;
     balancePeriod: { status: string } | null;
-    unlockRequests?: { status: string }[];
+    pjumHangingAt: Date | null;
+    pjumExpiredAt: Date | null;
 };
 
 function getPjumPeriodDate(report: DashboardPjumCandidate): Date {
@@ -144,13 +144,9 @@ async function getDashboardPjumReportsInRange(params: {
                 {
                     status: "COMPLETED",
                     pjumExportedAt: null,
-                    balancePeriod: { status: "CLOSED" },
-                },
-                {
-                    status: "COMPLETED",
-                    pjumExportedAt: null,
-                    balancePeriodId: null,
-                    finishedAt: { not: null, lt: fromDate },
+                    pjumHangingAt: { not: null },
+                    pjumExpiredAt: null,
+                    balancePeriod: { status: "ACTIVE" },
                 },
                 {
                     status: {
@@ -176,11 +172,8 @@ async function getDashboardPjumReportsInRange(params: {
             balancePeriod: {
                 select: { status: true }
             },
-            unlockRequests: {
-                orderBy: { createdAt: 'desc' },
-                take: 1,
-                select: { status: true }
-            }
+            pjumHangingAt: true,
+            pjumExpiredAt: true,
         },
     });
 
@@ -339,10 +332,11 @@ export async function searchDashboardPjumCandidates(input: {
             Boolean(report.pjumExportedAt) ||
             numbersInActivePjum.has(report.reportNumber);
             
-        const isHangingReport = report.balancePeriodId
-            ? report.balancePeriod?.status === "CLOSED"
-            : Boolean(report.finishedAt && report.finishedAt < fromDate);
-        const unlockStatus = report.unlockRequests?.[0]?.status ?? null;
+        const isHangingReport = Boolean(
+            report.pjumHangingAt &&
+                !report.pjumExpiredAt &&
+                !report.pjumExportedAt,
+        );
         
         let invalidReason = null;
         if (report.status !== "COMPLETED") {
@@ -351,12 +345,8 @@ export async function searchDashboardPjumCandidates(input: {
             invalidReason = "Tidak perlu PJUM";
         } else if (isAlreadyInPjum) {
             invalidReason = "Sudah masuk PJUM";
-        } else if (isHangingReport && unlockStatus !== "APPROVED") {
-            if (unlockStatus === "PENDING") {
-                invalidReason = "Menunggu Approval Buka Laporan";
-            } else {
-                invalidReason = "Terkunci (Laporan Gantung)";
-            }
+        } else if (report.pjumExpiredAt) {
+            invalidReason = "Terkunci (Hangus permanen)";
         }
         
         const isValid = invalidReason === null;
@@ -385,7 +375,6 @@ export async function searchDashboardPjumCandidates(input: {
             isValid,
             invalidReason,
             isHangingReport,
-            unlockStatus,
         };
     });
 
@@ -1040,55 +1029,3 @@ function isGoogleDriveNotFoundError(error: unknown) {
     );
 }
 
-export async function submitUnlockRequest(
-    reportNumber: string,
-    reason: string
-): Promise<{ success: boolean; error: string | null }> {
-    try {
-        const user = await requireRole("BMC");
-        await validateCSRF(await headers());
-
-        if (!reportNumber || !reason.trim()) {
-            return { success: false, error: "Report number dan alasan wajib diisi" };
-        }
-
-        const report = await prisma.report.findUnique({
-            where: { reportNumber },
-            select: { status: true, branchName: true, pjumExportedAt: true }
-        });
-
-        if (!report) {
-            return { success: false, error: "Laporan tidak ditemukan" };
-        }
-
-        if (report.status !== "COMPLETED" || report.pjumExportedAt !== null) {
-            return { success: false, error: "Laporan tidak valid untuk diajukan buka kunci" };
-        }
-
-        // Check for existing pending request
-        const existing = await prisma.reportUnlockRequest.findFirst({
-            where: {
-                reportNumber,
-                status: "PENDING"
-            }
-        });
-
-        if (existing) {
-            return { success: false, error: "Laporan ini sudah memiliki pengajuan yang sedang menunggu persetujuan" };
-        }
-
-        await prisma.reportUnlockRequest.create({
-            data: {
-                reportNumber,
-                reason: reason.trim(),
-                status: "PENDING",
-                requestedByNIK: user.NIK
-            }
-        });
-
-        return { success: true, error: null };
-    } catch (error) {
-        logger.error({ operation: "submitUnlockRequest", reportNumber }, "Failed to submit unlock request", error);
-        return { success: false, error: "Gagal mengajukan permintaan buka laporan" };
-    }
-}

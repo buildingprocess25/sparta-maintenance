@@ -7,17 +7,32 @@ import { CheckCircle2, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { approvePjumExport } from "@/app/reports/pjum/approval-actions";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type PjumApprovalButtonProps = {
     pjumExportId: string;
     status: string;
     viewerRole: string;
+    expiringHangingCount: number;
+    expiringHangingTotal: number;
 };
 
 export function PjumApprovalButton({
     pjumExportId,
     status,
     viewerRole,
+    expiringHangingCount,
+    expiringHangingTotal,
 }: PjumApprovalButtonProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -26,9 +41,12 @@ export function PjumApprovalButton({
         return null;
     }
 
-    function handleApprove() {
+    function handleApprove(confirmHangingExpiry: boolean) {
         startTransition(async () => {
-            const result = await approvePjumExport({ pjumExportId });
+            const result = await approvePjumExport({
+                pjumExportId,
+                confirmHangingExpiry,
+            });
 
             if (result.error) {
                 toast.error("Gagal menyetujui PJUM", {
@@ -42,12 +60,16 @@ export function PjumApprovalButton({
         });
     }
 
-    return (
+    const approvalButton = (
         <Button
             type="button"
             size="sm"
             className="gap-1.5 text-xs"
-            onClick={handleApprove}
+            onClick={
+                expiringHangingCount === 0
+                    ? () => handleApprove(false)
+                    : undefined
+            }
             disabled={isPending}
         >
             {isPending ? (
@@ -57,5 +79,46 @@ export function PjumApprovalButton({
             )}
             {isPending ? "Menyetujui..." : "Setujui PJUM"}
         </Button>
+    );
+
+    if (expiringHangingCount === 0) {
+        return approvalButton;
+    }
+
+    const formattedTotal = new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(expiringHangingTotal);
+
+    return (
+        <AlertDialog>
+            <AlertDialogTrigger asChild>{approvalButton}</AlertDialogTrigger>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>
+                        Laporan menggantung akan kedaluwarsa
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                        PJUM ini tidak menyertakan {expiringHangingCount} laporan
+                        menggantung senilai {formattedTotal}. Jika disetujui,
+                        laporan tersebut tidak dapat dimasukkan ke PJUM lagi dan
+                        tidak akan membebani saldo periode berikutnya.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel disabled={isPending}>
+                        Periksa Kembali
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                        disabled={isPending}
+                        onClick={() => handleApprove(true)}
+                    >
+                        {isPending ? "Menyetujui..." : "Pahami dan Setujui"}
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     );
 }

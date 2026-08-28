@@ -90,6 +90,8 @@ Field timestamp laporan:
 | `Report.updatedAt` | Update terakhir row laporan oleh Prisma. Jangan dianggap sebagai approval final. |
 | `Report.finishedAt` | Waktu approval final BnM saat laporan menjadi `COMPLETED`. |
 | `Report.pjumExportedAt` | Waktu laporan masuk ke PJUM. |
+| `Report.pjumHangingAt` | Waktu approval BNM pertama yang membawa laporan ke periode saldo berikutnya. |
+| `Report.pjumExpiredAt` | Waktu approval PJUM berikutnya yang mengakhiri kelayakan PJUM laporan secara permanen. |
 | `ApprovalLog.createdAt` | Waktu approval atau rejection dicatat. |
 | `ActivityLog.createdAt` | Waktu aktivitas bisnis laporan dicatat. |
 
@@ -98,6 +100,10 @@ Catatan penting:
 - Untuk tampilan "update laporan" yang berarti aktivitas bisnis, gunakan `ActivityLog.createdAt` terakhir atau field khusus yang memang merepresentasikan aktivitas bisnis.
 - Untuk "laporan selesai", gunakan `Report.finishedAt`.
 - Untuk "laporan sudah PJUM", gunakan `Report.pjumExportedAt` atau relasi konseptual dari `PjumExport.reportNumbers`.
+- Laporan menggantung aktif memiliki `pjumHangingAt` terisi,
+  `pjumExpiredAt` kosong, `pjumExportedAt` kosong, dan `balancePeriodId`
+  menunjuk periode saldo berjalan.
+- Laporan dengan `pjumExpiredAt` terisi tidak boleh masuk kandidat PJUM lagi.
 
 ## Report dan PJUM
 
@@ -121,6 +127,11 @@ Laporan Rp 0 tidak selalu wajib PJUM. Aturan UI saat ini:
 - Rp 0 tanpa item pekerjaan BMS: tidak perlu ditandai belum PJUM.
 - Rp 0 dengan item pekerjaan BMS: tetap perlu PJUM.
 - Laporan dengan biaya BMS: perlu PJUM.
+
+`BmsBalancePeriod` menyimpan periode saldo per BMS dengan status `ACTIVE`,
+`LOCKED_PJUM`, atau `CLOSED`. Saat approval PJUM, perubahan status PJUM,
+penutupan periode lama, pembuatan periode baru, expiry carryover lama, dan
+pemindahan carryover baru dilakukan dalam satu transaksi database.
 
 ## Soft Delete User
 

@@ -236,6 +236,10 @@ model Report {
   // PJUM — tracks when this report was included in a PJUM export
   pjumExportedAt DateTime? @db.Timestamptz(3)
 
+  // Lifecycle laporan gantung: aktif selama tepat satu periode PJUM berikutnya
+  pjumHangingAt DateTime? @db.Timestamptz(3)
+  pjumExpiredAt DateTime? @db.Timestamptz(3)
+
   // Final workflow PDF snapshot path in Google Drive (stored as Drive URL/path)
   completedPdfPath String?
 
@@ -266,6 +270,7 @@ model Report {
   @@index([branchName, status, finishedAt])
   @@index([branchName, status, updatedAt])
   @@index([branchName, status, pjumExportedAt])
+  @@index([createdByNIK, pjumHangingAt, pjumExpiredAt])
   @@index([branchName, areaName, status])
 }
 

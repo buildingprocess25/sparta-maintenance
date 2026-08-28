@@ -57,20 +57,27 @@ export function BalanceHistoryDrawer({ balanceInfo }: BalanceHistoryDrawerProps)
           <DrawerDescription>Rincian laporan yang menggunakan saldo operasional minggu ini.</DrawerDescription>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
+          <div className="grid grid-cols-3 gap-2 mt-4">
+            <div className="rounded-md bg-red-50 dark:bg-red-950/30 p-3 border border-red-100 dark:border-red-900/30">
+              <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400 mb-1">
+                <AlertCircle className="size-4" />
+                <span className="text-xs font-semibold uppercase">Gantung</span>
+              </div>
+              <p className="text-base font-bold text-red-900 dark:text-red-100">{formatCurrency(balanceInfo.hangingDeduction)}</p>
+            </div>
             <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3 border border-emerald-100 dark:border-emerald-900/30">
               <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400 mb-1">
                 <CheckCircle2 className="size-4" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Realisasi</span>
               </div>
-              <p className="text-lg font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(balanceInfo.totalRealized)}</p>
+              <p className="text-base font-bold text-emerald-900 dark:text-emerald-100">{formatCurrency(balanceInfo.currentPeriodRealized)}</p>
             </div>
             <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3 border border-amber-100 dark:border-amber-900/30">
               <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400 mb-1">
                 <AlertCircle className="size-4" />
                 <span className="text-xs font-semibold uppercase tracking-wider">Estimasi</span>
               </div>
-              <p className="text-lg font-bold text-amber-900 dark:text-amber-100">{formatCurrency(balanceInfo.totalEstimated)}</p>
+              <p className="text-base font-bold text-amber-900 dark:text-amber-100">{formatCurrency(balanceInfo.totalEstimated)}</p>
             </div>
           </div>
         </DrawerHeader>
@@ -97,7 +104,7 @@ export function BalanceHistoryDrawer({ balanceInfo }: BalanceHistoryDrawerProps)
                     <div
                       className={cn(
                         "size-9 shrink-0 rounded-xl flex items-center justify-center mt-0.5",
-                        item.type === "REALIZED" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+                        item.isHanging ? "bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400" : item.type === "REALIZED" ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400" : "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
                       )}
                     >
                       <Receipt className="size-4" />
@@ -117,7 +124,7 @@ export function BalanceHistoryDrawer({ balanceInfo }: BalanceHistoryDrawerProps)
                   </div>
                   <div className="text-right pl-2 shrink-0">
                     <p className="text-sm font-bold text-foreground">{formatCurrency(item.consumedAmount)}</p>
-                    <p className="text-[10px] text-muted-foreground font-medium">{item.type === "REALIZED" ? "Realisasi" : "Estimasi"}</p>
+                    <p className="text-[10px] text-muted-foreground font-medium">{item.isHanging ? "Laporan Gantung" : item.type === "REALIZED" ? "Realisasi" : "Estimasi"}</p>
                   </div>
                 </div>
               ))}
