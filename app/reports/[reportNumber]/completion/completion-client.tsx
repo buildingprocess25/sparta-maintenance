@@ -85,7 +85,10 @@ export function CompletionClient({
     isOverBudget,
     unexpectedCostNotes,
     setUnexpectedCostNotes,
-  } = useCompletionWorkForm(report, bmsBalanceInfo.availableBalance);
+  } = useCompletionWorkForm(
+    report,
+    bmsBalanceInfo.availableBalance + report.totalEstimation,
+  );
 
   const onSubmitClick = () => {
     if (validationErrors.length > 0) {
@@ -270,6 +273,38 @@ export function CompletionClient({
           onNoteChange={setAdditionalDocumentationNote}
           onPreview={setPreviewUrl}
         />
+
+        {isOverBudget && (
+          <section
+            id="unexpected-cost-notes"
+            className="mt-6 rounded-xl border border-destructive/40 bg-destructive/5 p-4"
+          >
+            <div className="flex items-start gap-2 mb-3">
+              <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-destructive">
+                  Realisasi Melebihi Sisa Saldo
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Total realisasi melebihi sisa saldo operasional. Wajib isi catatan biaya tak terduga untuk melanjutkan.
+                </p>
+              </div>
+            </div>
+            <label
+              htmlFor="unexpected-cost-notes-input"
+              className="text-xs font-medium text-foreground mb-1.5 block"
+            >
+              Catatan Biaya Tak Terduga <span className="text-destructive">*</span>
+            </label>
+            <textarea
+              id="unexpected-cost-notes-input"
+              className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+              placeholder="Jelaskan penyebab dan rincian biaya yang melebihi saldo..."
+              value={unexpectedCostNotes}
+              onChange={(e) => setUnexpectedCostNotes(e.target.value)}
+            />
+          </section>
+        )}
       </main>
 
       <footer className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 backdrop-blur-xl">
