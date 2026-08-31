@@ -467,7 +467,7 @@ async function generatePjumAddendumPages(
         exportedAt: pjumExport.createdAt.toISOString(),
         reports: reports.map((r) => ({
             reportNumber: r.reportNumber,
-            createdAt: r.createdAt.toISOString(),
+            createdAt: (r.finishedAt ?? r.createdAt).toISOString(),
             storeName: r.store?.name ?? r.storeName,
             storeCode: r.store?.code ?? r.storeCode,
             branchName: r.branchName,
