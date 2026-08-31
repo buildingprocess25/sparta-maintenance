@@ -417,30 +417,48 @@ export function AdminUsersTable({
                                         {canManage ? (
                                             <TableCell className="text-right">
                                                 <div className="flex items-center justify-end gap-1">
-                                                    <AdminUserFormDialog
-                                                        allBranchNames={
-                                                            branches
-                                                        }
-                                                        editUser={user}
-                                                        allowAdminRole={
-                                                            allowAdminRole
-                                                        }
-                                                        trigger={
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                            >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        }
-                                                    />
-                                                    <DeleteUserDialog
-                                                        user={user}
-                                                        onDeleted={
-                                                            handleDeleted
-                                                        }
-                                                    />
+                                                    {(() => {
+                                                        const isRestrictedForBmc = !allowAdminRole && (user.role === "BMC" || user.role === "BNM_MANAGER" || user.role === "ADMIN");
+                                                        
+                                                        return (
+                                                            <>
+                                                                <AdminUserFormDialog
+                                                                    allBranchNames={branches}
+                                                                    editUser={user}
+                                                                    allowAdminRole={allowAdminRole}
+                                                                    trigger={
+                                                                        <Button
+                                                                            size="icon"
+                                                                            variant="ghost"
+                                                                            className={
+                                                                                isRestrictedForBmc
+                                                                                    ? "h-7 w-7 text-muted-foreground opacity-50 cursor-not-allowed"
+                                                                                    : "h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                                            }
+                                                                            disabled={isRestrictedForBmc}
+                                                                        >
+                                                                            <Pencil className="h-3.5 w-3.5" />
+                                                                        </Button>
+                                                                    }
+                                                                />
+                                                                {isRestrictedForBmc ? (
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 text-muted-foreground opacity-50 cursor-not-allowed"
+                                                                        disabled
+                                                                    >
+                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                ) : (
+                                                                    <DeleteUserDialog
+                                                                        user={user}
+                                                                        onDeleted={handleDeleted}
+                                                                    />
+                                                                )}
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </div>
                                             </TableCell>
                                         ) : null}

@@ -126,8 +126,10 @@ export async function adminCreateUser(payload: AdminUserPayload) {
         const branchNames = normalizeBranchNames(payload.branchNames);
         const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
-        if (!isGlobalAdmin(admin) && payload.role === "ADMIN") {
-            return { error: "Role ADMIN hanya dapat dibuat oleh ADMIN" };
+        if (!isGlobalAdmin(admin)) {
+            if (payload.role !== "BMS" && payload.role !== "BRANCH_ADMIN") {
+                return { error: `Role ${payload.role} hanya dapat dibuat oleh ADMIN` };
+            }
         }
 
         if (!areBranchesInScope(admin, branchNames)) {
@@ -228,14 +230,16 @@ export async function adminUpdateUser(
         const branchNames = normalizeBranchNames(payload.branchNames);
         const areaNames = payload.areaNames ? normalizeBranchNames(payload.areaNames) : [];
 
-        if (
-            !isGlobalAdmin(admin) &&
-            (existing.role === "ADMIN" ||
-                payload.role === "ADMIN" ||
-                !areBranchesInScope(admin, existing.branchNames) ||
-                !areBranchesInScope(admin, branchNames))
-        ) {
-            return { error: "User berada di luar scope akses Anda" };
+        if (!isGlobalAdmin(admin)) {
+            if (existing.role === "BMC" || existing.role === "BNM_MANAGER" || existing.role === "ADMIN") {
+                return { error: `Anda tidak memiliki akses untuk mengubah user dengan role ${existing.role}` };
+            }
+            if (payload.role !== "BMS" && payload.role !== "BRANCH_ADMIN") {
+                return { error: `Role ${payload.role} hanya dapat diatur oleh ADMIN` };
+            }
+            if (!areBranchesInScope(admin, existing.branchNames) || !areBranchesInScope(admin, branchNames)) {
+                return { error: "User berada di luar scope akses Anda" };
+            }
         }
 
         await prisma.user.update({
@@ -297,12 +301,13 @@ export async function adminDeleteUser(NIK: string) {
             return { error: "Anda tidak bisa menghapus akun sendiri" };
         }
 
-        if (
-            !isGlobalAdmin(admin) &&
-            (existing.role === "ADMIN" ||
-                !areBranchesInScope(admin, existing.branchNames))
-        ) {
-            return { error: "User berada di luar scope akses Anda" };
+        if (!isGlobalAdmin(admin)) {
+            if (existing.role === "BMC" || existing.role === "BNM_MANAGER" || existing.role === "ADMIN") {
+                return { error: `Anda tidak memiliki akses untuk menghapus user dengan role ${existing.role}` };
+            }
+            if (!areBranchesInScope(admin, existing.branchNames)) {
+                return { error: "User berada di luar scope akses Anda" };
+            }
         }
 
         await prisma.$transaction([
@@ -839,17 +844,25 @@ export async function adminImportUsers(formData: FormData) {
                 continue;
             }
 
-            if (
-                !isGlobalAdmin(admin) &&
-                (role === "ADMIN" || !areBranchesInScope(admin, branchNames))
-            ) {
-                result.skipped++;
-                if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
-                    result.errors.push(
-                        `Baris ${rowNum} (${nik}): User berada di luar scope akses Anda`,
-                    );
+            if (!isGlobalAdmin(admin)) {
+                if (role !== "BMS" && role !== "BRANCH_ADMIN") {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${nik}): Anda tidak memiliki akses untuk membuat atau mengubah user dengan role "${role}"`,
+                        );
+                    }
+                    continue;
                 }
-                continue;
+                if (!areBranchesInScope(admin, branchNames)) {
+                    result.skipped++;
+                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                        result.errors.push(
+                            `Baris ${rowNum} (${nik}): User berada di luar scope akses Anda`,
+                        );
+                    }
+                    continue;
+                }
             }
 
             try {
@@ -864,19 +877,25 @@ export async function adminImportUsers(formData: FormData) {
                     continue;
                 }
 
-                if (
-                    existingUser &&
-                    !isGlobalAdmin(admin) &&
-                    (existingUser.role === "ADMIN" ||
-                        !areBranchesInScope(admin, existingUser.branchNames))
-                ) {
-                    result.skipped++;
-                    if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
-                        result.errors.push(
-                            `Baris ${rowNum} (${nik}): User existing berada di luar scope akses Anda`,
-                        );
+                if (existingUser && !isGlobalAdmin(admin)) {
+                    if (existingUser.role === "BMC" || existingUser.role === "BNM_MANAGER" || existingUser.role === "ADMIN") {
+                        result.skipped++;
+                        if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                            result.errors.push(
+                                `Baris ${rowNum} (${nik}): Anda tidak memiliki akses untuk mengubah user dengan role "${existingUser.role}"`,
+                            );
+                        }
+                        continue;
                     }
-                    continue;
+                    if (!areBranchesInScope(admin, existingUser.branchNames)) {
+                        result.skipped++;
+                        if (result.errors.length < MAX_IMPORT_ERRORS_REPORTED) {
+                            result.errors.push(
+                                `Baris ${rowNum} (${nik}): User existing berada di luar scope akses Anda`,
+                            );
+                        }
+                        continue;
+                    }
                 }
 
                 const isExisting = Boolean(existingUser);
