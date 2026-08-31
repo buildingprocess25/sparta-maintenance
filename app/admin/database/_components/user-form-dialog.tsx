@@ -75,7 +75,7 @@ export function AdminUserFormDialog({
 
     const roleOptions = allowAdminRole
         ? ROLE_OPTIONS
-        : ROLE_OPTIONS.filter((option) => option.value !== "ADMIN");
+        : ROLE_OPTIONS.filter((option) => option.value === "BMS" || option.value === "BRANCH_ADMIN");
 
     const needsBranch = !ROLES_WITHOUT_BRANCH.includes(role);
 

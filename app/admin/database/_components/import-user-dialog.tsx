@@ -52,16 +52,16 @@ function generateAdminUserTemplate(
             "BRANCH_ADMIN",
             templateBranches[1] ?? templateBranches[0] ?? "",
         ],
-        [
+    ];
+
+    if (allowAdminRole) {
+        exampleData.push([
             "22222222",
             "Manajer BnM",
             "bnm@email.com",
             "BNM_MANAGER",
             templateBranches[2] ?? templateBranches[0] ?? "",
-        ],
-    ];
-
-    if (allowAdminRole) {
+        ]);
         exampleData.push([
             "11111111",
             "Admin Pusat",
@@ -227,8 +227,7 @@ export function AdminImportUserDialog({
                                     </strong>
                                     . Role yang valid:{" "}
                                     <strong>
-                                        BMS, BMC, BNM_MANAGER, BRANCH_ADMIN
-                                        {allowAdminRole ? ", ADMIN" : ""}
+                                        {allowAdminRole ? "BMS, BMC, BNM_MANAGER, BRANCH_ADMIN, ADMIN" : "BMS, BRANCH_ADMIN"}
                                     </strong>
                                     {allowAdminRole
                                         ? ". Kolom Branch dikosongkan untuk role ADMIN."
