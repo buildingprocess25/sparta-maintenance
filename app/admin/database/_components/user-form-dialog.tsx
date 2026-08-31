@@ -21,9 +21,10 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { adminCreateUser, adminUpdateUser } from "../actions";
+import { adminCreateUser, adminUpdateUser, adminGetUserActiveReports } from "../actions";
+import { useEffect } from "react";
 
 const ROLE_OPTIONS = [
     { value: "BMS", label: "BMS" },
@@ -67,11 +68,29 @@ export function AdminUserFormDialog({
     const [email, setEmail] = useState(editUser?.email ?? "");
     const [role, setRole] = useState(editUser?.role ?? "BMS");
     const [branchInput, setBranchInput] = useState(
-        editUser?.branchNames.join(", ") ?? "",
+        editUser?.branchNames[0] ?? allBranchNames[0] ?? "",
     );
     const [areaNamesInput, setAreaNamesInput] = useState(
         editUser?.areaNames?.join(", ") ?? "",
     );
+
+    const [activeReports, setActiveReports] = useState<{
+        count: number;
+        reportNumbers: string[];
+    } | null>(null);
+    const [isCheckingReports, setIsCheckingReports] = useState(false);
+
+    useEffect(() => {
+        if (!open || !isEdit) return;
+
+        setIsCheckingReports(true);
+        adminGetUserActiveReports(nik).then((result) => {
+            if (!("error" in result)) {
+                setActiveReports(result);
+            }
+            setIsCheckingReports(false);
+        });
+    }, [open, isEdit, nik]);
 
     const roleOptions = allowAdminRole
         ? ROLE_OPTIONS
@@ -85,7 +104,7 @@ export function AdminUserFormDialog({
             setName("");
             setEmail("");
             setRole("BMS");
-            setBranchInput("");
+            setBranchInput(allBranchNames[0] ?? "");
             setAreaNamesInput("");
         }
     }
@@ -163,6 +182,10 @@ export function AdminUserFormDialog({
                 open={open}
                 onOpenChange={(v) => {
                     setOpen(v);
+                    if (!v) {
+                        setActiveReports(null);
+                        setIsCheckingReports(false);
+                    }
                     if (v && !isEdit) resetForm();
                 }}
             >
@@ -187,6 +210,36 @@ export function AdminUserFormDialog({
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Warning: Active Reports */}
+                        {isEdit && isCheckingReports && (
+                            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 animate-pulse">
+                                Memeriksa laporan aktif...
+                            </div>
+                        )}
+                        {isEdit && !isCheckingReports && activeReports && activeReports.count > 0 && (
+                            <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                                <div className="flex items-start gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-semibold text-amber-800">
+                                            User ini memiliki {activeReports.count} laporan aktif
+                                        </p>
+                                        <p className="text-xs text-amber-700">
+                                            Pastikan semua laporan sudah selesai sebelum memindahkan
+                                            cabang. Laporan yang sedang berjalan tidak akan otomatis
+                                            dipindahkan ke cabang baru.
+                                        </p>
+                                        <p className="text-xs text-amber-600 font-mono mt-1">
+                                            {activeReports.reportNumbers.slice(0, 5).join(", ")}
+                                            {activeReports.reportNumbers.length > 5
+                                                ? ` +${activeReports.reportNumbers.length - 5} lainnya`
+                                                : ""}
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         {/* NIK */}
                         <div className="space-y-2">
                             <Label htmlFor="admin-user-nik">NIK</Label>
@@ -251,26 +304,21 @@ export function AdminUserFormDialog({
                                 <Label htmlFor="admin-user-branch">
                                     Branch
                                 </Label>
-                                <Input
-                                    id="admin-user-branch"
+                                <Select
                                     value={branchInput}
-                                    onChange={(e) =>
-                                        setBranchInput(e.target.value)
-                                    }
-                                    placeholder={
-                                        allBranchNames[0]
-                                            ? `Contoh: ${allBranchNames[0]}`
-                                            : "Nama branch"
-                                    }
-                                    list="admin-branch-suggestions"
-                                    required={needsBranch}
-                                />
-                                {/* Datalist for autocomplete suggestions */}
-                                <datalist id="admin-branch-suggestions">
-                                    {allBranchNames.map((b) => (
-                                        <option key={b} value={b} />
-                                    ))}
-                                </datalist>
+                                    onValueChange={setBranchInput}
+                                >
+                                    <SelectTrigger id="admin-user-branch">
+                                        <SelectValue placeholder="Pilih cabang" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {allBranchNames.map((b) => (
+                                            <SelectItem key={b} value={b}>
+                                                {b}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         )}
 

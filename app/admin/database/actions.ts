@@ -277,6 +277,39 @@ export async function adminUpdateUser(
     }
 }
 
+const ACTIVE_REPORT_STATUSES = [
+    "PENDING_ESTIMATION",
+    "ESTIMATION_REJECTED_REVISION",
+    "ESTIMATION_APPROVED",
+    "IN_PROGRESS",
+    "PENDING_REVIEW",
+    "APPROVED_BMC",
+    "REVIEW_REJECTED_REVISION",
+] as const;
+
+export async function adminGetUserActiveReports(NIK: string): Promise<
+    { count: number; reportNumbers: string[] } | { error: string }
+> {
+    try {
+        await requireMasterDataManager();
+
+        const reports = await prisma.report.findMany({
+            where: {
+                createdByNIK: NIK,
+                status: { in: [...ACTIVE_REPORT_STATUSES] },
+            },
+            select: { reportNumber: true },
+        });
+
+        return {
+            count: reports.length,
+            reportNumbers: reports.map((r) => r.reportNumber),
+        };
+    } catch {
+        return { error: "Gagal mengecek laporan aktif" };
+    }
+}
+
 export async function adminDeleteUser(NIK: string) {
     const startTime = Date.now();
     try {
