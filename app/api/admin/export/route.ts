@@ -12,6 +12,7 @@ import {
 import { toExcelJakartaSerial } from "@/lib/time";
 import { resolveLimitedExportScope } from "./access";
 import { parseStoreBrandFilter } from "@/lib/store-brand-filter";
+import { getReportStatusLabel } from "@/lib/report-status";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
 
@@ -80,7 +81,7 @@ function buildReportSheet(
       textCell(r.storeName),
       textCell(r.bmsNIK),
       textCell(r.bmsName),
-      textCell(r.status),
+      textCell(getReportStatusLabel(r.status)),
       dateCell(r.submittedAt),
       dateCell(r.resubmittedEstimationAt),
       dateCell(r.estimationApprovedAt),
