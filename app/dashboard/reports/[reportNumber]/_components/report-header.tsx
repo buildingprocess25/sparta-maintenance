@@ -14,6 +14,7 @@ import {
 } from "@/lib/report-status";
 import { getPjumStatusLabel } from "@/lib/pjum-status";
 import { isRekananZeroCost } from "@/lib/report-utils";
+import { UNEXPECTED_COST_REASON_SHORT_LABEL } from "@/lib/unexpected-cost";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,8 @@ export function ReportHeader({
         report.items,
         report.estimations,
     );
+    const hasOverTacticalBalanceReason =
+        Boolean(report.unexpectedCostNotes?.trim());
     const finalDocuments = getFinalDriveDocuments(report);
     const canIntervene =
         viewerRole === "ADMIN" && report.status === "COMPLETED";
@@ -116,6 +119,16 @@ export function ReportHeader({
                                 Tidak ada item bermasalah
                             </Badge>
                         )}
+                        {hasOverTacticalBalanceReason ? (
+                            <Badge
+                                variant="outline"
+                                className="h-6 border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-50"
+                                title="Nilai realisasi laporan ini lebih besar dari sisa saldo dana taktis BMS saat penyelesaian diajukan."
+                            >
+                                <AlertTriangle data-icon="inline-start" />
+                                {UNEXPECTED_COST_REASON_SHORT_LABEL}
+                            </Badge>
+                        ) : null}
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">

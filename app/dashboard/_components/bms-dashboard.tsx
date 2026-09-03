@@ -1,21 +1,17 @@
 import Link from "next/link";
-import { AlertCircle, CheckCircle2, Clock, PlusCircle, Wrench, XCircle, FileText, type LucideIcon } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, FileText } from "lucide-react";
 
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { getActivityActionLabel, getActionBadgeClass } from "@/app/dashboard/activity/activity-format";
-import { formatJakartaDate } from "@/lib/time";
-import { cn } from "@/lib/utils";
 import type { AuthUser } from "@/lib/authorization";
 import { getBMSActivity, getUserStats, type ActivityItem } from "../queries";
 import { BmsMobileDashboardStats, type BmsMobileDashboardStatItem } from "./bms-mobile-dashboard-stats";
 import { BmsWelcomeCard } from "./bms-welcome-card";
 import { BmsMobileActivityItem } from "@/components/bms-mobile/bms-activity-item";
-import { calculateBmsBalance } from "@/lib/balance";
+import { calculateBmsBalance, getBmsActiveReportBlocker } from "@/lib/balance";
 import { BmsPreventiveCard } from "./bms-preventive-card";
 import { getBmsPreventiveCoverage } from "../preventive/actions";
+import { BmsCreateReportButton } from "@/app/reports/_components/bms-create-report-button";
 
 function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
   return (
@@ -41,20 +37,13 @@ function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
 }
 
 export async function BmsDashboard({ user }: { user: AuthUser }) {
-  const [stats, activities, coverage, balanceInfo] = await Promise.all([
+  const [stats, activities, coverage, balanceInfo, activeReportBlocker] = await Promise.all([
     getUserStats(user.NIK),
     getBMSActivity(user.NIK),
-    getBmsPreventiveCoverage(user as any), // Type assertion might be needed if user type is broader
+    getBmsPreventiveCoverage(user),
     calculateBmsBalance(user.NIK),
+    getBmsActiveReportBlocker(user.NIK),
   ]);
-  const formattedDate = new Intl.DateTimeFormat("id-ID", {
-    weekday: "long",
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Jakarta",
-  }).format(new Date());
-
   const statItems: BmsMobileDashboardStatItem[] = [
     {
       key: "all",
@@ -105,12 +94,13 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
     >
       <BmsWelcomeCard name={user.name} balance={balanceInfo} />
 
-      <Button asChild size="lg" className="h-12 w-full">
-        <Link href="/reports/create">
-          <PlusCircle data-icon="inline-start" />
-          Buat Laporan Baru
-        </Link>
-      </Button>
+      <BmsCreateReportButton
+        blocker={activeReportBlocker}
+        label="Buat Laporan Baru"
+        mobileLabel="Buat Laporan Baru"
+        size="lg"
+        className="h-12 w-full"
+      />
 
       <BmsPreventiveCard coverage={coverage} />
 

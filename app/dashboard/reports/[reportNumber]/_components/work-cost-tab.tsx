@@ -55,6 +55,7 @@ import {
     type ReportMaterialStoreRow,
 } from "./report-detail-utils";
 import { useReportApprovalReviewGate } from "./report-approval-review-gate";
+import { UNEXPECTED_COST_REASON_TITLE } from "@/lib/unexpected-cost";
 
 export function WorkCostTab({
     report,
@@ -241,7 +242,7 @@ function UnexpectedCostSection({ notes }: { notes: string }) {
         <section className="w-full rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 sm:w-[320px]">
             <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-orange-800">
                 <AlertTriangle className="size-4" />
-                <h2>Biaya Tak Terduga</h2>
+                <h2>{UNEXPECTED_COST_REASON_TITLE}</h2>
             </div>
             <p className="whitespace-pre-wrap text-xs leading-relaxed text-orange-900">
                 {notes}
@@ -377,7 +378,6 @@ function ReceiptCompareDialog({
 
         container.addEventListener("wheel", onWheel, { passive: false });
         return () => container.removeEventListener("wheel", onWheel);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activePhoto, zoom]);
 
     function getDistance(

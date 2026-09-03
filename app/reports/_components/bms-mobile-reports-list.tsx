@@ -27,12 +27,15 @@ import { getBmsReportsPaginatedAction } from "../actions/paginated";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import { cn } from "@/lib/utils";
 import type { DateRangeFilter } from "../actions/types";
+import type { BmsActiveReportBlockerSummary } from "@/lib/bms-active-report-blocker";
+import { BmsCreateReportButton } from "./bms-create-report-button";
 
 type BmsMobileReportsListProps = {
   reports: ReportData[];
   total: number;
   totalPages: number;
   currentPage: number;
+  activeReportBlocker?: BmsActiveReportBlockerSummary | null;
 };
 
 const DATE_OPTIONS = [
@@ -55,6 +58,7 @@ export function BmsMobileReportsList({
   total: initialTotal,
   totalPages: initialTotalPages,
   currentPage,
+  activeReportBlocker = null,
 }: BmsMobileReportsListProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -85,6 +89,7 @@ export function BmsMobileReportsList({
 
   // Sync with initial props when URL changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setAllReports(initialReports);
     setPage(currentPage);
     setHasMore(currentPage < initialTotalPages);
@@ -363,11 +368,19 @@ export function BmsMobileReportsList({
         </div>
       </div>
 
-      {/* Total count */}
-      <p className="text-xs text-muted-foreground pt-3 px-1">
-        {initialTotal} laporan{" "}
-        {hasFilters && `sesuai filter (${activeDateLabel})`}
-      </p>
+      <div className="flex items-center justify-between gap-3 pt-3">
+        <p className="min-w-0 text-xs text-muted-foreground px-1">
+          {initialTotal} laporan{" "}
+          {hasFilters && `sesuai filter (${activeDateLabel})`}
+        </p>
+        <BmsCreateReportButton
+          blocker={activeReportBlocker}
+          label="Buat Laporan"
+          mobileLabel="Buat"
+          size="sm"
+          className="shrink-0"
+        />
+      </div>
 
       {/* Loading overlay */}
       <div className="relative mt-2">

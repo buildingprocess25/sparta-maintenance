@@ -18,7 +18,8 @@ import { isChecklistOnlyReport } from "@/lib/report-utils";
 import type { ReportItemJson } from "@/types/report";
 import { checklistCategories } from "@/lib/checklist-data";
 import { getLastCategoryIDate } from "./queries";
-import { validateEstimationLimit, getBmsActivePeriod, hasBmsRepairItems, createNewBmsPeriod } from "@/lib/balance";
+import { validateEstimationLimit, getBmsActivePeriod, hasBmsRepairItems, createNewBmsPeriod, getBmsActiveReportBlocker } from "@/lib/balance";
+import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
 import { isSameJakartaQuarter } from "@/lib/time";
 
 /**
@@ -47,6 +48,15 @@ export async function submitReport(data: DraftData) {
 
     const headersList = await headers();
     await validateCSRF(headersList);
+
+    const activeReportBlocker = await getBmsActiveReportBlocker(user.NIK, {
+        excludeReportNumber: data.draftReportNumber,
+    });
+    if (activeReportBlocker) {
+        return {
+            error: formatBmsActiveReportBlockerMessage(activeReportBlocker),
+        };
+    }
 
     // ── Server-side cooldown validation (defense-in-depth) ────────────────
     // Determine if Category I is currently in cooldown for this store.

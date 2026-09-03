@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, SendHorizonal, Wrench, X } from "lucide-react";
+import { AlertCircle, Loader2, SendHorizonal, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
@@ -8,6 +8,8 @@ import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mo
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
+import { Textarea } from "@/components/ui/textarea";
+import { BmsBalanceCard } from "@/components/bms-balance-card";
 import {
   getReportStatusBadgeClass,
   getReportStatusLabel,
@@ -15,7 +17,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   formatCurrency,
-  genId,
   isCompletionItemComplete,
   type CompletionReport,
 } from "./completion-utils";
@@ -24,6 +25,12 @@ import { CompletionItemSection } from "./components/completion-item-section";
 import { StartWorkRevisionSection } from "./components/start-work-revision-section";
 import { SummaryMetric } from "./components/summary-metric";
 import { useCompletionWorkForm } from "./use-completion-work-form";
+import {
+  UNEXPECTED_COST_NOTES_MAX_LENGTH,
+  UNEXPECTED_COST_REASON_DESCRIPTION,
+  UNEXPECTED_COST_REASON_PLACEHOLDER,
+  UNEXPECTED_COST_REASON_TITLE,
+} from "@/lib/unexpected-cost";
 
 import type { BmsBalanceInfo } from "@/lib/balance";
 
@@ -49,7 +56,6 @@ export function CompletionClient({
     completedCount,
     damagedItems,
     estimationMap,
-    globalNotes,
     grandTotal,
     handlePhotoCaptured,
     handleRemovePhoto,
@@ -69,9 +75,7 @@ export function CompletionClient({
     setAdditionalDocumentationNote,
     setAdditionalDocumentationPhotos,
     setCameraTarget,
-    setGlobalNotes,
     setPreviewUrl,
-    setStartWorkMaterialStores,
     setStartWorkReceiptPhotos,
     setStartWorkSelfiePhotos,
     setStartWorkSkipPhotos,
@@ -167,6 +171,8 @@ export function CompletionClient({
             />
           </div>
         </section>
+
+        <BmsBalanceCard balance={bmsBalanceInfo} className="mt-4" />
 
         {shouldReviseStartWork && (
           <StartWorkRevisionSection
@@ -283,10 +289,10 @@ export function CompletionClient({
               <AlertCircle className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-destructive">
-                  Realisasi Melebihi Sisa Saldo
+                  {UNEXPECTED_COST_REASON_TITLE}
                 </p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Total realisasi melebihi sisa saldo operasional. Wajib isi catatan biaya tak terduga untuk melanjutkan.
+                  {UNEXPECTED_COST_REASON_DESCRIPTION}
                 </p>
               </div>
             </div>
@@ -294,15 +300,23 @@ export function CompletionClient({
               htmlFor="unexpected-cost-notes-input"
               className="text-xs font-medium text-foreground mb-1.5 block"
             >
-              Catatan Biaya Tak Terduga <span className="text-destructive">*</span>
+              Alasan <span className="text-destructive">*</span>
             </label>
-            <textarea
+            <Textarea
               id="unexpected-cost-notes-input"
-              className="w-full min-h-[96px] rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-              placeholder="Jelaskan penyebab dan rincian biaya yang melebihi saldo..."
+              className="min-h-[96px] resize-none"
+              maxLength={UNEXPECTED_COST_NOTES_MAX_LENGTH}
+              placeholder={UNEXPECTED_COST_REASON_PLACEHOLDER}
               value={unexpectedCostNotes}
-              onChange={(e) => setUnexpectedCostNotes(e.target.value)}
+              onChange={(e) =>
+                setUnexpectedCostNotes(
+                  e.target.value.slice(0, UNEXPECTED_COST_NOTES_MAX_LENGTH),
+                )
+              }
             />
+            <p className="mt-1 text-right text-[11px] text-muted-foreground">
+              {unexpectedCostNotes.length}/{UNEXPECTED_COST_NOTES_MAX_LENGTH}
+            </p>
           </section>
         )}
       </main>

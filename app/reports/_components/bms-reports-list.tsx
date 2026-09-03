@@ -33,7 +33,6 @@ import {
 import React from "react";
 import {
     Search,
-    Plus,
     MapPin,
     Filter,
     FileText,
@@ -62,6 +61,8 @@ import {
     getReportStatusLabelFromSlug,
 } from "@/lib/report-status";
 import { formatJakartaDate } from "@/lib/time";
+import type { BmsActiveReportBlockerSummary } from "@/lib/bms-active-report-blocker";
+import { BmsCreateReportButton } from "./bms-create-report-button";
 
 // Type for report data from server
 export type ReportData = {
@@ -88,6 +89,7 @@ type BmsReportsListProps = {
     total: number;
     totalPages: number;
     currentPage: number;
+    activeReportBlocker?: BmsActiveReportBlockerSummary | null;
 };
 
 export default function BmsReportsList({
@@ -95,6 +97,7 @@ export default function BmsReportsList({
     total,
     totalPages,
     currentPage,
+    activeReportBlocker = null,
 }: BmsReportsListProps) {
     const router = useRouter();
     const pathname = usePathname();
@@ -562,14 +565,12 @@ export default function BmsReportsList({
                         </div>
                     </div>
 
-                    <Button
-                        onClick={() => router.push("/reports/create")}
-                        className="w-full md:w-auto gap-2"
-                    >
-                        <Plus className="h-4 w-4" />
-                        <span className="hidden md:inline">Buat Laporan</span>
-                        <span className="md:hidden">Laporan Baru</span>
-                    </Button>
+                    <BmsCreateReportButton
+                        blocker={activeReportBlocker}
+                        label="Buat Laporan"
+                        mobileLabel="Laporan Baru"
+                        className="w-full md:w-auto"
+                    />
                 </div>
 
                 {reports.length > 0 ? (

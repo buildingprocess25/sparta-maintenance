@@ -32,6 +32,7 @@ import { calculateItemRealisasiTotal } from "@/lib/realisasi";
 import { getReportActivityActionLabel } from "@/lib/report-activity-label";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { cn } from "@/lib/utils";
+import { UNEXPECTED_COST_REASON_TITLE } from "@/lib/unexpected-cost";
 import type { ReportData, Viewer, ActivityEntry } from "./_components/types";
 import type { RealisasiItemJson } from "@/types/report";
 
@@ -858,12 +859,12 @@ function CompletionPanel({
         </section>
       )}
 
-      {/* Catatan Biaya Tak Terduga */}
+      {/* Alasan realisasi melebihi sisa saldo dana taktis */}
       {report.unexpectedCostNotes && (
         <section className="mt-4 p-4 rounded-md border border-orange-200 bg-orange-50">
           <div className="flex items-center gap-2 mb-1.5 text-orange-800 font-semibold text-sm">
             <AlertTriangle className="w-4 h-4" />
-            <span>Catatan Biaya Tak Terduga (Overbudget)</span>
+            <span>{UNEXPECTED_COST_REASON_TITLE}</span>
           </div>
           <p className="text-sm text-orange-900 leading-relaxed whitespace-pre-wrap">
             {report.unexpectedCostNotes}

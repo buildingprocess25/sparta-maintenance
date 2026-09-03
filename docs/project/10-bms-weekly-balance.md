@@ -12,7 +12,8 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - Estimasi melebihi sisa saldo: tidak bisa submit.
 
-- Realisasi melebihi sisa saldo: boleh submit, tetapi catatan biaya tak terduga wajib diisi.
+- Realisasi melebihi sisa saldo: boleh submit, tetapi alasan realisasi
+  melebihi sisa saldo dana taktis wajib diisi dengan batas 250 karakter.
 
 - PJUM harus dibuat untuk periode minggu berjalan.
 
@@ -21,6 +22,11 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 - Membuat PJUM membuat saldo masuk status terkunci sampai BNM memutuskan.
 
 - Selama PJUM masih Review BNM, BMS tidak bisa mulai pekerjaan baru.
+
+- BMS tidak bisa membuat laporan baru jika masih ada laporan aktif miliknya
+  yang belum selesai. Agar laporan lama yang tidak relevan tidak mengunci
+  pengguna, blocker hanya menghitung laporan pada periode saldo aktif atau
+  laporan tanpa periode yang dibuat setelah cutover 2026-09-03 Asia/Jakarta.
 
 - Jika PJUM approved BNM, periode baru memakai saldo dasar Rp 1.000.000
   dikurangi realisasi laporan menggantung dari periode sebelumnya.
@@ -40,7 +46,9 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - Terkunci PJUM: BMS sedang menunggu PJUM disetujui BNM.
 
-- Biaya tak terduga: selisih realisasi yang membuat biaya lebih besar dari saldo atau estimasi.
+- Alasan realisasi melebihi sisa saldo dana taktis: catatan wajib dari BMS
+  saat total realisasi laporan lebih besar dari sisa saldo dana taktis yang
+  tersedia.
 
 - Laporan menggantung: laporan selesai dan wajib PJUM yang tidak disertakan
   ketika PJUM periode asal disetujui BNM.
@@ -66,7 +74,9 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - 8. Saat BMS submit penyelesaian, sistem hitung realisasi.
 
-- 9. Jika realisasi lebih besar dari saldo tersedia, BMS tetap bisa submit dengan catatan biaya tak terduga wajib diisi.
+- 9. Jika realisasi lebih besar dari saldo tersedia, BMS tetap bisa submit
+  dengan alasan realisasi melebihi sisa saldo dana taktis wajib diisi maksimal
+  250 karakter.
 
 - 10. BMC membuat PJUM untuk minggu berjalan. Laporan menggantung aktif
   otomatis ikut terpilih dan tidak bisa dilepas dari pilihan PJUM.
@@ -78,17 +88,21 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - 13. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
 
-- 14. Jika PJUM approved, laporan selesai yang tidak disertakan dipindahkan ke
+- 14. Saat ada laporan aktif yang belum selesai, BMS tidak bisa membuat
+  laporan baru. UI menampilkan laporan pengunci dan server tetap menolak
+  request manual.
+
+- 15. Jika PJUM approved, laporan selesai yang tidak disertakan dipindahkan ke
   periode baru sebagai laporan menggantung.
 
-- 15. Saldo periode baru dihitung dari Rp 1.000.000 dikurangi laporan
+- 16. Saldo periode baru dihitung dari Rp 1.000.000 dikurangi laporan
   menggantung dan penggunaan baru.
 
-- 16. Laporan menggantung wajib masuk PJUM periode berikutnya. Saat BNM
+- 17. Laporan menggantung wajib masuk PJUM periode berikutnya. Saat BNM
   mereview PJUM, sistem menampilkan laporan gantung yang ikut PJUM dan laporan
   gantung yang tertinggal jika ada anomali data lama/forged request.
 
-- 17. Jika PJUM rejected, saldo reset dibatalkan.
+- 18. Jika PJUM rejected, saldo reset dibatalkan.
 
 
 ## Case Bisnis
@@ -98,11 +112,12 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 | Estimasi lebih besar dari saldo | Blokir submit estimasi. |
 | Submit estimasi aman | Saldo langsung di-reserve sejak `PENDING_ESTIMATION`. |
 | Estimasi ditolak permanen oleh BMC | Saldo yang di-reserve dikembalikan (otomatis). |
-| Estimasi aman, realisasi membengkak | Izinkan submit penyelesaian dengan catatan wajib. |
+| Estimasi aman, realisasi membengkak | Izinkan submit penyelesaian dengan alasan realisasi melebihi sisa saldo dana taktis, maksimal 250 karakter. |
 | Ada laporan mulai kerja tapi belum selesai | PJUM tidak bisa dibuat. |
 | BMC membuat PJUM dengan laporan menggantung aktif | Laporan menggantung otomatis terpilih dan tidak bisa di-unselect. |
 | Total pilihan laporan PJUM lebih dari Rp 1.000.000 | Tombol buat PJUM diblokir dan UI menjelaskan batas nominal. |
 | PJUM sedang Review BNM | BMS tidak bisa mulai pekerjaan baru. |
+| Ada laporan aktif milik BMS yang belum selesai | BMS tidak bisa membuat laporan baru sampai laporan aktif tersebut berstatus `COMPLETED`; laporan lama di luar periode aktif/cutover tidak ikut memblokir. |
 | Laporan selesai tidak dipilih dalam PJUM | Menjadi laporan menggantung saat approval BNM dan mengurangi saldo periode berikutnya. |
 | Total laporan menggantung lebih dari Rp 1.000.000 | Saldo periode berikutnya boleh negatif. |
 | Laporan menggantung ikut PJUM berikutnya | Dipertanggungjawabkan dan tidak lagi membebani periode selanjutnya. |

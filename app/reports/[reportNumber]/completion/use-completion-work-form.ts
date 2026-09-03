@@ -4,10 +4,8 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
-  type ChangeEvent,
 } from "react";
 import { useRouter } from "next/navigation";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
@@ -40,6 +38,7 @@ import {
   toRemotePhoto,
   type CompletionReport,
 } from "./completion-utils";
+import { UNEXPECTED_COST_NOTES_MAX_LENGTH } from "@/lib/unexpected-cost";
 
 type CameraTarget =
   | { target: "item"; itemId: string }
@@ -91,7 +90,6 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
   const [startWorkSkipPhotos, setStartWorkSkipPhotos] = useState(false);
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const startWorkStoreGalleryInputRef = useRef<HTMLInputElement>(null);
   const closePreview = useHistoryBackClose(!!previewUrl, () =>
     setPreviewUrl(null),
   );
@@ -476,7 +474,15 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     if (isOverBudget && !unexpectedCostNotes.trim()) {
       errs.push({
         id: "unexpected-cost-notes",
-        message: "Catatan Biaya Tak Terduga wajib diisi karena realisasi biaya melebihi sisa saldo.",
+        message:
+          "Alasan realisasi melebihi sisa saldo dana taktis wajib diisi.",
+      });
+    }
+
+    if (unexpectedCostNotes.length > UNEXPECTED_COST_NOTES_MAX_LENGTH) {
+      errs.push({
+        id: "unexpected-cost-notes",
+        message: `Alasan maksimal ${UNEXPECTED_COST_NOTES_MAX_LENGTH} karakter.`,
       });
     }
 
@@ -722,6 +728,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     startWorkSelfiePhotos,
     startWorkSkipPhotos,
     uploadPhoto,
+    unexpectedCostNotes,
     validationErrors.length,
   ]);
 

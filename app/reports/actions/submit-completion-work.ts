@@ -18,6 +18,10 @@ import type {
 } from "@/types/report";
 import { cleanReportItemsJson } from "./report-json-helpers";
 import { calculateBmsBalance, hasBmsRepairItems } from "@/lib/balance";
+import {
+    UNEXPECTED_COST_NOTES_MAX_LENGTH,
+    UNEXPECTED_COST_REASON_TITLE,
+} from "@/lib/unexpected-cost";
 
 export interface CompletionItemInput {
     itemId: string;
@@ -192,6 +196,15 @@ export async function submitCompletionWork(
         ];
 
         const totalReal = calculateTotalRealisasiFromItems(updatedItems);
+        const safeCostNotes = unexpectedCostNotes?.trim();
+        if (
+            safeCostNotes &&
+            safeCostNotes.length > UNEXPECTED_COST_NOTES_MAX_LENGTH
+        ) {
+            return {
+                error: `${UNEXPECTED_COST_REASON_TITLE} maksimal ${UNEXPECTED_COST_NOTES_MAX_LENGTH} karakter.`,
+            };
+        }
 
         // ── Realisasi Over Estimation Check ──────────────────────────────────────────
         const hasBalanceImpact = hasBmsRepairItems(updatedItems);
@@ -203,12 +216,10 @@ export async function submitCompletionWork(
             const maxAvailableBudget = balance.availableBalance + reportTotalEstimation;
 
             if (totalReal > maxAvailableBudget) {
-                // Realisasi melebihi batas maksimal — wajib isi catatan biaya tak terduga
-                const safeCostNotes = unexpectedCostNotes?.trim();
                 if (!safeCostNotes) {
                     return {
                         error:
-                            "Realisasi biaya melebihi batas maksimal. Catatan Biaya Tak Terduga wajib diisi untuk melanjutkan.",
+                            "Realisasi melebihi sisa saldo dana taktis. Alasan wajib diisi untuk melanjutkan.",
                     };
                 }
             }
@@ -239,7 +250,7 @@ export async function submitCompletionWork(
                             []) as unknown as Prisma.InputJsonValue,
                     completionAdditionalNote:
                         additionalDocumentation?.note?.trim() || null,
-                    unexpectedCostNotes: unexpectedCostNotes?.trim() || null,
+                    unexpectedCostNotes: safeCostNotes || null,
                     // Append new Drive file IDs
                     drivePhotoFileIds:
                         mergedFileIds as unknown as Prisma.InputJsonValue,

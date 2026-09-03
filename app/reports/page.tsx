@@ -1,11 +1,10 @@
 import { requireAuth } from "@/lib/authorization";
 import { getMyReports, getApprovalReports } from "@/app/reports/actions";
-import BmsReportsList from "./_components/bms-reports-list";
 import { ApprovalReportsList } from "./_components/approval-reports-list";
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { BmsMobileReportsList } from "./_components/bms-mobile-reports-list";
 import type { DateRangeFilter } from "./actions/types";
-import { calculateBmsBalance } from "@/lib/balance";
+import { calculateBmsBalance, getBmsActiveReportBlocker } from "@/lib/balance";
 import { BmsBalanceCard } from "@/components/bms-balance-card";
 
 type ReportsPageProps = {
@@ -123,7 +122,10 @@ export default async function ReportsPage(props: ReportsPageProps) {
 
     // ── BMS → Mobile-first layout with BmsMobilePage ─────────────────────────
     // Fetch balance info for BMS user
-    const balanceInfo = await calculateBmsBalance(user.NIK);
+    const [balanceInfo, activeReportBlocker] = await Promise.all([
+        calculateBmsBalance(user.NIK),
+        getBmsActiveReportBlocker(user.NIK),
+    ]);
 
     const userInitials = user.name
         .split(" ")
@@ -139,6 +141,7 @@ export default async function ReportsPage(props: ReportsPageProps) {
                 total={total}
                 totalPages={totalPages}
                 currentPage={page}
+                activeReportBlocker={activeReportBlocker}
             />
         </BmsMobilePage>
     );

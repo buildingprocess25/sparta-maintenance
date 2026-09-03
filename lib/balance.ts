@@ -21,6 +21,10 @@ import { requiresPjum } from "@/lib/realisasi";
 import { classifyPjumApprovalReports } from "@/lib/pjum-hanging";
 import { isActivePjumHangingReport } from "@/lib/pjum-hanging";
 import { summarizeBmsBalanceAmounts } from "@/lib/bms-balance-calculation";
+import {
+    buildBmsActiveReportBlockerWhere,
+    type BmsActiveReportBlockerSummary,
+} from "@/lib/bms-active-report-blocker";
 
 export type BmsHangingReportSummary = {
     reportNumber: string;
@@ -142,6 +146,31 @@ export async function getBmsActivePeriod(bmsNIK: string) {
     });
 
     return period;
+}
+
+export async function getBmsActiveReportBlocker(
+    bmsNIK: string,
+    options: { excludeReportNumber?: string } = {},
+): Promise<BmsActiveReportBlockerSummary | null> {
+    const period = await getBmsActivePeriod(bmsNIK);
+    const report = await prisma.report.findFirst({
+        where: buildBmsActiveReportBlockerWhere({
+            bmsNIK,
+            activePeriodId: period?.id ?? null,
+            excludeReportNumber: options.excludeReportNumber,
+        }),
+        orderBy: [{ updatedAt: "desc" }, { reportNumber: "desc" }],
+        select: {
+            reportNumber: true,
+            storeName: true,
+            storeCode: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+
+    return report;
 }
 
 /**
