@@ -59,6 +59,10 @@ import {
     getReportStatusBadgeClass,
     getReportStatusLabel,
 } from "@/lib/report-status";
+import {
+    PJUM_SELECTION_LIMIT,
+    evaluatePjumSelectionPolicy,
+} from "@/lib/pjum-selection-policy";
 import { cn } from "@/lib/utils";
 import { formatJakartaDate, getJakartaDayKey, getJakartaDayRange } from "@/lib/time";
 
@@ -203,6 +207,17 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         (sum, row) => sum + row.totalRealisasi,
         0,
     );
+    const selectionPolicy = evaluatePjumSelectionPolicy({
+        rows:
+            result?.rows.map((row) => ({
+                reportNumber: row.reportNumber,
+                totalRealisasi: row.totalRealisasi,
+                isHangingReport: Boolean(row.isHangingReport),
+                isValid: row.isValid,
+            })) ?? [],
+        selectedReportNumbers: selectedReports,
+    });
+    const isOverSelectionLimit = selectionPolicy.exceedsLimit;
     const allValidSelected =
         validRows.length > 0 &&
         validRows.every((row) => selectedSet.has(row.reportNumber));
@@ -218,7 +233,8 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         !isCreating &&
         !isSearching &&
         !!result &&
-        !!monthName;
+        !!monthName &&
+        !isOverSelectionLimit;
 
     function handleSearch() {
         if (!canSearch) {
@@ -252,6 +268,13 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
     function toggleReport(row: DashboardPjumCandidateRow) {
         if (!row.isValid) return;
 
+        if (row.isHangingReport && selectedSet.has(row.reportNumber)) {
+            toast.info(
+                "Laporan gantung wajib masuk PJUM periode ini dan tidak bisa dilepas.",
+            );
+            return;
+        }
+
         setSelectedReports((current) =>
             current.includes(row.reportNumber)
                 ? current.filter((item) => item !== row.reportNumber)
@@ -261,7 +284,11 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
 
     function toggleAllValid() {
         if (allValidSelected) {
-            setSelectedReports([]);
+            setSelectedReports(
+                validRows
+                    .filter((row) => row.isHangingReport)
+                    .map((row) => row.reportNumber),
+            );
             return;
         }
 
@@ -492,6 +519,16 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                     disetujui BNM.
                                 </div>
                             ) : null}
+                            {isOverSelectionLimit ? (
+                                <div className="inline-flex items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-2 py-1 text-xs font-medium text-red-800">
+                                    <AlertTriangle className="size-3.5" />
+                                    Total laporan yang akan di-PJUM-kan{" "}
+                                    {formatCurrency(selectedTotal)}. Maksimal{" "}
+                                    {formatCurrency(PJUM_SELECTION_LIMIT)}.
+                                    Kurangi laporan baru yang bukan laporan
+                                    gantung.
+                                </div>
+                            ) : null}
                         </section>
                     ) : null}
 
@@ -561,7 +598,12 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                                         checked={selectedSet.has(
                                                             row.reportNumber,
                                                         )}
-                                                        disabled={!row.isValid}
+                                                        disabled={
+                                                            !row.isValid ||
+                                                            Boolean(
+                                                                row.isHangingReport,
+                                                            )
+                                                        }
                                                         onCheckedChange={() =>
                                                             toggleReport(row)
                                                         }

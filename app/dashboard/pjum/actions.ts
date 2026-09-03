@@ -15,6 +15,10 @@ import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 import { getJakartaDateRange } from "@/lib/time";
 import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import { lockBmsPeriodForPjum, unlockBmsPeriodAfterPjumRejection, getBmsActivePeriod } from "@/lib/balance";
+import {
+    PJUM_SELECTION_LIMIT,
+    evaluatePjumSelectionPolicy,
+} from "@/lib/pjum-selection-policy";
 export type AdminPjumFilters = {
     search?: string;
     branchName?: string;
@@ -523,6 +527,42 @@ export async function createDashboardPjum(input: {
         const selectedReports = safeNumbers
             .map((reportNumber) => reportMap.get(reportNumber))
             .filter((report): report is DashboardPjumCandidate => !!report);
+        const policyRows = reports.map((report) => ({
+            reportNumber: report.reportNumber,
+            totalRealisasi: resolveReportTotalRealisasi(
+                report.totalReal,
+                report.items,
+            ),
+            isHangingReport: Boolean(
+                report.pjumHangingAt &&
+                    !report.pjumExpiredAt &&
+                    !report.pjumExportedAt,
+            ),
+            isValid:
+                report.status === "COMPLETED" &&
+                requiresPjum(report.totalReal, report.items) &&
+                !report.pjumExportedAt &&
+                !report.pjumExpiredAt,
+        }));
+        const selectionPolicy = evaluatePjumSelectionPolicy({
+            rows: policyRows,
+            selectedReportNumbers: safeNumbers,
+        });
+
+        if (selectionPolicy.missingMandatoryHangingReportNumbers.length > 0) {
+            return {
+                error: `Laporan gantung ${selectionPolicy.missingMandatoryHangingReportNumbers.join(", ")} wajib masuk PJUM periode ini`,
+                pjumExportId: null,
+            };
+        }
+
+        if (selectionPolicy.exceedsLimit) {
+            return {
+                error: `Total nominal laporan yang akan di-PJUM-kan tidak boleh lebih dari Rp ${PJUM_SELECTION_LIMIT.toLocaleString("id-ID")}`,
+                pjumExportId: null,
+            };
+        }
+
         const branchNames = new Set(selectedReports.map((row) => row.branchName));
         if (branchNames.size !== 1) {
             return {
@@ -540,7 +580,12 @@ export async function createDashboardPjum(input: {
         ];
 
         const hangingReportNumbers = selectedReports
-            .filter((report) => report.finishedAt && report.finishedAt < fromDate)
+            .filter(
+                (report) =>
+                    report.pjumHangingAt &&
+                    !report.pjumExpiredAt &&
+                    !report.pjumExportedAt,
+            )
             .map((report) => report.reportNumber);
             
         const activePeriod = await getBmsActivePeriod(bmsNIK);
