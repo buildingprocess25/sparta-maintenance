@@ -555,11 +555,11 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     }, [historyRecords, historyQuery, historyStatusFilter]);
 
     function handleExport() {
-        if (!canExport) return;
         if (isOverSelectionLimit) {
             toast.error("Total nominal laporan yang akan di-PJUM-kan tidak boleh lebih dari Rp 1.000.000");
             return;
         }
+        if (!canExport) return;
         if (!fromDate || !toDate) {
             toast.error("Rentang tanggal belum lengkap");
             return;

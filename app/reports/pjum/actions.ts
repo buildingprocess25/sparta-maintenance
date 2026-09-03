@@ -604,6 +604,7 @@ export async function exportPjum(input: {
                     reportNumber: { in: safeNumbers },
                     status: "COMPLETED",
                     pjumExportedAt: null,
+                    pjumExpiredAt: null,
                 },
                 data: { pjumExportedAt: new Date() },
             });
