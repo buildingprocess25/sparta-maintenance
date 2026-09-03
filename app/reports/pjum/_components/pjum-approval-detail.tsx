@@ -13,6 +13,7 @@ import {
     User,
     CalendarDays,
     Hash,
+    AlertTriangle,
 } from "lucide-react";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
@@ -93,6 +94,10 @@ export function PjumApprovalDetail({ detail }: Props) {
         (sum, report) => sum + report.realizedAmount,
         0,
     );
+    const hasHangingReviewInfo =
+        detail.includedHangingReports.length +
+            detail.omittedHangingReports.length >
+        0;
     const approvalButton = (
         <Button
             size="lg"
@@ -276,6 +281,40 @@ export function PjumApprovalDetail({ detail }: Props) {
                                 </div>
                             </CardContent>
                         </Card>
+
+                        {isPending && hasHangingReviewInfo ? (
+                            <Card className="border-amber-200 bg-amber-50/50">
+                                <CardHeader className="pb-3">
+                                    <CardTitle className="flex items-center gap-2 text-base text-amber-900">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Deteksi Laporan Gantung
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Periksa laporan gantung sebelum
+                                        menyetujui PJUM.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent className="space-y-3 text-sm">
+                                    {detail.includedHangingReports.length >
+                                    0 ? (
+                                        <HangingReportList
+                                            title="Masuk PJUM ini"
+                                            reports={
+                                                detail.includedHangingReports
+                                            }
+                                        />
+                                    ) : null}
+                                    {detail.omittedHangingReports.length > 0 ? (
+                                        <HangingReportList
+                                            title="Tidak masuk dan akan kedaluwarsa jika disetujui"
+                                            reports={
+                                                detail.omittedHangingReports
+                                            }
+                                        />
+                                    ) : null}
+                                </CardContent>
+                            </Card>
+                        ) : null}
 
                         {/* Reports Table Card */}
                         <Card>
@@ -476,6 +515,55 @@ export function PjumApprovalDetail({ detail }: Props) {
             )}
 
             <Footer />
+        </div>
+    );
+}
+
+function HangingReportList({
+    title,
+    reports,
+}: {
+    title: string;
+    reports: Array<{
+        reportNumber: string;
+        storeName?: string;
+        storeCode?: string | null;
+        finishedAt?: string | null;
+        realizedAmount: number;
+    }>;
+}) {
+    return (
+        <div className="space-y-2">
+            <p className="font-semibold text-foreground">{title}</p>
+            <div className="divide-y rounded-md border bg-background">
+                {reports.map((report) => (
+                    <div
+                        key={report.reportNumber}
+                        className="flex items-center justify-between gap-3 px-3 py-2"
+                    >
+                        <div className="min-w-0">
+                            <p className="font-mono text-xs font-semibold">
+                                {report.reportNumber}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                                {report.storeCode
+                                    ? `${report.storeCode} - `
+                                    : ""}
+                                {report.storeName ?? "-"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Selesai:{" "}
+                                {report.finishedAt
+                                    ? formatJakartaDate(report.finishedAt)
+                                    : "-"}
+                            </p>
+                        </div>
+                        <span className="shrink-0 font-semibold">
+                            Rp {fmtCurrency(report.realizedAmount)}
+                        </span>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }

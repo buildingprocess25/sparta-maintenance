@@ -25,6 +25,7 @@ type PjumApprovalButtonProps = {
     viewerRole: string;
     expiringHangingCount: number;
     expiringHangingTotal: number;
+    expiringHangingReportNumbers: string[];
 };
 
 export function PjumApprovalButton({
@@ -33,6 +34,7 @@ export function PjumApprovalButton({
     viewerRole,
     expiringHangingCount,
     expiringHangingTotal,
+    expiringHangingReportNumbers,
 }: PjumApprovalButtonProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -105,6 +107,9 @@ export function PjumApprovalButton({
                         menggantung senilai {formattedTotal}. Jika disetujui,
                         laporan tersebut tidak dapat dimasukkan ke PJUM lagi dan
                         tidak akan membebani saldo periode berikutnya.
+                        {expiringHangingReportNumbers.length > 0
+                            ? ` Laporan: ${expiringHangingReportNumbers.join(", ")}.`
+                            : ""}
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

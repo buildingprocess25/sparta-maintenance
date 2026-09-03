@@ -68,23 +68,27 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 
 - 9. Jika realisasi lebih besar dari saldo tersedia, BMS tetap bisa submit dengan catatan biaya tak terduga wajib diisi.
 
-- 10. BMC membuat PJUM untuk minggu berjalan.
+- 10. BMC membuat PJUM untuk minggu berjalan. Laporan menggantung aktif
+  otomatis ikut terpilih dan tidak bisa dilepas dari pilihan PJUM.
 
 - 11. Jika masih ada laporan periode itu yang belum selesai, PJUM tidak bisa dibuat.
 
-- 12. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
+- 12. Total realisasi laporan yang dipilih untuk PJUM tidak boleh melebihi
+  Rp 1.000.000. Jika melebihi, tombol buat PJUM diblokir.
 
-- 13. Jika PJUM approved, laporan selesai yang tidak disertakan dipindahkan ke
+- 13. Saat PJUM dibuat, saldo BMS terkunci dan BMS tidak bisa mulai pekerjaan baru.
+
+- 14. Jika PJUM approved, laporan selesai yang tidak disertakan dipindahkan ke
   periode baru sebagai laporan menggantung.
 
-- 14. Saldo periode baru dihitung dari Rp 1.000.000 dikurangi laporan
+- 15. Saldo periode baru dihitung dari Rp 1.000.000 dikurangi laporan
   menggantung dan penggunaan baru.
 
-- 15. Laporan menggantung hanya dapat masuk PJUM periode berikutnya. Saat
-  approval berikutnya, laporan diselesaikan jika ikut atau kedaluwarsa jika
-  kembali tidak ikut.
+- 16. Laporan menggantung wajib masuk PJUM periode berikutnya. Saat BNM
+  mereview PJUM, sistem menampilkan laporan gantung yang ikut PJUM dan laporan
+  gantung yang tertinggal jika ada anomali data lama/forged request.
 
-- 16. Jika PJUM rejected, saldo reset dibatalkan.
+- 17. Jika PJUM rejected, saldo reset dibatalkan.
 
 
 ## Case Bisnis
@@ -96,11 +100,13 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 | Estimasi ditolak permanen oleh BMC | Saldo yang di-reserve dikembalikan (otomatis). |
 | Estimasi aman, realisasi membengkak | Izinkan submit penyelesaian dengan catatan wajib. |
 | Ada laporan mulai kerja tapi belum selesai | PJUM tidak bisa dibuat. |
+| BMC membuat PJUM dengan laporan menggantung aktif | Laporan menggantung otomatis terpilih dan tidak bisa di-unselect. |
+| Total pilihan laporan PJUM lebih dari Rp 1.000.000 | Tombol buat PJUM diblokir dan UI menjelaskan batas nominal. |
 | PJUM sedang Review BNM | BMS tidak bisa mulai pekerjaan baru. |
 | Laporan selesai tidak dipilih dalam PJUM | Menjadi laporan menggantung saat approval BNM dan mengurangi saldo periode berikutnya. |
 | Total laporan menggantung lebih dari Rp 1.000.000 | Saldo periode berikutnya boleh negatif. |
 | Laporan menggantung ikut PJUM berikutnya | Dipertanggungjawabkan dan tidak lagi membebani periode selanjutnya. |
-| Laporan menggantung kembali tidak ikut | Kedaluwarsa permanen saat approval berikutnya dan tidak dapat di-PJUM-kan lagi. |
+| BNM review PJUM dengan laporan menggantung | Detail PJUM menampilkan laporan gantung yang ikut dan yang tertinggal. |
 | PJUM rejected BNM | Reset saldo dibatalkan. |
 | Laporan ditolak permanen setelah mulai kerja | Saldo laporan dikembalikan. |
 | Admin intervensi realisasi laporan selesai | Saldo historis disesuaikan mengikuti koreksi. |
@@ -121,8 +127,9 @@ saldo tersedia = saldo dasar
 
 UI BMS menampilkan saldo dasar, pengurang laporan menggantung, penggunaan
 periode berjalan, dan saldo tersedia. BMC melihat carryover sebagai kandidat
-khusus pada PJUM berikutnya. BNM melihat jumlah dan nominal carryover yang akan
-kedaluwarsa sebelum konfirmasi approval.
+khusus yang wajib ikut pada PJUM berikutnya. BNM melihat daftar laporan
+gantung yang ikut PJUM dan daftar yang tertinggal jika ada anomali data lama
+atau request tidak normal sebelum konfirmasi approval.
 
 ## Go-Live
 

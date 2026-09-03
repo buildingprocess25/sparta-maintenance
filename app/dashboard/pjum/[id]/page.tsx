@@ -35,7 +35,10 @@ import { getPjumPolicySettings } from "@/lib/app-settings";
 import { PjumApprovalButton } from "./_components/pjum-approval-button";
 import { PjumCancelButton } from "./_components/pjum-cancel-button";
 import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
-import { getOmittedHangingReportsForPjum } from "@/lib/balance";
+import {
+    getIncludedHangingReportsForPjum,
+    getOmittedHangingReportsForPjum,
+} from "@/lib/balance";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +79,13 @@ export default async function AdminPjumDetailPage({ params }: Props) {
         pjumPolicy.pendingStaleDays,
     );
     const canCancelPjum = user.role === "ADMIN";
+    const includedHangingReportNumbers = new Set(
+        detail.includedHangingReports.map((report) => report.reportNumber),
+    );
+    const hasHangingReviewInfo =
+        detail.includedHangingReports.length +
+            detail.omittedHangingReports.length >
+        0;
 
     return (
         <AdminDashboardShell
@@ -151,6 +161,9 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                     0,
                                 )
                             }
+                            expiringHangingReportNumbers={detail.omittedHangingReports.map(
+                                (report) => report.reportNumber,
+                            )}
                         />
                         {canCancelPjum ? (
                             <PjumCancelButton
@@ -221,6 +234,34 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                             </div>
                         </section>
 
+                        {detail.pjum.status === "PENDING_APPROVAL" &&
+                        hasHangingReviewInfo ? (
+                            <section className="rounded-lg border border-amber-200 bg-amber-50/60">
+                                <div className="border-b border-amber-200 px-4 py-3">
+                                    <h2 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Deteksi Laporan Gantung
+                                    </h2>
+                                    <p className="mt-1 text-xs text-amber-800/80">
+                                        Sistem mendeteksi laporan gantung saat
+                                        review PJUM ini.
+                                    </p>
+                                </div>
+                                <div className="grid gap-3 p-4 md:grid-cols-2">
+                                    <HangingReportSummary
+                                        title="Masuk PJUM ini"
+                                        emptyText="Tidak ada laporan gantung yang ikut PJUM ini."
+                                        reports={detail.includedHangingReports}
+                                    />
+                                    <HangingReportSummary
+                                        title="Tidak masuk PJUM"
+                                        emptyText="Tidak ada laporan gantung yang tertinggal."
+                                        reports={detail.omittedHangingReports}
+                                    />
+                                </div>
+                            </section>
+                        ) : null}
+
                         <section className="rounded-lg border bg-background">
                             <div className="flex items-center justify-between gap-3 border-b px-4 py-3">
                                 <div>
@@ -268,6 +309,13 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                                         {report.reportNumber}
                                                         <ArrowUpRight className="h-3 w-3" />
                                                     </Link>
+                                                    {includedHangingReportNumbers.has(
+                                                        report.reportNumber,
+                                                    ) ? (
+                                                        <Badge className="ml-2 border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+                                                            Wajib
+                                                        </Badge>
+                                                    ) : null}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="font-medium">
@@ -432,6 +480,12 @@ async function getPjumDetail(id: string) {
                   approvedReportNumbers: pjum.reportNumbers,
               })
             : [];
+    const includedHangingReports =
+        pjum.status === "PENDING_APPROVAL"
+            ? await getIncludedHangingReportsForPjum({
+                  approvedReportNumbers: pjum.reportNumbers,
+              })
+            : [];
 
     return {
         pjum,
@@ -441,6 +495,7 @@ async function getPjumDetail(id: string) {
             ? userMap.get(pjum.approvedByNIK) ?? pjum.approvedByNIK
             : null,
         reports: orderedReports,
+        includedHangingReports,
         omittedHangingReports,
         totalRealization: orderedReports.reduce(
             (sum, report) => sum + (report.totalReal ?? 0),
@@ -507,6 +562,71 @@ function KeyValueGroup({
                     <span className="text-right font-medium">{value}</span>
                 </div>
             ))}
+        </div>
+    );
+}
+
+function HangingReportSummary({
+    title,
+    emptyText,
+    reports,
+}: {
+    title: string;
+    emptyText: string;
+    reports: PjumDetail["omittedHangingReports"];
+}) {
+    const total = reports.reduce(
+        (sum, report) => sum + report.realizedAmount,
+        0,
+    );
+
+    return (
+        <div className="rounded-md border bg-background">
+            <div className="border-b px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-xs font-semibold">{title}</h3>
+                    <span className="text-[11px] text-muted-foreground">
+                        {reports.length} laporan
+                    </span>
+                </div>
+                {reports.length > 0 ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                        Total {formatRp(total)}
+                    </p>
+                ) : null}
+            </div>
+            <div className="divide-y text-xs">
+                {reports.length > 0 ? (
+                    reports.map((report) => (
+                        <div
+                            key={report.reportNumber}
+                            className="flex items-start justify-between gap-3 px-3 py-2"
+                        >
+                            <div className="min-w-0">
+                                <p className="font-mono font-semibold">
+                                    {report.reportNumber}
+                                </p>
+                                <p className="truncate text-muted-foreground">
+                                    {report.storeCode
+                                        ? `${report.storeCode} - `
+                                        : ""}
+                                    {report.storeName}
+                                </p>
+                                <p className="text-[11px] text-muted-foreground">
+                                    Selesai: {formatDate(report.finishedAt)}
+                                </p>
+                            </div>
+                            <span className="shrink-0 font-semibold">
+                                {formatRp(report.realizedAmount)}
+                            </span>
+                        </div>
+                    ))
+                ) : (
+                    <p className="px-3 py-2 text-muted-foreground">
+                        {emptyText}
+                    </p>
+                )}
+            </div>
         </div>
     );
 }

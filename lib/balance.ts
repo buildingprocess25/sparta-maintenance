@@ -49,6 +49,7 @@ export async function getOmittedHangingReportsForPjum(input: {
             reportNumber: true,
             storeName: true,
             storeCode: true,
+            finishedAt: true,
             totalReal: true,
         },
         orderBy: { finishedAt: "asc" },
@@ -58,6 +59,40 @@ export async function getOmittedHangingReportsForPjum(input: {
         reportNumber: report.reportNumber,
         storeName: report.storeName,
         storeCode: report.storeCode,
+        finishedAt: report.finishedAt,
+        realizedAmount: report.totalReal
+            ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
+            : 0,
+    }));
+}
+
+export async function getIncludedHangingReportsForPjum(input: {
+    approvedReportNumbers: string[];
+}) {
+    if (input.approvedReportNumbers.length === 0) return [];
+
+    const reports = await prisma.report.findMany({
+        where: {
+            reportNumber: { in: input.approvedReportNumbers },
+            pjumHangingAt: { not: null },
+            pjumExpiredAt: null,
+            pjumExportedAt: { not: null },
+        },
+        select: {
+            reportNumber: true,
+            storeName: true,
+            storeCode: true,
+            finishedAt: true,
+            totalReal: true,
+        },
+        orderBy: { finishedAt: "asc" },
+    });
+
+    return reports.map((report) => ({
+        reportNumber: report.reportNumber,
+        storeName: report.storeName,
+        storeCode: report.storeCode,
+        finishedAt: report.finishedAt,
         realizedAmount: report.totalReal
             ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
             : 0,

@@ -31,6 +31,7 @@ import {
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
 import {
     approvePjumAndTransitionBmsBalance,
+    getIncludedHangingReportsForPjum,
     getOmittedHangingReportsForPjum,
 } from "@/lib/balance";
 
@@ -79,8 +80,18 @@ export type PjumExportDetail = {
         totalRealisasi: number;
     }[];
     totalExpenditure: number;
+    includedHangingReports: {
+        reportNumber: string;
+        storeName: string;
+        storeCode: string | null;
+        finishedAt: string | null;
+        realizedAmount: number;
+    }[];
     omittedHangingReports: {
         reportNumber: string;
+        storeName: string;
+        storeCode: string | null;
+        finishedAt: string | null;
         realizedAmount: number;
     }[];
     pjumFinalDriveUrl: string | null;
@@ -284,6 +295,12 @@ export async function getPjumExportDetail(
                       approvedReportNumbers: pjumExport.reportNumbers,
                   })
                 : [];
+        const includedHangingReports =
+            pjumExport.status === "PENDING_APPROVAL"
+                ? await getIncludedHangingReportsForPjum({
+                      approvedReportNumbers: pjumExport.reportNumbers,
+                  })
+                : [];
 
         const data: PjumExportDetail = {
             id: pjumExport.id,
@@ -306,8 +323,22 @@ export async function getPjumExportDetail(
                 totalRealisasi: r.totalRealisasi,
             })),
             totalExpenditure,
+            includedHangingReports: includedHangingReports.map((report) => ({
+                reportNumber: report.reportNumber,
+                storeName: report.storeName,
+                storeCode: report.storeCode,
+                finishedAt: report.finishedAt
+                    ? report.finishedAt.toISOString()
+                    : null,
+                realizedAmount: report.realizedAmount,
+            })),
             omittedHangingReports: omittedHangingReports.map((report) => ({
                 reportNumber: report.reportNumber,
+                storeName: report.storeName,
+                storeCode: report.storeCode,
+                finishedAt: report.finishedAt
+                    ? report.finishedAt.toISOString()
+                    : null,
                 realizedAmount: report.realizedAmount,
             })),
             pjumFinalDriveUrl: pjumExport.pjumFinalDriveUrl,
