@@ -559,10 +559,7 @@ export async function exportPjum(input: {
             };
         }
 
-        if (
-            safeNumbers.length !== eligibleReportNumbers.length ||
-            safeNumbers.some((reportNumber) => !eligibleSet.has(reportNumber))
-        ) {
+        if (safeNumbers.some((reportNumber) => !eligibleSet.has(reportNumber))) {
             return {
                 error: "Data laporan berubah. Klik Cari Laporan lagi sebelum membuat PJUM",
                 pjumExportId: null,

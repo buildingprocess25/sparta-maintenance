@@ -24,6 +24,7 @@ import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -400,6 +401,9 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
     const [fromDate, setFromDate] = useState<Date>();
     const [toDate, setToDate] = useState<Date>();
     const [reports, setReports] = useState<PjumReportRow[] | null>(null);
+    const [selectedReportNumbers, setSelectedReportNumbers] = useState<
+        string[]
+    >([]);
     const [historyRecords, setHistoryRecords] =
         useState<PjumHistoryRow[]>(historyItems);
     const [historyQuery, setHistoryQuery] = useState("");
@@ -468,6 +472,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             return;
         }
         setReports(null);
+        setSelectedReportNumbers([]);
         setExportDoneDriveUrl(null);
         if (overlappingRange) {
             toast.info(
@@ -479,7 +484,18 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             if (result.error) {
                 toast.error(result.error);
             } else {
-                setReports(result.data ?? []);
+                const nextReports = result.data ?? [];
+                setReports(nextReports);
+                setSelectedReportNumbers(
+                    nextReports
+                        .filter(
+                            (report) =>
+                                report.status === "COMPLETED" &&
+                                !report.pjumExportedAt &&
+                                report.requiresPjum,
+                        )
+                        .map((report) => report.reportNumber),
+                );
             }
         });
     }
@@ -498,8 +514,15 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
         reports?.some((r) => r.status !== "COMPLETED") ?? false;
     const totalAll =
         reports?.reduce((sum, r) => sum + r.totalRealisasi, 0) ?? 0;
-    const totalEligible = eligibleReports.reduce(
-        (sum, r) => sum + r.totalRealisasi,
+    const selectedSet = useMemo(
+        () => new Set(selectedReportNumbers),
+        [selectedReportNumbers],
+    );
+    const selectedReports = eligibleReports.filter((report) =>
+        selectedSet.has(report.reportNumber),
+    );
+    const selectedTotal = selectedReports.reduce(
+        (sum, report) => sum + report.totalRealisasi,
         0,
     );
     const selectionPolicy = evaluatePjumSelectionPolicy({
@@ -513,16 +536,17 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                     !report.pjumExportedAt &&
                     report.requiresPjum,
             })) ?? [],
-        selectedReportNumbers: eligibleReports.map(
-            (report) => report.reportNumber,
-        ),
+        selectedReportNumbers,
     });
     const isOverSelectionLimit = selectionPolicy.exceedsLimit;
+    const hasMissingMandatoryHanging =
+        selectionPolicy.missingMandatoryHangingReportNumbers.length > 0;
     const canExport =
-        eligibleReports.length > 0 &&
+        selectedReports.length > 0 &&
         !hasNonCompleted &&
         !!weekNumber &&
-        !isOverSelectionLimit;
+        !isOverSelectionLimit &&
+        !hasMissingMandatoryHanging;
     const hangingReports = eligibleReports.filter(
         (report) => report.isHangingReport,
     );
@@ -530,6 +554,27 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
         (sum, report) => sum + report.totalRealisasi,
         0,
     );
+
+    function toggleReportSelection(report: PjumReportRow) {
+        if (
+            report.status !== "COMPLETED" ||
+            report.pjumExportedAt ||
+            !report.requiresPjum
+        ) {
+            return;
+        }
+
+        if (report.isHangingReport && selectedSet.has(report.reportNumber)) {
+            toast.info("Laporan gantung wajib masuk PJUM periode ini dan tidak bisa dilepas.");
+            return;
+        }
+
+        setSelectedReportNumbers((current) =>
+            current.includes(report.reportNumber)
+                ? current.filter((item) => item !== report.reportNumber)
+                : [...current, report.reportNumber],
+        );
+    }
 
     const filteredHistory = useMemo(() => {
         const q = historyQuery.trim().toLowerCase();
@@ -564,7 +609,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             toast.error("Rentang tanggal belum lengkap");
             return;
         }
-        const nums = eligibleReports.map((r) => r.reportNumber);
+        const nums = selectedReports.map((r) => r.reportNumber);
         const week = Number(weekNumber);
         if (!Number.isInteger(week) || week < 1 || week > 5) {
             toast.error("Minggu ke wajib dipilih (1-5)");
@@ -574,7 +619,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             toast.error("Bulan wajib dipilih");
             return;
         }
-        const exportTotalRealisasi = eligibleReports.reduce(
+        const exportTotalRealisasi = selectedReports.reduce(
             (sum, report) => sum + report.totalRealisasi,
             0,
         );
@@ -596,6 +641,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
             } else {
                 const createdAt = new Date().toISOString();
                 const historyBranchName =
+                    selectedReports[0]?.branchName ??
                     eligibleReports[0]?.branchName ??
                     reports?.[0]?.branchName ??
                     "";
@@ -724,6 +770,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             setFromDate(undefined);
                                             setToDate(undefined);
                                             setReports(null);
+                                            setSelectedReportNumbers([]);
                                             setExportDoneDriveUrl(null);
                                             if (!value) {
                                                 setIsLoadingBlockedRanges(
@@ -766,6 +813,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onChange={(date) => {
                                             setFromDate(date);
                                             setReports(null);
+                                            setSelectedReportNumbers([]);
                                             setExportDoneDriveUrl(null);
                                         }}
                                         label="Tanggal mulai"
@@ -780,6 +828,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onChange={(date) => {
                                             setToDate(date);
                                             setReports(null);
+                                            setSelectedReportNumbers([]);
                                             setExportDoneDriveUrl(null);
                                             if (date) {
                                                 setMonthName(
@@ -800,6 +849,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onValueChange={(value) => {
                                             setWeekNumber(value);
                                             setReports(null);
+                                            setSelectedReportNumbers([]);
                                             setExportDoneDriveUrl(null);
                                         }}
                                     >
@@ -826,6 +876,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         onValueChange={(value) => {
                                             setMonthName(value);
                                             setReports(null);
+                                            setSelectedReportNumbers([]);
                                             setExportDoneDriveUrl(null);
                                         }}
                                     >
@@ -890,7 +941,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                 <div className="flex flex-col gap-0.5">
                                     <span className="text-sm">
                                         <span className="font-semibold text-foreground">
-                                            {eligibleReports.length}
+                                            {selectedReports.length}
                                         </span>{" "}
                                         <span className="text-muted-foreground">
                                             laporan siap PJUM
@@ -903,7 +954,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         )}
                                         {" · "}
                                         <span className="font-medium text-foreground">
-                                            {formatCurrency(totalEligible)}
+                                            {formatCurrency(selectedTotal)}
                                         </span>
                                     </span>
                                     {exportedReportsCount > 0 && (
@@ -929,7 +980,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                     {isOverSelectionLimit && (
                                         <span className="flex items-center gap-1 text-red-600 text-xs">
                                             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                            Total PJUM {formatCurrency(totalEligible)} melebihi batas {formatCurrency(PJUM_SELECTION_LIMIT)}.
+                                            Total PJUM {formatCurrency(selectedTotal)} melebihi batas {formatCurrency(PJUM_SELECTION_LIMIT)}.
                                         </span>
                                     )}
                                 </div>
@@ -948,7 +999,7 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                         <>
                                             <CheckCircle2 className="h-4 w-4 mr-2" />
                                             Buat Dokumen PJUM (
-                                            {eligibleReports.length})
+                                            {selectedReports.length})
                                         </>
                                     )}
                                 </Button>
@@ -1077,6 +1128,11 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                             perlu
                                                                         </span>
                                                                     )}
+                                                                {r.isHangingReport && (
+                                                                    <span className="inline-block rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                                                                        Wajib
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                             {/* Row 3: report number */}
                                                             <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1.5">
@@ -1110,6 +1166,28 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                             </div>
                                                         </div>
 
+                                                        {r.status ===
+                                                            "COMPLETED" &&
+                                                            !isExported &&
+                                                            r.requiresPjum && (
+                                                            <div className="flex items-center pr-3">
+                                                                <Checkbox
+                                                                    checked={selectedSet.has(
+                                                                        r.reportNumber,
+                                                                    )}
+                                                                    disabled={
+                                                                        r.isHangingReport
+                                                                    }
+                                                                    onCheckedChange={() =>
+                                                                        toggleReportSelection(
+                                                                            r,
+                                                                        )
+                                                                    }
+                                                                    aria-label={`Pilih laporan ${r.reportNumber}`}
+                                                                />
+                                                            </div>
+                                                        )}
+
                                                         {/* Link to report */}
                                                         <div className="flex items-center pr-3">
                                                             <Link prefetch={false}
@@ -1133,6 +1211,9 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             <Table>
                                                 <TableHeader>
                                                     <TableRow className="bg-muted/50 hover:bg-muted/50">
+                                                        <TableHead className="w-28">
+                                                            Pilih
+                                                        </TableHead>
                                                         <TableHead className="w-28">
                                                             Nomor Laporan
                                                         </TableHead>
@@ -1170,6 +1251,31 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                         : ""
                                                                 }
                                                             >
+                                                                <TableCell>
+                                                                    {r.status ===
+                                                                        "COMPLETED" &&
+                                                                    !isExported &&
+                                                                    r.requiresPjum ? (
+                                                                        <Checkbox
+                                                                            checked={selectedSet.has(
+                                                                                r.reportNumber,
+                                                                            )}
+                                                                            disabled={
+                                                                                r.isHangingReport
+                                                                            }
+                                                                            onCheckedChange={() =>
+                                                                                toggleReportSelection(
+                                                                                    r,
+                                                                                )
+                                                                            }
+                                                                            aria-label={`Pilih laporan ${r.reportNumber}`}
+                                                                        />
+                                                                    ) : (
+                                                                        <span className="text-muted-foreground">
+                                                                            -
+                                                                        </span>
+                                                                    )}
+                                                                </TableCell>
                                                                 <TableCell className="font-mono text-xs font-medium text-muted-foreground">
                                                                     <Link prefetch={false}
                                                                         href={`/dashboard/reports/${r.reportNumber}`}
@@ -1199,9 +1305,16 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                                                     )}
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                    {getStatusBadge(
-                                                                        r.status,
-                                                                    )}
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        {getStatusBadge(
+                                                                            r.status,
+                                                                        )}
+                                                                        {r.isHangingReport ? (
+                                                                            <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+                                                                                Wajib
+                                                                            </Badge>
+                                                                        ) : null}
+                                                                    </div>
                                                                 </TableCell>
                                                                 <TableCell className="text-right font-mono text-sm">
                                                                     {r.totalRealisasi >

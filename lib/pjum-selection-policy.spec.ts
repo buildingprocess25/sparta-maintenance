@@ -38,6 +38,7 @@ const ok = evaluatePjumSelectionPolicy({
 assert.deepEqual(ok.mandatoryHangingReportNumbers, ["GANTUNG-1"]);
 assert.deepEqual(ok.missingMandatoryHangingReportNumbers, []);
 assert.equal(ok.selectedTotal, 850_000);
+assert.equal(ok.selectedCount, 2);
 assert.equal(ok.exceedsLimit, false);
 assert.equal(ok.limit, PJUM_SELECTION_LIMIT);
 
