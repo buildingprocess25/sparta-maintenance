@@ -13,6 +13,10 @@ import { generatePjumPackagePdf } from "@/lib/pdf/generate-pjum-package-pdf";
 import { getJakartaDateRange } from "@/lib/time";
 import { isActivePjumHangingReport } from "@/lib/pjum-hanging";
 import {
+    PJUM_SELECTION_LIMIT,
+    evaluatePjumSelectionPolicy,
+} from "@/lib/pjum-selection-policy";
+import {
     buildPjumSnapshotPath,
     uploadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
@@ -521,6 +525,39 @@ export async function exportPjum(input: {
             .filter((report) => !report.pjumExportedAt && requiresPjum(report.totalReal, report.items))
             .map((report) => report.reportNumber);
         const eligibleSet = new Set(eligibleReportNumbers);
+
+        const selectionPolicy = evaluatePjumSelectionPolicy({
+            rows: rangeReports.map((report) => ({
+                reportNumber: report.reportNumber,
+                totalRealisasi: resolveReportTotalRealisasi(
+                    report.totalReal,
+                    report.items,
+                ),
+                isHangingReport: isActivePjumHangingReport(report),
+                isValid:
+                    report.status === "COMPLETED" &&
+                    !report.pjumExportedAt &&
+                    !report.pjumExpiredAt &&
+                    requiresPjum(report.totalReal, report.items),
+            })),
+            selectedReportNumbers: safeNumbers,
+        });
+
+        if (selectionPolicy.missingMandatoryHangingReportNumbers.length > 0) {
+            return {
+                error: `Laporan gantung ${selectionPolicy.missingMandatoryHangingReportNumbers.join(", ")} wajib masuk PJUM periode ini`,
+                pjumExportId: null,
+                pjumFinalDriveUrl: null,
+            };
+        }
+
+        if (selectionPolicy.exceedsLimit) {
+            return {
+                error: `Total nominal laporan yang akan di-PJUM-kan tidak boleh lebih dari Rp ${PJUM_SELECTION_LIMIT.toLocaleString("id-ID")}`,
+                pjumExportId: null,
+                pjumFinalDriveUrl: null,
+            };
+        }
 
         if (
             safeNumbers.length !== eligibleReportNumbers.length ||

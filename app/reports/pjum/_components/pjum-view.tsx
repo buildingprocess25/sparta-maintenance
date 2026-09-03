@@ -77,6 +77,10 @@ import {
     getJakartaDayKey,
     getJakartaDayRange,
 } from "@/lib/time";
+import {
+    PJUM_SELECTION_LIMIT,
+    evaluatePjumSelectionPolicy,
+} from "@/lib/pjum-selection-policy";
 
 type Props = {
     bmsUsers: PjumBmsUser[];
@@ -492,14 +496,33 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
         reports?.filter((r) => r.pjumExportedAt !== null).length ?? 0;
     const hasNonCompleted =
         reports?.some((r) => r.status !== "COMPLETED") ?? false;
-    const canExport =
-        eligibleReports.length > 0 && !hasNonCompleted && !!weekNumber;
     const totalAll =
         reports?.reduce((sum, r) => sum + r.totalRealisasi, 0) ?? 0;
     const totalEligible = eligibleReports.reduce(
         (sum, r) => sum + r.totalRealisasi,
         0,
     );
+    const selectionPolicy = evaluatePjumSelectionPolicy({
+        rows:
+            reports?.map((report) => ({
+                reportNumber: report.reportNumber,
+                totalRealisasi: report.totalRealisasi,
+                isHangingReport: report.isHangingReport,
+                isValid:
+                    report.status === "COMPLETED" &&
+                    !report.pjumExportedAt &&
+                    report.requiresPjum,
+            })) ?? [],
+        selectedReportNumbers: eligibleReports.map(
+            (report) => report.reportNumber,
+        ),
+    });
+    const isOverSelectionLimit = selectionPolicy.exceedsLimit;
+    const canExport =
+        eligibleReports.length > 0 &&
+        !hasNonCompleted &&
+        !!weekNumber &&
+        !isOverSelectionLimit;
     const hangingReports = eligibleReports.filter(
         (report) => report.isHangingReport,
     );
@@ -533,6 +556,10 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
 
     function handleExport() {
         if (!canExport) return;
+        if (isOverSelectionLimit) {
+            toast.error("Total nominal laporan yang akan di-PJUM-kan tidak boleh lebih dari Rp 1.000.000");
+            return;
+        }
         if (!fromDate || !toDate) {
             toast.error("Rentang tanggal belum lengkap");
             return;
@@ -897,6 +924,12 @@ export function PjumView({ bmsUsers, historyItems }: Props) {
                                             <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                                             {hangingReports.length} laporan
                                             menggantung senilai {formatCurrency(hangingTotal)} hanya berlaku sampai PJUM periode ini disetujui BNM
+                                        </span>
+                                    )}
+                                    {isOverSelectionLimit && (
+                                        <span className="flex items-center gap-1 text-red-600 text-xs">
+                                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                            Total PJUM {formatCurrency(totalEligible)} melebihi batas {formatCurrency(PJUM_SELECTION_LIMIT)}.
                                         </span>
                                     )}
                                 </div>
