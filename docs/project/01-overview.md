@@ -38,4 +38,4 @@ SPARTA Maintenance adalah aplikasi internal untuk pelaporan maintenance toko, ch
 - `BMS` tetap memakai workflow operasional lama pada route `/reports`.
 - UI dashboard baru dibuat compact, table-first, dan menghindari card berlebihan.
 - Status laporan dan status PJUM harus memakai label global dari `lib/report-status.ts` dan `lib/pjum-status.ts`.
-- Export XLSX yang menampilkan status laporan juga harus memakai label global agar konsisten dengan dashboard.
+- Export XLSX laporan maintenance harus menampilkan kolom brand toko dan status laporan memakai label global agar konsisten dengan dashboard.

@@ -36,6 +36,7 @@ export type ExportFilter = {
 export type ReportExportRow = {
     reportNumber: string;
     isPreventive: boolean;
+    brand: string | null;
     createdAt: Date;
     branchName: string;
     storeCode: string | null;
@@ -211,6 +212,7 @@ export async function fetchReportExportRows(
                 createdAt: true,
                 branchName: true,
                 storeCode: true,
+                store: { select: { brand: true } },
                 storeName: true,
                 createdByNIK: true,
                 createdBy: { select: { name: true } },
@@ -256,6 +258,7 @@ export async function fetchReportExportRows(
             return {
                 reportNumber: r.reportNumber,
                 isPreventive: preventiveSet.has(r.reportNumber),
+                brand: r.store?.brand ?? null,
                 createdAt: r.createdAt,
                 branchName: r.branchName,
                 storeCode: r.storeCode,

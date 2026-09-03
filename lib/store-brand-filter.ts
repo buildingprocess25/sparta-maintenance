@@ -21,6 +21,10 @@ export function normalizeStoreBrandFilter(value?: string | null): StoreBrandFilt
   return parseStoreBrandFilter(value) ?? 'ALL';
 }
 
+export function getStoreBrandExportLabel(value?: string | null): "Alfamart" | "Lawson" {
+  return value?.trim().toUpperCase() === "LAWSON" ? "Lawson" : "Alfamart";
+}
+
 export function getStoreBrandWhere(brandFilter: StoreBrandFilter): Prisma.StoreWhereInput | undefined {
   if (brandFilter === 'LAWSON') {
     return {

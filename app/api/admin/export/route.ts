@@ -11,7 +11,10 @@ import {
 } from "@/app/admin/export/queries";
 import { toExcelJakartaSerial } from "@/lib/time";
 import { resolveLimitedExportScope } from "./access";
-import { parseStoreBrandFilter } from "@/lib/store-brand-filter";
+import {
+  getStoreBrandExportLabel,
+  parseStoreBrandFilter,
+} from "@/lib/store-brand-filter";
 import { getReportStatusLabel } from "@/lib/report-status";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
@@ -45,6 +48,7 @@ function buildReportSheet(
   const headers = [
     "No. Laporan",
     "Jenis Laporan",
+    "Brand",
     "Tanggal Dibuat",
     "Branch",
     "Kode Toko",
@@ -75,6 +79,7 @@ function buildReportSheet(
     ...rows.map((r) => [
       textCell(r.reportNumber),
       textCell(r.isPreventive ? "Preventif" : "Insidentil"),
+      textCell(getStoreBrandExportLabel(r.brand)),
       dateCell(r.createdAt),
       textCell(r.branchName),
       textCell(r.storeCode),
