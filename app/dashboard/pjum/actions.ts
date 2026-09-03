@@ -150,7 +150,10 @@ async function getDashboardPjumReportsInRange(params: {
                     pjumExportedAt: null,
                     pjumHangingAt: { not: null },
                     pjumExpiredAt: null,
-                    balancePeriod: { status: "ACTIVE" },
+                    balancePeriod: {
+                        bmsNIK,
+                        status: { in: ["ACTIVE", "LOCKED_PJUM"] },
+                    },
                 },
                 {
                     status: {
@@ -476,6 +479,16 @@ export async function createDashboardPjum(input: {
             };
         }
 
+        const expiredSelectedReport = safeNumbers
+            .map((reportNumber) => reportMap.get(reportNumber))
+            .find((report) => report?.pjumExpiredAt);
+        if (expiredSelectedReport) {
+            return {
+                error: `Laporan ${expiredSelectedReport.reportNumber} sudah hangus dan tidak bisa masuk PJUM`,
+                pjumExportId: null,
+            };
+        }
+
         const invalidReport = safeNumbers
             .map((reportNumber) => reportMap.get(reportNumber))
             .find(
@@ -596,6 +609,7 @@ export async function createDashboardPjum(input: {
                     reportNumber: { in: safeNumbers },
                     status: "COMPLETED",
                     pjumExportedAt: null,
+                    pjumExpiredAt: null,
                     branchName,
                     createdByNIK: bmsNIK,
                 },
