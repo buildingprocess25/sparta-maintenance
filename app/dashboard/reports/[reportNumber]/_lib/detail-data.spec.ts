@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import {
     buildReportDetailModel,
-    parseUrlList,
     type RawReportDetailInput,
 } from "./detail-data";
+import { parseUrlList } from "@/lib/storage/photo-url";
 
 const input: RawReportDetailInput = {
     reportNumber: "U845-2606-001",
@@ -102,6 +102,7 @@ const input: RawReportDetailInput = {
     reportFinalDriveUrl: null,
     revisedPdfDriveUrl: null,
     revisedPdfFolderUrl: null,
+    fullPdfDriveUrl: null,
     approvalLogs: [],
     activities: [],
     pjumExport: null,

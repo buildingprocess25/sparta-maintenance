@@ -4,6 +4,7 @@ import {
     Check,
     FileCheck,
     Handshake,
+    Images,
     ReceiptText,
 } from "lucide-react";
 import Link from "next/link";
@@ -19,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ReportDetailModel } from "../_lib/detail-data";
 import { ReportInterventionAction } from "./report-intervention-action";
+import { ReportFullPdfButton } from "./report-full-pdf-button";
 import {
     formatCurrency,
     formatDateTime,
@@ -119,38 +121,52 @@ export function ReportHeader({
                     </div>
 
                     <div className="flex flex-wrap items-center justify-end gap-2">
-                        {finalDocuments.map((document) => (
-                            <Button
-                                key={document.key}
-                                asChild
-                                variant={
-                                    document.key === "report"
-                                        ? "default"
-                                        : "outline"
-                                }
-                                className={
-                                    document.key === "revised_report"
-                                        ? "border-amber-500 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:border-amber-500/50 dark:text-amber-500"
-                                        : ""
-                                }
-                                size="sm"
-                            >
-                                <Link
-                                    href={document.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                        {finalDocuments.map((document) => {
+                            if (document.key === "report_full") {
+                                return (
+                                    <ReportFullPdfButton
+                                        key={document.key}
+                                        reportNumber={report.reportNumber}
+                                        initialUrl={document.url}
+                                        isReady={document.isReady ?? false}
+                                        label={document.label}
+                                    />
+                                );
+                            }
+
+                            return (
+                                <Button
+                                    key={document.key}
+                                    asChild
+                                    variant={
+                                        document.key === "report"
+                                            ? "default"
+                                            : "outline"
+                                    }
+                                    className={
+                                        document.key === "revised_report"
+                                            ? "border-amber-500 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:border-amber-500/50 dark:text-amber-500"
+                                            : ""
+                                    }
+                                    size="sm"
                                 >
-                                    {document.key === "report" ? (
-                                        <FileCheck data-icon="inline-start" />
-                                    ) : document.key === "revised_report" ? (
-                                        <AlertTriangle data-icon="inline-start" className="size-4" />
-                                    ) : (
-                                        <ReceiptText data-icon="inline-start" />
-                                    )}
-                                    {document.label}
-                                </Link>
-                            </Button>
-                        ))}
+                                    <Link
+                                        href={document.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        {document.key === "report" ? (
+                                            <FileCheck data-icon="inline-start" />
+                                        ) : document.key === "revised_report" ? (
+                                            <AlertTriangle data-icon="inline-start" className="size-4" />
+                                        ) : (
+                                            <ReceiptText data-icon="inline-start" />
+                                        )}
+                                        {document.label}
+                                    </Link>
+                                </Button>
+                            );
+                        })}
                         {canIntervene ? (
                             <ReportInterventionAction
                                 reportNumber={report.reportNumber}

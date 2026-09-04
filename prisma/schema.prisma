@@ -238,6 +238,10 @@ model Report {
   revisedPdfDriveUrl  String? // webViewLink of the revision PDF file
   revisedPdfFolderUrl String? // Drive folder URL (for button "Buka Folder")
 
+  // Full report PDF — includes checklist photo documentation pages.
+  // Generated on first click of "Laporan Lengkap PDF" button, then cached here.
+  fullPdfDriveUrl String?
+
   logs       ApprovalLog[]
   activities ActivityLog[]
 

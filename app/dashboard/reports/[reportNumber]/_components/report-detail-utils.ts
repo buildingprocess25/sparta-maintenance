@@ -38,9 +38,10 @@ export function getFinalDriveDocuments(report: ReportDetailModel) {
             ? `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf?fallback=1`
             : "";
     const documents: Array<{
-        key: "report" | "pjum" | "revised_report";
+        key: "report" | "pjum" | "revised_report" | "report_full";
         label: string;
         url: string;
+        isReady?: boolean;
     }> = [];
 
     if (reportFinalUrl || fallbackReportFinalUrl) {
@@ -65,6 +66,22 @@ export function getFinalDriveDocuments(report: ReportDetailModel) {
             key: "revised_report",
             label: "PDF Revisi",
             url: revisedPdfUrl,
+        });
+    }
+
+    // Laporan Lengkap PDF — includes checklist photo documentation.
+    // Shows the cached Drive URL if already generated; otherwise points to the
+    // API endpoint which will generate-on-demand and cache the result.
+    if (report.status === "COMPLETED") {
+        const isGenerated = Boolean(report.fullPdfDriveUrl?.trim());
+        const fullPdfUrl =
+            report.fullPdfDriveUrl?.trim() ||
+            `/api/reports/${encodeURIComponent(report.reportNumber)}/pdf-full`;
+        documents.push({
+            key: "report_full",
+            label: isGenerated ? "Laporan Lengkap PDF" : "Siapkan Laporan Lengkap PDF",
+            url: fullPdfUrl,
+            isReady: isGenerated,
         });
     }
 

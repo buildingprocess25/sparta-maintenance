@@ -9,6 +9,7 @@ import {
     normalizePhotoUrl,
     normalizePhotoUrls,
     resolvePhotoUrl,
+    parseUrlList,
 } from "@/lib/storage/photo-url";
 import { resolveChecklistItemMeta } from "@/lib/checklist-data";
 
@@ -133,6 +134,7 @@ export type RawReportDetailInput = {
     reportFinalDriveUrl: string | null;
     revisedPdfDriveUrl: string | null;
     revisedPdfFolderUrl: string | null;
+    fullPdfDriveUrl: string | null;
     approvalLogs: DetailApprovalLog[];
     activities: DetailActivity[];
     pjumExport: DetailPjumExport;
@@ -163,28 +165,6 @@ export type ReportDetailModel = RawReportDetailInput & {
     };
 };
 
-export function parseUrlList(raw: unknown): string[] {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return normalizePhotoUrls(raw);
-
-    if (typeof raw !== "string") return [];
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed === "[]") return [];
-
-    if (
-        (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-        (trimmed.startsWith('"') && trimmed.endsWith('"'))
-    ) {
-        try {
-            return parseUrlList(JSON.parse(trimmed));
-        } catch {
-            return [];
-        }
-    }
-
-    const normalized = normalizePhotoUrl(trimmed);
-    return normalized ? [normalized] : [];
-}
 
 export function buildReportDetailModel(
     input: RawReportDetailInput,

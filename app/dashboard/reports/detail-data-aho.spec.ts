@@ -37,6 +37,7 @@ const input: RawReportDetailInput = {
     reportFinalDriveUrl: null,
     revisedPdfDriveUrl: null,
     revisedPdfFolderUrl: null,
+    fullPdfDriveUrl: null,
     approvalLogs: [],
     activities: [],
     pjumExport: null,

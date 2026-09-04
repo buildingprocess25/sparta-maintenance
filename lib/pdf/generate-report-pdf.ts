@@ -21,6 +21,12 @@ import { logger } from "@/lib/logger";
 import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
+import {
+    CHECKLIST_PHOTO_COLS,
+    flattenChecklistPhotoTiles,
+    paginateChecklistPhotoTiles,
+    type ChecklistPhotoTile,
+} from "@/lib/pdf/checklist-photo-gallery";
 
 /**
  * Parses pixel dimensions embedded in a Supabase Storage filename.
@@ -2644,3 +2650,405 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
 }
 
 export { groupEstimationsByItemId };
+
+// ─── Laporan Lengkap PDF — checklist photo documentation pages ───────────────
+
+/**
+ * One checklist item with its "before" photo URLs for the documentation pages.
+ */
+export type ChecklistItemWithPhotos = {
+    itemId: string;
+    itemName: string;
+    categoryName: string;
+    photoUrls: string[]; // normalized before-photo URLs
+};
+
+// Dimensi halaman A4: 595pt lebar, 842pt tinggi.
+// Margin horizontal: 36pt kiri + 36pt kanan = 72pt total.
+// Konten width: 595 - 72 = 523pt.
+const PHOTO_PAGE_CONTENT_WIDTH = 595 - 36 * 2; // 523pt
+const PHOTO_GAP = 4;
+const PHOTO_CELL_W =
+    (PHOTO_PAGE_CONTENT_WIDTH - PHOTO_GAP * (CHECKLIST_PHOTO_COLS - 1)) /
+    CHECKLIST_PHOTO_COLS;
+const PHOTO_CELL_H = PHOTO_CELL_W * 0.75; // rasio 4:3
+
+function truncatePdfText(value: string, maxLength: number): string {
+    return value.length > maxLength
+        ? `${value.slice(0, Math.max(0, maxLength - 1))}...`
+        : value;
+}
+
+function renderDocPhotoTile(tile: ChecklistPhotoTile) {
+    return React.createElement(
+        View,
+        { key: tile.key, style: docPhotoPageStyles.photoTile },
+        React.createElement(Image, {
+            src: tile.url,
+            style: docPhotoPageStyles.photoImage,
+        }),
+        React.createElement(
+            Text,
+            { style: docPhotoPageStyles.photoCaption },
+            `${tile.itemId} - ${truncatePdfText(tile.itemName, 22)}`,
+        ),
+    );
+}
+
+const docPhotoPageStyles = StyleSheet.create({
+    page: {
+        fontFamily: "Helvetica",
+        fontSize: 9,
+        paddingTop: 32,
+        paddingBottom: 40,
+        paddingHorizontal: 36,
+        color: "#111827",
+    },
+    header: {
+        marginBottom: 10,
+        backgroundColor: "#0069a7",
+        padding: "10 20",
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    sectionTitle: {
+        fontSize: 10,
+        fontFamily: "Helvetica-Bold",
+        color: "#0069a7",
+        marginBottom: 6,
+        paddingBottom: 3,
+        borderBottom: "1px solid #f5c6c2",
+    },
+    photoGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: PHOTO_GAP,
+    },
+    photoTile: {
+        width: PHOTO_CELL_W,
+        marginBottom: 6,
+    },
+    photoImage: {
+        width: PHOTO_CELL_W,
+        height: PHOTO_CELL_H,
+        objectFit: "cover",
+        borderRadius: 2,
+    },
+    photoCaption: {
+        marginTop: 2,
+        fontSize: 5.5,
+        color: "#374151",
+        lineHeight: 1.15,
+    },
+    footer: {
+        position: "absolute",
+        bottom: 20,
+        left: 36,
+        right: 36,
+        borderTop: "1px solid #e5e7eb",
+        paddingTop: 6,
+        flexDirection: "row",
+        justifyContent: "space-between",
+    },
+    footerText: {
+        fontSize: 7,
+        color: "#9ca3af",
+        fontStyle: "italic",
+    },
+    watermarkContainer: {
+        position: "absolute",
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        flexDirection: "column",
+        justifyContent: "center",
+        alignItems: "center",
+        opacity: 0.15,
+    },
+    watermarkImage: {
+        width: 180,
+        height: 180,
+        marginBottom: 10,
+    },
+    watermarkText: {
+        fontSize: 24,
+        fontFamily: "Helvetica-Bold",
+        color: "#6b7280",
+        textAlign: "center",
+    },
+});
+
+/**
+ * Builds up to `maxPages` Page elements containing checklist photo documentation.
+ * Each item gets a small header (itemId + itemName) followed by its photos in a
+ * 5-column grid (≈98pt per cell). Items are sliced to stay within maxPages.
+ *
+ * Returns an array of React Page elements to be spliced into the main Document.
+ */
+function buildChecklistPhotoPages(
+    items: ChecklistItemWithPhotos[],
+    _dimensionMap: Map<string, { width: number; height: number }>,
+    data: ReportPdfData,
+    maxPages = 3,
+): React.ReactElement[] {
+    const itemsWithPhotos = items.filter((i) => i.photoUrls.length > 0);
+    if (itemsWithPhotos.length === 0) return [];
+
+    const pages: React.ReactElement[] = [];
+
+    function makeHeader() {
+        return React.createElement(
+            View,
+            { style: docPhotoPageStyles.header },
+            React.createElement(Image, {
+                src: `data:image/png;base64,${data.alfamartLogoBase64}`,
+                style: { width: 60, height: 34 },
+            }),
+            React.createElement(View, {
+                style: {
+                    width: 1,
+                    height: 28,
+                    backgroundColor: "rgba(255,255,255,0.3)",
+                    marginHorizontal: 10,
+                },
+            }),
+            React.createElement(Image, {
+                src: `data:image/png;base64,${data.buildingLogoBase64}`,
+                style: { width: 24, height: 30 },
+            }),
+            React.createElement(
+                View,
+                { style: { marginLeft: 8 } },
+                React.createElement(
+                    Text,
+                    {
+                        style: {
+                            fontSize: 14,
+                            fontFamily: "Helvetica-Bold",
+                            color: "#ffffff",
+                            letterSpacing: 1.5,
+                        },
+                    },
+                    "SPARTA",
+                ),
+                React.createElement(
+                    Text,
+                    {
+                        style: {
+                            fontSize: 7,
+                            color: "rgba(255,255,255,0.7)",
+                        },
+                    },
+                    "Maintenance",
+                ),
+            ),
+        );
+    }
+
+    function makeFooter(reportNumber: string) {
+        return React.createElement(
+            View,
+            { style: docPhotoPageStyles.footer, fixed: true },
+            React.createElement(
+                Text,
+                { style: docPhotoPageStyles.footerText },
+                `No. Laporan: ${reportNumber} — Dokumentasi Foto Checklist`,
+            ),
+            React.createElement(Text, {
+                style: docPhotoPageStyles.footerText,
+                render: ({
+                    pageNumber,
+                    totalPages,
+                }: {
+                    pageNumber: number;
+                    totalPages: number;
+                }) => `Halaman ${pageNumber} dari ${totalPages}`,
+            }),
+        );
+    }
+
+    function renderPageContent(pageTiles: ChecklistPhotoTile[]) {
+        return React.createElement(
+            View,
+            { style: docPhotoPageStyles.photoGrid },
+            ...pageTiles.map(renderDocPhotoTile),
+        );
+    }
+
+    const pageTiles = paginateChecklistPhotoTiles(
+        flattenChecklistPhotoTiles(itemsWithPhotos),
+        maxPages,
+    );
+
+    pageTiles.forEach((tilesForPage, index) => {
+        pages.push(
+            React.createElement(
+                Page,
+                {
+                    key: `doc-page-${index + 1}`,
+                    size: "A4",
+                    style: docPhotoPageStyles.page,
+                },
+
+                // Watermark
+                data.watermarkLogoBase64
+                    ? React.createElement(
+                          View,
+                          {
+                              style: docPhotoPageStyles.watermarkContainer,
+                              fixed: true,
+                          },
+                          React.createElement(Image, {
+                              src: `data:image/png;base64,${data.watermarkLogoBase64}`,
+                              style: docPhotoPageStyles.watermarkImage,
+                          }),
+                          React.createElement(
+                              Text,
+                              { style: docPhotoPageStyles.watermarkText },
+                              "Dokumen dibuat oleh SPARTA",
+                          ),
+                      )
+                    : null,
+
+                makeHeader(),
+
+                React.createElement(
+                    View,
+                    null,
+                    React.createElement(
+                        Text,
+                        { style: docPhotoPageStyles.sectionTitle },
+                        "Dokumentasi Foto Checklist",
+                    ),
+                    renderPageContent(tilesForPage),
+                ),
+
+                makeFooter(data.reportNumber),
+            ),
+        );
+    });
+
+    return pages;
+}
+
+/**
+ * Generates the "Laporan Lengkap PDF" — identical to the standard report PDF
+ * plus up to 3 additional pages of checklist photo documentation.
+ *
+ * The checklist photo pages are inserted AFTER the main checklist/recap pages
+ * but BEFORE the "Detail Penyelesaian Pekerjaan" pages (if any).
+ *
+ * The existing `generateReportPdf()` function is NOT modified.
+ */
+export async function generateReportPdfFull(
+    data: ReportPdfData,
+    checklistPhotos: ChecklistItemWithPhotos[],
+): Promise<Buffer> {
+    const normalizedData: ReportPdfData = {
+        ...data,
+        completionSelfieUrls: normalizePhotoUrls(data.completionSelfieUrls),
+        startReceiptUrls: normalizePhotoUrls(data.startReceiptUrls),
+        startMaterialStores: data.startMaterialStores.map((store) => {
+            const normalizedStorePhotos = store.photoUrls
+                ? normalizePhotoUrls(store.photoUrls)
+                : [];
+            return normalizedStorePhotos.length > 0
+                ? { ...store, photoUrls: normalizedStorePhotos }
+                : { ...store };
+        }),
+        completionAdditionalPhotos: normalizePhotoUrls(
+            data.completionAdditionalPhotos,
+        ),
+        items: data.items.map((item) => ({
+            ...item,
+            photoUrl: normalizePhotoUrl(item.photoUrl),
+            images: item.images ? normalizePhotoUrls(item.images) : undefined,
+            afterImages: item.afterImages
+                ? normalizePhotoUrls(item.afterImages)
+                : undefined,
+            receiptImages: item.receiptImages
+                ? normalizePhotoUrls(item.receiptImages)
+                : undefined,
+        })),
+    };
+
+    const normalizedChecklistPhotos: ChecklistItemWithPhotos[] =
+        checklistPhotos.map((item) => ({
+            ...item,
+            photoUrls: normalizePhotoUrls(item.photoUrls),
+        }));
+
+    // Collect all photo URLs for dimension parsing
+    const storePhotoUrls = normalizedData.startMaterialStores.flatMap(
+        (store) => store.photoUrls ?? [],
+    );
+    const checklistPhotoUrls = normalizedChecklistPhotos.flatMap(
+        (i) => i.photoUrls,
+    );
+    const allUrls: string[] = [
+        ...normalizedData.completionSelfieUrls,
+        ...normalizedData.startReceiptUrls,
+        ...storePhotoUrls,
+        ...normalizedData.completionAdditionalPhotos,
+        ...normalizedData.items.flatMap((item) => [
+            ...(item.images ?? (item.photoUrl ? [item.photoUrl] : [])),
+            ...(item.afterImages ?? []),
+            ...(item.receiptImages ?? []),
+        ]),
+        ...checklistPhotoUrls,
+    ].filter(Boolean);
+
+    const uniqueUrls = [...new Set(allUrls)];
+    uniqueUrls.forEach((url) => {
+        const isCdn = isGoogleDriveCdnUrl(url);
+        logger.info(
+            {
+                operation: "generateReportPdfFull.resolvePhotoUrl",
+                reportNumber: data.reportNumber,
+                urlType: isCdn ? "cdn" : "legacy",
+                url,
+            },
+            `Resolving photo URL for full PDF: ${isCdn ? "CDN" : "Legacy"}`,
+        );
+    });
+
+    const dimensionMap = new Map<string, { width: number; height: number }>(
+        uniqueUrls.map((url) => [url, parseDimensionsFromUrl(url)]),
+    );
+
+    // Build the main report document (unchanged)
+    const mainDoc = buildReportDocument(normalizedData, dimensionMap);
+
+    // Build the checklist photo pages (new, max 3 pages)
+    const photoPages = buildChecklistPhotoPages(
+        normalizedChecklistPhotos,
+        dimensionMap,
+        normalizedData,
+        3,
+    );
+
+    if (photoPages.length === 0) {
+        // No photos — fall back to the standard PDF
+        const buffer = await renderToBuffer(mainDoc);
+        return Buffer.from(buffer);
+    }
+
+    // The main document already has exactly one Page child (its own Document > Page).
+    // We need to extract that page and compose a NEW Document with:
+    //   [mainDoc's Page children] + [photoPages]
+    //
+    // @react-pdf/renderer's Document accepts Page children. We reconstruct the
+    // Document with all pages merged.
+    const mainDocChildren = (mainDoc as React.ReactElement & { props: { children: React.ReactNode } }).props.children;
+
+    const fullDoc = React.createElement(
+        Document,
+        null,
+        mainDocChildren,
+        ...photoPages,
+    );
+
+    const buffer = await renderToBuffer(fullDoc);
+    return Buffer.from(buffer);
+}
