@@ -8,6 +8,8 @@ export type ChecklistPhotoTile = {
     categoryName: string;
     url: string;
     photoIndex: number;
+    condition?: string | null;
+    preventiveCondition?: string | null;
 };
 
 export const CHECKLIST_PHOTO_COLS = 5;
@@ -26,6 +28,8 @@ export function flattenChecklistPhotoTiles(
             categoryName: item.categoryName,
             url,
             photoIndex: index + 1,
+            condition: item.condition,
+            preventiveCondition: item.preventiveCondition,
         })),
     );
 }

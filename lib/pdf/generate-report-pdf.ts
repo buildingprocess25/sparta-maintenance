@@ -2661,11 +2661,14 @@ export type ChecklistItemWithPhotos = {
     itemName: string;
     categoryName: string;
     photoUrls: string[]; // normalized before-photo URLs
+    condition?: string | null;
+    preventiveCondition?: string | null;
 };
 
 // Dimensi halaman A4: 595pt lebar, 842pt tinggi.
 // Margin horizontal: 36pt kiri + 36pt kanan = 72pt total.
 // Konten width: 595 - 72 = 523pt.
+
 const PHOTO_PAGE_CONTENT_WIDTH = 595 - 36 * 2; // 523pt
 const PHOTO_GAP = 4;
 const PHOTO_CELL_W =
