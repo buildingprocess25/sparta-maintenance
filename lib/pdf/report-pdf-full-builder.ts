@@ -84,6 +84,8 @@ function extractChecklistPhotos(items: ReportItemJson[]): ChecklistItemWithPhoto
                     meta?.categoryName ||
                     "Tanpa Kategori",
                 photoUrls,
+                condition: item.condition,
+                preventiveCondition: item.preventiveCondition,
             };
         })
         .filter((item) => item.photoUrls.length > 0)
