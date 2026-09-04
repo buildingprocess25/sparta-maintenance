@@ -46,6 +46,50 @@ Runtime Prisma memakai adapter `@prisma/adapter-pg` dan pool `pg`. Konfigurasi p
 | `NotificationType` | Jenis event yang memicu notifikasi. |
 | `NotificationEntityType` | Target entity notifikasi: report, PJUM, atau intervensi. |
 
+## Store Enrichment
+
+`Store` menyimpan klasifikasi brand, ownership, dan koordinat toko.
+
+| Field | Fungsi |
+| --- | --- |
+| `Store.brand` | Brand toko. Kontrak saat ini: `LAWSON` berarti Lawson; null/kosong/non-Lawson diperlakukan sebagai Alfamart oleh helper brand. |
+| `Store.ownershipType` | Jenis ownership toko: `REGULAR`, `FRANCHISE`, atau `UNKNOWN`. Default `UNKNOWN` agar toko yang tidak ada di sheet master tidak otomatis dianggap reguler. |
+| `Store.latitude` | Latitude toko dari kolom `Titik Koordinat` sheet master. Nullable jika belum ada atau koordinat invalid. |
+| `Store.longitude` | Longitude toko dari kolom `Titik Koordinat` sheet master. Nullable jika belum ada atau koordinat invalid. |
+
+Data ownership dan koordinat disinkronkan dari Google Sheet master toko lewat:
+
+```powershell
+npm run sync:store-enrichment -- --dry-run
+npm run sync:store-enrichment
+```
+
+Range sheet harus memuat header dan kolom A sampai E:
+
+```env
+GOOGLE_STORE_SHEET_RANGE='Sheet 1'!A:E
+```
+
+Kolom yang dibaca:
+
+- `Branch`
+- `Kode Toko`
+- `Nama Toko`
+- `F/R`
+- `Titik Koordinat`
+
+Aturan parsing:
+
+- `F/R = R` disimpan sebagai `REGULAR`.
+- `F/R = F` disimpan sebagai `FRANCHISE`.
+- Nilai kosong atau invalid disimpan sebagai `UNKNOWN`.
+- `Titik Koordinat` diparse sebagai `latitude longitude`.
+- Matching hanya memakai normalized `Kode Toko` ke `Store.code`; nama toko dan branch tidak dipakai sebagai fallback matching.
+
+Toko yang ada di database tetapi tidak ada di sheet tetap atau diset menjadi
+`UNKNOWN` tanpa menghapus koordinat existing. Row sheet yang tidak ada di
+database tidak membuat toko baru.
+
 ## Scope Cabang dan Area
 
 Project memakai dua level scope:
@@ -153,6 +197,34 @@ Checklist sebelum migrasi:
 2. Pastikan migration SQL tidak destructive tanpa rencana rollback.
 3. Pastikan kode production lama tetap kompatibel jika migrasi dijalankan sebelum deploy kode baru.
 4. Untuk drop column, pastikan field sudah tidak dibaca atau ditulis oleh kode production.
+
+Untuk perubahan ownership dan koordinat toko, generate migration file di
+development dengan salah satu alur berikut.
+
+Review SQL dulu:
+
+```powershell
+npx prisma migrate dev --name add_store_ownership_and_coordinates --create-only
+```
+
+Setelah SQL dicek, apply ke database development:
+
+```powershell
+npx prisma migrate dev
+```
+
+Atau generate dan apply development sekaligus:
+
+```powershell
+npx prisma migrate dev --name add_store_ownership_and_coordinates
+```
+
+Untuk staging/production, gunakan hanya setelah migration file sudah masuk
+branch yang akan dideploy:
+
+```powershell
+npx prisma migrate deploy
+```
 
 ## Index
 
