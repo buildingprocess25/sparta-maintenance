@@ -10,7 +10,10 @@ import {
 } from "@/lib/pdf/generate-report-pdf";
 import { parseMaterialStores } from "@/lib/report-material-stores";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
-import { getChecklistItemMeta } from "@/lib/checklist-data";
+import {
+    compareChecklistItemsById,
+    getChecklistItemMeta,
+} from "@/lib/checklist-data";
 
 const assetsDir = path.join(process.cwd(), "public", "assets");
 let alfamartLogoBase64 = "";
@@ -83,7 +86,8 @@ function extractChecklistPhotos(items: ReportItemJson[]): ChecklistItemWithPhoto
                 photoUrls,
             };
         })
-        .filter((item) => item.photoUrls.length > 0);
+        .filter((item) => item.photoUrls.length > 0)
+        .sort(compareChecklistItemsById);
 }
 
 export async function buildReportPdfFullBuffer(reportNumber: string): Promise<{

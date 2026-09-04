@@ -7,14 +7,14 @@ import {
     type PreventiveMatrixExportFilters,
     type PreventiveMatrixExportQuarter,
     type PreventiveMatrixExportStatus,
-    type PreventiveMatrixQuarterCell,
 } from "@/app/dashboard/preventive/annual-matrix-export";
 import { logger } from "@/lib/logger";
-import { formatJakartaDate, getJakartaYear } from "@/lib/time";
+import { getJakartaYear } from "@/lib/time";
 import {
     type StoreBrandFilter,
     parseStoreBrandFilter,
 } from "@/lib/store-brand-filter";
+import { formatQuarterCellForExport } from "./format";
 
 type RequestBody = {
     branchName?: string;
@@ -49,13 +49,6 @@ function moneyCell(value: number | null | undefined): XLSX.CellObject {
 
 function percentCell(value: number): XLSX.CellObject {
     return { t: "n", v: value / 100, z: "0%" };
-}
-
-export function formatQuarterCellForExport(cell: PreventiveMatrixQuarterCell | null) {
-    if (!cell) return "Belum";
-
-    const bms = cell.bmsName || cell.bmsNIK || "-";
-    return `${formatJakartaDate(cell.doneAt.toISOString())} - ${bms}`;
 }
 
 function buildSheet(

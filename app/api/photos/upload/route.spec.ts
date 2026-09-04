@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createPhotoUploadPostHandler } from "./route";
+import { createPhotoUploadPostHandler } from "./handler";
 
 async function makeRequest(context: unknown, file = new File(["x"], "photo.jpg", { type: "image/jpeg" })) {
   const formData = new FormData();

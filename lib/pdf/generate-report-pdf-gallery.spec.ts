@@ -7,43 +7,50 @@ import {
 
 const items: ChecklistItemWithPhotos[] = [
     {
-        itemId: "E15",
-        itemName: "Teralis (jendela/pintu)",
-        categoryName: "E. Gudang",
-        photoUrls: ["https://example.com/e15-a.jpg"],
+        itemId: "A2",
+        itemName: "Dekker/Grill Drainase",
+        categoryName: "A. Bagian Depan Bangunan",
+        photoUrls: ["https://example.com/a2-a.jpg"],
     },
     {
-        itemId: "E12",
-        itemName: "Lantai keramik Gudang + kantor",
-        categoryName: "E. Gudang",
+        itemId: "A10",
+        itemName: "Dinding Pembatas Halaman",
+        categoryName: "A. Bagian Depan Bangunan",
         photoUrls: [
-            "https://example.com/e12-a.jpg",
-            "https://example.com/e12-b.jpg",
+            "https://example.com/a10-a.jpg",
+            "https://example.com/a10-b.jpg",
         ],
     },
     {
-        itemId: "E5",
-        itemName: "Dinding Gudang",
-        categoryName: "E. Gudang",
-        photoUrls: ["https://example.com/e5-a.jpg"],
+        itemId: "A1",
+        itemName: "Bahu Jalan",
+        categoryName: "A. Bagian Depan Bangunan",
+        photoUrls: ["https://example.com/a1-a.jpg"],
+    },
+    {
+        itemId: "A4",
+        itemName: "Lampu Pole Sign",
+        categoryName: "A. Bagian Depan Bangunan",
+        photoUrls: ["https://example.com/a4-a.jpg"],
     },
 ];
 
 const tiles = flattenChecklistPhotoTiles(items);
 
-assert.equal(tiles.length, 4);
+assert.equal(tiles.length, 5);
 assert.deepEqual(
     tiles.map((tile) => tile.url),
     [
-        "https://example.com/e15-a.jpg",
-        "https://example.com/e12-a.jpg",
-        "https://example.com/e12-b.jpg",
-        "https://example.com/e5-a.jpg",
+        "https://example.com/a1-a.jpg",
+        "https://example.com/a2-a.jpg",
+        "https://example.com/a4-a.jpg",
+        "https://example.com/a10-a.jpg",
+        "https://example.com/a10-b.jpg",
     ],
 );
 assert.deepEqual(
     tiles.map((tile) => `${tile.itemId}:${tile.photoIndex}`),
-    ["E15:1", "E12:1", "E12:2", "E5:1"],
+    ["A1:1", "A2:1", "A4:1", "A10:1", "A10:2"],
 );
 
 const manyTiles = Array.from({ length: 95 }, (_, index) => ({

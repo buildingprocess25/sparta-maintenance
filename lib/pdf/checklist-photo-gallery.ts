@@ -1,3 +1,4 @@
+import { compareChecklistItemsById } from "@/lib/checklist-data";
 import type { ChecklistItemWithPhotos } from "@/lib/pdf/generate-report-pdf";
 
 export type ChecklistPhotoTile = {
@@ -17,7 +18,7 @@ export const CHECKLIST_PHOTOS_PER_PAGE =
 export function flattenChecklistPhotoTiles(
     items: ChecklistItemWithPhotos[],
 ): ChecklistPhotoTile[] {
-    return items.flatMap((item) =>
+    return [...items].sort(compareChecklistItemsById).flatMap((item) =>
         item.photoUrls.map((url, index) => ({
             key: `${item.itemId}-${index}-${url}`,
             itemId: item.itemId,
