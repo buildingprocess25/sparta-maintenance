@@ -12,6 +12,7 @@ import { getStoreAreaNamesByBranches } from "./queries";
 import { resolveStoreAreaName } from "./store-area-validation";
 import { getLegacyBranchMessage } from "@/lib/branch-merges";
 import { z } from "zod";
+import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
 
 function getLegacyStoreBranchError(branchName: string) {
     return getLegacyBranchMessage(branchName);
@@ -121,6 +122,15 @@ export async function createUser(payload: UserPayload) {
         }
 
 
+        await syncUserToSso({
+            email: payload.email,
+            fullName: payload.name,
+            branchCode: payload.branchNames[0] || "",
+            branchName: payload.branchNames[0] || "",
+            role: "USER",
+            moduleId: "maintenance",
+        });
+
         revalidatePath("/bmc/database");
         logger.info(
             {
@@ -183,6 +193,16 @@ export async function updateUser(
 
         await prisma.user.update({ where: { NIK }, data: payload });
 
+        // SYNC UPDATE TO SSO
+        await syncUserToSso({
+            email: payload.email,
+            fullName: payload.name,
+            branchCode: payload.branchNames[0] || "",
+            branchName: payload.branchNames[0] || "",
+            role: payload.role,
+            moduleId: "maintenance",
+        });
+
         revalidatePath("/bmc/database");
         logger.info(
             {
@@ -216,7 +236,7 @@ export async function deleteUser(NIK: string) {
 
         const existingUser = await prisma.user.findUnique({
             where: { NIK },
-            select: { branchNames: true, role: true, deletedAt: true },
+            select: { branchNames: true, role: true, deletedAt: true, email: true },
         });
         if (!existingUser) return { error: "User tidak ditemukan" };
         if (existingUser.deletedAt) return { error: "User sudah dihapus" };
@@ -241,6 +261,10 @@ export async function deleteUser(NIK: string) {
                 },
             }),
         ]);
+
+        if (existingUser.email) {
+            await syncDeleteUserToSso(existingUser.email);
+        }
 
         revalidatePath("/bmc/database");
         logger.info(
