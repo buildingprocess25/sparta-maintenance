@@ -15,6 +15,29 @@ export function normalizePhotoUrls(values: unknown): string[] {
         .filter((url): url is string => url !== null);
 }
 
+export function parseUrlList(raw: unknown): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return normalizePhotoUrls(raw);
+
+    if (typeof raw !== "string") return [];
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === "[]") return [];
+
+    if (
+        (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+        (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    ) {
+        try {
+            return parseUrlList(JSON.parse(trimmed));
+        } catch {
+            return [];
+        }
+    }
+
+    const normalized = normalizePhotoUrl(trimmed);
+    return normalized ? [normalized] : [];
+}
+
 /**
  * Returns true if and only if the URL is a Google Drive CDN URL.
  * Pure function — no side effects.

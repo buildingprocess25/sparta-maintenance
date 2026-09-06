@@ -9,10 +9,10 @@ import type {
 } from "@/types/report";
 import {
     buildReportDetailModel,
-    parseUrlList,
     type RawReportDetailInput,
     type ReportDetailModel,
 } from "./_lib/detail-data";
+import { parseUrlList } from "@/lib/storage/photo-url";
 
 export async function getAdminReportDetail(
     reportNumber: string,
@@ -41,6 +41,7 @@ export async function getAdminReportDetail(
             reportFinalDriveUrl: true,
             revisedPdfDriveUrl: true,
             revisedPdfFolderUrl: true,
+            fullPdfDriveUrl: true,
             finishedAt: true,
             pjumExportedAt: true,
             createdAt: true,
@@ -140,6 +141,7 @@ export async function getAdminReportDetail(
         reportFinalDriveUrl: report.reportFinalDriveUrl,
         revisedPdfDriveUrl: report.revisedPdfDriveUrl,
         revisedPdfFolderUrl: report.revisedPdfFolderUrl,
+        fullPdfDriveUrl: report.fullPdfDriveUrl,
         approvalLogs: report.logs.map((log) => ({
             id: log.id,
             status: log.status,

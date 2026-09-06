@@ -3,6 +3,7 @@ import * as assert from 'node:assert';
 import {
   normalizeStoreBrandFilter,
   parseStoreBrandFilter,
+  getStoreBrandExportLabel,
   getStoreBrandWhere,
   getReportBrandWhere,
   getVisibleBrandBranchNames,
@@ -23,6 +24,15 @@ test('parseStoreBrandFilter rejects invalid request values', () => {
   assert.strictEqual(parseStoreBrandFilter('other'), null);
   assert.strictEqual(parseStoreBrandFilter({ brand: 'LAWSON' }), null);
 });
+
+test('getStoreBrandExportLabel formats report export brand values', () => {
+  assert.strictEqual(getStoreBrandExportLabel('LAWSON'), 'Lawson');
+  assert.strictEqual(getStoreBrandExportLabel('lawson'), 'Lawson');
+  assert.strictEqual(getStoreBrandExportLabel(null), 'Alfamart');
+  assert.strictEqual(getStoreBrandExportLabel(''), 'Alfamart');
+  assert.strictEqual(getStoreBrandExportLabel('ALFAMART'), 'Alfamart');
+});
+
 test('getStoreBrandWhere', () => {
   assert.strictEqual(getStoreBrandWhere('ALL'), undefined);
   

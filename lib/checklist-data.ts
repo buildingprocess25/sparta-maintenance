@@ -277,6 +277,53 @@ export const REPORT_CHECKLIST_ITEMS = checklistCategories.flatMap((c) =>
     c.items.map((i) => ({ ...i, categoryId: c.id, categoryTitle: c.title }))
 );
 
+const checklistOrderById = new Map(
+    REPORT_CHECKLIST_ITEMS.map((item, index) => [item.id, index]),
+);
+
+export function compareChecklistItemIds(a: string, b: string): number {
+    const rankA = checklistOrderById.get(a);
+    const rankB = checklistOrderById.get(b);
+
+    if (rankA !== undefined && rankB !== undefined) {
+        return rankA - rankB;
+    }
+    if (rankA !== undefined) return -1;
+    if (rankB !== undefined) return 1;
+
+    const parsedA = parseChecklistItemId(a);
+    const parsedB = parseChecklistItemId(b);
+    if (parsedA.prefix !== parsedB.prefix) {
+        return parsedA.prefix.localeCompare(parsedB.prefix);
+    }
+    if (parsedA.number !== parsedB.number) {
+        return parsedA.number - parsedB.number;
+    }
+    return a.localeCompare(b, "id-ID", {
+        numeric: true,
+        sensitivity: "base",
+    });
+}
+
+export function compareChecklistItemsById<T extends { itemId: string }>(
+    a: T,
+    b: T,
+): number {
+    return compareChecklistItemIds(a.itemId, b.itemId);
+}
+
+function parseChecklistItemId(itemId: string): {
+    prefix: string;
+    number: number;
+} {
+    const match = itemId.trim().match(/^([A-Za-z]+)\s*0*(\d+)/);
+    if (!match) return { prefix: itemId.trim().toUpperCase(), number: 0 };
+    return {
+        prefix: match[1].toUpperCase(),
+        number: Number(match[2]),
+    };
+}
+
 /**
  * Helper to get the canonical itemName and categoryName by itemId.
  * Used as a fallback for existing JSON records that might not have these fields,

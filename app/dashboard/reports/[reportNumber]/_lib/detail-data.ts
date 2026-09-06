@@ -9,8 +9,13 @@ import {
     normalizePhotoUrl,
     normalizePhotoUrls,
     resolvePhotoUrl,
+    parseUrlList,
 } from "@/lib/storage/photo-url";
-import { resolveChecklistItemMeta } from "@/lib/checklist-data";
+import {
+    compareChecklistItemIds,
+    compareChecklistItemsById,
+    resolveChecklistItemMeta,
+} from "@/lib/checklist-data";
 
 export type ConditionTone = "good" | "bad" | "neutral" | "unknown";
 
@@ -134,6 +139,7 @@ export type RawReportDetailInput = {
     reportFinalDriveUrl: string | null;
     revisedPdfDriveUrl: string | null;
     revisedPdfFolderUrl: string | null;
+    fullPdfDriveUrl: string | null;
     approvalLogs: DetailApprovalLog[];
     activities: DetailActivity[];
     pjumExport: DetailPjumExport;
@@ -164,28 +170,6 @@ export type ReportDetailModel = RawReportDetailInput & {
     };
 };
 
-export function parseUrlList(raw: unknown): string[] {
-    if (!raw) return [];
-    if (Array.isArray(raw)) return normalizePhotoUrls(raw);
-
-    if (typeof raw !== "string") return [];
-    const trimmed = raw.trim();
-    if (!trimmed || trimmed === "[]") return [];
-
-    if (
-        (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
-        (trimmed.startsWith('"') && trimmed.endsWith('"'))
-    ) {
-        try {
-            return parseUrlList(JSON.parse(trimmed));
-        } catch {
-            return [];
-        }
-    }
-
-    const normalized = normalizePhotoUrl(trimmed);
-    return normalized ? [normalized] : [];
-}
 
 export function buildReportDetailModel(
     input: RawReportDetailInput,
@@ -540,34 +524,16 @@ function getRepairedConditionMeta(): {
 }
 
 function compareReportItems(a: ReportItemJson, b: ReportItemJson): number {
-    return compareItemIds(a.itemId, b.itemId);
+    return compareChecklistItemsById(a, b);
 }
 
 function compareChecklistRows(a: ChecklistRow, b: ChecklistRow): number {
-    return compareItemIds(a.itemId, b.itemId);
+    return compareChecklistItemsById(a, b);
 }
 
 function compareChecklistGroups(a: ChecklistGroup, b: ChecklistGroup): number {
-    return compareItemIds(a.rows[0]?.itemId ?? "", b.rows[0]?.itemId ?? "");
-}
-
-function compareItemIds(a: string, b: string): number {
-    const parsedA = parseItemId(a);
-    const parsedB = parseItemId(b);
-    if (parsedA.prefix !== parsedB.prefix) {
-        return parsedA.prefix.localeCompare(parsedB.prefix);
-    }
-    if (parsedA.number !== parsedB.number) {
-        return parsedA.number - parsedB.number;
-    }
-    return a.localeCompare(b, "id-ID", { numeric: true, sensitivity: "base" });
-}
-
-function parseItemId(itemId: string): { prefix: string; number: number } {
-    const match = itemId.trim().match(/^([A-Za-z]+)\s*0*(\d+)/);
-    if (!match) return { prefix: itemId.trim().toUpperCase(), number: 0 };
-    return {
-        prefix: match[1].toUpperCase(),
-        number: Number(match[2]),
-    };
+    return compareChecklistItemIds(
+        a.rows[0]?.itemId ?? "",
+        b.rows[0]?.itemId ?? "",
+    );
 }

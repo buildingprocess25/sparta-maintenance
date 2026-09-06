@@ -58,6 +58,12 @@ enum HandlerType {
   REKANAN
 }
 
+enum StoreOwnershipType {
+  REGULAR
+  FRANCHISE
+  UNKNOWN
+}
+
 enum AhoImportStatus {
   pending
   processing
@@ -149,12 +155,15 @@ model GoogleDriveFolderCache {
 }
 
 model Store {
-  code       String  @id @unique
-  name       String
-  branchName String
-  areaName   String?
-  brand      String?
-  isActive   Boolean @default(true)
+  code          String             @id @unique
+  name          String
+  branchName    String
+  areaName      String?
+  brand         String?
+  ownershipType StoreOwnershipType @default(UNKNOWN)
+  latitude      Decimal?           @db.Decimal(9, 6)
+  longitude     Decimal?           @db.Decimal(9, 6)
+  isActive      Boolean            @default(true)
 
   reports Report[]
   ahoTickets MasterAhoTicket[]
@@ -254,6 +263,10 @@ model Report {
   // Stored in the same Drive folder as the main report PDF.
   revisedPdfDriveUrl  String? // webViewLink of the revision PDF file
   revisedPdfFolderUrl String? // Drive folder URL (for button "Buka Folder")
+
+  // Full report PDF — includes checklist photo documentation pages.
+  // Generated on first click of "Laporan Lengkap PDF" button, then cached here.
+  fullPdfDriveUrl String?
 
   logs       ApprovalLog[]
   activities ActivityLog[]

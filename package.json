@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev",
-    "build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
+    "build": "next build",
+    "build:memory": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
     "start": "next start",
     "lint": "eslint",
     "check:agent-note": "node scripts/check-agent-task-note.mjs",
@@ -20,6 +21,7 @@
     "cleanup-photos-v2:execute": "tsx scripts/cleanup-approved-pjum-photos.ts --execute",
     "import:stores": "tsx scripts/import-stores.ts",
     "sync:stores": "tsx scripts/sync-stores-from-sheet.ts",
+    "sync:store-enrichment": "tsx scripts/sync-store-enrichment-from-sheet.ts",
     "prune:stores": "tsx scripts/prune-stores-by-branch.ts",
     "create-user": "tsx scripts/create-user.ts",
     "fix:store-branch": "tsx scripts/fix-store-branch-from-xlsx.ts",
