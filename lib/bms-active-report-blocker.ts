@@ -3,7 +3,7 @@ import type { Prisma, ReportStatus } from "@prisma/client";
 import { getReportStatusLabel } from "@/lib/report-status";
 
 export const BMS_ACTIVE_REPORT_BLOCKER_CUTOVER = new Date(
-    "2026-09-03T00:00:00.000+07:00",
+    "2026-09-01T00:00:00.000+07:00",
 );
 
 export const BMS_ACTIVE_REPORT_BLOCKING_STATUSES = [

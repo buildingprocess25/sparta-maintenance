@@ -8,6 +8,7 @@
 
 import prisma from "../lib/prisma";
 import { getBmsInitialBalance } from "../lib/app-settings";
+import { BMS_ACTIVE_REPORT_BLOCKER_CUTOVER } from "../lib/bms-active-report-blocker";
 
 async function main() {
     console.log("Memulai Inisiasi BMS Balance Period (Opsi A: Migrasi Penuh)...\n");
@@ -84,6 +85,7 @@ async function main() {
                     status: { not: "COMPLETED" },
                     pjumExportedAt: null,
                     balancePeriodId: null, // Hanya yang belum terikat
+                    createdAt: { gte: BMS_ACTIVE_REPORT_BLOCKER_CUTOVER }, // Abaikan laporan sebelum cutover
                 },
                 select: { reportNumber: true },
             });

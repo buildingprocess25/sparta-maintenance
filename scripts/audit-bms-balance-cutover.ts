@@ -1,5 +1,6 @@
 import prisma from "../lib/prisma";
 import { summarizeBmsCutoverAudit } from "../lib/bms-cutover-audit";
+import { BMS_ACTIVE_REPORT_BLOCKER_CUTOVER } from "../lib/bms-active-report-blocker";
 
 async function main() {
     const [bmsUsers, runningPeriods, pendingPjums] = await Promise.all([
@@ -23,6 +24,7 @@ async function main() {
             createdByNIK: { in: activeBmsNiks },
             status: { not: "COMPLETED" },
             balancePeriodId: null,
+            createdAt: { gte: BMS_ACTIVE_REPORT_BLOCKER_CUTOVER },
         },
     });
 
