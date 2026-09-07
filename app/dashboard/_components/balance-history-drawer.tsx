@@ -5,7 +5,8 @@ import { formatRelativeDate } from "@/components/bms-mobile/bms-activity-item";
 import { BmsBalanceHistoryItem, BmsBalanceInfo } from "@/lib/balance";
 import { fetchBalanceHistoryAction } from "../actions";
 import { Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle, DrawerTrigger } from "@/components/ui/drawer";
-import { Loader2, AlertTriangle, TrendingDown, Clock, History, ChevronRight, FileText } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Info, Loader2, AlertTriangle, TrendingDown, Clock, History, ChevronRight, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type BalanceHistoryDrawerProps = {
@@ -58,27 +59,43 @@ export function BalanceHistoryDrawer({ balanceInfo }: BalanceHistoryDrawerProps)
             <DrawerDescription className="text-xs">Rincian laporan yang memotong saldo minggu ini.</DrawerDescription>
             
             {/* Summary Metrics */}
-            <div className="grid grid-cols-3 gap-2 mt-5">
-              <div className="flex flex-col justify-center rounded-xl bg-red-50 dark:bg-red-950/20 p-2.5 text-center border border-red-100 dark:border-red-900/30">
+            <div className="flex w-full gap-2 mt-5">
+              <div className="relative flex-1 flex flex-col justify-center rounded-xl bg-red-50 dark:bg-red-950/20 px-1.5 py-2.5 sm:p-2.5 text-center border border-red-100 dark:border-red-900/30">
                 <div className="flex items-center justify-center gap-1">
-                  <AlertTriangle className="size-3 text-red-500" />
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400">Gantung</p>
+                  <AlertTriangle className="size-3 text-red-500 shrink-0" />
+                  <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400 truncate">Gantung</p>
                 </div>
-                <p className="mt-1 text-sm font-extrabold tracking-tight text-red-700 dark:text-red-300">{formatCurrency(balanceInfo.hangingDeduction)}</p>
+                <div className="absolute right-0.5 top-0.5">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label="Tampilkan informasi"
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-red-100 hover:text-red-700 dark:hover:bg-red-900/30 dark:hover:text-red-300"
+                      >
+                        <Info className="size-3" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent side="bottom" align="start" className="w-[calc(100vw-3rem)] max-w-[280px] text-xs leading-relaxed p-3.5 shadow-md">
+                      <span className="font-bold text-red-600 dark:text-red-400">Laporan Gantung</span> adalah laporan yang sudah berstatus Selesai, namun tidak dimasukkan oleh BMC ke dalam dokumen PJUM periode sebelumnya. Laporan ini otomatis memotong saldo saat ini dan wajib dimasukkan ke PJUM berikutnya.
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <p className="mt-1.5 text-[11px] sm:text-sm font-extrabold tracking-tight text-red-700 dark:text-red-300 break-words leading-tight">{formatCurrency(balanceInfo.hangingDeduction)}</p>
               </div>
-              <div className="flex flex-col justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/20 p-2.5 text-center border border-emerald-100 dark:border-emerald-900/30">
+              <div className="flex-1 flex flex-col justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-2.5 sm:p-2.5 text-center border border-emerald-100 dark:border-emerald-900/30">
                 <div className="flex items-center justify-center gap-1">
-                  <TrendingDown className="size-3 text-emerald-500" />
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Realisasi</p>
+                  <TrendingDown className="size-3 text-emerald-500 shrink-0" />
+                  <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 truncate">Realisasi</p>
                 </div>
-                <p className="mt-1 text-sm font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300">{formatCurrency(balanceInfo.currentPeriodRealized)}</p>
+                <p className="mt-1.5 text-[11px] sm:text-sm font-extrabold tracking-tight text-emerald-700 dark:text-emerald-300 break-words leading-tight">{formatCurrency(balanceInfo.currentPeriodRealized)}</p>
               </div>
-              <div className="flex flex-col justify-center rounded-xl bg-amber-50 dark:bg-amber-950/20 p-2.5 text-center border border-amber-100 dark:border-amber-900/30">
+              <div className="flex-1 flex flex-col justify-center rounded-xl bg-amber-50 dark:bg-amber-950/20 px-1.5 py-2.5 sm:p-2.5 text-center border border-amber-100 dark:border-amber-900/30">
                 <div className="flex items-center justify-center gap-1">
-                  <Clock className="size-3 text-amber-500" />
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Estimasi</p>
+                  <Clock className="size-3 text-amber-500 shrink-0" />
+                  <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 truncate">Estimasi</p>
                 </div>
-                <p className="mt-1 text-sm font-extrabold tracking-tight text-amber-700 dark:text-amber-300">{formatCurrency(balanceInfo.totalEstimated)}</p>
+                <p className="mt-1.5 text-[11px] sm:text-sm font-extrabold tracking-tight text-amber-700 dark:text-amber-300 break-words leading-tight">{formatCurrency(balanceInfo.totalEstimated)}</p>
               </div>
             </div>
           </DrawerHeader>
