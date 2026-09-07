@@ -100,13 +100,10 @@ export function PjumApprovalButton({
             <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>
-                        Laporan menggantung akan kedaluwarsa
+                        Laporan Akan Menjadi Gantung
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                        PJUM ini tidak menyertakan {expiringHangingCount} laporan
-                        menggantung senilai {formattedTotal}. Jika disetujui,
-                        laporan tersebut tidak dapat dimasukkan ke PJUM lagi dan
-                        tidak akan membebani saldo periode berikutnya.
+                        PJUM ini tidak menyertakan {expiringHangingCount} laporan senilai {formattedTotal}. Jika disetujui, laporan tersebut akan otomatis terbawa ke periode operasional berikutnya sebagai laporan gantung yang memotong saldo.
                         {expiringHangingReportNumbers.length > 0
                             ? ` Laporan: ${expiringHangingReportNumbers.join(", ")}.`
                             : ""}

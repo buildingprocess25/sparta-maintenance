@@ -28,7 +28,6 @@ import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mo
 import { cn } from "@/lib/utils";
 import type { DateRangeFilter } from "../actions/types";
 import type { BmsActiveReportBlockerSummary } from "@/lib/bms-active-report-blocker";
-import { BmsCreateReportButton } from "./bms-create-report-button";
 
 type BmsMobileReportsListProps = {
   reports: ReportData[];
@@ -373,13 +372,6 @@ export function BmsMobileReportsList({
           {initialTotal} laporan{" "}
           {hasFilters && `sesuai filter (${activeDateLabel})`}
         </p>
-        <BmsCreateReportButton
-          blocker={activeReportBlocker}
-          label="Buat Laporan"
-          mobileLabel="Buat"
-          size="sm"
-          className="shrink-0"
-        />
       </div>
 
       {/* Loading overlay */}

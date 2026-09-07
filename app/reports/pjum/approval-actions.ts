@@ -411,7 +411,7 @@ export async function approvePjumExport(input: {
             !validated.confirmHangingExpiry
         ) {
             return {
-                error: `${omittedHangingReports.length} laporan menggantung akan kedaluwarsa permanen. Konfirmasi konsekuensi ini sebelum menyetujui PJUM.`,
+                error: `${omittedHangingReports.length} laporan tidak dimasukkan ke dalam PJUM dan akan menjadi laporan gantung. Konfirmasi konsekuensi ini sebelum menyetujui PJUM.`,
             };
         }
 

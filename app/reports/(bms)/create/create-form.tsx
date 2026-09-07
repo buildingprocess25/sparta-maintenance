@@ -269,14 +269,6 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
         <div className="mb-6 space-y-4">
           {balanceInfo && <BmsBalanceCard balance={balanceInfo} compact={step !== "store"} />}
 
-          {isLocked && (
-            <Alert variant="destructive">
-              <Lock className="h-4 w-4" />
-              <AlertTitle>Saldo Terkunci</AlertTitle>
-              <AlertDescription>Anda tidak dapat membuat laporan baru karena periode saldo sedang terkunci oleh PJUM yang menunggu persetujuan BNM Manager.</AlertDescription>
-            </Alert>
-          )}
-
           {isOverbudget && (step === "estimation" || step === "review") && (
             <div className="flex items-start gap-3 rounded-lg border border-red-200 bg-red-50 p-3 text-red-800 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-red-600 dark:text-red-400" />

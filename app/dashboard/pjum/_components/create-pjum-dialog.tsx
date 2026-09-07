@@ -594,21 +594,30 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                                 )}
                                             >
                                                 <TableCell className="px-2 py-1">
-                                                    <Checkbox
-                                                        checked={selectedSet.has(
-                                                            row.reportNumber,
-                                                        )}
-                                                        disabled={
-                                                            !row.isValid ||
-                                                            Boolean(
-                                                                row.isHangingReport,
-                                                            )
-                                                        }
-                                                        onCheckedChange={() =>
-                                                            toggleReport(row)
-                                                        }
-                                                        aria-label={`Pilih laporan ${row.reportNumber}`}
-                                                    />
+                                                    {row.isHangingReport ? (
+                                                        <div 
+                                                            className="relative inline-flex cursor-not-allowed"
+                                                            onClick={() => toast.info("Laporan gantung wajib masuk PJUM dan tidak bisa dilepas.")}
+                                                        >
+                                                            <div className="absolute inset-0 z-10" />
+                                                            <Checkbox
+                                                                checked={selectedSet.has(row.reportNumber)}
+                                                                disabled={true}
+                                                                aria-label={`Laporan gantung ${row.reportNumber}`}
+                                                            />
+                                                        </div>
+                                                    ) : (
+                                                        <Checkbox
+                                                            checked={selectedSet.has(
+                                                                row.reportNumber,
+                                                            )}
+                                                            disabled={!row.isValid}
+                                                            onCheckedChange={() =>
+                                                                toggleReport(row)
+                                                            }
+                                                            aria-label={`Pilih laporan ${row.reportNumber}`}
+                                                        />
+                                                    )}
                                                 </TableCell>
                                                 <TableCell className="px-2 py-1 font-medium">
                                                     {row.reportNumber}

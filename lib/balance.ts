@@ -41,13 +41,16 @@ export async function getOmittedHangingReportsForPjum(input: {
     const reports = await prisma.report.findMany({
         where: {
             reportNumber: { notIn: input.approvedReportNumbers },
-            pjumHangingAt: { not: null },
             pjumExpiredAt: null,
             pjumExportedAt: null,
             balancePeriod: {
                 pjumExportId: input.pjumExportId,
                 status: "LOCKED_PJUM",
             },
+            OR: [
+                { pjumHangingAt: { not: null } },
+                { status: "COMPLETED" },
+            ],
         },
         select: {
             reportNumber: true,

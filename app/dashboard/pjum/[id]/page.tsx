@@ -12,6 +12,7 @@ import {
 import prisma from "@/lib/prisma";
 import { getAuthUser } from "@/lib/authorization";
 import { Badge } from "@/components/ui/badge";
+import { InfoPopover } from "@/components/ui/info-popover";
 import { Button } from "@/components/ui/button";
 import {
     Table,
@@ -241,6 +242,11 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                     <h2 className="flex items-center gap-2 text-sm font-semibold text-amber-900">
                                         <AlertTriangle className="h-4 w-4" />
                                         Deteksi Laporan Gantung
+                                        <InfoPopover className="ml-0.5">
+                                            <span className="font-normal text-amber-950">
+                                                Laporan gantung adalah laporan yang statusnya sudah Selesai (valid), namun tidak dicentang/dimasukkan oleh BMC ke dalam dokumen PJUM. Laporan ini akan menggantung dan berpotensi memotong saldo operasional BMS di periode berikutnya jika tidak segera diselesaikan.
+                                            </span>
+                                        </InfoPopover>
                                     </h2>
                                     <p className="mt-1 text-xs text-amber-800/80">
                                         Sistem mendeteksi laporan gantung saat

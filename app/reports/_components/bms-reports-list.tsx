@@ -62,7 +62,6 @@ import {
 } from "@/lib/report-status";
 import { formatJakartaDate } from "@/lib/time";
 import type { BmsActiveReportBlockerSummary } from "@/lib/bms-active-report-blocker";
-import { BmsCreateReportButton } from "./bms-create-report-button";
 
 // Type for report data from server
 export type ReportData = {
@@ -564,13 +563,6 @@ export default function BmsReportsList({
                             </div>
                         </div>
                     </div>
-
-                    <BmsCreateReportButton
-                        blocker={activeReportBlocker}
-                        label="Buat Laporan"
-                        mobileLabel="Laporan Baru"
-                        className="w-full md:w-auto"
-                    />
                 </div>
 
                 {reports.length > 0 ? (
