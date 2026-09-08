@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { formatQuarterCellForExport } from "./route";
+import { formatQuarterCellForExport } from "./format";
 
 assert.equal(
     formatQuarterCellForExport({

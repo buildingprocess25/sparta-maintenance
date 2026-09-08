@@ -2661,11 +2661,14 @@ export type ChecklistItemWithPhotos = {
     itemName: string;
     categoryName: string;
     photoUrls: string[]; // normalized before-photo URLs
+    condition?: string | null;
+    preventiveCondition?: string | null;
 };
 
 // Dimensi halaman A4: 595pt lebar, 842pt tinggi.
 // Margin horizontal: 36pt kiri + 36pt kanan = 72pt total.
 // Konten width: 595 - 72 = 523pt.
+
 const PHOTO_PAGE_CONTENT_WIDTH = 595 - 36 * 2; // 523pt
 const PHOTO_GAP = 4;
 const PHOTO_CELL_W =
@@ -2680,13 +2683,35 @@ function truncatePdfText(value: string, maxLength: number): string {
 }
 
 function renderDocPhotoTile(tile: ChecklistPhotoTile) {
+    const label = conditionLabel(tile.condition ?? null, tile.preventiveCondition ?? null);
+    const isRusak = label === "Rusak" || label === "Not OK";
+    const isBaik = label === "Baik" || label === "OK";
+    const badgeTextStyle = isRusak
+        ? docPhotoPageStyles.photoBadgeTextRusak
+        : isBaik
+        ? docPhotoPageStyles.photoBadgeTextBaik
+        : docPhotoPageStyles.photoBadgeTextNeutral;
+
+    const showBadge = label !== "-";
+
     return React.createElement(
         View,
         { key: tile.key, style: docPhotoPageStyles.photoTile },
-        React.createElement(Image, {
-            src: tile.url,
-            style: docPhotoPageStyles.photoImage,
-        }),
+        React.createElement(
+            View,
+            { style: { position: "relative" } },
+            React.createElement(Image, {
+                src: tile.url,
+                style: docPhotoPageStyles.photoImage,
+            }),
+            showBadge
+                ? React.createElement(
+                      View,
+                      { style: docPhotoPageStyles.photoBadgeContainer },
+                      React.createElement(Text, { style: badgeTextStyle }, label),
+                  )
+                : null,
+        ),
         React.createElement(
             Text,
             { style: docPhotoPageStyles.photoCaption },
@@ -2739,6 +2764,29 @@ const docPhotoPageStyles = StyleSheet.create({
         fontSize: 5.5,
         color: "#374151",
         lineHeight: 1.15,
+    },
+    photoBadgeContainer: {
+        position: "absolute",
+        top: 2,
+        left: 2,
+        padding: "2 4",
+        backgroundColor: "rgba(255, 255, 255, 0.9)",
+        borderRadius: 2,
+    },
+    photoBadgeTextBaik: {
+        fontFamily: "Helvetica-Bold",
+        fontSize: 5,
+        color: "#16a34a",
+    },
+    photoBadgeTextRusak: {
+        fontFamily: "Helvetica-Bold",
+        fontSize: 5,
+        color: "#dc2626",
+    },
+    photoBadgeTextNeutral: {
+        fontFamily: "Helvetica-Bold",
+        fontSize: 5,
+        color: "#6b7280",
     },
     footer: {
         position: "absolute",

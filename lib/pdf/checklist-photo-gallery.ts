@@ -1,3 +1,4 @@
+import { compareChecklistItemsById } from "@/lib/checklist-data";
 import type { ChecklistItemWithPhotos } from "@/lib/pdf/generate-report-pdf";
 
 export type ChecklistPhotoTile = {
@@ -7,6 +8,8 @@ export type ChecklistPhotoTile = {
     categoryName: string;
     url: string;
     photoIndex: number;
+    condition?: string | null;
+    preventiveCondition?: string | null;
 };
 
 export const CHECKLIST_PHOTO_COLS = 5;
@@ -17,7 +20,7 @@ export const CHECKLIST_PHOTOS_PER_PAGE =
 export function flattenChecklistPhotoTiles(
     items: ChecklistItemWithPhotos[],
 ): ChecklistPhotoTile[] {
-    return items.flatMap((item) =>
+    return [...items].sort(compareChecklistItemsById).flatMap((item) =>
         item.photoUrls.map((url, index) => ({
             key: `${item.itemId}-${index}-${url}`,
             itemId: item.itemId,
@@ -25,6 +28,8 @@ export function flattenChecklistPhotoTiles(
             categoryName: item.categoryName,
             url,
             photoIndex: index + 1,
+            condition: item.condition,
+            preventiveCondition: item.preventiveCondition,
         })),
     );
 }
