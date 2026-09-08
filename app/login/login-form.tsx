@@ -116,7 +116,8 @@ export function LoginForm({
                                 <Button
                                     type="button"
                                     onClick={() => {
-                                        window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || "http://localhost:5173";
+                                        const fallbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://sparta-alfamart.web.id';
+                                        window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || fallbackUrl;
                                     }}
                                     className="w-full h-12 text-base font-bold bg-[#005a9e] hover:bg-[#004a80] transition-transform active:scale-[0.98] shadow-md"
                                 >
