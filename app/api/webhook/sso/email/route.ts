@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
@@ -16,23 +16,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing oldEmail or newEmail" }, { status: 400 });
     }
 
-    // Prisma doesn't have a built-in way to do case-insensitive updateMany easily without raw queries or specific configurations,
-    // so we'll find the user(s) first. Usually email is unique but just in case we use findMany.
-    const users = await prisma.user.findMany({
+    await prisma.user.updateMany({
       where: {
         email: {
           equals: oldEmail,
           mode: "insensitive",
         },
       },
+      data: { email: newEmail },
     });
-
-    for (const user of users) {
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { email: newEmail },
-      });
-    }
 
     return NextResponse.json({ ok: true });
   } catch (error) {
