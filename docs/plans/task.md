@@ -1,6 +1,7 @@
 | Status | Task | Description |
 |---|---|---|
-| [x] | Task 1 | Create Worker Thread Script (`lib/jobs/aho-import-worker.ts`) |
-| [x] | Task 2 | Refactor `lib/jobs/aho-import.ts` to spawn worker |
-| [x] | Task 3 | Fix Polling Frontend in `import-aho-tickets-dialog.tsx` |
-| [x] | Task 4 | Verification & Task Note |
+| [x] | Task 1 | Reports — Sinkronisasi Filter Client ke URL |
+| [x] | Task 2 | PJUM — Sinkronisasi Filter Client ke URL |
+| [x] | Task 3 | Preventive — Tambah `searchParams` ke `page.tsx` dan sinkronisasi |
+| [x] | Task 4 | Stores — Tambah `searchParams` ke `page.tsx` dan sinkronisasi |
+| [x] | Task 5 | Verifikasi Akhir dan Task Note |
