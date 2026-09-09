@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import {
@@ -83,6 +84,8 @@ export function AdminPjumTable({
     areaNames: string[];
 }) {
     const [pjums, setPjums] = useState<PjumRow[]>(initialData);
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialNextCursor,
     );
@@ -193,6 +196,51 @@ export function AdminPjumTable({
               : "";
     const hasAnyActiveFilter = hasActiveFilter || quickFilter !== "all";
 
+    const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    const pushFilterToUrl = useCallback(
+        (overrides: {
+            quickFilter?: QuickFilterKey;
+            activeFilters?: Filter<string>[];
+        }) => {
+            const resolvedQuick =
+                overrides.quickFilter !== undefined ? overrides.quickFilter : quickFilter;
+            const resolvedFilters =
+                overrides.activeFilters !== undefined ? overrides.activeFilters : activeFilters;
+
+            if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+            urlDebounceRef.current = setTimeout(() => {
+                const params = new URLSearchParams(searchParams.toString());
+
+                if (resolvedQuick === "review_bnm") {
+                    params.set("status", "PENDING_APPROVAL");
+                } else if (resolvedQuick === "approved") {
+                    params.set("status", "APPROVED");
+                } else {
+                    params.delete("status");
+                }
+
+                const getVal = (field: string) =>
+                    resolvedFilters.find((f) => f.field === field)?.values[0] ?? "";
+
+                const branch = String(getVal("branchName"));
+                const area = String(getVal("areaName"));
+                const from = String(getVal("fromDate"));
+                const to = String(getVal("toDate"));
+
+                branch ? params.set("branchName", branch) : params.delete("branchName");
+                area ? params.set("areaName", area) : params.delete("areaName");
+                from ? params.set("fromDate", from) : params.delete("fromDate");
+                to ? params.set("toDate", to) : params.delete("toDate");
+
+                router.replace(`/dashboard/pjum?${params.toString()}`, {
+                    scroll: false,
+                });
+            }, 300);
+        },
+        [quickFilter, activeFilters, searchParams, router],
+    );
+
     const loadData = useCallback(
         async (cursor: string | null, isInitial: boolean = false) => {
             const filters: AdminPjumFilters = {
@@ -240,15 +288,21 @@ export function AdminPjumTable({
         setSearch("");
         setQuickFilter("all");
         setActiveFilters([]);
-    }, []);
+        pushFilterToUrl({ quickFilter: "all", activeFilters: [] });
+    }, [pushFilterToUrl]);
 
-    const applyQuickFilter = useCallback((key: QuickFilterKey) => {
-        setQuickFilter(key);
-        setSearch("");
-        setActiveFilters((current) =>
-            current.filter((filter) => filter.field !== "status"),
-        );
-    }, []);
+    const applyQuickFilter = useCallback(
+        (key: QuickFilterKey) => {
+            setQuickFilter(key);
+            setSearch("");
+            setActiveFilters((current) => {
+                const next = current.filter((filter) => filter.field !== "status");
+                pushFilterToUrl({ quickFilter: key, activeFilters: next });
+                return next;
+            });
+        },
+        [pushFilterToUrl],
+    );
 
     useEffect(() => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -354,7 +408,9 @@ export function AdminPjumTable({
                         <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                             value={search}
-                            onChange={(event) => setSearch(event.target.value)}
+                            onChange={(event) => {
+                                setSearch(event.target.value);
+                            }}
                             placeholder="Cari PJUM, BMS, cabang..."
                             className="h-8 bg-white pl-8 text-xs"
                         />
@@ -362,7 +418,10 @@ export function AdminPjumTable({
                     <Filters
                         filters={activeFilters}
                         fields={filterFields}
-                        onChange={setActiveFilters}
+                        onChange={(newFilters) => {
+                            setActiveFilters(newFilters);
+                            pushFilterToUrl({ activeFilters: newFilters });
+                        }}
                         size="sm"
                         allowMultiple={false}
                         className="w-full flex-1"
