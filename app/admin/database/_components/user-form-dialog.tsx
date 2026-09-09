@@ -274,6 +274,7 @@ export function AdminUserFormDialog({
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 placeholder="Masukkan email"
+                                disabled={isEdit}
                                 required
                             />
                         </div>

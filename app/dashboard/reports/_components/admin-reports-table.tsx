@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -182,6 +183,8 @@ export function AdminReportsTable({
     initialBranchName = "all",
     initialAreaName = "all",
     initialBrand = "ALL",
+    initialFromDate,
+    initialToDate,
     showBrandFilter = false,
 }: {
     initialData: ReportItem[];
@@ -195,6 +198,8 @@ export function AdminReportsTable({
     initialBranchName?: string;
     initialAreaName?: string;
     initialBrand?: string;
+    initialFromDate?: string;
+    initialToDate?: string;
     showBrandFilter?: boolean;
 }) {
     const initialQuickFilter = resolveInitialQuickFilter({
@@ -202,6 +207,9 @@ export function AdminReportsTable({
         initialStatus,
         initialPjumStatus,
     });
+    
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const [reports, setReports] = useState<ReportItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialNextCursor,
@@ -237,8 +245,86 @@ export function AdminReportsTable({
             showBrandFilter && normalizeStoreBrandFilter(initialBrand) !== "ALL"
                 ? createFilter<string>("brand", "is", [normalizeStoreBrandFilter(initialBrand)])
                 : null,
+            initialFromDate
+                ? createFilter<string>("fromDate", "is", [initialFromDate])
+                : null,
+            initialToDate
+                ? createFilter<string>("toDate", "is", [initialToDate])
+                : null,
 
         ].filter((filter): filter is Filter<string> => filter !== null),
+    );
+
+    const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    const pushFilterToUrl = useCallback(
+        (overrides: {
+            quickFilter?: QuickFilterKey;
+            activeFilters?: Filter<string>[];
+            search?: string;
+        }) => {
+            const resolvedQuick =
+                overrides.quickFilter !== undefined
+                    ? overrides.quickFilter
+                    : quickFilter;
+            const resolvedFilters =
+                overrides.activeFilters !== undefined
+                    ? overrides.activeFilters
+                    : activeFilters;
+            const resolvedSearch =
+                overrides.search !== undefined ? overrides.search : search;
+
+            if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+            urlDebounceRef.current = setTimeout(() => {
+                const params = new URLSearchParams(searchParams.toString());
+
+                if (resolvedQuick === "all") {
+                    params.delete("scope");
+                    params.delete("status");
+                    params.delete("pjumStatus");
+                } else if (resolvedQuick === "completed") {
+                    params.delete("scope");
+                    params.set("status", "COMPLETED");
+                    params.delete("pjumStatus");
+                } else if (resolvedQuick === "not_pjum") {
+                    params.delete("scope");
+                    params.set("status", "COMPLETED");
+                    params.set("pjumStatus", "not_exported");
+                } else {
+                    params.set("scope", resolvedQuick);
+                    params.delete("status");
+                    params.delete("pjumStatus");
+                }
+
+                const getVal = (field: string) =>
+                    resolvedFilters.find((f) => f.field === field)?.values[0] ?? "";
+
+                const branch = String(getVal("branchName"));
+                const area = String(getVal("areaName"));
+                const statusFilter = String(getVal("status"));
+                const pjumFilter = String(getVal("pjumStatus"));
+                const brandFilter = String(getVal("brand"));
+                const fromDateFilter = String(getVal("fromDate"));
+                const toDateFilter = String(getVal("toDate"));
+
+                branch ? params.set("branchName", branch) : params.delete("branchName");
+                area ? params.set("areaName", area) : params.delete("areaName");
+                if (resolvedQuick === "all") {
+                    statusFilter ? params.set("status", statusFilter) : params.delete("status");
+                    pjumFilter ? params.set("pjumStatus", pjumFilter) : params.delete("pjumStatus");
+                }
+                brandFilter && brandFilter !== "ALL"
+                    ? params.set("brand", brandFilter)
+                    : params.delete("brand");
+                fromDateFilter ? params.set("fromDate", fromDateFilter) : params.delete("fromDate");
+                toDateFilter ? params.set("toDate", toDateFilter) : params.delete("toDate");
+
+                router.replace(`/dashboard/reports?${params.toString()}`, {
+                    scroll: false,
+                });
+            }, 300);
+        },
+        [quickFilter, activeFilters, search, searchParams, router],
     );
 
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -407,18 +493,24 @@ export function AdminReportsTable({
         setSearch("");
         setQuickFilter("all");
         setActiveFilters([]);
-    }, []);
+        pushFilterToUrl({ quickFilter: "all", activeFilters: [], search: "" });
+    }, [pushFilterToUrl]);
 
-    const applyQuickFilter = useCallback((key: QuickFilterKey) => {
-        setQuickFilter(key);
-        setSearch("");
-        setActiveFilters((current) =>
-            current.filter(
-                (filter) =>
-                    filter.field !== "status" && filter.field !== "pjumStatus",
-            ),
-        );
-    }, []);
+    const applyQuickFilter = useCallback(
+        (key: QuickFilterKey) => {
+            setQuickFilter(key);
+            setSearch("");
+            setActiveFilters((current) => {
+                const next = current.filter(
+                    (filter) =>
+                        filter.field !== "status" && filter.field !== "pjumStatus",
+                );
+                pushFilterToUrl({ quickFilter: key, activeFilters: next, search: "" });
+                return next;
+            });
+        },
+        [pushFilterToUrl],
+    );
 
     // Initial load when filters change (debounced for text inputs)
     useEffect(() => {
@@ -512,7 +604,10 @@ export function AdminReportsTable({
                     <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                     <Input
                         value={search}
-                        onChange={(event) => setSearch(event.target.value)}
+                        onChange={(event) => {
+                            setSearch(event.target.value);
+                            pushFilterToUrl({ search: event.target.value });
+                        }}
                         placeholder="Cari laporan, toko, BMS..."
                         className="h-8 bg-white pl-8 text-xs"
                     />
@@ -520,7 +615,10 @@ export function AdminReportsTable({
                 <Filters
                     filters={activeFilters}
                     fields={filterFields}
-                    onChange={setActiveFilters}
+                    onChange={(newFilters) => {
+                        setActiveFilters(newFilters);
+                        pushFilterToUrl({ activeFilters: newFilters });
+                    }}
                     size="sm"
                     allowMultiple={false}
                     className="w-full flex-1"

@@ -13,6 +13,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { z } from "zod";
+import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
@@ -182,6 +183,15 @@ export async function adminCreateUser(payload: AdminUserPayload) {
             });
         }
 
+        await syncUserToSso({
+            email: payload.email,
+            fullName: payload.name,
+            branchCode: branchNames[0] || "",
+            branchName: branchNames[0] || "",
+            role: "USER",
+            moduleId: "maintenance",
+        });
+
         revalidateMasterDataPaths();
         logger.info(
             {
@@ -251,6 +261,16 @@ export async function adminUpdateUser(
                 branchNames,
                 areaNames,
             },
+        });
+
+        // SYNC UPDATE TO SSO
+        await syncUserToSso({
+            email: payload.email,
+            fullName: payload.name,
+            branchCode: branchNames[0] || "",
+            branchName: branchNames[0] || "",
+            role: payload.role,
+            moduleId: "maintenance",
         });
 
         revalidateMasterDataPaths();
@@ -324,6 +344,7 @@ export async function adminDeleteUser(NIK: string) {
                 name: true,
                 branchNames: true,
                 deletedAt: true,
+                email: true,
             },
         });
         if (!existing) return { error: "User tidak ditemukan" };
@@ -355,6 +376,10 @@ export async function adminDeleteUser(NIK: string) {
                 },
             }),
         ]);
+
+        if (existing.email) {
+            await syncDeleteUserToSso(existing.email);
+        }
 
         revalidateMasterDataPaths();
         logger.info(

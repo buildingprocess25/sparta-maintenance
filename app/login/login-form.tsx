@@ -112,121 +112,18 @@ export function LoginForm({
                                 </div>
                             )}
 
-                            {callbackUrl && (
-                                <input
-                                    type="hidden"
-                                    name="callbackUrl"
-                                    value={callbackUrl}
-                                />
-                            )}
-                            {/* Email */}
-                            <div className="space-y-2">
-                                <label
-                                    htmlFor="email"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    Email
-                                </label>
-                                <InputGroup>
-                                    <InputGroupInput
-                                        id="email"
-                                        name="email"
-                                        type="email"
-                                        placeholder="Masukkan email"
-                                        value={email}
-                                        onChange={handleEmailChange}
-                                        required
-                                        disabled={isPending}
-                                    />
-                                    <InputGroupAddon align="inline-start">
-                                        <Mail className="h-4 w-4" />
-                                    </InputGroupAddon>
-                                </InputGroup>
-                                {state.errors?.email && (
-                                    <p className="text-sm font-medium text-destructive">
-                                        {state.errors.email[0]}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Password */}
-                            <div className="space-y-2">
-                                <label
-                                    htmlFor="password"
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                >
-                                    Password
-                                </label>
-                                <InputGroup>
-                                    <InputGroupAddon align="inline-start">
-                                        <Lock className="h-4 w-4" />
-                                    </InputGroupAddon>
-                                    <InputGroupInput
-                                        id="password"
-                                        name="password"
-                                        type={
-                                            showPassword ? "text" : "password"
-                                        }
-                                        placeholder="Masukkan password"
-                                        value={password}
-                                        onChange={handlePasswordChange}
-                                        required
-                                        disabled={isPending}
-                                    />
-                                    <InputGroupButton
-                                        size="icon-sm"
-                                        type="button"
-                                        onClick={() =>
-                                            setShowPassword(!showPassword)
-                                        }
-                                        aria-label={
-                                            showPassword
-                                                ? "Hide password"
-                                                : "Show password"
-                                        }
-                                    >
-                                        {showPassword ? (
-                                            <EyeOff className="h-4 w-4" />
-                                        ) : (
-                                            <Eye className="h-4 w-4" />
-                                        )}
-                                    </InputGroupButton>
-                                </InputGroup>
-                                {state.errors?.password && (
-                                    <p className="text-sm font-medium text-destructive">
-                                        {state.errors.password[0]}
-                                    </p>
-                                )}
-                            </div>
-
-                            {/* Form-level error (server error, invalid credentials) */}
-                            {state.errors?.form && (
-                                <div className="rounded-md bg-destructive/10 p-3 text-sm font-medium text-destructive">
-                                    {state.errors.form[0]}
-                                </div>
-                            )}
-
-                            {/* Forgot Password — coming soon */}
-                            <div className="flex justify-end">
-                                <Link prefetch={false}
-                                    href="/forgot-password"
-                                    className="text-sm text-primary hover:underline"
-                                >
-                                    Lupa Password?
-                                </Link>
-                            </div>
-
-                            {/* Submit Button */}
-                            <ButtonGroup className="w-full">
+                            <div className="py-4">
                                 <Button
-                                    type="submit"
-                                    className="flex-1"
-                                    size="lg"
-                                    disabled={isPending}
+                                    type="button"
+                                    onClick={() => {
+                                        const fallbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://sparta-alfamart.web.id';
+                                        window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || fallbackUrl;
+                                    }}
+                                    className="w-full h-12 text-base font-bold bg-[#005a9e] hover:bg-[#004a80] transition-transform active:scale-[0.98] shadow-md"
                                 >
-                                    {isPending ? "Memproses..." : "Login"}
+                                    Masuk via SPARTA SSO
                                 </Button>
-                            </ButtonGroup>
+                            </div>
 
                             {/* Divider */}
                             <div className="relative my-4">

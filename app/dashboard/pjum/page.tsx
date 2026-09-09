@@ -14,6 +14,8 @@ type AdminPjumPageProps = {
         status?: string;
         branchName?: string;
         areaName?: string;
+        fromDate?: string;
+        toDate?: string;
     }>;
 };
 
@@ -56,10 +58,14 @@ export default async function AdminPjumPage({
             : requestedBranchName && scopedBranches.includes(requestedBranchName)
               ? requestedBranchName
               : undefined;
+    const initialFromDate = params?.fromDate?.trim() || undefined;
+    const initialToDate = params?.toDate?.trim() || undefined;
     const initialFilters = {
         ...(initialStatus ? { status: initialStatus } : {}),
         ...(initialBranchName ? { branchName: initialBranchName } : {}),
         ...(initialAreaName ? { areaName: initialAreaName } : {}),
+        ...(initialFromDate ? { fromDate: initialFromDate } : {}),
+        ...(initialToDate ? { toDate: initialToDate } : {}),
     };
 
     const [branchOptions, initialData, bmsUsers] = await Promise.all([

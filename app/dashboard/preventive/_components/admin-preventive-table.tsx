@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import {
     Activity,
@@ -230,6 +231,10 @@ export function AdminPreventiveTable({
     showBranchControls = true,
     showBrandFilter = false,
     actions,
+    initialYear,
+    initialQuarter,
+    initialBrand: initialBrandProp,
+    initialTab,
 }: {
     initialData: AdminPreventiveResult;
     branches: string[];
@@ -238,9 +243,13 @@ export function AdminPreventiveTable({
     showBranchControls?: boolean;
     showBrandFilter?: boolean;
     actions?: ReactNode;
+    initialYear?: number;
+    initialQuarter?: PreventiveQuarter;
+    initialBrand?: StoreBrandFilter;
+    initialTab?: string;
 }) {
     const currentYear = getJakartaYear();
-    const [activeTab, setActiveTab] = useState("quarter");
+    const [activeTab, setActiveTab] = useState(initialTab ?? "quarter");
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialData.nextCursor,
@@ -259,10 +268,52 @@ export function AdminPreventiveTable({
     const [isFetchingMore, setIsFetchingMore] = useState(false);
     const [tableSearch, setTableSearch] = useState("");
     const [branchName, setBranchName] = useState<string>(defaultBranch);
-    const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
-    const [year, setYear] = useState<number>(initialData.summary.year || currentYear);
+    const [brand, setBrand] = useState<StoreBrandFilter>(initialBrandProp ?? "ALL");
+    const [year, setYear] = useState<number>(initialYear ?? initialData.summary.year ?? currentYear);
     const [quarter, setQuarter] =
-        useState<PreventiveQuarter>(initialData.summary.quarter || getCurrentQuarter());
+        useState<PreventiveQuarter>(initialQuarter ?? initialData.summary.quarter ?? getCurrentQuarter());
+
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    const pushFilterToUrl = useCallback(
+        (overrides: {
+            branchName?: string;
+            year?: number;
+            quarter?: PreventiveQuarter;
+            brand?: StoreBrandFilter;
+            activeTab?: string;
+        }) => {
+            const resolvedBranch = overrides.branchName ?? branchName;
+            const resolvedYear = overrides.year ?? year;
+            const resolvedQuarter = overrides.quarter ?? quarter;
+            const resolvedBrand = overrides.brand ?? brand;
+            const resolvedTab = overrides.activeTab ?? activeTab;
+
+            if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+            urlDebounceRef.current = setTimeout(() => {
+                const params = new URLSearchParams(searchParams.toString());
+
+                resolvedBranch && resolvedBranch !== "all"
+                    ? params.set("branch", resolvedBranch)
+                    : params.delete("branch");
+                params.set("year", String(resolvedYear));
+                params.set("quarter", String(resolvedQuarter));
+                resolvedBrand && resolvedBrand !== "ALL"
+                    ? params.set("brand", resolvedBrand)
+                    : params.delete("brand");
+                resolvedTab !== "quarter"
+                    ? params.set("tab", resolvedTab)
+                    : params.delete("tab");
+
+                router.replace(`/dashboard/preventive?${params.toString()}`, {
+                    scroll: false,
+                });
+            }, 300);
+        },
+        [branchName, year, quarter, brand, activeTab, searchParams, router],
+    );
 
     const observer = useRef<IntersectionObserver | null>(null);
     const historyObserver = useRef<IntersectionObserver | null>(null);
@@ -456,7 +507,10 @@ export function AdminPreventiveTable({
                             {showBrandFilter ? (
                                     <Select
                                         value={brand}
-                                        onValueChange={(val) => setBrand(val as StoreBrandFilter)}
+                                        onValueChange={(val) => {
+                                            setBrand(val as StoreBrandFilter);
+                                            pushFilterToUrl({ brand: val as StoreBrandFilter });
+                                        }}
                                     >
                                         <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[140px]">
                                             <SelectValue placeholder="Semua Brand" />
@@ -473,7 +527,10 @@ export function AdminPreventiveTable({
                             {showBranchControls ? (
                                     <Select
                                         value={branchName}
-                                        onValueChange={setBranchName}
+                                        onValueChange={(val) => {
+                                            setBranchName(val);
+                                            pushFilterToUrl({ branchName: val });
+                                        }}
                                     >
                                         <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[190px]">
                                             <SelectValue placeholder="Semua Cabang" />
@@ -495,11 +552,11 @@ export function AdminPreventiveTable({
                             ) : null}
                             <Select
                                 value={quarter.toString()}
-                                onValueChange={(value) =>
-                                    setQuarter(
-                                        parseInt(value, 10) as PreventiveQuarter,
-                                    )
-                                }
+                                onValueChange={(value) => {
+                                    const parsed = parseInt(value, 10) as PreventiveQuarter;
+                                    setQuarter(parsed);
+                                    pushFilterToUrl({ quarter: parsed });
+                                }}
                             >
                                 <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[150px]">
                                     <SelectValue placeholder="Triwulan" />
@@ -517,9 +574,11 @@ export function AdminPreventiveTable({
                             </Select>
                             <Select
                                 value={year.toString()}
-                                onValueChange={(value) =>
-                                    setYear(parseInt(value, 10))
-                                }
+                                onValueChange={(value) => {
+                                    const parsed = parseInt(value, 10);
+                                    setYear(parsed);
+                                    pushFilterToUrl({ year: parsed });
+                                }}
                             >
                                 <SelectTrigger className="h-9 w-full bg-background text-sm sm:w-[110px]">
                                     <SelectValue placeholder="Tahun" />
@@ -605,6 +664,7 @@ export function AdminPreventiveTable({
                         setNextCursor(null);
                         setIsLoading(true);
                         setActiveTab(val);
+                        pushFilterToUrl({ activeTab: val });
                     }
                 }}
                 className="gap-0"

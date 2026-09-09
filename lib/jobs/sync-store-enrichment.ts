@@ -410,11 +410,11 @@ export async function syncStoreEnrichmentFromSheet(
                               latitude:
                                   update.latitude === null
                                       ? null
-                                      : new Prisma.Decimal(update.latitude),
+                                      : new Prisma.Decimal(update.latitude!),
                               longitude:
                                   update.longitude === null
                                       ? null
-                                      : new Prisma.Decimal(update.longitude),
+                                      : new Prisma.Decimal(update.longitude!),
                           }
                         : {}),
                 },
