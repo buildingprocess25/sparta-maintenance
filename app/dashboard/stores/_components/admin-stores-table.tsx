@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useTransition } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -111,6 +112,9 @@ export function AdminStoresTable({
     allBrands,
     areaNamesByBranch,
     canManage = true,
+    initialSearch,
+    initialBranchName,
+    initialAreaName,
 }: {
     initialData: StoreItem[];
     initialNextCursor: string | null;
@@ -120,6 +124,9 @@ export function AdminStoresTable({
     allBrands?: string[];
     areaNamesByBranch?: Record<string, string[]>;
     canManage?: boolean;
+    initialSearch?: string;
+    initialBranchName?: string;
+    initialAreaName?: string;
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -130,9 +137,45 @@ export function AdminStoresTable({
     const [isFetchingNextPage, setIsFetchingNextPage] = useState(false);
 
     // Filters
-    const [search, setSearch] = useState("");
-    const [branchName, setBranchName] = useState("all");
-    const [areaName, setAreaName] = useState("all");
+    const [search, setSearch] = useState(initialSearch ?? "");
+    const [branchName, setBranchName] = useState(initialBranchName ?? "all");
+    const [areaName, setAreaName] = useState(initialAreaName ?? "all");
+
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+    const pushFilterToUrl = useCallback(
+        (overrides: {
+            search?: string;
+            branchName?: string;
+            areaName?: string;
+        }) => {
+            const resolvedSearch = overrides.search ?? search;
+            const resolvedBranch = overrides.branchName ?? branchName;
+            const resolvedArea = overrides.areaName ?? areaName;
+
+            if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
+            urlDebounceRef.current = setTimeout(() => {
+                const params = new URLSearchParams(searchParams.toString());
+
+                resolvedSearch
+                    ? params.set("search", resolvedSearch)
+                    : params.delete("search");
+                resolvedBranch && resolvedBranch !== "all"
+                    ? params.set("branch", resolvedBranch)
+                    : params.delete("branch");
+                resolvedArea && resolvedArea !== "all"
+                    ? params.set("area", resolvedArea)
+                    : params.delete("area");
+
+                router.replace(`/dashboard/stores?${params.toString()}`, {
+                    scroll: false,
+                });
+            }, 300);
+        },
+        [search, branchName, areaName, searchParams, router],
+    );
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
@@ -234,12 +277,18 @@ export function AdminStoresTable({
                         placeholder="Cari kode atau nama toko..."
                         className="pl-8 bg-white h-8 text-xs w-full"
                         value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            pushFilterToUrl({ search: e.target.value });
+                        }}
                     />
                 </div>
 
                 {/* Branch */}
-                <Select value={branchName} onValueChange={setBranchName}>
+                <Select value={branchName} onValueChange={(val) => {
+                    setBranchName(val);
+                    pushFilterToUrl({ branchName: val });
+                }}>
                     <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
                         <SelectValue placeholder="Semua Cabang" />
                     </SelectTrigger>
@@ -256,7 +305,10 @@ export function AdminStoresTable({
                 </Select>
 
                 {areaNames.length > 0 ? (
-                    <Select value={areaName} onValueChange={setAreaName}>
+                    <Select value={areaName} onValueChange={(val) => {
+                        setAreaName(val);
+                        pushFilterToUrl({ areaName: val });
+                    }}>
                         <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
                             <SelectValue placeholder="Semua Area" />
                         </SelectTrigger>

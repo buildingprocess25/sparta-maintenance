@@ -10,12 +10,25 @@ import { getAdminStores } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminStoresPage() {
+type Props = {
+    searchParams: Promise<{
+        search?: string;
+        branch?: string;
+        area?: string;
+    }>;
+};
+
+export default async function AdminStoresPage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
     if (user.role !== "ADMIN" && user.role !== "BMC") redirect("/dashboard");
 
-    const [branches, initialData, allBrands] = await Promise.all([
+    const params = await searchParams;
+    const initialSearch = params.search?.trim() || "";
+    const initialBranchName = params.branch?.trim() || "all";
+    const initialAreaName = params.area?.trim() || "all";
+
+    const [branches, allBrands] = await Promise.all([
         user.role === "ADMIN"
             ? fetchAllBranchNames()
             : Promise.resolve(
@@ -23,11 +36,16 @@ export default async function AdminStoresPage() {
                       .map((branchName) => branchName.trim())
                       .filter((branchName) => branchName.length > 0),
               ),
-        getAdminStores(null, 20, {}),
         getAllBrands(),
     ]);
 
     const areaNamesByBranch = await getStoreAreaNamesByBranches(branches);
+
+    const initialData = await getAdminStores(null, 20, {
+        search: initialSearch || undefined,
+        branchName: initialBranchName !== "all" ? initialBranchName : undefined,
+        areaName: initialAreaName !== "all" ? initialAreaName : undefined,
+    });
 
     return (
         <AdminDashboardShell
@@ -46,6 +64,9 @@ export default async function AdminStoresPage() {
                 allBrands={allBrands}
                 areaNamesByBranch={areaNamesByBranch}
                 canManage
+                initialSearch={initialSearch}
+                initialBranchName={initialBranchName}
+                initialAreaName={initialAreaName}
             />
         </AdminDashboardShell>
     );
