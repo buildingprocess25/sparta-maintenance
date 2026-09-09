@@ -21,6 +21,8 @@ type Props = {
         review?: string;
         revision?: string;
         brand?: string;
+        fromDate?: string;
+        toDate?: string;
     }>;
 };
 
@@ -91,6 +93,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
               ? requestedBranchName
               : undefined;
     const initialScope = normalizeScope(params);
+    const initialFromDate = params.fromDate?.trim() || undefined;
+    const initialToDate = params.toDate?.trim() || undefined;
 
     const [branches, initialReports] = await Promise.all([
         scopedBranches === null ? fetchAllBranchNames() : scopedBranches,
@@ -101,6 +105,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             branchName: initialBranchName,
             areaName: initialAreaName,
             brand: initialBrand,
+            fromDate: initialFromDate,
+            toDate: initialToDate,
         }),
     ]);
 
@@ -130,6 +136,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                 initialBranchName={initialBranchName ?? "all"}
                 initialAreaName={initialAreaName ?? "all"}
                 initialBrand={initialBrand}
+                initialFromDate={initialFromDate}
+                initialToDate={initialToDate}
                 showBrandFilter={isAdmin}
             />
         </AdminDashboardShell>
