@@ -112,7 +112,10 @@ export async function GET(request: NextRequest) {
     // 3. Cocokkan email ke user lokal Maintenance
     const user = await prisma.user.findFirst({
         where: {
-            email: spartaEmail,
+            email: {
+                equals: spartaEmail,
+                mode: "insensitive",
+            },
             deletedAt: null,
         },
         select: {
