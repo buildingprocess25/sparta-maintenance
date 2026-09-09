@@ -2,6 +2,40 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createSession } from "@/lib/session";
 
+function normalizeBaseUrl(rawUrl: string | null | undefined): string | null {
+    if (!rawUrl) return null;
+
+    try {
+        const parsed = new URL(rawUrl.trim());
+        const hostname = parsed.hostname.toLowerCase();
+
+        if (process.env.NODE_ENV === "production") {
+            const isLocalhost =
+                hostname === "localhost" ||
+                hostname === "127.0.0.1" ||
+                hostname === "0.0.0.0" ||
+                hostname === "::1" ||
+                hostname === "[::1]";
+
+            if (isLocalhost) return null;
+        }
+
+        return parsed.origin;
+    } catch {
+        return null;
+    }
+}
+
+function buildPublicRedirectUrl(request: NextRequest, pathname: string): URL {
+    const baseUrl =
+        normalizeBaseUrl(process.env.APP_BASE_URL) ??
+        normalizeBaseUrl(process.env.NEXT_PUBLIC_APP_URL) ??
+        normalizeBaseUrl(process.env.RENDER_EXTERNAL_URL) ??
+        normalizeBaseUrl(request.headers.get("origin")) ??
+        normalizeBaseUrl(request.nextUrl.origin);
+
+    return new URL(pathname, baseUrl ?? "http://localhost:3000");
+}
 /**
  * GET /auth/sso/callback?token=<launch-token>
  *
@@ -26,7 +60,7 @@ export async function GET(request: NextRequest) {
     // 1. Validasi: token harus ada di query parameter
     if (!token) {
         return NextResponse.redirect(
-            new URL("/login?error=sso_token_missing", request.url),
+            buildPublicRedirectUrl(request, "/login?error=sso_token_missing"),
         );
     }
 
@@ -34,7 +68,7 @@ export async function GET(request: NextRequest) {
     if (!spartaApiUrl) {
         console.error("[SSO Callback] SPARTA_API_URL is not configured.");
         return NextResponse.redirect(
-            new URL("/login?error=sso_misconfigured", request.url),
+            buildPublicRedirectUrl(request, "/login?error=sso_misconfigured"),
         );
     }
 
@@ -55,7 +89,7 @@ export async function GET(request: NextRequest) {
             const errorData = await exchangeRes.json().catch(() => ({}));
             console.warn("[SSO Callback] Exchange failed:", errorData);
             return NextResponse.redirect(
-                new URL("/login?error=sso_token_invalid", request.url),
+                buildPublicRedirectUrl(request, "/login?error=sso_token_invalid"),
             );
         }
 
@@ -65,13 +99,13 @@ export async function GET(request: NextRequest) {
         if (!spartaEmail) {
             console.error("[SSO Callback] No email in exchange response:", payload);
             return NextResponse.redirect(
-                new URL("/login?error=sso_payload_invalid", request.url),
+                buildPublicRedirectUrl(request, "/login?error=sso_payload_invalid"),
             );
         }
     } catch (err) {
         console.error("[SSO Callback] Failed to reach SPARTA API:", err);
         return NextResponse.redirect(
-            new URL("/login?error=sso_unreachable", request.url),
+            buildPublicRedirectUrl(request, "/login?error=sso_unreachable"),
         );
     }
 
@@ -94,7 +128,7 @@ export async function GET(request: NextRequest) {
             `[SSO Callback] Email "${spartaEmail}" not found in Maintenance users.`,
         );
         return NextResponse.redirect(
-            new URL("/login?error=sso_access_denied", request.url),
+            buildPublicRedirectUrl(request, "/login?error=sso_access_denied"),
         );
     }
 
@@ -102,5 +136,5 @@ export async function GET(request: NextRequest) {
     await createSession(user.NIK, user.role, user.mustChangePassword);
 
     // 5. Redirect ke dashboard
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(buildPublicRedirectUrl(request, "/dashboard"));
 }
