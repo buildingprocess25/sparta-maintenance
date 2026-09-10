@@ -240,4 +240,30 @@ assert.equal(
     "Rp0 tanpa item pekerjaan BMS tidak wajib PJUM",
 );
 
+assert.equal(
+    requiresPjum(null, [{
+        ...items[0],
+        discountAmount: 0,
+        handler: "REKANAN",
+        realisasiItems: [{ id: "dirty-data", reportItemId: "item-1", name: "Test Dirty Data", price: 1000, quantity: 1, totalPrice: 1000 }]
+    }]),
+    false,
+    "Item rekanan dengan sisa data realisasi tidak boleh dihitung sebagai wajib PJUM",
+);
+
+assert.equal(
+    requiresPjum(null, [{
+        ...items[0],
+        discountAmount: 0,
+        handler: "BMS", // handler nyangkut
+        condition: "BAIK", // tapi kondisi barangnya baik
+        preventiveCondition: null,
+        realisasiItems: []
+    }]),
+    false,
+    "Item BAIK dengan handler BMS nyangkut tidak memicu wajib PJUM",
+);
+
 console.log("✅ Semua assertions passed");
+
+
