@@ -243,13 +243,13 @@ export function BmsEstimationStep({
 
             <Card
               size="sm"
-              className="bg-primary/5 shadow-sm ring-1 ring-primary/15"
+              className="min-w-0 max-w-full overflow-hidden bg-primary/5 shadow-sm ring-1 ring-primary/15"
               data-tour="bms-report-estimation"
             >
-              <CardContent>
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
+              <CardContent className="min-w-0 max-w-full">
+                <div className="flex min-w-0 max-w-full flex-col gap-4">
+                  <div className="flex min-w-0 max-w-full flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
                       <h3 className="font-heading text-lg font-bold">
                         Estimasi Harga BMS
                       </h3>
@@ -264,8 +264,11 @@ export function BmsEstimationStep({
                     </Badge>
                   </div>
 
-                  <div className="overflow-hidden rounded-xl bg-card ring-1 ring-border/60">
-                    <Table className="table-fixed">
+                  <div className="min-w-0 max-w-full overflow-hidden rounded-xl bg-card ring-1 ring-border/60">
+                    <Table
+                      className="w-full table-fixed"
+                      containerClassName="max-w-full overflow-x-hidden"
+                    >
                       <TableHeader>
                         <TableRow>
                           <TableHead className="h-9 w-[40%] px-3 text-[10px] uppercase">
@@ -297,14 +300,17 @@ export function BmsEstimationStep({
                                 id={`bms-item-${checklistItem.id}`}
                                 className="bg-muted/60 hover:bg-muted/60"
                               >
-                                <TableCell className="px-3 py-2" colSpan={2}>
-                                  <div className="flex min-w-0 items-center gap-2">
-                                    <span className="text-xs font-bold">
+                                <TableCell
+                                  className="max-w-0 overflow-hidden px-3 py-2"
+                                  colSpan={2}
+                                >
+                                  <div className="min-w-0 max-w-full overflow-hidden">
+                                    <span className="block min-w-0 max-w-full truncate text-xs font-bold">
                                       {checklistItem.id}. {checklistItem.name}
                                     </span>
                                   </div>
                                 </TableCell>
-                                <TableCell className="px-2 py-2 text-right text-xs font-bold">
+                                <TableCell className="overflow-hidden px-2 py-2 text-right text-[10px] font-bold min-[360px]:text-xs">
                                   {formatCurrency(checklistSubtotal)}
                                 </TableCell>
                                 <TableCell className="px-1 py-2" />
@@ -323,7 +329,7 @@ export function BmsEstimationStep({
                                 childItems.map((item) => {
                                   return (
                                     <TableRow key={item.id}>
-                                      <TableCell className="px-3 py-2 pl-4">
+                                      <TableCell className="max-w-0 overflow-hidden px-3 py-2 pl-4">
                                         <div className="flex min-w-0 flex-col gap-1">
                                           <span className="truncate text-xs font-semibold">
                                             {item.itemName}
@@ -436,11 +442,12 @@ export function BmsEstimationStep({
           />
         </DialogPortal>
         <DialogContent
+          className="max-h-[calc(100dvh-2rem)] min-w-0 max-w-[calc(100dvw-2rem)] overflow-x-hidden overflow-y-auto"
           onPointerDownOutside={(event) => event.preventDefault()}
           onInteractOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <DialogHeader>
+          <DialogHeader className="min-w-0 max-w-full">
             <DialogTitle>
               {estimateDraft.entryId
                 ? "Edit Estimasi Barang"
@@ -451,8 +458,8 @@ export function BmsEstimationStep({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-4 py-2">
-            <div className="flex flex-col gap-2">
+          <div className="flex min-w-0 max-w-full flex-col gap-4 py-2">
+            <div className="flex min-w-0 max-w-full flex-col gap-2">
               <Label
                 htmlFor="estimate-checklist-item"
                 className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
@@ -471,9 +478,12 @@ export function BmsEstimationStep({
                 <SelectTrigger
                   data-tour="bms-estimation-item"
                   id="estimate-checklist-item"
-                  className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
+                  className="h-11 min-h-11 w-full min-w-0 max-w-full overflow-hidden rounded-xl bg-muted/60 py-0"
                 >
-                  <SelectValue placeholder="Pilih asset" />
+                  <SelectValue
+                    className="min-w-0 flex-1 truncate text-left"
+                    placeholder="Pilih asset"
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
@@ -487,29 +497,31 @@ export function BmsEstimationStep({
               </Select>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 max-w-full flex-col gap-2">
               <Label
                 htmlFor="estimate-item-name"
                 className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
               >
                 Nama Barang yang Dibeli
               </Label>
-              <MaterialNameCombobox
-                data-tour="bms-estimation-name"
-                id="estimate-item-name"
-                value={estimateDraft.itemName}
-                options={materialNames}
-                onValueChange={(value) =>
-                  setEstimateDraft((current) => ({
-                    ...current,
-                    itemName: value,
-                  }))
-                }
-              />
+              <div className="min-w-0 max-w-full overflow-hidden">
+                <MaterialNameCombobox
+                  data-tour="bms-estimation-name"
+                  id="estimate-item-name"
+                  value={estimateDraft.itemName}
+                  options={materialNames}
+                  onValueChange={(value) =>
+                    setEstimateDraft((current) => ({
+                      ...current,
+                      itemName: value,
+                    }))
+                  }
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col gap-2">
+            <div className="grid min-w-0 max-w-full grid-cols-1 gap-3 min-[360px]:grid-cols-2">
+              <div className="flex min-w-0 max-w-full flex-col gap-2">
                 <Label
                   htmlFor="estimate-quantity"
                   className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
@@ -533,7 +545,7 @@ export function BmsEstimationStep({
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex min-w-0 max-w-full flex-col gap-2">
                 <Label
                   htmlFor="estimate-unit"
                   className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
@@ -551,7 +563,7 @@ export function BmsEstimationStep({
                 >
                   <SelectTrigger
                     id="estimate-unit"
-                    className="h-11 min-h-11 w-full rounded-xl bg-muted/60 py-0"
+                    className="h-11 min-h-11 w-full min-w-0 max-w-full overflow-hidden rounded-xl bg-muted/60 py-0"
                   >
                     <SelectValue placeholder="Satuan" />
                   </SelectTrigger>
@@ -568,14 +580,14 @@ export function BmsEstimationStep({
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
+            <div className="flex min-w-0 max-w-full flex-col gap-2">
               <Label
                 htmlFor="estimate-unit-price"
                 className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
               >
                 Harga per Satuan
               </Label>
-              <div className="relative">
+              <div className="relative min-w-0 max-w-full">
                 <span className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-sm font-bold text-muted-foreground">
                   Rp
                 </span>

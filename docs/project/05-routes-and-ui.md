@@ -81,3 +81,4 @@ Detail:
 - Halaman kirim penyelesaian BMS tidak boleh menghasilkan horizontal page scroll pada viewport 320-430 piksel.
 - Galeri foto di halaman kirim penyelesaian BMS membungkus menjadi dua kolom di bawah 360 piksel dan tiga kolom mulai 360 piksel; jumlah foto hanya menambah panjang vertikal halaman.
 - Header, menu aksi, dialog edit realisasi, dan bottom submit bar pada halaman kirim penyelesaian BMS harus tetap berada di dalam dynamic viewport, termasuk ketika keyboard virtual terbuka.
+- Step estimasi pada form buat laporan BMS tidak boleh menghasilkan horizontal page scroll; nama item panjang harus terpotong di dalam tabel dan seluruh field dialog harus menyusut atau menumpuk di dalam dynamic viewport.
