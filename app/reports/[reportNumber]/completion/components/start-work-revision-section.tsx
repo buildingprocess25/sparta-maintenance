@@ -5,7 +5,6 @@ import {
   MapPin,
   Plus,
   ReceiptText,
-  Trash2,
   User,
   X,
 } from "lucide-react";
@@ -18,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import type { LocalPhoto, StartWorkMaterialStoreEntry } from "../types";
 import { EvidenceCaptureSection } from "./evidence-capture-section";
+import { PhotoStrip } from "./photo-strip";
 
 export function StartWorkRevisionSection({
   isZeroCost,
@@ -55,7 +55,10 @@ export function StartWorkRevisionSection({
   onPreview: (url: string) => void;
 }) {
   return (
-    <section id="start-work-section" className="border-b border-border/40 py-4">
+    <section
+      id="start-work-section"
+      className="min-w-0 max-w-full border-b border-border/40 py-4"
+    >
       <div className="flex gap-3">
         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10 text-amber-700">
           <AlertCircle className="size-4" />
@@ -142,7 +145,7 @@ export function StartWorkRevisionSection({
 
         <section
           className={cn(
-            "border-b border-border/40 py-4",
+            "min-w-0 max-w-full border-b border-border/40 py-4",
             skipPhotos && "opacity-45",
           )}
         >
@@ -150,9 +153,9 @@ export function StartWorkRevisionSection({
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <MapPin className="size-4" />
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-3">
-                <div>
+            <div className="min-w-0 max-w-full flex-1">
+              <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
                   <h2 className="text-sm font-semibold">Data toko material</h2>
                   <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
                     Isi nama toko dan alamat sesuai nota.
@@ -170,8 +173,8 @@ export function StartWorkRevisionSection({
                   </p>
                 ) : (
                   materialStores.map((store, index) => (
-                    <div key={store.id} className="flex gap-2">
-                      <div className="grid flex-1 grid-cols-1 gap-2">
+                    <div key={store.id} className="min-w-0 max-w-full">
+                      <div className="grid min-w-0 max-w-full grid-cols-1 gap-2">
                         <div className="flex items-center justify-between">
                           <Label className="text-xs font-semibold">
                             Toko {index + 1}
@@ -209,17 +212,17 @@ export function StartWorkRevisionSection({
                           }
                           value={store.city}
                           disabled={skipPhotos || receiptPhotos.length === 0}
-                          className="min-h-16 resize-none"
+                          className="min-h-16 min-w-0 max-w-full resize-none"
                           onChange={(event) =>
                             onStoreChange(store.id, "city", event.target.value)
                           }
                         />
-                        <div className="mt-1 space-y-2 rounded-lg border border-border/60 bg-muted/30 p-2">
-                          <div className="flex items-center justify-between gap-2">
+                        <div className="mt-1 min-w-0 max-w-full space-y-2 overflow-hidden rounded-lg border border-border/60 bg-muted/30 p-2">
+                          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
                             <Label className="text-[11px] font-semibold text-muted-foreground">
                               Foto Toko
                             </Label>
-                            <div className="flex gap-1">
+                            <div className="flex max-w-full flex-wrap gap-1">
                               <Button
                                 type="button"
                                 variant="outline"
@@ -263,40 +266,14 @@ export function StartWorkRevisionSection({
                               </label>
                             </div>
                           </div>
-                          {store.photos.length === 0 ? (
-                            <div className="flex min-h-16 items-center justify-center rounded-lg border border-dashed border-border/70 bg-muted/30 px-3 text-center text-xs text-muted-foreground">
-                              Belum ada foto.
-                            </div>
-                          ) : (
-                            <div className="-mx-2 flex gap-2 overflow-x-auto px-2 pb-1">
-                              {store.photos.map((photo) => (
-                                <div
-                                  key={photo.id}
-                                  className="group relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
-                                >
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={photo.previewUrl}
-                                    alt="Foto bukti"
-                                    className="h-full w-full object-cover"
-                                    onClick={() => onPreview(photo.previewUrl)}
-                                  />
-                                  <Button
-                                    type="button"
-                                    variant="destructive"
-                                    size="icon-sm"
-                                    onClick={() =>
-                                      onRemoveStorePhoto(store.id, photo.id)
-                                    }
-                                    className="absolute right-1 top-1 flex size-6 items-center justify-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-                                    aria-label="Hapus foto"
-                                  >
-                                    <X className="size-3" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          <PhotoStrip
+                            photos={store.photos}
+                            emptyText="Belum ada foto."
+                            onRemove={(photoId) =>
+                              onRemoveStorePhoto(store.id, photoId)
+                            }
+                            onPreview={onPreview}
+                          />
                         </div>
                       </div>
                     </div>

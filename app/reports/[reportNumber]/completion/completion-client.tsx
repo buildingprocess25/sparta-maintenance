@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Loader2, SendHorizonal, Wrench, X } from "lucide-react";
+import { Loader2, SendHorizonal, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
@@ -15,7 +15,6 @@ import {
 import { cn } from "@/lib/utils";
 import {
   formatCurrency,
-  genId,
   isCompletionItemComplete,
   type CompletionReport,
 } from "./completion-utils";
@@ -45,7 +44,6 @@ export function CompletionClient({
     completedCount,
     damagedItems,
     estimationMap,
-    globalNotes,
     grandTotal,
     handlePhotoCaptured,
     handleRemovePhoto,
@@ -65,9 +63,7 @@ export function CompletionClient({
     setAdditionalDocumentationNote,
     setAdditionalDocumentationPhotos,
     setCameraTarget,
-    setGlobalNotes,
     setPreviewUrl,
-    setStartWorkMaterialStores,
     setStartWorkReceiptPhotos,
     setStartWorkSelfiePhotos,
     setStartWorkSkipPhotos,
@@ -108,7 +104,7 @@ export function CompletionClient({
   };
 
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="min-h-svh min-w-0 max-w-full overflow-x-clip bg-background text-foreground">
       <BmsMobileHeader
         title="Kirim Penyelesaian"
         showBackButton
@@ -121,7 +117,7 @@ export function CompletionClient({
           isHeaderVisible ? "translate-y-0" : "-translate-y-[57px]",
         )}
       >
-        <div className="mx-auto flex max-w-lg items-center justify-between gap-3 px-4 py-2.5">
+        <div className="mx-auto flex w-full min-w-0 max-w-lg items-center justify-between gap-3 px-4 py-2.5">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold">{report.storeName}</p>
             <p className="mt-0.5 truncate font-mono text-[11px] text-muted-foreground">
@@ -140,7 +136,7 @@ export function CompletionClient({
         </div>
       </div>
 
-      <main className="mx-auto flex w-full max-w-lg flex-col px-4 pb-32 pt-[116px]">
+      <main className="mx-auto flex w-full min-w-0 max-w-lg flex-col overflow-x-clip px-4 pb-32 pt-[116px]">
         <section className="border-b border-border/40 pb-4">
           <div className="grid grid-cols-3 gap-2">
             <SummaryMetric
@@ -265,8 +261,8 @@ export function CompletionClient({
         />
       </main>
 
-      <footer className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 backdrop-blur-xl">
-        <div className="mx-auto max-w-lg">
+      <footer className="fixed inset-x-0 bottom-0 z-40 max-w-full overflow-x-clip border-t border-border/60 bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+16px)] pt-4 backdrop-blur-xl">
+        <div className="mx-auto w-full min-w-0 max-w-lg">
           <Button
             type="button"
             size="lg"
