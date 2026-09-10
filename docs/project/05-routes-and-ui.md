@@ -78,3 +78,6 @@ Detail:
 - Profile dan notifikasi di site header disembunyikan pada mobile jika mengganggu ruang.
 - Breadcrumb mobile memakai ellipsis jika item lebih dari satu.
 - Bottom approval bar tidak boleh menutup konten terakhir; beri padding bawah pada container halaman terkait.
+- Halaman kirim penyelesaian BMS tidak boleh menghasilkan horizontal page scroll pada viewport 320-430 piksel.
+- Galeri foto di halaman kirim penyelesaian BMS membungkus menjadi dua kolom di bawah 360 piksel dan tiga kolom mulai 360 piksel; jumlah foto hanya menambah panjang vertikal halaman.
+- Header, menu aksi, dialog edit realisasi, dan bottom submit bar pada halaman kirim penyelesaian BMS harus tetap berada di dalam dynamic viewport, termasuk ketika keyboard virtual terbuka.
