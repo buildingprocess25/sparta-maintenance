@@ -29,6 +29,7 @@ export type ExportFilter = {
     year?: number;
     preventiveQuarter?: "all" | 1 | 2 | 3 | 4;
     brand?: StoreBrandFilter;
+    pjumStatus?: "ALL" | "SUDAH" | "BELUM";
 };
 
 // ─── Sheet 1: Report rows ─────────────────────────────────────────────────────
@@ -166,6 +167,14 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
 
     if (filter.status && filter.status !== "all") {
         where.status = filter.status as Prisma.EnumReportStatusFilter["equals"];
+    }
+
+    if (filter.pjumStatus) {
+        if (filter.pjumStatus === "SUDAH") {
+            where.pjumExportedAt = { not: null };
+        } else if (filter.pjumStatus === "BELUM") {
+            where.pjumExportedAt = null;
+        }
     }
 
     if (filter.search) {

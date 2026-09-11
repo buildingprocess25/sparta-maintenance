@@ -53,6 +53,7 @@ export function ExportReportsDialog({
     const [bmsQuery, setBmsQuery] = useState("");
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [status, setStatus] = useState("all");
+    const [pjumStatus, setPjumStatus] = useState<string>("ALL");
     const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
@@ -73,6 +74,10 @@ export function ExportReportsDialog({
                                 ? undefined
                                 : selectedBranches,
                         status: status === "all" ? undefined : status,
+                        pjumStatus: 
+                            status === "COMPLETED" && pjumStatus !== "ALL"
+                                ? pjumStatus
+                                : undefined,
                         brand:
                             showBrandFilter && brand !== "ALL"
                                 ? brand
@@ -208,7 +213,15 @@ export function ExportReportsDialog({
                     ) : null}
                     <div className="grid gap-2">
                         <Label>Status</Label>
-                        <Select value={status} onValueChange={setStatus}>
+                        <Select 
+                            value={status} 
+                            onValueChange={(val) => {
+                                setStatus(val);
+                                if (val !== "COMPLETED") {
+                                    setPjumStatus("ALL");
+                                }
+                            }}
+                        >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua Status" />
                             </SelectTrigger>
@@ -223,6 +236,28 @@ export function ExportReportsDialog({
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Status PJUM</Label>
+                        <Select 
+                            value={pjumStatus} 
+                            onValueChange={setPjumStatus}
+                            disabled={status !== "COMPLETED"}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Semua PJUM" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Semua</SelectItem>
+                                <SelectItem value="SUDAH">Sudah PJUM</SelectItem>
+                                <SelectItem value="BELUM">Belum PJUM</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {status !== "COMPLETED" && (
+                            <p className="text-[0.8rem] text-muted-foreground">
+                                Pilih status "Selesai" untuk mengaktifkan filter ini.
+                            </p>
+                        )}
                     </div>
                     <div className="grid gap-2">
                         <Label>Nama / NIK BMS</Label>
