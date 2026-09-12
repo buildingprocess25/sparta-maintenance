@@ -173,7 +173,7 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
         if (filter.pjumStatus === "SUDAH") {
             where.pjumExportedAt = { not: null };
         } else if (filter.pjumStatus === "BELUM") {
-            where.pjumExportedAt = null;
+            where.pjumExportedAt = { equals: null };
         }
     }
 
