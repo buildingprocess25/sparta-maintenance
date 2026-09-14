@@ -40,6 +40,26 @@ import { ImportStoresDialog } from "./import-stores-dialog";
 
 type StoreItem = Awaited<ReturnType<typeof getAdminStores>>["stores"][0];
 
+const OWNERSHIP_FILTER_OPTIONS = [
+    { value: "REGULAR", label: "Regular" },
+    { value: "FRANCHISE", label: "Franchise" },
+    { value: "UNKNOWN", label: "-" },
+] as const;
+
+function formatBrandLabel(brand: string | null) {
+    const normalized = brand?.trim() ?? "";
+    return normalized.length > 0 ? normalized : "-";
+}
+
+function formatOwnershipLabel(ownershipType: StoreItem["ownershipType"]) {
+    const labels: Record<StoreItem["ownershipType"], string> = {
+        REGULAR: "Regular",
+        FRANCHISE: "Franchise",
+        UNKNOWN: "-",
+    };
+    return labels[ownershipType];
+}
+
 // ─── Delete confirmation dialog ───────────────────────────────────────────────
 function DeleteStoreDialog({
     store,
@@ -115,6 +135,8 @@ export function AdminStoresTable({
     initialSearch,
     initialBranchName,
     initialAreaName,
+    initialBrand,
+    initialOwnershipType,
 }: {
     initialData: StoreItem[];
     initialNextCursor: string | null;
@@ -127,6 +149,8 @@ export function AdminStoresTable({
     initialSearch?: string;
     initialBranchName?: string;
     initialAreaName?: string;
+    initialBrand?: string;
+    initialOwnershipType?: StoreItem["ownershipType"] | "all";
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -140,41 +164,71 @@ export function AdminStoresTable({
     const [search, setSearch] = useState(initialSearch ?? "");
     const [branchName, setBranchName] = useState(initialBranchName ?? "all");
     const [areaName, setAreaName] = useState(initialAreaName ?? "all");
+    const [brand, setBrand] = useState(initialBrand ?? "all");
+    const [ownershipType, setOwnershipType] = useState(initialOwnershipType ?? "all");
 
     const router = useRouter();
     const searchParams = useSearchParams();
     const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const brandOptions = Array.from(
+        new Set(
+            (allBrands ?? [])
+                .map((value) => value.trim())
+                .filter((value) => value.length > 0),
+        ),
+    );
 
     const pushFilterToUrl = useCallback(
         (overrides: {
             search?: string;
             branchName?: string;
             areaName?: string;
+            brand?: string;
+            ownershipType?: StoreItem["ownershipType"] | "all";
         }) => {
             const resolvedSearch = overrides.search ?? search;
             const resolvedBranch = overrides.branchName ?? branchName;
             const resolvedArea = overrides.areaName ?? areaName;
+            const resolvedBrand = overrides.brand ?? brand;
+            const resolvedOwnershipType =
+                overrides.ownershipType ?? ownershipType;
 
             if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
             urlDebounceRef.current = setTimeout(() => {
                 const params = new URLSearchParams(searchParams.toString());
 
-                resolvedSearch
-                    ? params.set("search", resolvedSearch)
-                    : params.delete("search");
-                resolvedBranch && resolvedBranch !== "all"
-                    ? params.set("branch", resolvedBranch)
-                    : params.delete("branch");
-                resolvedArea && resolvedArea !== "all"
-                    ? params.set("area", resolvedArea)
-                    : params.delete("area");
+                if (resolvedSearch) {
+                    params.set("search", resolvedSearch);
+                } else {
+                    params.delete("search");
+                }
+                if (resolvedBranch && resolvedBranch !== "all") {
+                    params.set("branch", resolvedBranch);
+                } else {
+                    params.delete("branch");
+                }
+                if (resolvedArea && resolvedArea !== "all") {
+                    params.set("area", resolvedArea);
+                } else {
+                    params.delete("area");
+                }
+                if (resolvedBrand && resolvedBrand !== "all") {
+                    params.set("brand", resolvedBrand);
+                } else {
+                    params.delete("brand");
+                }
+                if (resolvedOwnershipType && resolvedOwnershipType !== "all") {
+                    params.set("type", resolvedOwnershipType);
+                } else {
+                    params.delete("type");
+                }
 
                 router.replace(`/dashboard/stores?${params.toString()}`, {
                     scroll: false,
                 });
             }, 300);
         },
-        [search, branchName, areaName, searchParams, router],
+        [search, branchName, areaName, brand, ownershipType, searchParams, router],
     );
 
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -186,6 +240,8 @@ export function AdminStoresTable({
                 search: search || undefined,
                 branchName: branchName === "all" ? undefined : branchName,
                 areaName: areaName === "all" ? undefined : areaName,
+                brand: brand === "all" ? undefined : brand,
+                ownershipType: ownershipType === "all" ? undefined : ownershipType,
             };
 
             try {
@@ -218,7 +274,7 @@ export function AdminStoresTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, branchName, areaName],
+        [search, branchName, areaName, brand, ownershipType],
     );
 
     // Debounced reload on filter change
@@ -228,7 +284,7 @@ export function AdminStoresTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, branchName, areaName, loadData]);
+    }, [search, branchName, areaName, brand, ownershipType, loadData]);
 
     // Infinite scroll
     useEffect(() => {
@@ -329,6 +385,59 @@ export function AdminStoresTable({
                     </Select>
                 ) : null}
 
+                <Select
+                    value={brand}
+                    onValueChange={(val) => {
+                        setBrand(val);
+                        pushFilterToUrl({ brand: val });
+                    }}
+                >
+                    <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
+                        <SelectValue placeholder="Semua Brand" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all" className="text-xs">
+                            Semua Brand
+                        </SelectItem>
+                        {brandOptions.map((brandOption) => (
+                            <SelectItem
+                                key={brandOption}
+                                value={brandOption}
+                                className="text-xs"
+                            >
+                                {brandOption}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
+                <Select
+                    value={ownershipType}
+                    onValueChange={(val) => {
+                        const nextValue = val as StoreItem["ownershipType"] | "all";
+                        setOwnershipType(nextValue);
+                        pushFilterToUrl({ ownershipType: nextValue });
+                    }}
+                >
+                    <SelectTrigger className="flex-[0.8] min-w-[130px] bg-white h-8 text-xs">
+                        <SelectValue placeholder="Semua Tipe" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all" className="text-xs">
+                            Semua Tipe
+                        </SelectItem>
+                        {OWNERSHIP_FILTER_OPTIONS.map((option) => (
+                            <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                className="text-xs"
+                            >
+                                {option.label}
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
+
                 {canManage ? (
                     <div className="flex items-center gap-2 ml-auto">
                         <ImportStoresDialog branches={branches} />
@@ -353,6 +462,12 @@ export function AdminStoresTable({
                                 <TableHead className="min-w-[200px]">
                                     Nama Toko
                                 </TableHead>
+                                <TableHead className="min-w-[110px]">
+                                    Brand
+                                </TableHead>
+                                <TableHead className="min-w-[110px]">
+                                    Tipe Toko
+                                </TableHead>
                                 <TableHead className="min-w-[140px]">
                                     Cabang
                                 </TableHead>
@@ -370,7 +485,7 @@ export function AdminStoresTable({
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={canManage ? 5 : 4}
+                                        colSpan={canManage ? 7 : 6}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
@@ -379,7 +494,7 @@ export function AdminStoresTable({
                             ) : stores.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={canManage ? 5 : 4}
+                                        colSpan={canManage ? 7 : 6}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada toko yang ditemukan
@@ -392,6 +507,12 @@ export function AdminStoresTable({
                                             {store.code}
                                         </TableCell>
                                         <TableCell>{store.name}</TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {formatBrandLabel(store.brand)}
+                                        </TableCell>
+                                        <TableCell className="text-muted-foreground">
+                                            {formatOwnershipLabel(store.ownershipType)}
+                                        </TableCell>
                                         <TableCell className="text-muted-foreground">
                                             {store.branchName}
                                             {store.areaName ? (

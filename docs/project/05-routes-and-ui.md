@@ -78,7 +78,9 @@ Detail:
 - `BMC` CRUD scoped cabang/area.
 - Filter area hanya muncul jika user punya `areaNames`.
 - Row user menampilkan daftar area user.
-- Row toko menampilkan area toko.
+- Row toko menampilkan area toko, brand, dan tipe toko.
+- Tabel toko dapat difilter berdasarkan search, cabang, area, brand, dan tipe toko.
+- Brand toko kosong ditampilkan sebagai `-`; tipe toko `UNKNOWN` ditampilkan sebagai `-`.
 
 ## Mobile
 
