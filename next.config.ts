@@ -2,12 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["googleapis"],
+  serverExternalPackages: ["googleapis", "@react-pdf/renderer"],
   // Opsi allowedDevOrigins untuk Next.js 14.2+ (di luar experimental)
   // Masukkan domain ngrok spesifik atau wildcard tanpa protokol (http/https)
   allowedDevOrigins: ["localhost:3000", "*.devtunnels.ms", "*.ngrok-free.dev", "runtgenographically-preposterous-shanel.ngrok-free.dev"],
   experimental: {
-    optimizePackageImports: ["lucide-react", "@tabler/icons-react", "recharts", "date-fns", "@base-ui/react", "@react-pdf/renderer"],
+    optimizePackageImports: ["lucide-react", "@tabler/icons-react", "recharts", "date-fns", "@base-ui/react"],
     proxyClientMaxBodySize: "70mb",
     serverActions: {
       bodySizeLimit: "70mb",
