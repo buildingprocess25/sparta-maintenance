@@ -158,9 +158,38 @@ export async function requireBranchAccess(
  * Validate CSRF token via origin check
  * Call this at the start of mutating server actions
  */
+function firstHeaderValue(value: string | null): string | null {
+    return value?.split(",")[0]?.trim() || null;
+}
+
+function normalizeHost(value: string | null): string | null {
+    return firstHeaderValue(value)?.toLowerCase() || null;
+}
+
+function normalizeOrigin(value?: string | null): string | null {
+    if (!value) return null;
+    try {
+        const url = new URL(value);
+        return `${url.protocol}//${url.host}`.toLowerCase();
+    } catch {
+        return null;
+    }
+}
+
+function getCsrfAllowedOrigins(): string[] {
+    return [
+        process.env.APP_BASE_URL,
+        process.env.NEXT_PUBLIC_APP_URL,
+        ...(process.env.CSRF_ALLOWED_ORIGINS?.split(",") ?? []),
+    ]
+        .map((value) => normalizeOrigin(value?.trim()))
+        .filter((value): value is string => Boolean(value));
+}
+
 export async function validateCSRF(headers: Headers): Promise<void> {
     const origin = headers.get("origin");
-    const host = headers.get("host");
+    const host = normalizeHost(headers.get("host"));
+    const forwardedHost = normalizeHost(headers.get("x-forwarded-host"));
 
     // In development, allow localhost and dev tunnels
     if (process.env.NODE_ENV === "development") {
@@ -194,13 +223,32 @@ export async function validateCSRF(headers: Headers): Promise<void> {
         return;
     }
 
-    // In production, strictly validate origin matches host
-    if (!origin || !host) {
-        throw new Error("Missing origin or host header");
+    const normalizedOrigin = normalizeOrigin(origin);
+    if (!normalizedOrigin) {
+        throw new Error("Missing or invalid origin header");
     }
 
-    const originHost = new URL(origin).host;
-    if (originHost !== host) {
-        throw new Error("CSRF validation failed: origin mismatch");
+    const originHost = new URL(normalizedOrigin).host;
+    const allowedOrigins = getCsrfAllowedOrigins();
+    const matchesConfiguredOrigin = allowedOrigins.includes(normalizedOrigin);
+    const matchesHost = Boolean(host && originHost === host);
+    const matchesForwardedHost = Boolean(
+        forwardedHost && originHost === forwardedHost,
+    );
+
+    if (matchesConfiguredOrigin || matchesHost || matchesForwardedHost) {
+        return;
     }
+
+    logger.warn(
+        {
+            operation: "validateCSRF",
+            origin: normalizedOrigin,
+            host,
+            forwardedHost,
+            allowedOrigins,
+        },
+        "CSRF validation failed: origin mismatch",
+    );
+    throw new Error("CSRF validation failed: origin mismatch");
 }

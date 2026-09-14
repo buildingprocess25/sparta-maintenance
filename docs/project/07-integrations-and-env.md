@@ -12,6 +12,7 @@
 | `SESSION_SECRET` | Secret untuk session cookie dan token internal. |
 | `APP_BASE_URL` | Base URL server-side. |
 | `NEXT_PUBLIC_APP_URL` | Base URL client-side. |
+| `CSRF_ALLOWED_ORIGINS` | Optional allowlist origin mutating action, dipisah koma. `APP_BASE_URL` dan `NEXT_PUBLIC_APP_URL` otomatis dipakai sebagai origin valid. |
 | `GOOGLE_CLIENT_ID` | Google OAuth client untuk Drive/Gmail utama. |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth secret untuk Drive/Gmail utama. |
 | `GOOGLE_REFRESH_TOKEN` | Refresh token Google utama. |
@@ -49,6 +50,26 @@
 | `DEV_DRIVE_PROXY_SECRET` | Secret route dev Drive proxy. |
 
 Jangan isi env development-only di production kecuali memang route dan risikonya sudah dicek.
+
+## CSRF dan Proxy
+
+Mutating server action memakai validasi CSRF berbasis `Origin`. Di production,
+origin valid berasal dari:
+
+- `APP_BASE_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `CSRF_ALLOWED_ORIGINS` jika perlu lebih dari satu domain
+- `Host` request
+- `X-Forwarded-Host` dari reverse proxy seperti Dokploy
+
+Nilai URL harus plain, misalnya:
+
+```env
+APP_BASE_URL=https://maintenance.sparta-alfamart.web.id
+NEXT_PUBLIC_APP_URL=https://maintenance.sparta-alfamart.web.id
+```
+
+Jangan memakai format Markdown link atau path tambahan.
 
 ## Google Drive
 
