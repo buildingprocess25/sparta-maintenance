@@ -154,6 +154,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
     const blockedRangeRequestRef = useRef(0);
     const [isSearching, startSearchTransition] = useTransition();
     const [isCreating, startCreateTransition] = useTransition();
+    const [isConfirmed, setIsConfirmed] = useState(false);
 
     async function loadBlockedRanges(nik: string) {
         const requestId = blockedRangeRequestRef.current + 1;
@@ -214,6 +215,8 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         !!result &&
         !!monthName;
 
+    const selectedBmsName = bmsUsers.find((u) => u.NIK === bmsNIK)?.name ?? bmsNIK;
+
     function handleSearch() {
         if (!canSearch) {
             toast.error("Pilih BMS, periode, dan bulan terlebih dahulu");
@@ -233,6 +236,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                         .filter((row) => row.isValid)
                         .map((row) => row.reportNumber),
                 );
+                setIsConfirmed(false);
             } catch (error) {
                 toast.error(
                     error instanceof Error
@@ -251,15 +255,18 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                 ? current.filter((item) => item !== row.reportNumber)
                 : [...current, row.reportNumber],
         );
+        setIsConfirmed(false);
     }
 
     function toggleAllValid() {
         if (allValidSelected) {
             setSelectedReports([]);
+            setIsConfirmed(false);
             return;
         }
 
         setSelectedReports(validRows.map((row) => row.reportNumber));
+        setIsConfirmed(false);
     }
 
     function handleCreate() {
@@ -290,7 +297,13 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
     }
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                setOpen(v);
+                if (!v) setIsConfirmed(false);
+            }}
+        >
             <DialogTrigger asChild>
                 <Button size="sm">
                     <Plus data-icon="inline-start" />
@@ -604,6 +617,52 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                     </section>
                 </div>
 
+                {canCreate && (
+                    <div className="shrink-0 border-t bg-amber-50 px-4 py-3">
+                        <label className="flex cursor-pointer items-start gap-3">
+                            <Checkbox
+                                id="pjum-confirm-checkbox"
+                                checked={isConfirmed}
+                                onCheckedChange={(checked) =>
+                                    setIsConfirmed(checked === true)
+                                }
+                                className="mt-0.5"
+                                aria-label="Konfirmasi data PJUM"
+                            />
+                            <div className="space-y-1 text-sm">
+                                <p className="font-semibold text-amber-900">
+                                    Konfirmasi sebelum membuat PJUM
+                                </p>
+                                <p className="text-amber-800 leading-relaxed">
+                                    Saya yakin akan membuat PJUM untuk{" "}
+                                    <span className="font-semibold">{selectedBmsName}</span>
+                                    {" "}periode{" "}
+                                    <span className="font-semibold">
+                                        {from
+                                            ? format(from, "dd MMM yyyy", { locale: localeId })
+                                            : "-"}
+                                    </span>
+                                    {" "}–{" "}
+                                    <span className="font-semibold">
+                                        {to
+                                            ? format(to, "dd MMM yyyy", { locale: localeId })
+                                            : "-"}
+                                    </span>
+                                    , Minggu{" "}
+                                    <span className="font-semibold">{weekNumber}</span>
+                                    , Bulan{" "}
+                                    <span className="font-semibold">{monthName}</span>
+                                    {" "}dengan{" "}
+                                    <span className="font-semibold">
+                                        {selectedReports.length} laporan
+                                    </span>
+                                    {" "}({formatCurrency(selectedTotal)}).
+                                </p>
+                            </div>
+                        </label>
+                    </div>
+                )}
+
                 <DialogFooter className="shrink-0 border-t bg-background px-4 py-3">
                     <Button
                         type="button"
@@ -615,7 +674,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                     <Button
                         type="button"
                         onClick={handleCreate}
-                        disabled={!canCreate}
+                        disabled={!canCreate || !isConfirmed}
                     >
                         {isCreating ? (
                             <Loader2
