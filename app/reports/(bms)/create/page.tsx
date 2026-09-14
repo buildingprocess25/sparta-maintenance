@@ -19,6 +19,7 @@ export default async function CreateReportPage({
     const user = await requireRole("BMS");
     const { restore, storeCode, draft } = await searchParams;
     const autoRestoreOnMount = restore === "1";
+    const forceServerDraftRestore = autoRestoreOnMount && !!draft;
 
     const [stores, materialNames, existingDraft] = await Promise.all([
         getStoresByBranch(user.branchNames[0] || ""),
@@ -43,6 +44,7 @@ export default async function CreateReportPage({
             }}
             existingDraft={existingDraft}
             autoRestoreOnMount={autoRestoreOnMount}
+            forceServerDraftRestore={forceServerDraftRestore}
             initialStoreCode={storeCode}
         />
     );

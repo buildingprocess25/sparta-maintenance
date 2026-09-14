@@ -25,7 +25,8 @@
 
 Klik laporan status `DRAFT` dari `/reports` membuka
 `/reports/create?restore=1&draft=<reportNumber>` agar draft yang dipilih bisa
-dilanjutkan. Saat restore, localStorage dan server draft dibandingkan memakai
+dilanjutkan langsung tanpa dialog pilihan draft. Saat membuka `/reports/create`
+tanpa `draft=<reportNumber>`, localStorage dan server draft dibandingkan memakai
 timestamp simpan; localStorage dipakai jika lebih baru di device yang sama,
 sedangkan server draft dipakai saat tidak ada localStorage yang lebih baru agar
 draft bisa dilanjutkan dari device lain.

@@ -69,6 +69,8 @@ type UseDraftParams = {
     handleStoreChange: (storeCode: string) => Promise<void>;
     /** Skip the draft dialog and auto-restore the existingDraft on mount (used by edit mode). */
     autoRestore?: boolean;
+    /** Ignore localStorage and restore the specific server draft selected from the reports list. */
+    forceServerDraftRestore?: boolean;
     /** Disable the debounced auto-save to the draft table (used by edit mode). */
     disableAutoSave?: boolean;
 };
@@ -104,6 +106,7 @@ export function useDraft({
     isSubmitting,
     handleStoreChange,
     autoRestore = false,
+    forceServerDraftRestore = false,
     disableAutoSave = false,
 }: UseDraftParams) {
     const LOCAL_STORAGE_KEY = "sparta_bms_draft";
@@ -122,6 +125,13 @@ export function useDraft({
 
     useEffect(() => {
         if (disableAutoSave) return;
+        if (forceServerDraftRestore) {
+            queueMicrotask(() => {
+                setLocalDraftData(null);
+                setShowDraftDialog(false);
+            });
+            return;
+        }
 
         let parsedLocal: (DraftData & { savedAt?: string }) | null = null;
         const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
@@ -170,7 +180,7 @@ export function useDraft({
                 setShowDraftDialog(false);
             });
         }
-    }, [autoRestore, disableAutoSave, existingDraft]);
+    }, [autoRestore, disableAutoSave, existingDraft, forceServerDraftRestore]);
 
     useEffect(() => {
         if (!autoRestore) {

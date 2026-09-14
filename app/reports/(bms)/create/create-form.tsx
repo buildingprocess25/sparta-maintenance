@@ -44,6 +44,7 @@ export default function CreateReportForm({
   userInfo,
   editMode,
   autoRestoreOnMount,
+  forceServerDraftRestore,
   initialStoreCode,
 }: CreateReportFormProps) {
   const router = useRouter();
@@ -111,6 +112,7 @@ export default function CreateReportForm({
     isSubmitting,
     handleStoreChange,
     autoRestore: shouldAutoRestore,
+    forceServerDraftRestore,
     disableAutoSave: isEditMode,
   });
 

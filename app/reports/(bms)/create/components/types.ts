@@ -70,6 +70,8 @@ export interface CreateReportFormProps {
     editMode?: { reportNumber: string };
     /** Auto-restore the existingDraft on mount without showing the dialog (used for draft edit). */
     autoRestoreOnMount?: boolean;
+    /** Force server draft restore when a specific draft report number is opened from the report list. */
+    forceServerDraftRestore?: boolean;
     /** Store code to be auto-selected on mount. */
     initialStoreCode?: string;
 }
