@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -79,6 +79,18 @@ export function AdminStoreFormDialog({
 
     const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
     const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
+
+    useEffect(() => {
+        if (open && isEdit && editStore) {
+            setCode(editStore.code);
+            setName(editStore.name);
+            setBranch(editStore.branchName ?? allBranchNames[0] ?? "");
+            setIsActive(editStore.isActive);
+            setAreaName(editStore.areaName ?? "");
+            setBrand(editStore.brand || "ALFAMART");
+            setOwnershipType(getStoreOwnershipFormValue(editStore.ownershipType));
+        }
+    }, [open, isEdit, editStore, allBranchNames]);
 
     function resetForm() {
         if (!isEdit) {
