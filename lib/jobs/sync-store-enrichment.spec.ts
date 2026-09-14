@@ -104,7 +104,7 @@ const changes = buildStoreEnrichmentChanges(
             longitude: "2.000000",
         },
     ],
-    { clearInvalidCoordinates: false, resetMissingOwnershipToUnknown: true },
+    { clearInvalidCoordinates: false },
 );
 
 assert.deepEqual(changes.updates, [
@@ -120,13 +120,9 @@ assert.deepEqual(changes.updates, [
         latitude: "1.028359",
         longitude: "100.461891",
     },
-    {
-        code: "ZZ99",
-        ownershipType: "UNKNOWN",
-    },
 ]);
 assert.deepEqual(changes.summary, {
-    storesUpdated: 3,
+    storesUpdated: 2,
     storesUnchanged: 0,
     sheetCodesNotFoundInDatabase: 0,
     databaseStoresNotFoundInSheet: 1,

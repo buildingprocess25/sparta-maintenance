@@ -53,7 +53,6 @@ export type StoreEnrichmentSyncResult = StoreEnrichmentParseSummary &
 export type StoreEnrichmentOptions = {
     dryRun?: boolean;
     clearInvalidCoordinates?: boolean;
-    resetMissingOwnershipToUnknown?: boolean;
 };
 
 const HEADER_ALIASES = {
@@ -273,12 +272,7 @@ function coordinatesChanged(
 export function buildStoreEnrichmentChanges(
     sheetStores: readonly ParsedStoreEnrichment[],
     dbStores: readonly StoreEnrichmentDbStore[],
-    options: Required<
-        Pick<
-            StoreEnrichmentOptions,
-            "clearInvalidCoordinates" | "resetMissingOwnershipToUnknown"
-        >
-    >,
+    options: Required<Pick<StoreEnrichmentOptions, "clearInvalidCoordinates">>,
 ): {
     updates: StoreEnrichmentUpdate[];
     summary: StoreEnrichmentChangeSummary;
@@ -322,15 +316,6 @@ export function buildStoreEnrichmentChanges(
     for (const dbStore of dbStores) {
         if (sheetByCode.has(dbStore.code)) continue;
         databaseStoresNotFoundInSheet++;
-        if (
-            options.resetMissingOwnershipToUnknown &&
-            dbStore.ownershipType !== "UNKNOWN"
-        ) {
-            updates.push({
-                code: dbStore.code,
-                ownershipType: "UNKNOWN",
-            });
-        }
     }
 
     return {
@@ -394,8 +379,6 @@ export async function syncStoreEnrichmentFromSheet(
         })),
         {
             clearInvalidCoordinates: options.clearInvalidCoordinates ?? false,
-            resetMissingOwnershipToUnknown:
-                options.resetMissingOwnershipToUnknown ?? true,
         },
     );
 
