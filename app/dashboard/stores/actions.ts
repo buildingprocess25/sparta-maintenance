@@ -123,6 +123,7 @@ export async function getAdminStores(
 
 export type ExportStoreFilters = {
     selectedBranches?: string[]; // [] = all branches
+    brand?: string; // "all" | "alfamart" | "lawson" — undefined/"all" = no filter
 };
 
 export async function exportAdminStores(filters: ExportStoreFilters) {
@@ -155,12 +156,17 @@ export async function exportAdminStores(filters: ExportStoreFilters) {
                       };
         }
 
+        if (filters.brand && filters.brand !== "all") {
+            where.brand = { equals: filters.brand, mode: "insensitive" };
+        }
+
         const stores = await prisma.store.findMany({
             where,
             orderBy: [{ branchName: "asc" }, { name: "asc" }],
             select: {
                 code: true,
                 name: true,
+                brand: true,
                 branchName: true,
                 isActive: true,
             },
