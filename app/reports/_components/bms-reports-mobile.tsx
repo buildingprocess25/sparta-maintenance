@@ -85,7 +85,7 @@ export function BmsReportsMobile({ reports }: BmsReportsMobileProps) {
 
                 const href =
                     report.status === "DRAFT"
-                        ? "/reports/create?restore=1"
+                        ? `/reports/create?restore=1&draft=${encodeURIComponent(report.reportNumber)}`
                         : `/reports/${report.reportNumber}`;
 
                 const targetAttrs = {};

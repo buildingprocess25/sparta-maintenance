@@ -27,6 +27,7 @@ export interface ReportItemJson {
     preventiveCondition: "OK" | "NOT_OK" | "TIDAK_ADA" | null;
     handler: "BMS" | "REKANAN" | null;
     photoUrl?: string | null; // Deprecated, use images
+    photoKey?: string | null;
     images?: string[]; // New standard for multiple images
     notes?: string | null;
     ahoTicketNumber?: string | null;

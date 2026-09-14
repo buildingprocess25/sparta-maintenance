@@ -51,6 +51,7 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
                     preventiveCondition: item.preventiveCondition,
                     handler: isDamaged ? item.handler : undefined,
                     photoUrl: item.photoUrl,
+                    photoKey: item.photoKey,
                     notes: isDamaged ? item.notes : undefined,
                     ahoTicketNumber: isDamaged ? item.ahoTicketNumber?.trim() : undefined,
                 };

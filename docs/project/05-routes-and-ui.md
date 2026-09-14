@@ -23,6 +23,13 @@
 | `/dashboard/activity` | `ADMIN`, `BMC` | Aktivitas; BMC scoped. |
 | `/dashboard/settings` | `ADMIN` | Settings sistem. |
 
+Klik laporan status `DRAFT` dari `/reports` membuka
+`/reports/create?restore=1&draft=<reportNumber>` agar draft yang dipilih bisa
+dilanjutkan. Saat restore, localStorage dan server draft dibandingkan memakai
+timestamp simpan; localStorage dipakai jika lebih baru di device yang sama,
+sedangkan server draft dipakai saat tidak ada localStorage yang lebih baru agar
+draft bisa dilanjutkan dari device lain.
+
 ## Pola UI Dashboard
 
 - Compact.

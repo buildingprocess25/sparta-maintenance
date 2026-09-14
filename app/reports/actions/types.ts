@@ -138,7 +138,12 @@ const bmsEstimationSchema = z
         totalPrice: z.number().min(0),
     });
 
-function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
+function buildDraftDataSchema(
+    allowedItemIds: ReadonlySet<string>,
+    options: { requireDamagedDetails: boolean } = {
+        requireDamagedDetails: true,
+    },
+) {
     const checklistItemSchema = z
         .object({
             itemId: z
@@ -160,6 +165,8 @@ function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
             ahoTicketNumber: z.string().trim().max(100).optional(),
         })
         .superRefine((item, ctx) => {
+            if (!options.requireDamagedDetails) return;
+
             const isDamaged =
                 item.condition === "RUSAK" ||
                 item.preventiveCondition === "NOT_OK";
@@ -224,6 +231,11 @@ function buildDraftDataSchema(allowedItemIds: ReadonlySet<string>) {
 
 export const draftDataSchema = buildDraftDataSchema(
     canonicalChecklistItemIds,
+);
+
+export const draftAutosaveDataSchema = buildDraftDataSchema(
+    canonicalChecklistItemIds,
+    { requireDamagedDetails: false },
 );
 
 export function createResubmitDataSchema(existingItemIds: ReadonlySet<string>) {

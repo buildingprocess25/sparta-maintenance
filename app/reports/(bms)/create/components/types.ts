@@ -40,6 +40,7 @@ export type SerializedDraft = {
         preventiveCondition: string | null;
         handler: string | null;
         photoUrl: string | null;
+        photoKey?: string | null;
         images?: string[];
         notes?: string | null;
         ahoTicketNumber?: string | null;

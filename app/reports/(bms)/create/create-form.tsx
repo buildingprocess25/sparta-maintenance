@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
@@ -26,6 +26,7 @@ import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
 import { useBmsEstimation } from "./hooks/use-bms-estimation";
 import { useDraft } from "./hooks/use-draft";
+import { useServerDraftAutosave } from "./hooks/use-server-draft-autosave";
 import { clearDraftPhotos } from "./hooks/draft-photo-storage";
 
 const WIZARD_STEPS: ReportWizardStep[] = [
@@ -113,6 +114,23 @@ export default function CreateReportForm({
     disableAutoSave: isEditMode,
   });
 
+  const { markDirty, flushServerDraft } = useServerDraftAutosave({
+    selectedStoreCode: isEditMode ? "" : selectedStoreCode,
+    isSubmitting,
+    buildDraftData,
+    setDraftReportId,
+  });
+
+  useEffect(() => {
+    if (isEditMode) return;
+    markDirty();
+  }, [bmsItems, checklist, grandTotalBms, isEditMode, markDirty, selectedStoreCode]);
+
+  useEffect(() => {
+    if (isEditMode || !selectedStoreCode) return;
+    void flushServerDraft("store");
+  }, [flushServerDraft, isEditMode, selectedStoreCode]);
+
   const {
     isCameraOpen,
     setIsCameraOpen,
@@ -130,6 +148,13 @@ export default function CreateReportForm({
     userBranchName,
     draftReportId,
     setDraftReportId,
+    onPhotoUploaded: () => {
+      if (isEditMode) return;
+      markDirty();
+      window.setTimeout(() => {
+        void flushServerDraft("photo");
+      }, 0);
+    },
   });
 
   const rusakItems = Array.from(checklist.values()).filter(
@@ -144,13 +169,16 @@ export default function CreateReportForm({
         toast.error("Silakan pilih toko terlebih dahulu");
         return;
       }
+      void flushServerDraft("step");
       setStep("checklist");
     } else if (step === "checklist") {
       if (!validateStep1()) return;
       buildBmsMapFromChecklist(checklist, bmsItems);
+      void flushServerDraft("step");
       setStep("estimation");
     } else if (step === "estimation") {
       if (!validateStep2()) return;
+      void flushServerDraft("step");
       setStep("review");
     }
     window.scrollTo(0, 0);
@@ -176,10 +204,18 @@ export default function CreateReportForm({
   const handleSubmit = async () => {
     if (!validateStep2()) return;
 
+    const flushedDraft = isEditMode
+      ? undefined
+      : await flushServerDraft("submit");
     setIsSubmitting(true);
 
     try {
-      const draftData = buildDraftData();
+      const draftData = {
+        ...buildDraftData(),
+        ...(flushedDraft?.reportNumber
+          ? { draftReportNumber: flushedDraft.reportNumber }
+          : {}),
+      };
 
       // --- Edit mode: resubmit existing REJECTED report ---
       if (isEditMode && editMode) {
