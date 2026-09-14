@@ -114,6 +114,7 @@ export async function getAllStores(input?: AdminStoreFilterInput) {
                 branchName: true,
                 areaName: true,
                 brand: true,
+                ownershipType: true,
                 isActive: true,
             },
             orderBy: [{ branchName: "asc" }, { name: "asc" }],

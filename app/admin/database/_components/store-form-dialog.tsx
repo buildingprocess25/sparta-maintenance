@@ -24,6 +24,12 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminCreateStore, adminUpdateStore } from "../actions";
+import {
+    STORE_OWNERSHIP_OPTIONS,
+    type StoreOwnershipFormValue,
+    getStoreOwnershipFormValue,
+    shouldShowStoreOwnershipSelect,
+} from "@/lib/store-ownership";
 
 type StoreRow = {
     code: string;
@@ -32,6 +38,7 @@ type StoreRow = {
     isActive: boolean;
     areaName?: string | null;
     brand?: string | null;
+    ownershipType?: "REGULAR" | "FRANCHISE" | "UNKNOWN";
 };
 
 type Props = {
@@ -61,9 +68,14 @@ export function AdminStoreFormDialog({
     const [isActive, setIsActive] = useState(editStore?.isActive ?? true);
     const [areaName, setAreaName] = useState(editStore?.areaName ?? "");
     const [brand, setBrand] = useState(editStore?.brand || "ALFAMART");
+    const [ownershipType, setOwnershipType] =
+        useState<StoreOwnershipFormValue>(
+            getStoreOwnershipFormValue(editStore?.ownershipType),
+        );
 
     const areaOptions = areaNamesByBranch[branch] || [];
     const isAffected = areaOptions.length > 0;
+    const showOwnershipType = shouldShowStoreOwnershipSelect(brand);
 
     const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
     const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
@@ -76,6 +88,7 @@ export function AdminStoreFormDialog({
             setIsActive(true);
             setAreaName("");
             setBrand("ALFAMART");
+            setOwnershipType("REGULAR");
         }
     }
 
@@ -109,6 +122,7 @@ export function AdminStoreFormDialog({
                       isActive,
                       areaName: areaName.trim() || null,
                       brand: brand || null,
+                      ownershipType,
                   })
                 : await adminCreateStore({
                       code: code.trim().toUpperCase(),
@@ -117,6 +131,7 @@ export function AdminStoreFormDialog({
                       isActive,
                       areaName: areaName.trim() || null,
                       brand: brand || null,
+                      ownershipType,
                   });
 
             if (result.error) {
@@ -258,7 +273,15 @@ export function AdminStoreFormDialog({
                         {/* Brand */}
                         <div className="space-y-2">
                             <Label htmlFor="admin-store-brand">Brand</Label>
-                            <Select value={brand} onValueChange={setBrand}>
+                            <Select
+                                value={brand}
+                                onValueChange={(value) => {
+                                    setBrand(value);
+                                    if (!shouldShowStoreOwnershipSelect(value)) {
+                                        setOwnershipType("REGULAR");
+                                    }
+                                }}
+                            >
                                 <SelectTrigger id="admin-store-brand">
                                     <SelectValue placeholder="Pilih brand" />
                                 </SelectTrigger>
@@ -273,6 +296,38 @@ export function AdminStoreFormDialog({
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {showOwnershipType ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="admin-store-ownership-type">
+                                    Tipe Toko
+                                </Label>
+                                <Select
+                                    value={ownershipType}
+                                    onValueChange={(value) =>
+                                        setOwnershipType(
+                                            value as StoreOwnershipFormValue,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger id="admin-store-ownership-type">
+                                        <SelectValue placeholder="Pilih tipe toko" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {STORE_OWNERSHIP_OPTIONS.map(
+                                            (option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : null}
 
                         {/* Status */}
                         <div className="space-y-2">

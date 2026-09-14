@@ -121,6 +121,7 @@ export async function getStoresByBranches(
                 branchName: true,
                 areaName: true,
                 brand: true,
+                ownershipType: true,
                 isActive: true,
             },
             orderBy: { name: "asc" },

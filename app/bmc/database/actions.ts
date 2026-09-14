@@ -6,13 +6,14 @@ import { getErrorDetail } from "@/lib/server-error";
 import { requireRole, validateCSRF } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
+import { Prisma, type StoreOwnershipType } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { getStoreAreaNamesByBranches } from "./queries";
 import { resolveStoreAreaName } from "./store-area-validation";
 import { getLegacyBranchMessage } from "@/lib/branch-merges";
 import { z } from "zod";
 import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
+import { normalizeStoreOwnershipForBrand } from "@/lib/store-ownership";
 
 function getLegacyStoreBranchError(branchName: string) {
     return getLegacyBranchMessage(branchName);
@@ -299,6 +300,7 @@ type StorePayload = {
     areaName?: string | null;
     isActive?: boolean;
     brand?: string | null;
+    ownershipType?: StoreOwnershipType | null;
 };
 
 async function resolveStoreAreaNameForBranch(
@@ -342,6 +344,11 @@ export async function createStore(payload: StorePayload) {
             return { error: areaResult.error };
         }
         const normalizedAreaName = areaResult.areaName;
+        const brand = payload.brand?.trim() || null;
+        const ownershipType = normalizeStoreOwnershipForBrand(
+            brand,
+            payload.ownershipType,
+        );
 
         await prisma.store.create({
             data: {
@@ -350,7 +357,8 @@ export async function createStore(payload: StorePayload) {
                 branchName: payload.branchName,
                 areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
-                brand: payload.brand,
+                brand,
+                ownershipType,
             },
         });
 
@@ -414,6 +422,11 @@ export async function updateStore(
             return { error: areaResult.error };
         }
         const normalizedAreaName = areaResult.areaName;
+        const brand = payload.brand?.trim() || null;
+        const ownershipType = normalizeStoreOwnershipForBrand(
+            brand,
+            payload.ownershipType,
+        );
 
         await prisma.store.update({
             where: { code },
@@ -422,7 +435,8 @@ export async function updateStore(
                 branchName: existing.branchName,
                 areaName: normalizedAreaName,
                 isActive: payload.isActive ?? true,
-                brand: payload.brand,
+                brand,
+                ownershipType,
             },
         });
 
