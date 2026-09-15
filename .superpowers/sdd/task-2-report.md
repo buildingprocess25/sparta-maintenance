@@ -1,133 +1,43 @@
-# Task 2 Report: Sync Execution and Cron Result
+Status: DONE
 
-## Status
+Commits created:
 
-DONE
+- `feat(pjum): add public validator page`
 
-## Summary
+Summary:
 
-Implemented Task 2 for the SPARTA Maintenance store sheet sync. The cron job
-now reads sheet rows, compares them against current database stores with the
-Task 1 `buildStoreSyncChanges` interface, creates missing stores, updates
-changed matched stores, and returns the richer result shape:
-`{ rows, created, updated, unchanged, skipped, invalidOwnershipValues, invalidCoordinateValues }`.
-
-## Files Changed
-
-- `lib/jobs/sync-stores.ts`
-  - Added invalid ownership and coordinate source counters.
-  - Added Prisma Decimal-to-string conversion for comparison.
-  - Added ownership enum normalization for generated Prisma values.
-  - Replaced the create-only executor with create/update execution based on
-    `buildStoreSyncChanges`.
-  - Kept existing store `isActive` untouched.
-  - Left DB-only stores untouched.
-- `scripts/sync-stores-from-sheet.ts`
-  - Updated the CLI success message to include rows, created, updated,
-    unchanged, skipped, invalid ownership, and invalid coordinate counts.
-- `app/api/cron/sync-stores/route.spec.ts`
-  - Added the source-level assertion that the route returns
-    `NextResponse.json({ ok: true, ...result })`.
-- `docs/project/07-integrations-and-env.md`
-  - Added `POST /api/cron/sync-stores` to active cron endpoints.
-  - Documented the Google Sheet columns, sheet-owned fields, create/update
-    behavior, and explicit non-deletion/non-inactivation rule.
-- `docs/agent-notes/2026-09-15-1102-sync-stores-sheet-upsert.md`
-  - Added the required implementation task note.
-
-## Compatibility Adjustments
-
-No behavioral adjustments were needed. The only TypeScript compatibility detail
-was using the brief's `asOwnershipType(String(store.ownershipType))` guard when
-mapping Prisma enum values into the local `StoreOwnershipTypeValue` union.
-
-## Verification
-
-Focused tests were run with the required Windows workaround because direct
-`node_modules\.bin\tsx.cmd` is known to fail in this environment.
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./scripts/sync-stores-from-sheet.spec.ts')"
-```
-
-Result:
-
-```text
-sync-stores-from-sheet tests passed
-```
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./app/api/cron/sync-stores/route.spec.ts')"
-```
-
-Result:
-
-```text
-sync stores cron route tests passed
-```
-
-The route test also emitted the expected `CRON_SECRET is not configured` error
-log while asserting the 500 misconfiguration path.
-
-TypeScript check:
-
-```powershell
-node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false
-```
-
-Result: failed with Node heap out-of-memory.
-
-Retry:
-
-```powershell
-$env:NODE_OPTIONS='--max-old-space-size=4096'; node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false
-```
-
-Result: passed with exit code 0.
-
-## Commit
-
-Created with message:
-
-```text
-feat: upsert stores from sheet sync
-```
-
-## Concerns
-
-None.
-
-## Review Fix: Preserve Persisted Update Code
-
-Fixed the Task 2 review finding where a sheet code such as `U005` could match a
-persisted DB store code `u005`, but the update payload still targeted `U005`.
-`buildStoreSyncChanges` now emits the matched database store code for updates,
-and `syncStoresFromSheet` preserves the raw Prisma `store.code` when preparing
-DB rows for comparison. Create behavior is unchanged: newly created stores still
-use the normalized sheet code from `parseStoreSheetRows`.
-
-Regression coverage was added in `scripts/sync-stores-from-sheet.spec.ts` for a
-DB row with `code: "u005"` matched by sheet row `U005`, asserting the update
-targets `code: "u005"`.
+- Added public server-rendered `/v/pjum/[token]` route.
+- Added `getPublicPjumVerification(token)` with token format guard,
+  `PjumExport` scalar lookup, separate `User` lookups by `bmsNIK` and
+  `approvedByNIK`, report lookup by report numbers, and total expenditure
+  calculation via `resolveReportTotalRealisasi(totalReal, items)`.
+- Added `mapPjumVerificationRecord()` and focused TDD mapping spec.
+- Added compact responsive validator UI using existing shadcn `Alert`, `Badge`,
+  `Button`, `Card`, and `Separator` components.
+- Left `proxy.ts` unchanged because `/v/pjum` is not in the protected prefixes.
 
 Verification:
 
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./scripts/sync-stores-from-sheet.spec.ts')"
-```
+- Direct command
+  `node_modules\.bin\tsx.cmd "app\v\pjum\[token]\validator-data.spec.ts"`
+  failed before test load with `uv_os_get_passwd returned ENOMEM`.
+- Workaround RED command
+  `node --require C:\Users\Rendi Elang\.codex\visualizations\2026\09\15\01a0a325-09a6-7383-b066-e21ab576250d\os-userinfo-patch.cjs --import tsx "app\v\pjum\[token]\validator-data.spec.ts"`
+  failed with `Cannot find module './validator-data'`.
+- Workaround final focused test command passed:
+  `pjum validator data mapping passed`.
+- Proxy public-route source check passed:
+  `protectedPrefixes = ["/dashboard", "/reports", "/approval", "/admin"]`;
+  `/v/pjum` is not protected.
+- Initial TypeScript check without heap option failed with Node out of memory.
+- `node_modules\.bin\prisma.cmd generate` passed.
+- `$env:NODE_OPTIONS='--max-old-space-size=4096'; node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false`
+  passed with exit code 0.
 
-Result:
+Concerns:
 
-```text
-sync-stores-from-sheet tests passed
-```
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./app/api/cron/sync-stores/route.spec.ts')"
-```
-
-Result:
-
-```text
-sync stores cron route tests passed
-```
+- `validator-data.ts` does not import `server-only` because that package throws
+  when the focused standalone `tsx` spec imports the pure mapper. The route is
+  still server-rendered and the query path imports Prisma.
+- Remaining QR/PDF/approval/documentation work is intentionally deferred to
+  later plan tasks.
