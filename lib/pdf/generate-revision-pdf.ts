@@ -75,7 +75,7 @@ const s = StyleSheet.create({
         fontFamily: "Helvetica",
         fontSize: 9,
         paddingTop: 32,
-        paddingBottom: 92,
+        paddingBottom: 112,
         paddingHorizontal: 36,
         color: "#111827",
     },
@@ -270,7 +270,7 @@ const s = StyleSheet.create({
         borderTop: "1px solid #e5e7eb",
         paddingTop: 6,
         flexDirection: "row",
-        alignItems: "flex-start",
+        alignItems: "center",
     },
     footerLeft: {
         flex: 1,
