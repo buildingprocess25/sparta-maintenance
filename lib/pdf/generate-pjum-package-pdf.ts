@@ -187,6 +187,7 @@ export async function generatePjumPackagePdf(params: {
         weekNumber: params.weekNumber,
         reports: recapRows,
         watermarkLogoBase64: WATERMARK_LOGO_BASE64,
+        verification: params.verification,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -231,7 +232,6 @@ export async function generatePjumPackagePdf(params: {
         });
 
     const merged = await PDFDocument.create();
-    const validatorSkipPageIndexes: number[] = [];
 
     // 1. Insert Recap (pjumBuffer)
     const pjumDoc = await PDFDocument.load(pjumBuffer);
@@ -279,7 +279,6 @@ export async function generatePjumPackagePdf(params: {
             formDoc.getPageIndices(),
         );
         formPages.forEach((p) => {
-            validatorSkipPageIndexes.push(merged.getPageCount());
             merged.addPage(p);
         });
     }
@@ -376,6 +375,7 @@ export async function generatePjumPackagePdf(params: {
                 reportStatus: report.status,
                 stamps,
             },
+            verification: params.verification,
         });
 
         // Load into main document and clear buffer from memory
@@ -394,18 +394,6 @@ export async function generatePjumPackagePdf(params: {
     const year = getJakartaYear(fromDate);
 
     let finalBuffer = Buffer.from(await merged.save());
-
-    if (params.verification) {
-        const { stampPjumValidatorOnPackage } = await import(
-            "@/lib/pdf/pjum-validator-stamp"
-        );
-        finalBuffer = await stampPjumValidatorOnPackage({
-            buffer: finalBuffer,
-            qrDataUrl: params.verification.qrDataUrl,
-            displayCode: params.verification.displayCode,
-            skipPageIndexes: validatorSkipPageIndexes,
-        });
-    }
 
     return {
         buffer: finalBuffer,
