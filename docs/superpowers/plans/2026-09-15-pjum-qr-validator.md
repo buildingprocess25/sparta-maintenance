@@ -335,7 +335,7 @@ Create `app/v/pjum/[token]/validator-data.ts`:
 import "server-only";
 
 import prisma from "@/lib/prisma";
-import { calculateTotalRealisasiFromItems } from "@/lib/realisasi";
+import { resolveReportTotalRealisasi } from "@/lib/realisasi";
 import {
     derivePjumPublicVerificationStatus,
     formatPjumVerificationDisplayCode,
@@ -370,7 +370,7 @@ type PjumVerificationRecord = {
     verificationCode: string | null;
     branchName: string;
     bmsNIK: string;
-    bms: { name: string } | null;
+    bmsName: string | null;
     weekNumber: number;
     monthName: string | null;
     fromDate: Date;
@@ -378,7 +378,7 @@ type PjumVerificationRecord = {
     reportNumbers: string[];
     approvedAt: Date | null;
     approvedByNIK: string | null;
-    approver: { name: string } | null;
+    approverName: string | null;
     pjumFinalDriveUrl: string | null;
     totalExpenditure: number;
 };
@@ -399,7 +399,7 @@ export function mapPjumVerificationRecord(
         displayCode: formatPjumVerificationDisplayCode(record.verificationCode),
         branchName: record.branchName,
         bmsNIK: record.bmsNIK,
-        bmsName: record.bms?.name ?? record.bmsNIK,
+        bmsName: record.bmsName ?? record.bmsNIK,
         weekNumber: record.weekNumber,
         monthName: record.monthName,
         fromDate: record.fromDate,
@@ -409,7 +409,7 @@ export function mapPjumVerificationRecord(
         totalExpenditure: record.totalExpenditure,
         approvedAt: record.approvedAt,
         approverNIK: record.approvedByNIK,
-        approverName: record.approver?.name ?? record.approvedByNIK,
+        approverName: record.approverName ?? record.approvedByNIK,
         pjumFinalDriveUrl: record.pjumFinalDriveUrl,
     };
 }
@@ -430,7 +430,6 @@ export async function getPublicPjumVerification(
             verificationCode: true,
             branchName: true,
             bmsNIK: true,
-            bms: { select: { name: true } },
             weekNumber: true,
             monthName: true,
             fromDate: true,
@@ -438,32 +437,45 @@ export async function getPublicPjumVerification(
             reportNumbers: true,
             approvedAt: true,
             approvedByNIK: true,
-            approver: { select: { name: true } },
             pjumFinalDriveUrl: true,
         },
     });
 
     if (!pjum) return { kind: "not-found" };
 
-    const reports = await prisma.report.findMany({
-        where: { reportNumber: { in: pjum.reportNumbers } },
-        select: { items: true, totalReal: true },
-    });
+    const [bmsUser, approverUser, reports] = await Promise.all([
+        prisma.user.findUnique({
+            where: { NIK: pjum.bmsNIK },
+            select: { name: true },
+        }),
+        pjum.approvedByNIK
+            ? prisma.user.findUnique({
+                  where: { NIK: pjum.approvedByNIK },
+                  select: { name: true },
+              })
+            : Promise.resolve(null),
+        prisma.report.findMany({
+            where: { reportNumber: { in: pjum.reportNumbers } },
+            select: { items: true, totalReal: true },
+        }),
+    ]);
 
     const totalExpenditure = reports.reduce(
         (sum, report) =>
-            sum + calculateTotalRealisasiFromItems(report.items, report.totalReal),
+            sum + resolveReportTotalRealisasi(report.totalReal, report.items),
         0,
     );
 
     return mapPjumVerificationRecord({
         ...pjum,
+        bmsName: bmsUser?.name ?? null,
+        approverName: approverUser?.name ?? null,
         totalExpenditure,
     });
 }
 ```
 
-If `calculateTotalRealisasiFromItems` does not accept `(items, totalReal)` in the current code, use the actual local helper signature from `lib/realisasi.ts` and adjust this file and test in the same task.
+`PjumExport` has no Prisma relation fields for BMS or approver, so keep those as separate `User` lookups by NIK.
 
 - [ ] **Step 4: Run data test**
 
