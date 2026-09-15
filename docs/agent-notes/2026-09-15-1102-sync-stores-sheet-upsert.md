@@ -28,7 +28,8 @@ sync against production data.
 
 - `lib/jobs/sync-stores.ts`: replaced create-only execution with create/update
   execution using `buildStoreSyncChanges`, added invalid source value counters,
-  Prisma Decimal conversion, and ownership enum normalization.
+  Prisma Decimal conversion, ownership enum normalization, persisted-code
+  updates for case-insensitive matches, and actual `createMany` result counts.
 - `scripts/sync-stores-from-sheet.ts`: expanded the CLI success message with
   created, updated, unchanged, skipped, and invalid value counts.
 - `app/api/cron/sync-stores/route.spec.ts`: added a source-level assertion that
@@ -50,6 +51,8 @@ sync against production data.
   empty because `buildStoreSyncChanges` omits coordinate updates in that case.
 - Used `asOwnershipType(String(store.ownershipType))` to satisfy TypeScript and
   keep generated enum values inside the local string union.
+- Return `created` from the actual `createMany` result so concurrent duplicate
+  inserts do not overreport successful creations.
 
 ## Verification
 
@@ -61,6 +64,9 @@ sync against production data.
   failed with Node heap out-of-memory.
 - `$env:NODE_OPTIONS='--max-old-space-size=4096'; node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false`
   passed with exit code 0.
+- Final review found no blocking issues. A minor note about overreporting
+  created rows in concurrent duplicate cases was addressed by returning the
+  actual Prisma `createMany` count.
 
 ## Remaining Work and Risks
 

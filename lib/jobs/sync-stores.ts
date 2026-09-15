@@ -378,8 +378,9 @@ export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
         })),
     );
 
+    let created = 0;
     if (changes.creates.length > 0) {
-        await prisma.store.createMany({
+        const createResult = await prisma.store.createMany({
             data: changes.creates.map((store) => ({
                 ...store,
                 latitude:
@@ -393,6 +394,7 @@ export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
             })),
             skipDuplicates: true,
         });
+        created = createResult.count;
     }
 
     for (const update of changes.updates) {
@@ -417,6 +419,7 @@ export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
     return {
         rows: stores.length,
         ...changes.summary,
+        created,
         invalidOwnershipValues: countInvalidOwnershipValues(rows),
         invalidCoordinateValues: countInvalidCoordinateValues(rows),
     };
