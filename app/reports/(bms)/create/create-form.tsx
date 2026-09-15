@@ -72,6 +72,7 @@ export default function CreateReportForm({
     validateStep1,
     openCategories,
     devAutofill,
+    hasPreventiveItemsInChecklist,
   } = useChecklist(stores, isEditMode, initialStoreCode);
 
   const {
@@ -281,7 +282,7 @@ export default function CreateReportForm({
     }
   };
 
-  const isRepairOnlyMode = isCategoryICoolingDown;
+  const isRepairOnlyMode = isCategoryICoolingDown && (!isEditMode || !hasPreventiveItemsInChecklist);
 
   // Store data to pass to review step
   const storeObj = stores.find((s) => s.code === selectedStoreCode);
