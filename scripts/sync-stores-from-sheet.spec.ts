@@ -1,31 +1,142 @@
 import assert from "node:assert/strict";
 import {
+    buildStoreSyncChanges,
     filterNewStores,
+    parseCoordinateCell,
+    parseOwnershipMarker,
     parseStoreSheetRows,
 } from "./sync-stores-from-sheet";
 
 const stores = parseStoreSheetRows([
-    ["Nama Toko", "Cabang", "Kode Toko"],
-    ["Toko Satu", "SIDOARJO", "u001"],
-    ["Toko Dua", "MALANG", "U002"],
-    ["Toko Dua", "MALANG", "U002"],
-    ["", "", ""],
+    ["Branch", "Kode Toko", "Nama Toko", "F/R", "Titik Koordinat"],
+    ["SIDOARJO", "u001", "Toko Satu", "R", "-6.123456 106.123456"],
+    ["MALANG", "U002", "Toko Dua", "F", "-7,123456 107,123456"],
+    ["MALANG", "U002", "Toko Dua", "F", "-7,123456 107,123456"],
+    ["", "", "", "", ""],
 ]);
 
 assert.deepEqual(stores, [
-    { code: "U001", name: "Toko Satu", branchName: "SIDOARJO" },
-    { code: "U002", name: "Toko Dua", branchName: "MALANG" },
+    {
+        code: "U001",
+        name: "Toko Satu",
+        branchName: "SIDOARJO",
+        brand: "ALFAMART",
+        ownershipType: "REGULAR",
+        latitude: "-6.123456",
+        longitude: "106.123456",
+        hasValidCoordinates: true,
+    },
+    {
+        code: "U002",
+        name: "Toko Dua",
+        branchName: "MALANG",
+        brand: "ALFAMART",
+        ownershipType: "FRANCHISE",
+        latitude: "-7.123456",
+        longitude: "107.123456",
+        hasValidCoordinates: true,
+    },
 ]);
 
-assert.deepEqual(filterNewStores(stores, new Set(["U001"])), [
-    { code: "U002", name: "Toko Dua", branchName: "MALANG" },
+assert.equal(parseOwnershipMarker("R"), "REGULAR");
+assert.equal(parseOwnershipMarker("F"), "FRANCHISE");
+assert.equal(parseOwnershipMarker(""), "UNKNOWN");
+assert.equal(parseOwnershipMarker("x"), "UNKNOWN");
+
+assert.deepEqual(parseCoordinateCell("-6.1 106.2"), {
+    latitude: "-6.100000",
+    longitude: "106.200000",
+    hasValidCoordinates: true,
+});
+assert.deepEqual(parseCoordinateCell(""), {
+    latitude: null,
+    longitude: null,
+    hasValidCoordinates: false,
+});
+assert.deepEqual(parseCoordinateCell("invalid"), {
+    latitude: null,
+    longitude: null,
+    hasValidCoordinates: false,
+});
+
+assert.deepEqual(filterNewStores(stores, new Set(["U001"])), [stores[1]]);
+
+const changes = buildStoreSyncChanges(stores, [
+    {
+        code: "U001",
+        name: "Toko Lama",
+        branchName: "SIDOARJO",
+        brand: null,
+        ownershipType: "UNKNOWN",
+        latitude: null,
+        longitude: null,
+    },
+    {
+        code: "U002",
+        name: "Toko Dua",
+        branchName: "MALANG",
+        brand: "ALFAMART",
+        ownershipType: "FRANCHISE",
+        latitude: "-7.123456",
+        longitude: "107.123456",
+    },
+    {
+        code: "LAW1",
+        name: "Lawson Existing",
+        branchName: "JAKARTA",
+        brand: "LAWSON",
+        ownershipType: "UNKNOWN",
+        latitude: null,
+        longitude: null,
+    },
 ]);
+
+assert.deepEqual(changes.creates, []);
+assert.deepEqual(changes.updates, [
+    {
+        code: "U001",
+        data: {
+            name: "Toko Satu",
+            branchName: "SIDOARJO",
+            brand: "ALFAMART",
+            ownershipType: "REGULAR",
+            latitude: "-6.123456",
+            longitude: "106.123456",
+        },
+    },
+]);
+assert.deepEqual(changes.summary, {
+    created: 0,
+    updated: 1,
+    unchanged: 1,
+    skipped: 1,
+});
+
+const invalidCoordinateChanges = buildStoreSyncChanges(
+    parseStoreSheetRows([
+        ["Branch", "Kode Toko", "Nama Toko", "F/R", "Titik Koordinat"],
+        ["SIDOARJO", "U003", "Toko Tiga", "R", "invalid"],
+    ]),
+    [
+        {
+            code: "U003",
+            name: "Toko Tiga",
+            branchName: "SIDOARJO",
+            brand: "ALFAMART",
+            ownershipType: "REGULAR",
+            latitude: "-6.000000",
+            longitude: "106.000000",
+        },
+    ],
+);
+assert.deepEqual(invalidCoordinateChanges.updates, []);
+assert.equal(invalidCoordinateChanges.summary.unchanged, 1);
 
 assert.throws(
     () =>
         parseStoreSheetRows([
-            ["Kode Toko", "Nama Toko", "Cabang"],
-            ["U003", "", "TEGAL"],
+            ["Branch", "Kode Toko", "Nama Toko", "F/R", "Titik Koordinat"],
+            ["TEGAL", "U003", "", "R", "-6.1 106.2"],
         ]),
     /Baris 2 tidak lengkap/,
 );
@@ -33,9 +144,9 @@ assert.throws(
 assert.throws(
     () =>
         parseStoreSheetRows([
-            ["Kode Toko", "Nama Toko", "Cabang"],
-            ["U004", "Toko Lama", "TEGAL"],
-            ["U004", "Toko Baru", "TEGAL"],
+            ["Branch", "Kode Toko", "Nama Toko", "F/R", "Titik Koordinat"],
+            ["TEGAL", "U004", "Toko Lama", "R", "-6.1 106.2"],
+            ["TEGAL", "U004", "Toko Baru", "R", "-6.1 106.2"],
         ]),
     /Kode toko duplikat U004/,
 );

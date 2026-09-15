@@ -3,7 +3,10 @@ import prisma from "../lib/prisma";
 import { syncStoresFromSheet } from "../lib/jobs/sync-stores";
 
 export {
+    buildStoreSyncChanges,
     filterNewStores,
+    parseCoordinateCell,
+    parseOwnershipMarker,
     parseStoreSheetRows,
 } from "../lib/jobs/sync-stores";
 
