@@ -29,6 +29,12 @@ import {
     downloadPdfSnapshot,
 } from "@/lib/pdf/snapshot-storage";
 import { buildReportPdfBuffer } from "@/lib/pdf/report-pdf-builder";
+import {
+    buildPjumVerificationUrl,
+    formatPjumVerificationDisplayCode,
+    generatePjumVerificationSecret,
+} from "@/lib/pjum-verification";
+import { createQrPngDataUrl } from "@/lib/pdf/qr-code";
 
 function isGoogleDriveUrl(value: string | null | undefined): value is string {
     return (
@@ -337,6 +343,8 @@ export async function approvePjumExport(input: {
                 createdByNIK: true,
                 status: true,
                 pjumPdfPath: true,
+                verificationToken: true,
+                verificationCode: true,
             },
         });
 
@@ -364,6 +372,40 @@ export async function approvePjumExport(input: {
 
         const bmsName = bmsUser?.name ?? pjumExport.bmsNIK;
         const approvedAtDate = new Date();
+
+        let verificationToken = pjumExport.verificationToken;
+        let verificationCode = pjumExport.verificationCode;
+
+        if (!verificationToken || !verificationCode) {
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                const generated = generatePjumVerificationSecret();
+                try {
+                    await prisma.pjumExport.update({
+                        where: { id: pjumExport.id },
+                        data: {
+                            verificationToken: generated.token,
+                            verificationCode: generated.code,
+                        },
+                    });
+                    verificationToken = generated.token;
+                    verificationCode = generated.code;
+                    break;
+                } catch (error) {
+                    if (attempt === 2) throw error;
+                }
+            }
+        }
+
+        if (!verificationToken || !verificationCode) {
+            throw new Error("Failed to prepare PJUM verification identity");
+        }
+
+        const verificationUrl = buildPjumVerificationUrl({
+            token: verificationToken,
+        });
+        const verificationDisplayCode =
+            formatPjumVerificationDisplayCode(verificationCode);
+        const verificationQrDataUrl = await createQrPngDataUrl(verificationUrl);
 
         // Keep PJUM form page in final package.
         const reports = await prisma.report.findMany({
@@ -401,6 +443,10 @@ export async function approvePjumExport(input: {
             totalExpenditure,
             periodeFrom: pjumExport.fromDate.toISOString(),
             periodeTo: pjumExport.toDate.toISOString(),
+            verification: {
+                qrDataUrl: verificationQrDataUrl,
+                displayCode: verificationDisplayCode,
+            },
         };
 
         // Generate final PDF package.
@@ -422,6 +468,10 @@ export async function approvePjumExport(input: {
                 name: user.name,
             },
             approvedAt: approvedAtDate.toISOString(),
+            verification: {
+                qrDataUrl: verificationQrDataUrl,
+                displayCode: verificationDisplayCode,
+            },
         });
 
         // Upload final PJUM to GDrive
@@ -496,6 +546,8 @@ export async function approvePjumExport(input: {
                 approvedAt: approvedAtDate,
                 pjumFinalDriveUrl:
                     uploadedPjum.webViewLink ?? uploadedPjum.folderUrl,
+                verificationToken,
+                verificationCode,
             },
         });
 
