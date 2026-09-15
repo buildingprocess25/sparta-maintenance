@@ -96,3 +96,38 @@ feat: upsert stores from sheet sync
 ## Concerns
 
 None.
+
+## Review Fix: Preserve Persisted Update Code
+
+Fixed the Task 2 review finding where a sheet code such as `U005` could match a
+persisted DB store code `u005`, but the update payload still targeted `U005`.
+`buildStoreSyncChanges` now emits the matched database store code for updates,
+and `syncStoresFromSheet` preserves the raw Prisma `store.code` when preparing
+DB rows for comparison. Create behavior is unchanged: newly created stores still
+use the normalized sheet code from `parseStoreSheetRows`.
+
+Regression coverage was added in `scripts/sync-stores-from-sheet.spec.ts` for a
+DB row with `code: "u005"` matched by sheet row `U005`, asserting the update
+targets `code: "u005"`.
+
+Verification:
+
+```powershell
+node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./scripts/sync-stores-from-sheet.spec.ts')"
+```
+
+Result:
+
+```text
+sync-stores-from-sheet tests passed
+```
+
+```powershell
+node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./app/api/cron/sync-stores/route.spec.ts')"
+```
+
+Result:
+
+```text
+sync stores cron route tests passed
+```

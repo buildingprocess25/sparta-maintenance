@@ -313,7 +313,7 @@ export function buildStoreSyncChanges(
         }
 
         if (changed) {
-            updates.push({ code: sheetStore.code, data });
+            updates.push({ code: dbStore.code, data });
         } else {
             unchanged++;
         }
@@ -368,7 +368,7 @@ export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
     const changes = buildStoreSyncChanges(
         stores,
         existingStores.map((store) => ({
-            code: normalizeDbCode(store.code),
+            code: store.code,
             name: store.name,
             branchName: store.branchName,
             brand: store.brand,

@@ -132,6 +132,25 @@ const invalidCoordinateChanges = buildStoreSyncChanges(
 assert.deepEqual(invalidCoordinateChanges.updates, []);
 assert.equal(invalidCoordinateChanges.summary.unchanged, 1);
 
+const lowerCaseDbCodeChanges = buildStoreSyncChanges(
+    parseStoreSheetRows([
+        ["Branch", "Kode Toko", "Nama Toko", "F/R", "Titik Koordinat"],
+        ["SIDOARJO", "U005", "Toko Lima", "R", "-6.500000 106.500000"],
+    ]),
+    [
+        {
+            code: "u005",
+            name: "Toko Lima Lama",
+            branchName: "SIDOARJO",
+            brand: "ALFAMART",
+            ownershipType: "REGULAR",
+            latitude: "-6.500000",
+            longitude: "106.500000",
+        },
+    ],
+);
+assert.equal(lowerCaseDbCodeChanges.updates[0]?.code, "u005");
+
 assert.throws(
     () =>
         parseStoreSheetRows([
