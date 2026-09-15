@@ -78,6 +78,15 @@ Aturan biaya:
 - Laporan Rp 0 tetapi memiliki item pekerjaan BMS tetap wajib PJUM.
 - UI tidak boleh memberi label misleading "belum PJUM" untuk laporan yang memang tidak wajib PJUM.
 
+Validasi QR:
+
+- Saat BNM Manager menyetujui PJUM, sistem membuat token validasi publik dan kode validasi manusia.
+- PDF final PJUM memuat QR validator dan kode validasi di setiap halaman.
+- Scan QR membuka halaman publik `/v/pjum/[token]` tanpa login.
+- Halaman validator menampilkan status dokumen, metadata PJUM, nomor laporan, dan tombol PDF resmi.
+- Tombol PDF resmi mengarah ke file Google Drive perusahaan; akses file tetap mengikuti permission Drive.
+- Finance wajib mencocokkan metadata halaman validator dengan dokumen cetak sebelum menerima PJUM.
+
 ## Preventive
 
 - Target: setiap toko checklist preventif minimal satu kali per triwulan.

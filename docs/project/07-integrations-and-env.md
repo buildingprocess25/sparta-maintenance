@@ -71,6 +71,8 @@ NEXT_PUBLIC_APP_URL=https://maintenance.sparta-alfamart.web.id
 
 Jangan memakai format Markdown link atau path tambahan.
 
+QR validator PJUM memakai `APP_BASE_URL` dengan fallback `NEXT_PUBLIC_APP_URL` untuk membangun URL publik `/v/pjum/[token]`. Production harus mengisi base URL domain resmi SPARTA agar QR tidak mengarah ke localhost atau domain sementara.
+
 ## Google Drive
 
 - PDF report dan PJUM diarsipkan ke Google Drive utama.
