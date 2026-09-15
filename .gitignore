@@ -26,6 +26,7 @@
 
 # .agent
 .vscode/mcp.json
+.superpowers/
 
 # misc
 .DS_Store
