@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
         fontFamily: "Helvetica",
         fontSize: 9,
         paddingTop: 32,
-        paddingBottom: 58,
+        paddingBottom: 92,
         paddingHorizontal: 36,
         color: "#111827",
     },
@@ -269,12 +269,40 @@ const styles = StyleSheet.create({
         borderTop: "1px solid #e5e7eb",
         paddingTop: 6,
         flexDirection: "row",
-        justifyContent: "space-between",
+        alignItems: "flex-start",
+    },
+    footerLeft: {
+        flex: 1,
+        flexDirection: "column",
+        gap: 2,
+    },
+    footerRight: {
+        width: 80,
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
     },
     footerText: {
         fontSize: 7,
         color: "#9ca3af",
         fontStyle: "italic",
+    },
+    footerQrLabel: {
+        fontSize: 5.5,
+        color: "#6b7280",
+        textAlign: "center",
+        width: 72,
+    },
+    footerQrImage: {
+        width: 56,
+        height: 56,
+    },
+    footerQrCode: {
+        fontSize: 5.5,
+        fontFamily: "Helvetica-Bold",
+        color: "#374151",
+        textAlign: "center",
+        width: 72,
     },
     watermarkContainer: {
         position: "absolute",
@@ -593,6 +621,7 @@ export type ReportPdfData = {
         reportStatus: string;
         stamps: ReportStamp[];
     };
+    verification?: { qrDataUrl: string; displayCode: string };
 };
 
 function groupItemsByCategory(items: ReportItemJson[]) {
@@ -2558,20 +2587,44 @@ function buildReportDocument(
                 View,
                 { style: styles.footer, fixed: true },
                 React.createElement(
-                    Text,
-                    { style: styles.footerText },
-                    `No. Laporan: ${data.reportNumber} — Dokumen ini di generate otomatis oleh sistem SPARTA Maintenance`,
+                    View,
+                    { style: styles.footerLeft },
+                    React.createElement(
+                        Text,
+                        { style: styles.footerText },
+                        `No. Laporan: ${data.reportNumber} — Dokumen ini di generate otomatis oleh sistem SPARTA Maintenance`,
+                    ),
+                    React.createElement(Text, {
+                        style: styles.footerText,
+                        render: ({
+                            pageNumber,
+                            totalPages,
+                        }: {
+                            pageNumber: number;
+                            totalPages: number;
+                        }) => `Halaman ${pageNumber} dari ${totalPages}`,
+                    }),
                 ),
-                React.createElement(Text, {
-                    style: styles.footerText,
-                    render: ({
-                        pageNumber,
-                        totalPages,
-                    }: {
-                        pageNumber: number;
-                        totalPages: number;
-                    }) => `Halaman ${pageNumber} dari ${totalPages}`,
-                }),
+                data.verification
+                    ? React.createElement(
+                          View,
+                          { style: styles.footerRight },
+                          React.createElement(
+                              Text,
+                              { style: styles.footerQrLabel },
+                              "Validasi dokumen SPARTA",
+                          ),
+                          React.createElement(Image, {
+                              src: data.verification.qrDataUrl,
+                              style: styles.footerQrImage,
+                          }),
+                          React.createElement(
+                              Text,
+                              { style: styles.footerQrCode },
+                              data.verification.displayCode,
+                          ),
+                      )
+                    : null,
             ),
         ),
     );
@@ -2725,7 +2778,7 @@ const docPhotoPageStyles = StyleSheet.create({
         fontFamily: "Helvetica",
         fontSize: 9,
         paddingTop: 32,
-        paddingBottom: 58,
+        paddingBottom: 92,
         paddingHorizontal: 36,
         color: "#111827",
     },
@@ -2796,12 +2849,40 @@ const docPhotoPageStyles = StyleSheet.create({
         borderTop: "1px solid #e5e7eb",
         paddingTop: 6,
         flexDirection: "row",
-        justifyContent: "space-between",
+        alignItems: "flex-start",
+    },
+    footerLeft: {
+        flex: 1,
+        flexDirection: "column",
+        gap: 2,
+    },
+    footerRight: {
+        width: 80,
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
     },
     footerText: {
         fontSize: 7,
         color: "#9ca3af",
         fontStyle: "italic",
+    },
+    footerQrLabel: {
+        fontSize: 5.5,
+        color: "#6b7280",
+        textAlign: "center",
+        width: 72,
+    },
+    footerQrImage: {
+        width: 56,
+        height: 56,
+    },
+    footerQrCode: {
+        fontSize: 5.5,
+        fontFamily: "Helvetica-Bold",
+        color: "#374151",
+        textAlign: "center",
+        width: 72,
     },
     watermarkContainer: {
         position: "absolute",
@@ -2894,25 +2975,52 @@ function buildChecklistPhotoPages(
         );
     }
 
-    function makeFooter(reportNumber: string) {
+    function makeFooter(
+        reportNumber: string,
+        verification?: { qrDataUrl: string; displayCode: string },
+    ) {
         return React.createElement(
             View,
             { style: docPhotoPageStyles.footer, fixed: true },
             React.createElement(
-                Text,
-                { style: docPhotoPageStyles.footerText },
-                `No. Laporan: ${reportNumber} — Dokumentasi Foto Checklist`,
+                View,
+                { style: docPhotoPageStyles.footerLeft },
+                React.createElement(
+                    Text,
+                    { style: docPhotoPageStyles.footerText },
+                    `No. Laporan: ${reportNumber} — Dokumentasi Foto Checklist`,
+                ),
+                React.createElement(Text, {
+                    style: docPhotoPageStyles.footerText,
+                    render: ({
+                        pageNumber,
+                        totalPages,
+                    }: {
+                        pageNumber: number;
+                        totalPages: number;
+                    }) => `Halaman ${pageNumber} dari ${totalPages}`,
+                }),
             ),
-            React.createElement(Text, {
-                style: docPhotoPageStyles.footerText,
-                render: ({
-                    pageNumber,
-                    totalPages,
-                }: {
-                    pageNumber: number;
-                    totalPages: number;
-                }) => `Halaman ${pageNumber} dari ${totalPages}`,
-            }),
+            verification
+                ? React.createElement(
+                      View,
+                      { style: docPhotoPageStyles.footerRight },
+                      React.createElement(
+                          Text,
+                          { style: docPhotoPageStyles.footerQrLabel },
+                          "Validasi dokumen SPARTA",
+                      ),
+                      React.createElement(Image, {
+                          src: verification.qrDataUrl,
+                          style: docPhotoPageStyles.footerQrImage,
+                      }),
+                      React.createElement(
+                          Text,
+                          { style: docPhotoPageStyles.footerQrCode },
+                          verification.displayCode,
+                      ),
+                  )
+                : null,
         );
     }
 
@@ -2972,7 +3080,7 @@ function buildChecklistPhotoPages(
                     renderPageContent(tilesForPage),
                 ),
 
-                makeFooter(data.reportNumber),
+                makeFooter(data.reportNumber, data.verification),
             ),
         );
     });
