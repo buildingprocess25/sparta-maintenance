@@ -195,6 +195,7 @@ Jangan jadikan UploadThing dependency fitur baru jika Google Drive flow sudah cu
 
 Endpoint cron aktif:
 
+- `POST /api/cron/sync-stores`
 - `GET /api/cron/cleanup-pending-reports`
 
 Endpoint ini membutuhkan:
@@ -202,5 +203,14 @@ Endpoint ini membutuhkan:
 ```text
 Authorization: Bearer <CRON_SECRET>
 ```
+
+`POST /api/cron/sync-stores` membaca Google Sheet store range A:E dengan kolom
+`Branch`, `Kode Toko`, `Nama Toko`, `F/R`, dan `Titik Koordinat`. Row sheet
+dianggap sumber Alfamart aktif untuk field `name`, `branchName`, `brand`,
+`ownershipType`, dan koordinat valid. Store baru dibuat dengan `brand =
+ALFAMART`; store existing hanya diupdate jika ada perbedaan field sheet-owned.
+Store database yang tidak ada di sheet tidak dihapus, tidak di-inactive-kan,
+dan tidak di-reset karena database juga berisi Lawson, toko inactive, dan data
+manual dari Store Management.
 
 Job membaca `CLEANUP_PENDING_EXPIRY_DAYS` untuk batas umur laporan pending.

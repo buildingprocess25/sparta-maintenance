@@ -23,6 +23,11 @@ async function main() {
             }),
         );
         assert.equal(unauthorizedResponse.status, 401);
+
+        const routeSource = await import("node:fs/promises").then((fs) =>
+            fs.readFile(new URL("./route.ts", import.meta.url), "utf8"),
+        );
+        assert.match(routeSource, /return NextResponse\.json\(\{ ok: true, \.\.\.result \}\)/);
     } finally {
         if (originalCronSecret === undefined) {
             delete process.env.CRON_SECRET;

@@ -222,6 +222,39 @@ function normalizeDbCode(value: string) {
     return value.trim().toUpperCase();
 }
 
+function countInvalidOwnershipValues(rows: readonly (readonly SheetCell[])[]) {
+    const header = rows[0];
+    if (!header) return 0;
+    const ownershipIndex = findHeaderIndex(header, HEADER_ALIASES.ownership);
+    if (ownershipIndex === -1) return 0;
+
+    return rows.slice(1).filter((row) => {
+        if (!row.some((cell) => String(cell ?? "").trim())) return false;
+        const raw = String(row[ownershipIndex] ?? "").trim().toUpperCase();
+        return raw !== "F" && raw !== "R";
+    }).length;
+}
+
+function countInvalidCoordinateValues(rows: readonly (readonly SheetCell[])[]) {
+    const header = rows[0];
+    if (!header) return 0;
+    const coordinatesIndex = findHeaderIndex(header, HEADER_ALIASES.coordinates);
+    if (coordinatesIndex === -1) return 0;
+
+    return rows.slice(1).filter((row) => {
+        if (!row.some((cell) => String(cell ?? "").trim())) return false;
+        return !parseCoordinateCell(row[coordinatesIndex]).hasValidCoordinates;
+    }).length;
+}
+
+function decimalToString(value: Prisma.Decimal | null) {
+    return value?.toFixed(6) ?? null;
+}
+
+function asOwnershipType(value: string): StoreOwnershipTypeValue {
+    return value === "REGULAR" || value === "FRANCHISE" ? value : "UNKNOWN";
+}
+
 function decimalStringChanged(current: string | null, next: string) {
     return current !== next;
 }
@@ -319,54 +352,72 @@ async function fetchStoreSheet() {
 }
 
 export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
-    const stores = parseStoreSheetRows(await fetchStoreSheet());
+    const rows = await fetchStoreSheet();
+    const stores = parseStoreSheetRows(rows);
     const existingStores = await prisma.store.findMany({
-        select: { code: true },
+        select: {
+            code: true,
+            name: true,
+            branchName: true,
+            brand: true,
+            ownershipType: true,
+            latitude: true,
+            longitude: true,
+        },
     });
-    const existingCodes = new Set(
-        existingStores.map((store) => store.code.trim().toUpperCase()),
-    );
-    const newStores = filterNewStores(stores, existingCodes);
-
-    if (newStores.length === 0) {
-        return {
-            rows: stores.length,
-            created: 0,
-            updated: 0,
-            unchanged: 0,
-            skipped: stores.length,
-            invalidOwnershipValues: 0,
-            invalidCoordinateValues: 0,
-        };
-    }
-
-    const result = await prisma.store.createMany({
-        data: newStores.map((store) => ({
-            code: store.code,
+    const changes = buildStoreSyncChanges(
+        stores,
+        existingStores.map((store) => ({
+            code: normalizeDbCode(store.code),
             name: store.name,
             branchName: store.branchName,
             brand: store.brand,
-            ownershipType: store.ownershipType,
-            latitude:
-                store.latitude === null
-                    ? null
-                    : new Prisma.Decimal(store.latitude),
-            longitude:
-                store.longitude === null
-                    ? null
-                    : new Prisma.Decimal(store.longitude),
-            isActive: true,
+            ownershipType: asOwnershipType(String(store.ownershipType)),
+            latitude: decimalToString(store.latitude),
+            longitude: decimalToString(store.longitude),
         })),
-        skipDuplicates: true,
-    });
+    );
+
+    if (changes.creates.length > 0) {
+        await prisma.store.createMany({
+            data: changes.creates.map((store) => ({
+                ...store,
+                latitude:
+                    store.latitude === null
+                        ? null
+                        : new Prisma.Decimal(store.latitude),
+                longitude:
+                    store.longitude === null
+                        ? null
+                        : new Prisma.Decimal(store.longitude),
+            })),
+            skipDuplicates: true,
+        });
+    }
+
+    for (const update of changes.updates) {
+        await prisma.store.update({
+            where: { code: update.code },
+            data: {
+                name: update.data.name,
+                branchName: update.data.branchName,
+                brand: update.data.brand,
+                ownershipType: update.data.ownershipType,
+                ...(Object.hasOwn(update.data, "latitude") &&
+                Object.hasOwn(update.data, "longitude")
+                    ? {
+                          latitude: new Prisma.Decimal(update.data.latitude!),
+                          longitude: new Prisma.Decimal(update.data.longitude!),
+                      }
+                    : {}),
+            },
+        });
+    }
 
     return {
         rows: stores.length,
-        created: result.count,
-        updated: 0,
-        unchanged: 0,
-        skipped: stores.length - result.count,
-        invalidOwnershipValues: 0,
-        invalidCoordinateValues: 0,
+        ...changes.summary,
+        invalidOwnershipValues: countInvalidOwnershipValues(rows),
+        invalidCoordinateValues: countInvalidCoordinateValues(rows),
     };
 }

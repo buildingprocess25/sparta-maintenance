@@ -14,7 +14,15 @@ async function main() {
     const result = await syncStoresFromSheet();
 
     console.log(
-        `Sinkronisasi selesai: ${result.rows} baris, ${result.created} toko baru, ${result.skipped} dilewati.`,
+        [
+            `Sinkronisasi selesai: ${result.rows} baris`,
+            `${result.created} toko baru`,
+            `${result.updated} toko diperbarui`,
+            `${result.unchanged} toko sudah sesuai`,
+            `${result.skipped} toko DB tidak ada di sheet dan dilewati`,
+            `${result.invalidOwnershipValues} ownership invalid`,
+            `${result.invalidCoordinateValues} koordinat invalid`,
+        ].join(", ") + ".",
     );
 }
 
