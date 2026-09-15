@@ -12,6 +12,11 @@ async function run() {
             totalExpenditure: 1200000,
             periodeFrom: new Date("2026-07-30").toISOString(),
             periodeTo: new Date("2026-08-07").toISOString(),
+            verification: {
+                qrDataUrl:
+                    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+                displayCode: "PJUM-AB12CD34",
+            },
         });
         console.log("PASS: PDF generated, size: " + buffer.length);
     } catch (err) {

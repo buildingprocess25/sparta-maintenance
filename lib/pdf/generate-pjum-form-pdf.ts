@@ -31,6 +31,10 @@ export type PjumFormData = {
     /** UM fixed = 1.000.000 */
     periodeFrom: string;
     periodeTo: string;
+    verification?: {
+        qrDataUrl: string;
+        displayCode: string;
+    };
 };
 
 const FIXED_UM = 1_000_000;
@@ -194,6 +198,24 @@ const s = StyleSheet.create({
         fontFamily: "Helvetica-Bold",
         marginBottom: 4,
         fontSize: 8,
+    },
+    formQrBlock: {
+        marginTop: 8,
+        alignItems: "flex-end",
+    },
+    formQrImage: {
+        width: 54,
+        height: 54,
+    },
+    formQrText: {
+        marginTop: 2,
+        fontSize: 5.5,
+        lineHeight: 1.15,
+    },
+    formQrCode: {
+        fontSize: 5.5,
+        fontFamily: "Helvetica-Bold",
+        lineHeight: 1.15,
     },
 
     // Footer
@@ -472,6 +494,26 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                             { style: { marginTop: 3 } },
                             '2. "Keperluan" pada PJUM harus sama dengan "Keperluan" pada UM.',
                         ),
+                        pjum.verification
+                            ? React.createElement(
+                                  View,
+                                  { style: s.formQrBlock },
+                                  React.createElement(Image, {
+                                      src: pjum.verification.qrDataUrl,
+                                      style: s.formQrImage,
+                                  }),
+                                  React.createElement(
+                                      Text,
+                                      { style: s.formQrText },
+                                      "Scan untuk validasi",
+                                  ),
+                                  React.createElement(
+                                      Text,
+                                      { style: s.formQrCode },
+                                      `Kode: ${pjum.verification.displayCode}`,
+                                  ),
+                              )
+                            : null,
                     ),
                 ),
 
