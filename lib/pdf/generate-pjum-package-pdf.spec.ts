@@ -7,7 +7,7 @@ const source = readFileSync("lib/pdf/generate-pjum-package-pdf.ts", "utf8");
 test("PJUM package query selects store metadata for recap breakdown", () => {
     assert.match(
         source,
-        /store:\s*\{\s*select:\s*\{\s*brand:\s*true,\s*ownershipType:\s*true\s*\}\s*\}/s,
+        /store:\s*\{\s*select:\s*\{\s*brand:\s*true,\s*ownershipType:\s*true\s*\}\s*\}/,
     );
 });
 
