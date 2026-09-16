@@ -78,6 +78,12 @@ Aturan biaya:
 - Laporan Rp 0 tetapi memiliki item pekerjaan BMS tetap wajib PJUM.
 - UI tidak boleh memberi label misleading "belum PJUM" untuk laporan yang memang tidak wajib PJUM.
 
+Perilaku recap PDF:
+
+- Export PJUM yang hanya berisi satu kategori toko tetap memakai satu tabel recap seperti format existing.
+- Export PJUM campuran kategori toko menampilkan recap gabungan terlebih dahulu, lalu breakdown per kategori setelah section tanda tangan `Dibuat Oleh` / `Disetujui Oleh`.
+- Kategori breakdown berurutan: `Alfamart Reguler`, `Alfamart Franchise`, `Lawson`, dan `Alfamart - Tipe Toko Belum Diketahui`.
+
 ## Preventive
 
 - Target: setiap toko checklist preventif minimal satu kali per triwulan.

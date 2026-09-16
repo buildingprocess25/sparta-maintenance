@@ -167,6 +167,13 @@ Laporan Rp 0 tidak selalu wajib PJUM. Aturan UI saat ini:
 - Rp 0 dengan item pekerjaan BMS: tetap perlu PJUM.
 - Laporan dengan biaya BMS: perlu PJUM.
 
+Klasifikasi kategori toko untuk recap/breakdown PJUM berasal dari metadata toko:
+
+- `Report.storeCode` dicocokkan ke `Store.code`.
+- `Store.brand = LAWSON` diklasifikasikan sebagai `Lawson`.
+- Toko Alfamart diklasifikasikan sebagai `Alfamart Reguler` atau `Alfamart Franchise` dari `Store.ownershipType`.
+- Metadata `UNKNOWN`, kosong, tidak ditemukan, atau tidak dikenali ditampilkan sebagai `Alfamart - Tipe Toko Belum Diketahui` dan tidak boleh ditebak sebagai reguler.
+
 ## Soft Delete User
 
 `User` memakai soft delete:
