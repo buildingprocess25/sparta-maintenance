@@ -78,10 +78,12 @@ Aturan biaya:
 - Laporan Rp 0 tetapi memiliki item pekerjaan BMS tetap wajib PJUM.
 - UI tidak boleh memberi label misleading "belum PJUM" untuk laporan yang memang tidak wajib PJUM.
 
-Perilaku recap PDF:
+PDF recap PJUM:
 
-- Export PJUM yang hanya berisi satu kategori toko tetap memakai satu tabel recap seperti format existing.
-- Export PJUM campuran kategori toko menampilkan recap gabungan terlebih dahulu, lalu breakdown per kategori setelah section tanda tangan `Dibuat Oleh` / `Disetujui Oleh`.
+- Halaman recap utama tetap menampilkan table gabungan semua laporan dan total gabungan.
+- Jika semua laporan berasal dari satu kategori tipe toko, recap tetap satu table seperti format sebelumnya.
+- Jika laporan mencakup lebih dari satu kategori, table utama diberi konteks sebagai rekap gabungan dan rincian berdasarkan tipe toko ditampilkan setelah section tanda tangan `Dibuat Oleh` / `Disetujui Oleh`.
+- Breakdown dimulai di sisa ruang halaman yang sama; jika tidak muat, renderer PDF melanjutkan ke halaman berikutnya.
 - Kategori breakdown berurutan: `Alfamart Reguler`, `Alfamart Franchise`, `Lawson`, dan `Alfamart - Tipe Toko Belum Diketahui`.
 
 ## Preventive
