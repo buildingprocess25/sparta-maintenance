@@ -9,6 +9,7 @@ import {
     Image,
 } from "@react-pdf/renderer";
 import React from "react";
+import { getPjumStoreTypeBreakdown } from "@/lib/pdf/pjum-store-type-breakdown";
 import { JAKARTA_TIME_ZONE } from "@/lib/time";
 
 const styles = StyleSheet.create({
@@ -81,6 +82,12 @@ const styles = StyleSheet.create({
     colStoreCode: { width: 58 },
     colStoreName: { flex: 1 },
     colTotal: { width: 80, textAlign: "right" },
+    combinedTitle: {
+        fontSize: 8,
+        fontFamily: "Helvetica-Bold",
+        color: "#374151",
+        marginBottom: 5,
+    },
     totalRow: {
         flexDirection: "row",
         borderTop: "2px solid #0069a7",
@@ -97,6 +104,45 @@ const styles = StyleSheet.create({
     totalValue: {
         width: 80,
         fontSize: 9,
+        fontFamily: "Helvetica-Bold",
+        color: "#0069a7",
+        textAlign: "right",
+    },
+    breakdownSection: {
+        marginTop: 16,
+    },
+    breakdownTitle: {
+        fontSize: 10,
+        fontFamily: "Helvetica-Bold",
+        color: "#0069a7",
+        marginBottom: 8,
+        textAlign: "center",
+    },
+    breakdownGroup: {
+        marginBottom: 12,
+    },
+    breakdownGroupTitle: {
+        fontSize: 8.5,
+        fontFamily: "Helvetica-Bold",
+        color: "#111827",
+        marginBottom: 4,
+    },
+    breakdownSubtotalRow: {
+        flexDirection: "row",
+        borderTop: "1px solid #0069a7",
+        paddingTop: 4,
+        marginTop: 2,
+    },
+    breakdownSubtotalLabel: {
+        flex: 1,
+        fontSize: 8,
+        fontFamily: "Helvetica-Bold",
+        textAlign: "right",
+        paddingRight: 6,
+    },
+    breakdownSubtotalValue: {
+        width: 80,
+        fontSize: 8,
         fontFamily: "Helvetica-Bold",
         color: "#0069a7",
         textAlign: "right",
@@ -215,6 +261,8 @@ export type PjumPdfRow = {
     branchName: string;
     status: string;
     totalRealisasi: number;
+    brand?: string | null;
+    ownershipType?: "REGULAR" | "FRANCHISE" | "UNKNOWN" | null;
 };
 
 export type PjumPdfData = {
@@ -240,7 +288,45 @@ function buildPjumDocument(data: PjumPdfData) {
     const approvedDate = data.approvedAt ? fmtDate(data.approvedAt) : null;
     const showBnmStamp = !!(data.bnmName && data.bnmNIK && approvedDate);
 
-    const tableRows = data.reports.map((r, i) =>
+    const breakdown = getPjumStoreTypeBreakdown(data.reports);
+
+    const renderTableHeader = (key: string) =>
+        React.createElement(
+            View,
+            { key, style: styles.tableHeader },
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colNo } },
+                "No",
+            ),
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colDate } },
+                "Tanggal",
+            ),
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colReportNumber } },
+                "No. Laporan",
+            ),
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colStoreCode } },
+                "Kode Toko",
+            ),
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colStoreName } },
+                "Nama Toko",
+            ),
+            React.createElement(
+                Text,
+                { style: { ...styles.thCell, ...styles.colTotal } },
+                "Total Realisasi",
+            ),
+        );
+
+    const renderTableRow = (r: PjumPdfRow, i: number) =>
         React.createElement(
             View,
             {
@@ -290,8 +376,9 @@ function buildPjumDocument(data: PjumPdfData) {
                 { style: { ...styles.tdCell, ...styles.colTotal } },
                 r.totalRealisasi > 0 ? fmtCurrency(r.totalRealisasi) : "—",
             ),
-        ),
-    );
+        );
+
+    const tableRows = data.reports.map((r, i) => renderTableRow(r, i));
 
     return React.createElement(
         Document,
@@ -361,41 +448,16 @@ function buildPjumDocument(data: PjumPdfData) {
                 ),
             ),
 
+            breakdown.shouldRenderBreakdown
+                ? React.createElement(
+                      Text,
+                      { style: styles.combinedTitle },
+                      "Rekap Gabungan Semua Tipe Toko",
+                  )
+                : null,
+
             // ── Table header ──
-            React.createElement(
-                View,
-                { style: styles.tableHeader },
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colNo } },
-                    "No",
-                ),
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colDate } },
-                    "Tanggal",
-                ),
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colReportNumber } },
-                    "No. Laporan",
-                ),
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colStoreCode } },
-                    "Kode Toko",
-                ),
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colStoreName } },
-                    "Nama Toko",
-                ),
-                React.createElement(
-                    Text,
-                    { style: { ...styles.thCell, ...styles.colTotal } },
-                    "Total Realisasi",
-                ),
-            ),
+            renderTableHeader("combined-table-header"),
 
             // ── Table rows ──
             ...tableRows,
@@ -514,6 +576,47 @@ function buildPjumDocument(data: PjumPdfData) {
                       )
                     : null,
             ),
+
+            breakdown.shouldRenderBreakdown
+                ? React.createElement(
+                      View,
+                      { style: styles.breakdownSection },
+                      React.createElement(
+                          Text,
+                          { style: styles.breakdownTitle },
+                          "RINCIAN REKAPAN BERDASARKAN TIPE TOKO",
+                      ),
+                      ...breakdown.groups.map((group) =>
+                          React.createElement(
+                              View,
+                              { key: group.key, style: styles.breakdownGroup },
+                              React.createElement(
+                                  Text,
+                                  { style: styles.breakdownGroupTitle },
+                                  group.label,
+                              ),
+                              renderTableHeader(`${group.key}-header`),
+                              ...group.rows.map((row, index) =>
+                                  renderTableRow(row, index),
+                              ),
+                              React.createElement(
+                                  View,
+                                  { style: styles.breakdownSubtotalRow },
+                                  React.createElement(
+                                      Text,
+                                      { style: styles.breakdownSubtotalLabel },
+                                      `SUBTOTAL ${group.label.toUpperCase()}`,
+                                  ),
+                                  React.createElement(
+                                      Text,
+                                      { style: styles.breakdownSubtotalValue },
+                                      fmtCurrency(group.subtotal),
+                                  ),
+                              ),
+                          ),
+                      ),
+                  )
+                : null,
 
             // ── Footer ──
             React.createElement(
