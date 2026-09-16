@@ -42,7 +42,6 @@ export type StoreSyncUpdate = {
     code: string;
     data: {
         name: string;
-        branchName: string;
         brand: "ALFAMART";
         ownershipType: StoreOwnershipTypeValue;
         latitude?: string;
@@ -58,6 +57,7 @@ export type StoreSyncChanges = {
         updated: number;
         unchanged: number;
         skipped: number;
+        updatedFields: Record<string, number>;
     };
 };
 
@@ -67,6 +67,7 @@ export type SyncStoresResult = {
     updated: number;
     unchanged: number;
     skipped: number;
+    updatedFields: Record<string, number>;
     invalidOwnershipValues: number;
     invalidCoordinateValues: number;
 };
@@ -269,6 +270,11 @@ export function buildStoreSyncChanges(
     const creates: StoreSyncCreate[] = [];
     const updates: StoreSyncUpdate[] = [];
     let unchanged = 0;
+    const updatedFields: Record<string, number> = {};
+
+    function bumpField(field: string) {
+        updatedFields[field] = (updatedFields[field] ?? 0) + 1;
+    }
 
     for (const sheetStore of sheetStores) {
         const dbStore = dbByCode.get(sheetStore.code);
@@ -288,16 +294,24 @@ export function buildStoreSyncChanges(
 
         const data: StoreSyncUpdate["data"] = {
             name: sheetStore.name,
-            branchName: sheetStore.branchName,
             brand: SHEET_BRAND,
             ownershipType: sheetStore.ownershipType,
         };
 
-        let changed =
-            dbStore.name !== sheetStore.name ||
-            dbStore.branchName !== sheetStore.branchName ||
-            dbStore.brand !== SHEET_BRAND ||
-            dbStore.ownershipType !== sheetStore.ownershipType;
+        let changed = false;
+
+        if (dbStore.name !== sheetStore.name) {
+            changed = true;
+            bumpField("name");
+        }
+        if (dbStore.brand !== SHEET_BRAND) {
+            changed = true;
+            bumpField("brand");
+        }
+        if (dbStore.ownershipType !== sheetStore.ownershipType) {
+            changed = true;
+            bumpField("ownershipType");
+        }
 
         if (
             sheetStore.hasValidCoordinates &&
@@ -306,10 +320,13 @@ export function buildStoreSyncChanges(
         ) {
             data.latitude = sheetStore.latitude;
             data.longitude = sheetStore.longitude;
-            changed =
-                changed ||
+            if (
                 decimalStringChanged(dbStore.latitude, sheetStore.latitude) ||
-                decimalStringChanged(dbStore.longitude, sheetStore.longitude);
+                decimalStringChanged(dbStore.longitude, sheetStore.longitude)
+            ) {
+                changed = true;
+                bumpField("coordinates");
+            }
         }
 
         if (changed) {
@@ -329,6 +346,7 @@ export function buildStoreSyncChanges(
             skipped: dbStores.filter((store) => !sheetStores.some(
                 (sheetStore) => sheetStore.code === normalizeDbCode(store.code),
             )).length,
+            updatedFields,
         },
     };
 }
@@ -402,7 +420,6 @@ export async function syncStoresFromSheet(): Promise<SyncStoresResult> {
             where: { code: update.code },
             data: {
                 name: update.data.name,
-                branchName: update.data.branchName,
                 brand: update.data.brand,
                 ownershipType: update.data.ownershipType,
                 ...(Object.hasOwn(update.data, "latitude") &&
