@@ -1,133 +1,83 @@
-# Task 2 Report: Sync Execution and Cron Result
+# Task 2 Report: Enrich PJUM Recap Rows With Store Metadata
 
-## Status
+## What Changed
 
-DONE
+- Added `lib/pdf/generate-pjum-package-pdf.spec.ts` with the source-level checks
+  from the Task 2 brief.
+- Updated the first `prisma.report.findMany()` query in
+  `lib/pdf/generate-pjum-package-pdf.ts` to select
+  `store.brand` and `store.ownershipType`.
+- Updated the `recapRows` mapper to pass `brand` and `ownershipType`, falling
+  back to `null` when the store relation is missing.
+- Added the required project task note at
+  `docs/agent-notes/2026-09-16-1131-pjum-package-store-metadata.md`.
 
-## Summary
+## RED Test Evidence
 
-Implemented Task 2 for the SPARTA Maintenance store sheet sync. The cron job
-now reads sheet rows, compares them against current database stores with the
-Task 1 `buildStoreSyncChanges` interface, creates missing stores, updates
-changed matched stores, and returns the richer result shape:
-`{ rows, created, updated, unchanged, skipped, invalidOwnershipValues, invalidCoordinateValues }`.
+The requested command was attempted first:
+
+```powershell
+node_modules\.bin\tsx.cmd "lib/pdf/generate-pjum-package-pdf.spec.ts"
+```
+
+It failed before the spec loaded because of the existing local Windows `tsx`
+startup issue:
+
+```text
+SystemError [ERR_SYSTEM_ERROR]: uv_os_get_passwd returned ENOMEM
+```
+
+Using the documented workaround command pattern:
+
+```powershell
+node -e "process.geteuid=()=>'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./lib/pdf/generate-pjum-package-pdf.spec.ts')"
+```
+
+RED failed for the expected reason: the first PJUM package query did not select
+`store.brand` / `store.ownershipType`, and `recapRows` did not include
+`brand` / `ownershipType`.
+
+## GREEN Test Evidence
+
+After implementation, the requested command was attempted again:
+
+```powershell
+node_modules\.bin\tsx.cmd "lib/pdf/generate-pjum-package-pdf.spec.ts"
+```
+
+It hit the same pre-test environment failure:
+
+```text
+SystemError [ERR_SYSTEM_ERROR]: uv_os_get_passwd returned ENOMEM
+```
+
+The workaround command then passed:
+
+```text
+1..2
+# tests 2
+# pass 2
+# fail 0
+```
 
 ## Files Changed
 
-- `lib/jobs/sync-stores.ts`
-  - Added invalid ownership and coordinate source counters.
-  - Added Prisma Decimal-to-string conversion for comparison.
-  - Added ownership enum normalization for generated Prisma values.
-  - Replaced the create-only executor with create/update execution based on
-    `buildStoreSyncChanges`.
-  - Kept existing store `isActive` untouched.
-  - Left DB-only stores untouched.
-- `scripts/sync-stores-from-sheet.ts`
-  - Updated the CLI success message to include rows, created, updated,
-    unchanged, skipped, invalid ownership, and invalid coordinate counts.
-- `app/api/cron/sync-stores/route.spec.ts`
-  - Added the source-level assertion that the route returns
-    `NextResponse.json({ ok: true, ...result })`.
-- `docs/project/07-integrations-and-env.md`
-  - Added `POST /api/cron/sync-stores` to active cron endpoints.
-  - Documented the Google Sheet columns, sheet-owned fields, create/update
-    behavior, and explicit non-deletion/non-inactivation rule.
-- `docs/agent-notes/2026-09-15-1102-sync-stores-sheet-upsert.md`
-  - Added the required implementation task note.
+- `lib/pdf/generate-pjum-package-pdf.ts`
+- `lib/pdf/generate-pjum-package-pdf.spec.ts`
+- `docs/agent-notes/2026-09-16-1131-pjum-package-store-metadata.md`
+- `.superpowers/sdd/task-2-report.md`
 
-## Compatibility Adjustments
+## Self-Review
 
-No behavioral adjustments were needed. The only TypeScript compatibility detail
-was using the brief's `asOwnershipType(String(store.ownershipType))` guard when
-mapping Prisma enum values into the local `StoreOwnershipTypeValue` union.
-
-## Verification
-
-Focused tests were run with the required Windows workaround because direct
-`node_modules\.bin\tsx.cmd` is known to fail in this environment.
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./scripts/sync-stores-from-sheet.spec.ts')"
-```
-
-Result:
-
-```text
-sync-stores-from-sheet tests passed
-```
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./app/api/cron/sync-stores/route.spec.ts')"
-```
-
-Result:
-
-```text
-sync stores cron route tests passed
-```
-
-The route test also emitted the expected `CRON_SECRET is not configured` error
-log while asserting the 500 misconfiguration path.
-
-TypeScript check:
-
-```powershell
-node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false
-```
-
-Result: failed with Node heap out-of-memory.
-
-Retry:
-
-```powershell
-$env:NODE_OPTIONS='--max-old-space-size=4096'; node_modules\.bin\tsc.cmd --noEmit --pretty false --incremental false
-```
-
-Result: passed with exit code 0.
-
-## Commit
-
-Created with message:
-
-```text
-feat: upsert stores from sheet sync
-```
+- Scope stayed limited to package data enrichment, the required source-level
+  spec, the project-required task note, and this report.
+- Renderer code was not modified.
+- The first package query now consumes the `Report.store` relation metadata
+  needed by later PJUM recap breakdown rendering.
+- `recapRows` preserves existing fields and adds nullable metadata only.
 
 ## Concerns
 
-None.
-
-## Review Fix: Preserve Persisted Update Code
-
-Fixed the Task 2 review finding where a sheet code such as `U005` could match a
-persisted DB store code `u005`, but the update payload still targeted `U005`.
-`buildStoreSyncChanges` now emits the matched database store code for updates,
-and `syncStoresFromSheet` preserves the raw Prisma `store.code` when preparing
-DB rows for comparison. Create behavior is unchanged: newly created stores still
-use the normalized sheet code from `parseStoreSheetRows`.
-
-Regression coverage was added in `scripts/sync-stores-from-sheet.spec.ts` for a
-DB row with `code: "u005"` matched by sheet row `U005`, asserting the update
-targets `code: "u005"`.
-
-Verification:
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./scripts/sync-stores-from-sheet.spec.ts')"
-```
-
-Result:
-
-```text
-sync-stores-from-sheet tests passed
-```
-
-```powershell
-node -e "process.geteuid=()=> 'codex'; require('./node_modules/tsx/dist/cjs/api/index.cjs').register(); require('./app/api/cron/sync-stores/route.spec.ts')"
-```
-
-Result:
-
-```text
-sync stores cron route tests passed
-```
+- The exact `tsx.cmd` command in the brief cannot execute tests in this Windows
+  environment because `tsx` fails while calling `os.userInfo()` before loading
+  the spec. The spec passes through the documented local workaround.

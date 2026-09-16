@@ -75,6 +75,7 @@ export async function generatePjumPackagePdf(params: {
             items: true,
             createdByNIK: true,
             createdBy: { select: { name: true } },
+            store: { select: { brand: true, ownershipType: true } },
             pjumExportedAt: true,
         },
         orderBy: { finishedAt: "asc" },
@@ -165,6 +166,8 @@ export async function generatePjumPackagePdf(params: {
             branchName: r.branchName,
             status: r.status as string,
             totalRealisasi: resolveReportTotalRealisasi(r.totalReal, r.items),
+            brand: r.store?.brand ?? null,
+            ownershipType: r.store?.ownershipType ?? null,
         };
     });
 
