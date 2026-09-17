@@ -79,6 +79,7 @@ export function StoreTable({
     const currentSearchParams = useSearchParams();
 
     const writableBranchNames = getWritableBranchNames(branchNames);
+    const hasWritableBranch = writableBranchNames.length > 0;
 
     // Local state for search
     const [searchTerm, setSearchTerm] = useState(searchParams.sSearch || "");
