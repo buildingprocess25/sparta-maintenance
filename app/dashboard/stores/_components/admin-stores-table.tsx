@@ -43,7 +43,7 @@ type StoreItem = Awaited<ReturnType<typeof getAdminStores>>["stores"][0];
 const OWNERSHIP_FILTER_OPTIONS = [
     { value: "REGULAR", label: "Regular" },
     { value: "FRANCHISE", label: "Franchise" },
-    { value: "UNKNOWN", label: "-" },
+    { value: "UNKNOWN", label: "Tidak Diketahui" },
 ] as const;
 
 function formatBrandLabel(brand: string | null) {
@@ -55,7 +55,7 @@ function formatOwnershipLabel(ownershipType: StoreItem["ownershipType"]) {
     const labels: Record<StoreItem["ownershipType"], string> = {
         REGULAR: "Regular",
         FRANCHISE: "Franchise",
-        UNKNOWN: "-",
+        UNKNOWN: "Tidak Diketahui",
     };
     return labels[ownershipType];
 }

@@ -179,6 +179,7 @@ export async function exportAdminStores(filters: ExportStoreFilters) {
                 name: true,
                 brand: true,
                 branchName: true,
+                ownershipType: true,
                 isActive: true,
             },
         });
