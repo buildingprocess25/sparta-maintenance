@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect } from "react";
 import {
     Dialog,
     DialogContent,
@@ -25,6 +25,12 @@ import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { createStore, updateStore } from "../actions";
 import { getStoreAreaOptions, type AreaNamesByBranch } from "../store-area-options";
+import {
+    STORE_OWNERSHIP_OPTIONS,
+    type StoreOwnershipFormValue,
+    getStoreOwnershipFormValue,
+    shouldShowStoreOwnershipSelect,
+} from "@/lib/store-ownership";
 
 type StoreRow = {
     code: string;
@@ -33,6 +39,7 @@ type StoreRow = {
     areaName: string | null;
     isActive: boolean;
     brand?: string | null;
+    ownershipType?: "REGULAR" | "FRANCHISE" | "UNKNOWN";
 };
 
 type Props = {
@@ -62,13 +69,30 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
     const [brand, setBrand] = useState<string>(
         editStore?.brand || "ALFAMART",
     );
+    const [ownershipType, setOwnershipType] =
+        useState<StoreOwnershipFormValue>(
+            getStoreOwnershipFormValue(editStore?.ownershipType),
+        );
     const areaOptions = getStoreAreaOptions(
         areaNamesByBranch,
         branch,
         editStore?.areaName,
     );
+    const showOwnershipType = shouldShowStoreOwnershipSelect(brand);
     const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
     const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
+
+    useEffect(() => {
+        if (open && isEdit && editStore) {
+            setCode(editStore.code);
+            setName(editStore.name);
+            setBranch(editStore.branchName ?? branchNames[0] ?? "");
+            setIsActive(editStore.isActive);
+            setAreaName(editStore.areaName ?? null);
+            setBrand(editStore.brand || "ALFAMART");
+            setOwnershipType(getStoreOwnershipFormValue(editStore.ownershipType));
+        }
+    }, [open, isEdit, editStore, branchNames]);
 
     function resetForm() {
         if (!isEdit) {
@@ -78,6 +102,7 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
             setIsActive(true);
             setAreaName(null);
             setBrand("ALFAMART");
+            setOwnershipType("REGULAR");
         }
     }
 
@@ -111,6 +136,7 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                       areaName,
                       isActive,
                       brand,
+                      ownershipType,
                   })
                 : await createStore({
                       code: code.trim().toUpperCase(),
@@ -119,6 +145,7 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                       areaName,
                       isActive,
                       brand,
+                      ownershipType,
                   });
 
             if (result.error) {
@@ -274,7 +301,15 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                         {/* Brand */}
                         <div className="space-y-2">
                             <Label htmlFor="store-brand">Brand</Label>
-                            <Select value={brand} onValueChange={setBrand}>
+                            <Select
+                                value={brand}
+                                onValueChange={(value) => {
+                                    setBrand(value);
+                                    if (!shouldShowStoreOwnershipSelect(value)) {
+                                        setOwnershipType("REGULAR");
+                                    }
+                                }}
+                            >
                                 <SelectTrigger id="store-brand">
                                     <SelectValue placeholder="Pilih brand" />
                                 </SelectTrigger>
@@ -289,6 +324,38 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {showOwnershipType ? (
+                            <div className="space-y-2">
+                                <Label htmlFor="store-ownership-type">
+                                    Tipe Toko
+                                </Label>
+                                <Select
+                                    value={ownershipType}
+                                    onValueChange={(value) =>
+                                        setOwnershipType(
+                                            value as StoreOwnershipFormValue,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger id="store-ownership-type">
+                                        <SelectValue placeholder="Pilih tipe toko" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {STORE_OWNERSHIP_OPTIONS.map(
+                                            (option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ),
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        ) : null}
 
                         <div className="space-y-2">
                             <Label htmlFor="store-status">Status Toko</Label>

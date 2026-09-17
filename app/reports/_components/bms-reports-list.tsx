@@ -358,7 +358,7 @@ export default function BmsReportsList({
         if (!cfg) return null;
         const href =
             report.status === "DRAFT"
-                ? "/reports/create?restore=1"
+                ? `/reports/create?restore=1&draft=${encodeURIComponent(report.reportNumber)}`
                 : report.status === "ESTIMATION_REJECTED_REVISION"
                   ? `/reports/revisi/${report.reportNumber}`
                   : `/reports/${report.reportNumber}`;
@@ -617,7 +617,7 @@ export default function BmsReportsList({
                                                 } else {
                                                     router.push(
                                                         report.status === "DRAFT"
-                                                            ? "/reports/create?restore=1"
+                                                            ? `/reports/create?restore=1&draft=${encodeURIComponent(report.reportNumber)}`
                                                             : `/reports/${report.reportNumber}`
                                                     );
                                                 }

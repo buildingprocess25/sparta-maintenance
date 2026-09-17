@@ -65,6 +65,10 @@ export function calculateTotalRealisasiFromItems(items: unknown): number {
 }
 
 export function calculateItemRealisasiTotal(item: ReportItemJson): number {
+    if (item.handler !== "BMS") {
+        return 0;
+    }
+
     const subtotal = (item.realisasiItems ?? []).reduce(
         (sum, realisasi) =>
             sum + (realisasi.totalPrice ?? realisasi.quantity * realisasi.price),
@@ -193,7 +197,12 @@ export function hasRealisasiItems(items: unknown): boolean {
 export function hasBmsHandledItems(items: unknown): boolean {
     const reportItems = Array.isArray(items) ? (items as ReportItemJson[]) : [];
 
-    return reportItems.some((item) => item.handler === "BMS");
+    return reportItems.some(
+        (item) =>
+            item.handler === "BMS" &&
+            (item.condition === "RUSAK" ||
+                item.preventiveCondition === "NOT_OK"),
+    );
 }
 
 export function requiresPjum(totalReal: unknown, items: unknown): boolean {

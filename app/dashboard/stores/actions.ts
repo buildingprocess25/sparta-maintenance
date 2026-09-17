@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
+import { Prisma, StoreOwnershipType } from "@prisma/client";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
@@ -17,6 +17,8 @@ export type AdminStoreFilters = {
     search?: string;
     branchName?: string; // "all" = no filter
     areaName?: string;
+    brand?: string;
+    ownershipType?: StoreOwnershipType;
 };
 
 // ─── List (cursor-based infinite scroll) ─────────────────────────────────────
@@ -77,6 +79,14 @@ export async function getAdminStores(
             }
         }
 
+        if (filters.brand && filters.brand.trim().length > 0) {
+            where.brand = { equals: filters.brand.trim(), mode: "insensitive" };
+        }
+
+        if (filters.ownershipType) {
+            where.ownershipType = filters.ownershipType;
+        }
+
         const totalCount = await prisma.store.count({ where });
 
         const stores = await prisma.store.findMany({
@@ -91,6 +101,7 @@ export async function getAdminStores(
                 branchName: true,
                 areaName: true,
                 brand: true,
+                ownershipType: true,
                 isActive: true,
             },
         });
@@ -123,6 +134,7 @@ export async function getAdminStores(
 
 export type ExportStoreFilters = {
     selectedBranches?: string[]; // [] = all branches
+    brand?: string; // "all" | "alfamart" | "lawson" — undefined/"all" = no filter
 };
 
 export async function exportAdminStores(filters: ExportStoreFilters) {
@@ -155,12 +167,17 @@ export async function exportAdminStores(filters: ExportStoreFilters) {
                       };
         }
 
+        if (filters.brand && filters.brand !== "all") {
+            where.brand = { equals: filters.brand, mode: "insensitive" };
+        }
+
         const stores = await prisma.store.findMany({
             where,
             orderBy: [{ branchName: "asc" }, { name: "asc" }],
             select: {
                 code: true,
                 name: true,
+                brand: true,
                 branchName: true,
                 isActive: true,
             },

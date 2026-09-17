@@ -12,6 +12,7 @@
 | `SESSION_SECRET` | Secret untuk session cookie dan token internal. |
 | `APP_BASE_URL` | Base URL server-side. |
 | `NEXT_PUBLIC_APP_URL` | Base URL client-side. |
+| `CSRF_ALLOWED_ORIGINS` | Optional allowlist origin mutating action, dipisah koma. `APP_BASE_URL` dan `NEXT_PUBLIC_APP_URL` otomatis dipakai sebagai origin valid. |
 | `GOOGLE_CLIENT_ID` | Google OAuth client untuk Drive/Gmail utama. |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth secret untuk Drive/Gmail utama. |
 | `GOOGLE_REFRESH_TOKEN` | Refresh token Google utama. |
@@ -49,6 +50,26 @@
 | `DEV_DRIVE_PROXY_SECRET` | Secret route dev Drive proxy. |
 
 Jangan isi env development-only di production kecuali memang route dan risikonya sudah dicek.
+
+## CSRF dan Proxy
+
+Mutating server action memakai validasi CSRF berbasis `Origin`. Di production,
+origin valid berasal dari:
+
+- `APP_BASE_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `CSRF_ALLOWED_ORIGINS` jika perlu lebih dari satu domain
+- `Host` request
+- `X-Forwarded-Host` dari reverse proxy seperti Dokploy
+
+Nilai URL harus plain, misalnya:
+
+```env
+APP_BASE_URL=https://maintenance.sparta-alfamart.web.id
+NEXT_PUBLIC_APP_URL=https://maintenance.sparta-alfamart.web.id
+```
+
+Jangan memakai format Markdown link atau path tambahan.
 
 ## Google Drive
 
@@ -174,6 +195,7 @@ Jangan jadikan UploadThing dependency fitur baru jika Google Drive flow sudah cu
 
 Endpoint cron aktif:
 
+- `POST /api/cron/sync-stores`
 - `GET /api/cron/cleanup-pending-reports`
 
 Endpoint ini membutuhkan:
@@ -181,5 +203,14 @@ Endpoint ini membutuhkan:
 ```text
 Authorization: Bearer <CRON_SECRET>
 ```
+
+`POST /api/cron/sync-stores` membaca Google Sheet store range A:E dengan kolom
+`Branch`, `Kode Toko`, `Nama Toko`, `F/R`, dan `Titik Koordinat`. Row sheet
+dianggap sumber Alfamart aktif untuk field `name`, `branchName`, `brand`,
+`ownershipType`, dan koordinat valid. Store baru dibuat dengan `brand =
+ALFAMART`; store existing hanya diupdate jika ada perbedaan field sheet-owned.
+Store database yang tidak ada di sheet tidak dihapus, tidak di-inactive-kan,
+dan tidak di-reset karena database juga berisi Lawson, toko inactive, dan data
+manual dari Store Management.
 
 Job membaca `CLEANUP_PENDING_EXPIRY_DAYS` untuk batas umur laporan pending.

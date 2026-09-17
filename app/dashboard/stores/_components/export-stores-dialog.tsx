@@ -18,6 +18,13 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Download, Loader2, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -28,6 +35,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
     const [open, setOpen] = useState(false);
     const [isPending, startTransition] = useTransition();
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
+    const [selectedBrand, setSelectedBrand] = useState<string>("all");
 
     function toggleBranch(branch: string, checked: boolean) {
         setSelectedBranches((prev) =>
@@ -40,7 +48,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
 
         startTransition(async () => {
             try {
-                const stores = await exportAdminStores({ selectedBranches });
+                const stores = await exportAdminStores({ selectedBranches, brand: selectedBrand });
 
                 if (stores.length === 0) {
                     toast.warning("Tidak ada data untuk diekspor", {
@@ -52,6 +60,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
                 const rows = stores.map((s) => ({
                     "Kode Toko": s.code,
                     "Nama Toko": s.name,
+                    Brand: s.brand ?? "-",
                     Cabang: s.branchName,
                     Status: s.isActive ? "Aktif" : "Nonaktif",
                 }));
@@ -60,6 +69,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
                 ws["!cols"] = [
                     { wch: 12 },
                     { wch: 35 },
+                    { wch: 12 },
                     { wch: 25 },
                     { wch: 10 },
                 ];
@@ -93,7 +103,16 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
               : `${selectedBranches.length} Cabang Dipilih`;
 
     return (
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+            open={open}
+            onOpenChange={(v) => {
+                setOpen(v);
+                if (!v) {
+                    setSelectedBranches([]);
+                    setSelectedBrand("all");
+                }
+            }}
+        >
             <DialogTrigger asChild>
                 <Button size="sm">
                     <Download data-icon="inline-start" />
@@ -146,6 +165,19 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
                                 ))}
                             </DropdownMenuContent>
                         </DropdownMenu>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Brand</Label>
+                        <Select value={selectedBrand} onValueChange={setSelectedBrand}>
+                            <SelectTrigger className="h-10">
+                                <SelectValue placeholder="Pilih brand" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Semua Brand</SelectItem>
+                                <SelectItem value="alfamart">Alfamart</SelectItem>
+                                <SelectItem value="lawson">Lawson</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </div>
 

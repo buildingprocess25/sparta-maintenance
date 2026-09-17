@@ -10,10 +10,11 @@ import {
 } from "@/lib/authorization";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { Prisma } from "@prisma/client";
+import { Prisma, type StoreOwnershipType } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { z } from "zod";
 import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
+import { normalizeStoreOwnershipForBrand } from "@/lib/store-ownership";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
@@ -415,6 +416,7 @@ type AdminStorePayload = {
     isActive?: boolean;
     areaName?: string | null;
     brand?: string | null;
+    ownershipType?: StoreOwnershipType | null;
 };
 
 export async function adminCreateStore(payload: AdminStorePayload) {
@@ -434,6 +436,12 @@ export async function adminCreateStore(payload: AdminStorePayload) {
             return { error: "Cabang toko berada di luar scope akses Anda" };
         }
 
+        const brand = payload.brand?.trim() || null;
+        const ownershipType = normalizeStoreOwnershipForBrand(
+            brand,
+            payload.ownershipType,
+        );
+
         await prisma.store.create({
             data: {
                 code: payload.code,
@@ -441,7 +449,8 @@ export async function adminCreateStore(payload: AdminStorePayload) {
                 branchName,
                 isActive: payload.isActive ?? true,
                 areaName: payload.areaName,
-                brand: payload.brand,
+                brand,
+                ownershipType,
             },
         });
 
@@ -491,6 +500,12 @@ export async function adminUpdateStore(
             return { error: "Toko berada di luar scope akses Anda" };
         }
 
+        const brand = payload.brand?.trim() || null;
+        const ownershipType = normalizeStoreOwnershipForBrand(
+            brand,
+            payload.ownershipType,
+        );
+
         await prisma.store.update({
             where: { code },
             data: {
@@ -498,7 +513,8 @@ export async function adminUpdateStore(
                 branchName,
                 isActive: payload.isActive ?? true,
                 areaName: payload.areaName,
-                brand: payload.brand,
+                brand,
+                ownershipType,
             },
         });
 

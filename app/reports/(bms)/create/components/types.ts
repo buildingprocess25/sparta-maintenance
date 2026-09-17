@@ -40,6 +40,7 @@ export type SerializedDraft = {
     preventiveCondition: string | null;
     handler: string | null;
     photoUrl: string | null;
+    photoKey?: string | null;
     images?: string[];
     notes?: string | null;
     ahoTicketNumber?: string | null;
@@ -71,6 +72,8 @@ export interface CreateReportFormProps {
   editMode?: { reportNumber: string };
   /** Auto-restore the existingDraft on mount without showing the dialog (used for draft edit). */
   autoRestoreOnMount?: boolean;
+  /** Force server draft restore when a specific draft report number is opened from the report list. */
+  forceServerDraftRestore?: boolean;
   /** Store code to be auto-selected on mount. */
   initialStoreCode?: string;
   balanceInfo?: BmsBalanceInfo;

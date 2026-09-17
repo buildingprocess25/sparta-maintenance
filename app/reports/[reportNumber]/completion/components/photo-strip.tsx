@@ -22,11 +22,11 @@ export function PhotoStrip({
     }
 
     return (
-        <div className="-mx-4 flex gap-3 overflow-x-auto px-4 pb-1">
+        <div className="grid min-w-0 max-w-full grid-cols-2 gap-2 min-[360px]:grid-cols-3">
             {photos.map((photo) => (
                 <div
                     key={photo.id}
-                    className="group relative h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
+                    className="group relative aspect-square min-w-0 overflow-hidden rounded-lg border border-border/60 bg-muted"
                 >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img

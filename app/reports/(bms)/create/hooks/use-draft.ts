@@ -69,9 +69,26 @@ type UseDraftParams = {
     handleStoreChange: (storeCode: string) => Promise<void>;
     /** Skip the draft dialog and auto-restore the existingDraft on mount (used by edit mode). */
     autoRestore?: boolean;
+    /** Ignore localStorage and restore the specific server draft selected from the reports list. */
+    forceServerDraftRestore?: boolean;
     /** Disable the debounced auto-save to the draft table (used by edit mode). */
     disableAutoSave?: boolean;
 };
+
+export function chooseDraftSource(
+    localDraft: { savedAt?: string } | null,
+    serverDraft: { updatedAt?: string } | null,
+): "local" | "server" | null {
+    if (!localDraft && !serverDraft) return null;
+    if (localDraft && !serverDraft) return "local";
+    if (!localDraft && serverDraft) return "server";
+
+    const localTime = Date.parse(localDraft?.savedAt || "");
+    const serverTime = Date.parse(serverDraft?.updatedAt || "");
+    if (Number.isNaN(localTime)) return "server";
+    if (Number.isNaN(serverTime)) return "local";
+    return localTime >= serverTime ? "local" : "server";
+}
 
 export function useDraft({
     existingDraft,
@@ -89,6 +106,7 @@ export function useDraft({
     isSubmitting,
     handleStoreChange,
     autoRestore = false,
+    forceServerDraftRestore = false,
     disableAutoSave = false,
 }: UseDraftParams) {
     const LOCAL_STORAGE_KEY = "sparta_bms_draft";
@@ -99,54 +117,87 @@ export function useDraft({
     const [localDraftData, setLocalDraftData] = useState<
         (DraftData & { savedAt?: string }) | null
     >(null);
+    // In autoRestore mode, this can still open when the same-device local draft
+    // is newer than the server draft.
+    const [showDraftDialog, setShowDraftDialog] = useState(false);
+    // Guard against double-invoke (React StrictMode / re-renders).
+    const hasAutoRestoredRef = useRef(false);
 
     useEffect(() => {
-        if (!autoRestore) {
-            const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
-            if (saved) {
-                try {
-                    const wrapper = JSON.parse(saved) as {
-                        data: DraftData;
-                        savedAt?: string;
-                    };
-                    // Support both old flat format and new {data, savedAt} format
-                    const parsed: DraftData & { savedAt?: string } =
-                        wrapper.data
-                            ? { ...wrapper.data, savedAt: wrapper.savedAt }
-                            : (wrapper as unknown as DraftData & {
-                                  savedAt?: string;
-                              });
-                    if (
-                        parsed &&
-                        (parsed.checklistItems?.length > 0 || parsed.storeCode)
-                    ) {
-                        setLocalDraftData(parsed);
-                    }
-                } catch {
-                    localStorage.removeItem(LOCAL_STORAGE_KEY);
+        if (disableAutoSave) return;
+        if (forceServerDraftRestore) {
+            queueMicrotask(() => {
+                setLocalDraftData(null);
+                setShowDraftDialog(false);
+            });
+            return;
+        }
+
+        let parsedLocal: (DraftData & { savedAt?: string }) | null = null;
+        const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (saved) {
+            try {
+                const wrapper = JSON.parse(saved) as {
+                    data?: DraftData;
+                    savedAt?: string;
+                };
+                // Support both old flat format and new {data, savedAt} format.
+                const parsed: DraftData & { savedAt?: string } = wrapper.data
+                    ? { ...wrapper.data, savedAt: wrapper.savedAt }
+                    : (wrapper as unknown as DraftData & {
+                          savedAt?: string;
+                      });
+                if (
+                    parsed &&
+                    (parsed.checklistItems?.length > 0 || parsed.storeCode)
+                ) {
+                    parsedLocal = parsed;
                 }
+            } catch {
+                localStorage.removeItem(LOCAL_STORAGE_KEY);
             }
         }
-    }, [autoRestore]);
 
-    // In autoRestore mode (edit page), skip the dialog and restore inline on mount.
-    const [showDraftDialog, setShowDraftDialog] = useState(false);
+        const source = chooseDraftSource(parsedLocal, existingDraft ?? null);
+        if (source === "local" && parsedLocal) {
+            queueMicrotask(() => {
+                setLocalDraftData(parsedLocal);
+            });
+            if (autoRestore) {
+                hasAutoRestoredRef.current = true;
+                queueMicrotask(() => {
+                    setShowDraftDialog(true);
+                });
+            }
+            return;
+        }
+
+        queueMicrotask(() => {
+            setLocalDraftData(null);
+        });
+        if (source === "server" && existingDraft) {
+            queueMicrotask(() => {
+                setShowDraftDialog(false);
+            });
+        }
+    }, [autoRestore, disableAutoSave, existingDraft, forceServerDraftRestore]);
 
     useEffect(() => {
         if (!autoRestore) {
-            setShowDraftDialog(!!localDraftData);
+            queueMicrotask(() => {
+                setShowDraftDialog(!!localDraftData);
+            });
         }
     }, [localDraftData, autoRestore]);
 
     const [isRestoringDraft, setIsRestoringDraft] = useState(false);
     const [isDeletingDraft, setIsDeletingDraft] = useState(false);
-    // Guard against double-invoke (React StrictMode / re-renders).
-    const hasAutoRestoredRef = useRef(false);
 
     const handleContinueDraft = useCallback(
         async (opts?: { loading?: string; success?: string }) => {
-            const sourceDraft = autoRestore ? existingDraft : localDraftData;
+            const sourceDraft = localDraftData ?? existingDraft;
             if (!sourceDraft) return;
+            const isServerSource = !!existingDraft && sourceDraft === existingDraft;
 
             setIsRestoringDraft(true);
             const loadingToastId = opts?.loading
@@ -161,7 +212,7 @@ export function useDraft({
                         await handleStoreChange(s.code);
                     }
                 }
-                if (!autoRestore && localDraftData?.draftReportNumber) {
+                if (!isServerSource && localDraftData?.draftReportNumber) {
                     setDraftReportId(localDraftData.draftReportNumber);
                 }
 
@@ -209,7 +260,7 @@ export function useDraft({
                 const restored = new Map<string, ChecklistItem>();
                 const restoredBms = new Map<string, BmsItemGroup>();
 
-                if (autoRestore && existingDraft) {
+                if (isServerSource) {
                     // Restore from Database Format (SerializedDraft)
                     const restoredFiles = await Promise.all(
                         existingDraft.items.map((it) =>
@@ -249,6 +300,7 @@ export function useDraft({
                                       ? "Rekanan"
                                       : "",
                             photoUrl: photoUrl || undefined,
+                            photoKey: item.photoKey || undefined,
                             photo: restoredFiles[i],
                             notes: item.notes || undefined,
                             ahoTicketNumber: item.ahoTicketNumber || undefined,
@@ -293,7 +345,7 @@ export function useDraft({
                             }
                         }
                     }
-                } else if (!autoRestore && localDraftData) {
+                } else if (localDraftData) {
                     // Restore from LocalStorage Format (DraftData)
                     const restoredFiles = await Promise.all(
                         localDraftData.checklistItems.map((it) =>
@@ -387,7 +439,6 @@ export function useDraft({
             }
         },
         [
-            autoRestore,
             existingDraft,
             localDraftData,
             stores,

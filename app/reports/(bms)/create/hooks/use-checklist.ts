@@ -371,5 +371,6 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
         updateChecklistItem,
         validateStep1,
         devAutofill,
+        hasPreventiveItemsInChecklist,
     };
 }

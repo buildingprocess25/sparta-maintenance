@@ -50,7 +50,7 @@ export function ReportWizardShell({
     return (
         <div
             className={cn(
-                "relative min-h-svh bg-background text-foreground",
+                "relative min-h-svh min-w-0 max-w-full overflow-x-clip bg-background text-foreground",
                 className,
             )}
         >
@@ -60,7 +60,7 @@ export function ReportWizardShell({
                     isHeaderVisible ? "translate-y-0" : "-translate-y-full",
                 )}
             >
-                <div className="mx-auto grid w-full max-w-lg grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 py-3">
+                <div className="mx-auto grid w-full min-w-0 max-w-lg grid-cols-[2.5rem_1fr_2.5rem] items-center px-4 py-3">
                     <div className="flex justify-start">
                         {onBack ? (
                             <Button
@@ -113,13 +113,15 @@ export function ReportWizardShell({
                 </div>
             </header>
 
-            <main className="mx-auto flex w-full max-w-lg flex-col gap-6 px-4 pt-20 pb-32">
+            <main className="mx-auto flex w-full min-w-0 max-w-lg flex-col gap-6 overflow-x-clip px-4 pt-20 pb-32">
                 {children}
             </main>
 
             {footer && (
-                <footer className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-background/95 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-[0_-12px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl">
-                    <div className="mx-auto w-full max-w-lg">{footer}</div>
+                <footer className="fixed inset-x-0 bottom-0 z-50 max-w-full overflow-x-clip border-t border-border/60 bg-background/95 px-4 pt-4 pb-[calc(env(safe-area-inset-bottom)+16px)] shadow-[0_-12px_40px_rgb(15_23_42/0.08)] backdrop-blur-xl">
+                    <div className="mx-auto w-full min-w-0 max-w-lg">
+                        {footer}
+                    </div>
                 </footer>
             )}
         </div>

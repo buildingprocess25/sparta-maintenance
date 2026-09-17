@@ -32,16 +32,16 @@ export function EvidenceCaptureSection({
     return (
         <section
             className={cn(
-                "border-b border-border/40 py-4",
+                "min-w-0 max-w-full border-b border-border/40 py-4",
                 disabled && "opacity-45",
             )}
         >
-            <div className="flex gap-3">
+            <div className="flex min-w-0 max-w-full gap-3">
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                     <Icon className="size-4" />
                 </div>
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 max-w-full flex-1">
+                    <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0">
                             <h2 className="text-sm font-semibold">
                                 {title}
@@ -54,7 +54,7 @@ export function EvidenceCaptureSection({
                             {required ? "Wajib" : "Opsional"}
                         </span>
                     </div>
-                    <div className="mt-3">
+                    <div className="mt-3 min-w-0 max-w-full">
                         <PhotoStrip
                             photos={photos}
                             emptyText={emptyText}
@@ -62,7 +62,9 @@ export function EvidenceCaptureSection({
                             onPreview={onPreview}
                         />
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
+                    <div className="mt-3 flex max-w-full flex-wrap gap-2">
+                        {actions}
+                    </div>
                 </div>
             </div>
         </section>

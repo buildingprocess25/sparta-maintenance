@@ -41,7 +41,9 @@ export async function getStoresByBranch(branchName: string) {
     // Fetch all non-DRAFT reports for this branch in the current quarter
     const reportsThisQuarter = await prisma.report.findMany({
         where: {
-            branchName,
+            store: {
+                branchName
+            },
             status: { not: "DRAFT" },
             createdAt: { gte: start, lt: endExclusive },
         },

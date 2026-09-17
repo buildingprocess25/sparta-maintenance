@@ -27,15 +27,19 @@ export function AdditionalDocumentationSection({
     const [isOpen, setIsOpen] = useState(false);
 
     return (
-        <section className="border-b border-border/40 py-4">
-            <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+        <section className="min-w-0 max-w-full border-b border-border/40 py-4">
+            <Collapsible
+                className="min-w-0 max-w-full"
+                open={isOpen}
+                onOpenChange={setIsOpen}
+            >
                 <CollapsibleTrigger asChild>
-                    <div className="flex w-full items-start gap-3 cursor-pointer select-none">
+                    <div className="flex w-full min-w-0 max-w-full items-start gap-3 cursor-pointer select-none">
                         <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
                             <FileText className="size-4" />
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 max-w-full flex-1">
+                            <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                                 <div className="min-w-0 text-left">
                                     <h2 className="text-sm font-semibold">
                                         Dokumentasi tambahan
@@ -45,7 +49,7 @@ export function AdditionalDocumentationSection({
                                         diperlukan.
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex max-w-full flex-wrap items-center gap-2">
                                     <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                                         Opsional
                                     </span>
@@ -61,8 +65,8 @@ export function AdditionalDocumentationSection({
                     </div>
                 </CollapsibleTrigger>
                 
-                <CollapsibleContent>
-                    <div className="mt-5">
+                <CollapsibleContent className="min-w-0 max-w-full">
+                    <div className="mt-5 min-w-0 max-w-full">
                         <PhotoStrip
                             photos={photos}
                             emptyText="Belum ada dokumentasi tambahan."
@@ -89,7 +93,7 @@ export function AdditionalDocumentationSection({
                         <Textarea
                             value={note}
                             placeholder="Catatan untuk dokumentasi tambahan..."
-                            className="mt-2 min-h-20 resize-none"
+                            className="mt-2 min-h-20 min-w-0 max-w-full resize-none"
                             onChange={(event) =>
                                 onNoteChange(event.target.value)
                             }

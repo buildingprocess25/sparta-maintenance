@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Send } from "lucide-react";
@@ -26,6 +26,7 @@ import { useChecklist } from "./hooks/use-checklist";
 import { usePhotoUpload } from "./hooks/use-photo-upload";
 import { useBmsEstimation } from "./hooks/use-bms-estimation";
 import { useDraft } from "./hooks/use-draft";
+import { useServerDraftAutosave } from "./hooks/use-server-draft-autosave";
 import { clearDraftPhotos } from "./hooks/draft-photo-storage";
 
 const WIZARD_STEPS: ReportWizardStep[] = [
@@ -35,7 +36,18 @@ const WIZARD_STEPS: ReportWizardStep[] = [
   { key: "review", label: "Review" },
 ];
 
-export default function CreateReportForm({ stores, materialNames, userBranchName, existingDraft, userInfo, editMode, autoRestoreOnMount, initialStoreCode, balanceInfo }: CreateReportFormProps) {
+export default function CreateReportForm({
+  stores,
+  materialNames,
+  userBranchName,
+  existingDraft,
+  userInfo,
+  editMode,
+  autoRestoreOnMount,
+  forceServerDraftRestore,
+  initialStoreCode,
+  balanceInfo,
+}: CreateReportFormProps) {
   const router = useRouter();
   // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
   // However, the v2 flow might just have edit skip store step logic by checking selectedStoreCode.
@@ -45,11 +57,22 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
   const isEditMode = !!editMode;
   const shouldAutoRestore = isEditMode || !!autoRestoreOnMount;
 
-  const { checklist, setChecklist, setOpenCategories, selectedStoreCode, store, isCategoryICoolingDown, activeCategories, handleStoreChange, toggleCategory, updateChecklistItem, validateStep1, openCategories, devAutofill } = useChecklist(
-    stores,
-    isEditMode,
-    initialStoreCode,
-  );
+  const {
+    checklist,
+    setChecklist,
+    setOpenCategories,
+    selectedStoreCode,
+    store,
+    isCategoryICoolingDown,
+    activeCategories,
+    handleStoreChange,
+    toggleCategory,
+    updateChecklistItem,
+    validateStep1,
+    openCategories,
+    devAutofill,
+    hasPreventiveItemsInChecklist,
+  } = useChecklist(stores, isEditMode, initialStoreCode);
 
   const { bmsItems, setBmsItems, grandTotalBms, buildBmsMapFromChecklist, addBmsEntryWithDetails, updateBmsEntryWithDetails, removeBmsEntry, validateStep2, devAutofillBms } = useBmsEstimation();
 
@@ -69,10 +92,37 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
     isSubmitting,
     handleStoreChange,
     autoRestore: shouldAutoRestore,
+    forceServerDraftRestore,
     disableAutoSave: isEditMode,
   });
 
-  const { isCameraOpen, setIsCameraOpen, previewPhoto, handleOpenCamera, handlePhotoCaptured, removePhoto, handlePreviewPhoto, closePreview } = usePhotoUpload({
+  const { markDirty, flushServerDraft } = useServerDraftAutosave({
+    selectedStoreCode: isEditMode ? "" : selectedStoreCode,
+    isSubmitting,
+    buildDraftData,
+    setDraftReportId,
+  });
+
+  useEffect(() => {
+    if (isEditMode) return;
+    markDirty();
+  }, [bmsItems, checklist, grandTotalBms, isEditMode, markDirty, selectedStoreCode]);
+
+  useEffect(() => {
+    if (isEditMode || !selectedStoreCode) return;
+    void flushServerDraft("store");
+  }, [flushServerDraft, isEditMode, selectedStoreCode]);
+
+  const {
+    isCameraOpen,
+    setIsCameraOpen,
+    previewPhoto,
+    handleOpenCamera,
+    handlePhotoCaptured,
+    removePhoto,
+    handlePreviewPhoto,
+    closePreview,
+  } = usePhotoUpload({
     checklist,
     setChecklist,
     selectedStoreCode,
@@ -80,6 +130,13 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
     userBranchName,
     draftReportId,
     setDraftReportId,
+    onPhotoUploaded: () => {
+      if (isEditMode) return;
+      markDirty();
+      window.setTimeout(() => {
+        void flushServerDraft("photo");
+      }, 0);
+    },
   });
 
   const rusakItems = Array.from(checklist.values()).filter((i) => i.condition === "rusak");
@@ -92,13 +149,16 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
         toast.error("Silakan pilih toko terlebih dahulu");
         return;
       }
+      void flushServerDraft("step");
       setStep("checklist");
     } else if (step === "checklist") {
       if (!validateStep1()) return;
       buildBmsMapFromChecklist(checklist, bmsItems);
+      void flushServerDraft("step");
       setStep("estimation");
     } else if (step === "estimation") {
       if (!validateStep2()) return;
+      void flushServerDraft("step");
       setStep("review");
     }
     window.scrollTo(0, 0);
@@ -124,10 +184,18 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
   const handleSubmit = async () => {
     if (!validateStep2()) return;
 
+    const flushedDraft = isEditMode
+      ? undefined
+      : await flushServerDraft("submit");
     setIsSubmitting(true);
 
     try {
-      const draftData = buildDraftData();
+      const draftData = {
+        ...buildDraftData(),
+        ...(flushedDraft?.reportNumber
+          ? { draftReportNumber: flushedDraft.reportNumber }
+          : {}),
+      };
 
       // --- Edit mode: resubmit existing REJECTED report ---
       if (isEditMode && editMode) {
@@ -188,7 +256,7 @@ export default function CreateReportForm({ stores, materialNames, userBranchName
     }
   };
 
-  const isRepairOnlyMode = isCategoryICoolingDown;
+  const isRepairOnlyMode = isCategoryICoolingDown && (!isEditMode || !hasPreventiveItemsInChecklist);
 
   // Store data to pass to review step
   const storeObj = stores.find((s) => s.code === selectedStoreCode);

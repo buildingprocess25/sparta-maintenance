@@ -86,9 +86,10 @@ Aturan parsing:
 - `Titik Koordinat` diparse sebagai `latitude longitude`.
 - Matching hanya memakai normalized `Kode Toko` ke `Store.code`; nama toko dan branch tidak dipakai sebagai fallback matching.
 
-Toko yang ada di database tetapi tidak ada di sheet tetap atau diset menjadi
-`UNKNOWN` tanpa menghapus koordinat existing. Row sheet yang tidak ada di
-database tidak membuat toko baru.
+Toko yang ada di database tetapi tidak ada di sheet hanya dihitung sebagai
+audit mismatch dan tidak diubah. Ini menjaga data Lawson, toko inactive, dan
+toko aktif yang belum tercakup sheet agar tidak ter-reset otomatis. Row sheet
+yang tidak ada di database tidak membuat toko baru.
 
 ## Scope Cabang dan Area
 

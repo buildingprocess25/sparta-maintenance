@@ -33,7 +33,7 @@ export function CameraModal({
     const [facingMode, setFacingMode] = useState<"user" | "environment">(
         "environment",
     );
-    const [permissionError, setPermissionError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [torchSupported, setTorchSupported] = useState(false);
     const [torchOn, setTorchOn] = useState(false);
 
@@ -44,14 +44,44 @@ export function CameraModal({
                 stream.getTracks().forEach((track) => track.stop());
             }
 
-            const newStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: facingMode,
-                    width: { ideal: 1920 },
-                    height: { ideal: 1080 },
+            const constraintsToTry = [
+                {
+                    video: {
+                        facingMode: facingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 },
+                    },
+                    audio: false,
                 },
-                audio: false,
-            });
+                {
+                    video: { facingMode: facingMode },
+                    audio: false,
+                },
+                {
+                    video: true,
+                    audio: false,
+                }
+            ];
+
+            let newStream: MediaStream | null = null;
+            let lastError: any = null;
+
+            for (const constraints of constraintsToTry) {
+                try {
+                    newStream = await navigator.mediaDevices.getUserMedia(constraints);
+                    break; // Success! Exit the loop.
+                } catch (err: any) {
+                    lastError = err;
+                    // If it's a NotAllowedError, don't try other constraints, the user denied it.
+                    if (err.name === "NotAllowedError" || err.name === "SecurityError") {
+                        break;
+                    }
+                }
+            }
+
+            if (!newStream) {
+                throw lastError || new Error("Tidak dapat mengakses kamera.");
+            }
 
             setStream(newStream);
             if (videoRef.current) {
@@ -74,11 +104,26 @@ export function CameraModal({
                 setTorchSupported(false);
             }
             setTorchOn(false);
-            setPermissionError(false);
-        } catch (err) {
+            setErrorMessage(null);
+        } catch (err: any) {
             console.error("Camera Error:", err);
-            setPermissionError(true);
-            toast.error("Gagal mengakses kamera. Pastikan izin diberikan.");
+            
+            let message = "Gagal mengakses kamera: " + (err?.message || "Kesalahan tidak dikenal.");
+            
+            if (err?.name === "NotAllowedError" || err?.name === "SecurityError") {
+                message = "Izin kamera ditolak oleh browser. Mohon izinkan akses kamera di pengaturan.";
+            } else if (err?.name === "NotReadableError" || err?.name === "TrackStartError") {
+                message = "Kamera sedang digunakan oleh aplikasi lain. Tutup aplikasi tersebut (seperti telepon/WA) lalu coba lagi.";
+            } else if (err?.name === "NotFoundError") {
+                message = "Tidak ada perangkat kamera yang terdeteksi.";
+            } else if (err?.name === "OverconstrainedError") {
+                message = "Kamera perangkat Anda tidak mendukung format yang diminta.";
+            } else if (err instanceof TypeError) {
+                message = "Terjadi kesalahan sistem. Pastikan koneksi aman (HTTPS).";
+            }
+            
+            setErrorMessage(message);
+            toast.error(message);
         }
     };
 
@@ -386,10 +431,10 @@ export function CameraModal({
 
             {/* Main Camera View */}
             <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
-                {permissionError ? (
+                {errorMessage ? (
                     <div className="text-white text-center p-6">
                         <p className="mb-4">
-                            Akses kamera ditolak atau tidak tersedia.
+                            {errorMessage}
                         </p>
                         <Button onClick={onClose} variant="secondary">
                             Tutup Kamera

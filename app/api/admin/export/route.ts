@@ -71,6 +71,7 @@ function buildReportSheet(
     "Total Estimasi (Rp)",
     "Total Realisasi (Rp)",
     "Tanggal Selesai",
+    "Status PJUM",
     "Tanggal PJUM",
   ];
 
@@ -102,6 +103,7 @@ function buildReportSheet(
       numCell(r.totalEstimation),
       numCell(r.totalReal),
       dateCell(r.finishedAt),
+      textCell(r.pjumExportedAt ? "Sudah PJUM" : "Belum PJUM"),
       dateCell(r.pjumExportedAt),
     ]),
   ];

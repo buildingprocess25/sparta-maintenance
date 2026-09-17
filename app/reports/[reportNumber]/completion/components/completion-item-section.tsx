@@ -98,11 +98,15 @@ export function CompletionItemSection({
   return (
     <section
       id={`completion-item-${item.itemId}`}
-      className="border-b border-border/40 py-4"
+      className="min-w-0 max-w-full border-b border-border/40 py-4"
     >
-      <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <Collapsible
+        className="min-w-0 max-w-full"
+        open={isOpen}
+        onOpenChange={setIsOpen}
+      >
         <CollapsibleTrigger asChild>
-          <div className="flex w-full items-start gap-3 cursor-pointer select-none">
+          <div className="flex w-full min-w-0 max-w-full items-start gap-3 cursor-pointer select-none">
             <div
               className={cn(
                 "flex size-9 shrink-0 items-center justify-center rounded-lg",
@@ -163,9 +167,9 @@ export function CompletionItemSection({
           </div>
         </CollapsibleTrigger>
         
-        <CollapsibleContent>
+        <CollapsibleContent className="min-w-0 max-w-full">
 
-      <div className="mt-5 grid gap-4">
+      <div className="mt-5 grid min-w-0 max-w-full gap-4">
         <div>
           <Label className="text-xs text-muted-foreground">Foto sebelum</Label>
           <div className="mt-2">
@@ -374,16 +378,16 @@ function RealisasiEditor({
           Belum ada realisasi barang.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="min-w-0 max-w-full space-y-2">
           <p className="text-[10px] text-muted-foreground px-1">
             Ketuk titik tiga untuk edit barang atau hapus.
           </p>
           {entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between rounded-lg border border-border/70 bg-background px-3 py-2"
+              className="grid min-w-0 max-w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border border-border/70 bg-background px-3 py-2"
             >
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0">
                 <p className="truncate text-xs font-semibold">
                   {entry.materialName || "Barang tanpa nama"}
                 </p>
@@ -392,8 +396,8 @@ function RealisasiEditor({
                   {entry.quantity}
                 </p>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold">
+              <div className="flex shrink-0 items-center gap-2">
+                <span className="whitespace-nowrap text-xs font-bold">
                   {formatCurrency(realisasiTotal(entry))}
                 </span>
                 <DropdownMenu>
@@ -408,13 +412,13 @@ function RealisasiEditor({
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => handleOpenDialog(entry)}>
+                    <DropdownMenuItem onSelect={() => handleOpenDialog(entry)}>
                       <Edit2 className="mr-2 size-3.5" />
                       Edit
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                      onClick={() => handleRemove(entry.id)}
+                      onSelect={() => handleRemove(entry.id)}
                     >
                       <Trash2 className="mr-2 size-3.5" />
                       Hapus
@@ -459,7 +463,10 @@ function RealisasiEditor({
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent
+          className="max-h-[calc(100dvh-2rem)] max-w-[calc(100dvw-2rem)] overflow-y-auto p-4 sm:max-w-md sm:p-6"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
               {draftEntry && entries.some((e) => e.id === draftEntry.id)
@@ -486,8 +493,8 @@ function RealisasiEditor({
                   }
                 />
               </div>
-              <div className="grid grid-cols-[1fr_104px] gap-2">
-                <div className="flex flex-col gap-2">
+              <div className="grid min-w-0 grid-cols-1 gap-2 min-[360px]:grid-cols-[minmax(0,1fr)_104px]">
+                <div className="flex min-w-0 flex-col gap-2">
                   <Label>Jumlah</Label>
                   <Input
                     type="number"
@@ -509,7 +516,7 @@ function RealisasiEditor({
                     }
                   />
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="flex min-w-0 flex-col gap-2">
                   <Label>Satuan</Label>
                   <Select
                     value={draftEntry.unit || "Pcs"}

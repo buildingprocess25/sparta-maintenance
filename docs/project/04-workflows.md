@@ -30,6 +30,14 @@ Timestamp penting:
 | `finishedAt` | Final approval BNM Manager, status menjadi `COMPLETED`. |
 | `pjumExportedAt` | Laporan sudah masuk/export PJUM. |
 
+Draft BMS memakai hybrid persistence:
+
+- `localStorage` tetap menjadi cache cepat untuk perubahan kecil di device yang sama.
+- Server menyimpan row `Report` status `DRAFT` pada checkpoint penting: idle 17 detik setelah perubahan terakhir, upload foto, perpindahan step, page leave best-effort, dan submit.
+- Autosave server hanya menyimpan referensi foto yang sudah ter-upload (`photoUrl` dan `photoKey`), bukan meng-upload ulang file foto.
+- Submit selalu memakai payload form terbaru sebagai sumber final, sehingga payload submit menang atas autosave draft yang lebih lama.
+- Status `DRAFT` tidak dihitung untuk PJUM, realisasi, approval, export final, atau dashboard keuangan.
+
 ## Approval
 
 | Tahap | Actor | Target Status |

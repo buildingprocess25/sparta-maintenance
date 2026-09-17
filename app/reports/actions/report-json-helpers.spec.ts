@@ -31,6 +31,42 @@ assert.deepEqual(buildItemsJson(draft), [
     },
 ]);
 
+const baikWithStaleDamagedDetails: DraftData = {
+    checklistItems: [
+        {
+            itemId: "A1",
+            itemName: "Bahu Jalan",
+            categoryName: "A. Bangunan",
+            condition: "BAIK",
+            handler: "BMS",
+            photoKey: "drive-file-1",
+            notes: "old damaged note",
+            ahoTicketNumber: "AHO-1",
+        },
+    ],
+    bmsEstimations: {
+        A1: [
+            {
+                itemName: "Semen",
+                quantity: 1,
+                unit: "sak",
+                price: 50000,
+                totalPrice: 50000,
+            },
+        ],
+    },
+};
+
+const baikItems = buildItemsJson(baikWithStaleDamagedDetails) as Array<
+    Record<string, unknown>
+>;
+
+assert.equal(baikItems[0]?.condition, "BAIK");
+assert.equal(baikItems[0]?.handler, undefined);
+assert.equal(baikItems[0]?.photoKey, "drive-file-1");
+assert.equal(baikItems[0]?.notes, undefined);
+assert.equal(baikItems[0]?.ahoTicketNumber, undefined);
+
 assert.deepEqual(
     cleanReportItemsJson([
         {

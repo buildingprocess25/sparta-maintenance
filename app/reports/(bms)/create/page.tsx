@@ -2,7 +2,11 @@ import Link from "next/link";
 import { AlertTriangle, Eye } from "lucide-react";
 
 import { requireRole } from "@/lib/authorization";
-import { getStoresByBranch } from "@/app/reports/actions";
+import {
+  getDraft,
+  getDraftByReportNumber,
+  getStoresByBranch,
+} from "@/app/reports/actions";
 import { calculateBmsBalance, getBmsActiveReportBlocker } from "@/lib/balance";
 import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
 import { loadMaterialNames } from "@/lib/material-master.server";
@@ -11,12 +15,24 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import CreateReportForm from "./create-form";
 
-export default async function CreateReportPage({ searchParams }: { searchParams: Promise<{ restore?: string; storeCode?: string }> }) {
+export default async function CreateReportPage({ searchParams }: { searchParams: Promise<{ restore?: string; storeCode?: string; draft?: string; }> }) {
   const user = await requireRole("BMS");
-  const { restore, storeCode } = await searchParams;
+  const { restore, storeCode, draft } = await searchParams;
   const autoRestoreOnMount = restore === "1";
+  const forceServerDraftRestore = autoRestoreOnMount && !!draft;
 
-  const [stores, materialNames, balanceInfo, activeReportBlocker] = await Promise.all([getStoresByBranch(user.branchNames[0] || ""), loadMaterialNames(), calculateBmsBalance(user.NIK), getBmsActiveReportBlocker(user.NIK)]);
+  const [stores, materialNames, balanceInfo, activeReportBlocker, existingDraft] = await Promise.all([
+    getStoresByBranch(user.branchNames[0] || ""),
+    loadMaterialNames(),
+    calculateBmsBalance(user.NIK),
+    getBmsActiveReportBlocker(user.NIK),
+    autoRestoreOnMount && draft
+        ? getDraftByReportNumber(draft)
+        : autoRestoreOnMount
+          ? getDraft()
+          : Promise.resolve(null),
+  ]);
+
   const userInitials = user.name
     .split(" ")
     .slice(0, 2)
@@ -60,8 +76,9 @@ export default async function CreateReportPage({ searchParams }: { searchParams:
         role: user.role,
         branch: user.branchNames[0] || "",
       }}
-      existingDraft={undefined} // No longer pulled from DB for DRAFT
+      existingDraft={existingDraft}
       autoRestoreOnMount={autoRestoreOnMount}
+      forceServerDraftRestore={forceServerDraftRestore}
       initialStoreCode={storeCode}
       balanceInfo={balanceInfo}
     />

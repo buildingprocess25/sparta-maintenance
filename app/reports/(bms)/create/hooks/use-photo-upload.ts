@@ -40,6 +40,7 @@ type UsePhotoUploadParams = {
     userBranchName: string;
     draftReportId: string | null;
     setDraftReportId: (id: string) => void;
+    onPhotoUploaded?: () => void;
 };
 
 export function usePhotoUpload({
@@ -48,6 +49,7 @@ export function usePhotoUpload({
     selectedStoreCode,
     draftReportId,
     setDraftReportId,
+    onPhotoUploaded,
 }: UsePhotoUploadParams) {
     const [isCameraOpen, setIsCameraOpen] = useState(false);
     const [activePhotoItemId, setActivePhotoItemId] = useState<string | null>(
@@ -170,6 +172,7 @@ export function usePhotoUpload({
                     });
                     return next;
                 });
+                onPhotoUploaded?.();
                 toast.success("Foto berhasil diunggah", {
                     id: uploadingToastId,
                 });
@@ -188,6 +191,7 @@ export function usePhotoUpload({
             selectedStoreCode,
             setChecklist,
             setDraftReportId,
+            onPhotoUploaded,
         ],
     );
 
