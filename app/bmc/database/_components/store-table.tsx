@@ -36,7 +36,8 @@ import {
     PaginationPrevious,
     PaginationEllipsis,
 } from "@/components/ui/pagination";
-import { Store, Pencil, Search, X } from "lucide-react";
+import { Store, Pencil, Search, X, Plus, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { StoreFormDialog } from "./store-form-dialog";
 import { ImportStoreDialog } from "./import-store-dialog";
 import type { AreaNamesByBranch } from "../store-area-options";
@@ -190,12 +191,27 @@ export function StoreTable({
                     <p className="text-sm text-muted-foreground hidden lg:block">
                         {totalCount} toko ditemukan
                     </p>
-                    <ImportStoreDialog branchNames={writableBranchNames} />
-                    <StoreFormDialog
-                        branchNames={writableBranchNames}
-                        allBrands={allBrands}
-                        areaNamesByBranch={areaNamesByBranch}
-                    />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={!hasWritableBranch}
+                        title={hasWritableBranch ? undefined : "Tidak ada cabang utama yang dapat dikelola"}
+                        onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                    >
+                        <Upload className="h-4 w-4" />
+                        Import
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={!hasWritableBranch}
+                        title={hasWritableBranch ? undefined : "Tidak ada cabang utama yang dapat dikelola"}
+                        onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Tambah Toko
+                    </Button>
                 </div>
             </div>
 

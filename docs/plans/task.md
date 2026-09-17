@@ -1,7 +1,5 @@
-| Status | Task | Description |
-|---|---|---|
-| [x] | Task 1 | Reports — Sinkronisasi Filter Client ke URL |
-| [x] | Task 2 | PJUM — Sinkronisasi Filter Client ke URL |
-| [x] | Task 3 | Preventive — Tambah `searchParams` ke `page.tsx` dan sinkronisasi |
-| [x] | Task 4 | Stores — Tambah `searchParams` ke `page.tsx` dan sinkronisasi |
-| [x] | Task 5 | Verifikasi Akhir dan Task Note |
+- `[x]` Task 1: Nonaktifkan Fitur Tambah & Import Toko di Table BMC
+- `[x]` Task 2: Kunci Input Status Toko di Form Edit BMC
+- `[x]` Create Agent Note
+- `[ ]` Run Tests (npm run lint)
+- `[ ]` Commit
