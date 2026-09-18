@@ -626,7 +626,7 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                 onCheckedChange={(checked) =>
                                     setIsConfirmed(checked === true)
                                 }
-                                className="mt-0.5"
+                                className="mt-0.5 border-2 border-amber-600 data-[state=checked]:bg-amber-600 data-[state=checked]:text-white"
                                 aria-label="Konfirmasi data PJUM"
                             />
                             <div className="space-y-1 text-sm">

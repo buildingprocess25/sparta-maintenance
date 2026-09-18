@@ -82,6 +82,7 @@ export default async function AdminStoresPage({ searchParams }: Props) {
                 allBrands={allBrands}
                 areaNamesByBranch={areaNamesByBranch}
                 canManage
+                userRole={user.role}
                 initialSearch={initialSearch}
                 initialBranchName={initialBranchName}
                 initialAreaName={initialAreaName}

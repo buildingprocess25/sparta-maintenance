@@ -22,6 +22,7 @@
 | `/dashboard/stores` | `ADMIN`, `BMC` | Master toko; BMC scoped. |
 | `/dashboard/activity` | `ADMIN`, `BMC` | Aktivitas; BMC scoped. |
 | `/dashboard/settings` | `ADMIN` | Settings sistem. |
+| `/v/pjum/[token]` | Publik | Validasi QR dokumen PJUM tanpa login; menampilkan metadata PJUM dan link PDF resmi Drive. |
 
 Klik laporan status `DRAFT` dari `/reports` membuka
 `/reports/create?restore=1&draft=<reportNumber>` agar draft yang dipilih bisa
@@ -40,6 +41,7 @@ draft bisa dilanjutkan dari device lain.
 - Gunakan global label status dari `lib/report-status.ts` dan `lib/pjum-status.ts`.
 - Gunakan shadcn/ui sebelum markup custom.
 - Untuk request UI baru, cek komponen shadcn yang tersedia terlebih dahulu sesuai `.agents/AI_RULES.md`.
+- Public PJUM validator tetap mengikuti gaya SPARTA: compact, mobile-first, status memakai label dan warna semantik, serta tidak memakai layout marketing.
 
 ## Dashboard Reports
 

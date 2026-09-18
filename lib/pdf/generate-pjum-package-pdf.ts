@@ -53,6 +53,10 @@ export async function generatePjumPackagePdf(params: {
         name: string;
     };
     approvedAt?: string;
+    verification?: {
+        qrDataUrl: string;
+        displayCode: string;
+    };
 }) {
     const reports = await prisma.report.findMany({
         where: {
@@ -186,6 +190,7 @@ export async function generatePjumPackagePdf(params: {
         weekNumber: params.weekNumber,
         reports: recapRows,
         watermarkLogoBase64: WATERMARK_LOGO_BASE64,
+        verification: params.verification,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -262,6 +267,7 @@ export async function generatePjumPackagePdf(params: {
                   ),
                   periodeFrom: params.from || reports[0].createdAt.toISOString(),
                   periodeTo: params.to || reports[0].createdAt.toISOString(),
+                  verification: params.verification,
               }
             : null);
 
@@ -275,7 +281,9 @@ export async function generatePjumPackagePdf(params: {
             formDoc,
             formDoc.getPageIndices(),
         );
-        formPages.forEach((p) => merged.addPage(p));
+        formPages.forEach((p) => {
+            merged.addPage(p);
+        });
     }
 
     // 3. Generate & merge individual reports sequentially to avoid memory spikes
@@ -370,6 +378,7 @@ export async function generatePjumPackagePdf(params: {
                 reportStatus: report.status,
                 stamps,
             },
+            verification: params.verification,
         });
 
         // Load into main document and clear buffer from memory
@@ -387,8 +396,10 @@ export async function generatePjumPackagePdf(params: {
     });
     const year = getJakartaYear(fromDate);
 
+    let finalBuffer = Buffer.from(await merged.save());
+
     return {
-        buffer: Buffer.from(await merged.save()),
+        buffer: finalBuffer,
         branchName,
         bmsNIK: bmsUser?.NIK ?? params.bmsNIK,
         monthName,

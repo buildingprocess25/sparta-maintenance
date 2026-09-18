@@ -44,6 +44,7 @@ import { IconChevronRight, IconKey, IconLogout } from "@tabler/icons-react";
 import { logoutAction } from "@/app/dashboard/action";
 import { ChangePasswordDialog } from "@/components/change-password-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { BrandLogo } from "@/components/brand-logo";
 
 const data = {
     user: {
@@ -224,38 +225,7 @@ export function AppSidebar({
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <div className={cn("flex w-full justify-center")}>
-                            {/* Logo Container with Glass Effect */}
-                            <div className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/5 bg-black/10 px-3 py-1.5 backdrop-blur-sm md:gap-4 md:px-4 md:py-2">
-                                <Image
-                                    src="/assets/Alfamart-Emblem.png"
-                                    alt="Alfamart"
-                                    width={120}
-                                    height={120}
-                                    className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
-                                    priority
-                                />
-
-                                <div className="h-4 md:h-5 w-px bg-white/20 rounded-full" />
-
-                                <div className="flex items-center gap-2">
-                                    <Image
-                                        src="/assets/Building-Logo.png"
-                                        alt="SPARTA Logo"
-                                        width={60}
-                                        height={60}
-                                        className="h-6 w-auto md:h-8 object-contain drop-shadow-md"
-                                        priority
-                                    />
-                                    <div className="flex flex-col items-end leading-none text-white">
-                                        <span className="font-bold text-sm tracking-wider">
-                                            SPARTA
-                                        </span>
-                                        <span className="text-[10px] opacity-80 font-light">
-                                            Maintenance
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
+                            <BrandLogo />
                         </div>
                     </SidebarMenuItem>
                 </SidebarMenu>
