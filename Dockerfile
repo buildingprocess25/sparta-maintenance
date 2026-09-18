@@ -10,6 +10,7 @@ FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 RUN npm install
+RUN npm install lightningcss-linux-x64-gnu --no-save
 RUN npx prisma generate
 
 FROM base AS builder
