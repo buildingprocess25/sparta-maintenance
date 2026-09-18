@@ -26,7 +26,14 @@ BMS memiliki saldo operasional sebesar Rp 1.000.000 untuk pekerjaan item rusak d
 - BMS tidak bisa membuat laporan baru jika masih ada laporan aktif miliknya
   yang belum selesai. Agar laporan lama yang tidak relevan tidak mengunci
   pengguna, blocker hanya menghitung laporan pada periode saldo aktif atau
-  laporan tanpa periode yang dibuat setelah cutover 2026-09-03 Asia/Jakarta.
+  laporan tanpa periode yang dibuat setelah cutover blocker aktif 2026-09-11
+  Asia/Jakarta.
+
+- Saat go-live, laporan selesai yang belum masuk PJUM dalam cutoff 3 bulan
+  ke belakang dari tanggal referensi go-live 2026-09-18 Asia/Jakarta
+  ditandai sebagai laporan menggantung awal jika memiliki realisasi positif.
+  Laporan tersebut langsung mengurangi saldo awal dan wajib ikut PJUM
+  berikutnya.
 
 - Jika PJUM approved BNM, periode baru memakai saldo dasar Rp 1.000.000
   dikurangi realisasi laporan menggantung dari periode sebelumnya.
@@ -152,12 +159,24 @@ atau request tidak normal sebelum konfirmasi approval.
   berubah saat schema dipasang.
 - Aturan carryover berlaku untuk PJUM yang disetujui setelah cutover. PJUM yang
   sudah approved tidak dihitung ulang secara retroaktif.
+- Inisialisasi go-live memakai dua cutoff eksplisit:
+  - `2026-06-18T00:00:00+07:00` untuk laporan selesai belum PJUM yang menjadi
+    laporan menggantung awal.
+  - `2026-09-11T00:00:00+07:00` untuk laporan aktif tanpa periode yang boleh
+    mengunci BMS membuat laporan baru.
 - Periode `ACTIVE` tetap berjalan. Periode `LOCKED_PJUM` memakai aturan baru
   ketika PJUM pending tersebut disetujui.
+- Script `init:bms-balance` default berjalan sebagai dry-run dan tidak menulis
+  database. Tambahkan `--execute` hanya setelah hasil audit dan dry-run
+  disetujui.
 - Jalankan `npm run audit:bms-balance-cutover -- --strict` sebelum deploy kode.
   Audit bersifat read-only dan memeriksa periode ganda, BMS tanpa periode,
-  mismatch locked/pending PJUM, serta laporan berjalan tanpa periode.
+  mismatch locked/pending PJUM, laporan berjalan tanpa periode, serta kandidat
+  laporan menggantung awal.
 - Hentikan approval BNM sementara ketika migration dan audit cutover dilakukan.
+- Jika masih ada PJUM `PENDING_APPROVAL`, selesaikan dulu sebelum execute
+  inisialisasi laporan menggantung awal atau jalankan ulang dry-run setelah
+  PJUM pending selesai.
 - Gunakan `prisma migrate deploy`; jangan gunakan `prisma db push` pada
   production.
 
