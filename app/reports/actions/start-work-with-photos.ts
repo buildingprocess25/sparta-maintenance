@@ -9,6 +9,7 @@ import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getStartWorkEvidenceError } from "@/lib/start-work-evidence";
+import { isBmsLockedByPjum } from "@/lib/balance";
 import type { MaterialStoreJson } from "@/types/report";
 import type { MaterialEstimationJson } from "@/types/report";
 
@@ -56,6 +57,14 @@ export async function startWorkWithPhotos(
 
     if (report.createdByNIK !== user.NIK) {
       return { error: "Anda tidak memiliki akses ke laporan ini" };
+    }
+
+    const isLocked = await isBmsLockedByPjum(user.NIK);
+    if (isLocked) {
+      return {
+        error:
+          "Saldo operasional Anda sedang terkunci karena ada PJUM yang menunggu persetujuan BNM Manager. Harap tunggu hingga PJUM diproses sebelum memulai pekerjaan baru.",
+      };
     }
 
     if (report.status !== ReportStatus.ESTIMATION_APPROVED) {
