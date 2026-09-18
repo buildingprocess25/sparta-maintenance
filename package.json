@@ -96,5 +96,8 @@
     "effect": "3.20.0",
     "@types/react": "19.2.17",
     "@types/react-dom": "19.2.3"
+  },
+  "optionalDependencies": {
+    "lightningcss-linux-x64-gnu": "^1.33.0"
   }
 }
