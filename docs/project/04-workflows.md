@@ -93,6 +93,23 @@ Aturan biaya:
 - Laporan Rp 0 tetapi memiliki item pekerjaan BMS tetap wajib PJUM.
 - UI tidak boleh memberi label misleading "belum PJUM" untuk laporan yang memang tidak wajib PJUM.
 
+PDF recap PJUM:
+
+- Halaman recap utama tetap menampilkan table gabungan semua laporan dan total gabungan.
+- Jika semua laporan berasal dari satu kategori tipe toko, recap tetap satu table seperti format sebelumnya.
+- Jika laporan mencakup lebih dari satu kategori, table utama diberi konteks sebagai rekap gabungan dan rincian berdasarkan tipe toko ditampilkan setelah section tanda tangan `Dibuat Oleh` / `Disetujui Oleh`.
+- Breakdown dimulai di sisa ruang halaman yang sama; jika tidak muat, renderer PDF melanjutkan ke halaman berikutnya.
+- Kategori breakdown berurutan: `Alfamart Reguler`, `Alfamart Franchise`, `Lawson`, dan `Alfamart - Tipe Toko Belum Diketahui`.
+
+Validasi QR:
+
+- Saat BNM Manager menyetujui PJUM, sistem membuat token validasi publik dan kode validasi manusia.
+- PDF final PJUM memuat QR validator dan kode validasi di setiap halaman.
+- Scan QR membuka halaman publik `/v/pjum/[token]` tanpa login.
+- Halaman validator menampilkan status dokumen, metadata PJUM, nomor laporan, dan tombol PDF resmi.
+- Tombol PDF resmi mengarah ke file Google Drive perusahaan; akses file tetap mengikuti permission Drive.
+- Finance wajib mencocokkan metadata halaman validator dengan dokumen cetak sebelum menerima PJUM.
+
 ## Preventive
 
 - Target: setiap toko checklist preventif minimal satu kali per triwulan.

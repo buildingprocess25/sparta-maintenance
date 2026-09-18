@@ -430,9 +430,11 @@ model PjumExport {
   // Rejection notes
   rejectionNotes String?
 
-  // PDF snapshot path and final archival URL
+  // PDF snapshot path, final archival URL, and public verification identity
   pjumPdfPath       String?
   pjumFinalDriveUrl String?
+  verificationToken String? @unique
+  verificationCode  String? @unique
 
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)

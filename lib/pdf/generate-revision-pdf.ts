@@ -6,6 +6,7 @@ import {
     View,
     StyleSheet,
     renderToBuffer,
+    Image,
 } from "@react-pdf/renderer";
 import React from "react";
 import type { MaterialEstimationJson, ReportItemJson } from "@/types/report";
@@ -25,6 +26,15 @@ export type RevisionPdfData = {
     revisedByName: string;
     revisedByNIK: string;
     revisedAt: string; // ISO string
+    approval: {
+        reportStatus: string;
+        stamps: Array<{
+            name: string;
+            role: string;
+            date: string;
+        }>;
+    };
+    verification?: { qrDataUrl: string; displayCode: string };
     alasanIntervensi: string;
     items: ReportItemJson[];
     estimations: MaterialEstimationJson[];
@@ -65,7 +75,7 @@ const s = StyleSheet.create({
         fontFamily: "Helvetica",
         fontSize: 9,
         paddingTop: 32,
-        paddingBottom: 40,
+        paddingBottom: 112,
         paddingHorizontal: 36,
         color: "#111827",
     },
@@ -260,17 +270,40 @@ const s = StyleSheet.create({
         borderTop: "1px solid #e5e7eb",
         paddingTop: 6,
         flexDirection: "row",
-        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    footerLeft: {
+        flex: 1,
+        flexDirection: "column",
+        gap: 2,
+    },
+    footerRight: {
+        width: 80,
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
     },
     footerText: {
         fontSize: 7,
         color: "#9ca3af",
         fontStyle: "italic",
     },
-    footerTextRight: {
-        fontSize: 7,
-        color: "#9ca3af",
-        fontStyle: "italic",
+    footerQrLabel: {
+        fontSize: 5.5,
+        color: "#6b7280",
+        textAlign: "center",
+        width: 72,
+    },
+    footerQrImage: {
+        width: 56,
+        height: 56,
+    },
+    footerQrCode: {
+        fontSize: 5.5,
+        fontFamily: "Helvetica-Bold",
+        color: "#374151",
+        textAlign: "center",
+        width: 72,
     },
 });
 
@@ -749,20 +782,44 @@ function buildRevisionDocument(data: RevisionPdfData) {
                 View,
                 { style: s.footer, fixed: true },
                 React.createElement(
-                    Text,
-                    { style: s.footerText },
-                    `No. Laporan: ${data.reportNumber} — Dokumen ini di-generate otomatis oleh sistem SPARTA Maintenance`,
+                    View,
+                    { style: s.footerLeft },
+                    React.createElement(
+                        Text,
+                        { style: s.footerText },
+                        `No. Laporan: ${data.reportNumber} — Dokumen ini di-generate otomatis oleh sistem SPARTA Maintenance`,
+                    ),
+                    React.createElement(Text, {
+                        style: s.footerText,
+                        render: ({
+                            pageNumber,
+                            totalPages,
+                        }: {
+                            pageNumber: number;
+                            totalPages: number;
+                        }) => `Halaman ${pageNumber} dari ${totalPages}`,
+                    }),
                 ),
-                React.createElement(Text, {
-                    style: s.footerTextRight,
-                    render: ({
-                        pageNumber,
-                        totalPages,
-                    }: {
-                        pageNumber: number;
-                        totalPages: number;
-                    }) => `Halaman ${pageNumber} dari ${totalPages}`,
-                }),
+                data.verification
+                    ? React.createElement(
+                          View,
+                          { style: s.footerRight },
+                          React.createElement(
+                              Text,
+                              { style: s.footerQrLabel },
+                              "Validasi dokumen SPARTA",
+                          ),
+                          React.createElement(Image, {
+                              src: data.verification.qrDataUrl,
+                              style: s.footerQrImage,
+                          }),
+                          React.createElement(
+                              Text,
+                              { style: s.footerQrCode },
+                              data.verification.displayCode,
+                          ),
+                      )
+                    : null,
             ),
         ),
     );

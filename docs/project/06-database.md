@@ -178,6 +178,13 @@ Laporan Rp 0 tidak selalu wajib PJUM. Aturan UI saat ini:
 penutupan periode lama, pembuatan periode baru, expiry carryover lama, dan
 pemindahan carryover baru dilakukan dalam satu transaksi database.
 
+Klasifikasi kategori toko untuk recap/breakdown PJUM berasal dari metadata toko:
+
+- `Report.storeCode` dicocokkan ke `Store.code`.
+- `Store.brand = LAWSON` diklasifikasikan sebagai `Lawson`.
+- Toko Alfamart diklasifikasikan sebagai `Alfamart Reguler` atau `Alfamart Franchise` dari `Store.ownershipType`.
+- Metadata `UNKNOWN`, kosong, tidak ditemukan, atau tidak dikenali ditampilkan sebagai `Alfamart - Tipe Toko Belum Diketahui` dan tidak boleh ditebak sebagai reguler.
+
 ## Soft Delete User
 
 `User` memakai soft delete:

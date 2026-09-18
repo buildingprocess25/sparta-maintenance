@@ -364,6 +364,7 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                                 onValueChange={(value) =>
                                     setIsActive(value === "active")
                                 }
+                                disabled={isEdit}
                             >
                                 <SelectTrigger id="store-status">
                                     <SelectValue placeholder="Pilih status toko" />
@@ -377,6 +378,11 @@ export function StoreFormDialog({ branchNames, allBrands, areaNamesByBranch, edi
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+                            {isEdit && (
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                    Perubahan status aktif/nonaktif hanya dapat dilakukan oleh Head Office.
+                                </p>
+                            )}
                         </div>
 
                         <DialogFooter>

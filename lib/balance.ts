@@ -392,6 +392,8 @@ export async function approvePjumAndTransitionBmsBalance(
         approvedByNIK: string;
         approvedAt: Date;
         pjumFinalDriveUrl: string;
+        verificationToken: string;
+        verificationCode: string;
     },
 ) {
     const initialBalanceVal = await getBmsInitialBalance();
@@ -411,6 +413,8 @@ export async function approvePjumAndTransitionBmsBalance(
                 approvedByNIK: pjumExport.approvedByNIK,
                 approvedAt: pjumExport.approvedAt,
                 pjumFinalDriveUrl: pjumExport.pjumFinalDriveUrl,
+                verificationToken: pjumExport.verificationToken,
+                verificationCode: pjumExport.verificationCode,
             },
         });
         if (approvalResult.count !== 1) {

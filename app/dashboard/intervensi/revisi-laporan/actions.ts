@@ -279,6 +279,10 @@ export async function applyRealisasiRevision(
             include: {
                 createdBy: { select: { NIK: true, name: true } },
                 store: { select: { name: true, code: true } },
+                activities: {
+                    orderBy: { createdAt: "asc" },
+                    include: { actor: { select: { name: true, role: true } } },
+                },
             },
         });
 
@@ -302,6 +306,27 @@ export async function applyRealisasiRevision(
         const estimations = (report.estimations ??
             []) as unknown as MaterialEstimationJson[];
 
+        const stampActions = [
+            "ESTIMATION_APPROVED",
+            "WORK_APPROVED",
+            "FINAL_APPROVED_BNM",
+        ];
+        const stamps = report.activities
+            .filter((l) => stampActions.includes(l.action))
+            .map((log) => ({
+                name: log.actor?.name ?? "-",
+                role: log.actor?.role ?? "-",
+                date: log.createdAt.toLocaleDateString("id-ID", {
+                    timeZone: "Asia/Jakarta",
+                    weekday: "long",
+                    year: "numeric",
+                    month: "long",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                }),
+            }));
+
         // ── 4. Generate revision PDF ─────────────────────────────────────────
         const revisionBuffer = await generateRevisionPdf({
             reportNumber: report.reportNumber,
@@ -318,6 +343,10 @@ export async function applyRealisasiRevision(
             estimations,
             totalReal: Number(report.totalReal ?? 0),
             finishedAt: report.finishedAt?.toISOString(),
+            approval: {
+                reportStatus: report.status,
+                stamps,
+            },
         });
 
         // ── 5. Jika laporan ada di PJUM → buat halaman addendum ──────────────

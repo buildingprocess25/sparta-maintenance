@@ -62,6 +62,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
                     "Nama Toko": s.name,
                     Brand: s.brand ?? "-",
                     Cabang: s.branchName,
+                    "Tipe Toko": s.ownershipType === "UNKNOWN" ? "Tidak Diketahui" : s.ownershipType === "REGULAR" ? "Regular" : s.ownershipType === "FRANCHISE" ? "Franchise" : "-",
                     Status: s.isActive ? "Aktif" : "Nonaktif",
                 }));
 
@@ -71,6 +72,7 @@ export function ExportStoresDialog({ branches }: { branches: string[] }) {
                     { wch: 35 },
                     { wch: 12 },
                     { wch: 25 },
+                    { wch: 15 },
                     { wch: 10 },
                 ];
 
