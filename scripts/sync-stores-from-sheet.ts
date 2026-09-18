@@ -13,11 +13,15 @@ export {
 async function main() {
     const result = await syncStoresFromSheet();
 
+    const fieldBreakdown = Object.entries(result.updatedFields)
+        .map(([field, count]) => `${field}: ${count}`)
+        .join(", ");
+
     console.log(
         [
             `Sinkronisasi selesai: ${result.rows} baris`,
             `${result.created} toko baru`,
-            `${result.updated} toko diperbarui`,
+            `${result.updated} toko diperbarui${result.updated > 0 && fieldBreakdown ? ` (${fieldBreakdown})` : ""}`,
             `${result.unchanged} toko sudah sesuai`,
             `${result.skipped} toko DB tidak ada di sheet dan dilewati`,
             `${result.invalidOwnershipValues} ownership invalid`,

@@ -36,8 +36,8 @@ import {
     PaginationPrevious,
     PaginationEllipsis,
 } from "@/components/ui/pagination";
-import { Store, Pencil, Search, X } from "lucide-react";
-import { StoreFormDialog } from "./store-form-dialog";
+import { Store, Pencil, Search, X, Plus, Upload } from "lucide-react";
+import { toast } from "sonner";
 import { ImportStoreDialog } from "./import-store-dialog";
 import type { AreaNamesByBranch } from "../store-area-options";
 import { getWritableBranchNames } from "@/lib/branch-merges";
@@ -79,6 +79,7 @@ export function StoreTable({
     const currentSearchParams = useSearchParams();
 
     const writableBranchNames = getWritableBranchNames(branchNames);
+    const hasWritableBranch = writableBranchNames.length > 0;
 
     // Local state for search
     const [searchTerm, setSearchTerm] = useState(searchParams.sSearch || "");
@@ -190,12 +191,27 @@ export function StoreTable({
                     <p className="text-sm text-muted-foreground hidden lg:block">
                         {totalCount} toko ditemukan
                     </p>
-                    <ImportStoreDialog branchNames={writableBranchNames} />
-                    <StoreFormDialog
-                        branchNames={writableBranchNames}
-                        allBrands={allBrands}
-                        areaNamesByBranch={areaNamesByBranch}
-                    />
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={!hasWritableBranch}
+                        title={hasWritableBranch ? undefined : "Tidak ada cabang utama yang dapat dikelola"}
+                        onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                    >
+                        <Upload className="h-4 w-4" />
+                        Import
+                    </Button>
+                    <Button
+                        size="sm"
+                        className="gap-1.5"
+                        disabled={!hasWritableBranch}
+                        title={hasWritableBranch ? undefined : "Tidak ada cabang utama yang dapat dikelola"}
+                        onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                    >
+                        <Plus className="h-4 w-4" />
+                        Tambah Toko
+                    </Button>
                 </div>
             </div>
 
@@ -257,23 +273,15 @@ export function StoreTable({
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <StoreFormDialog
-                                                branchNames={writableBranchNames}
-                                                allBrands={allBrands}
-                                                areaNamesByBranch={areaNamesByBranch}
-                                                editStore={store}
-                                                trigger={
-                                                    <Button
-                                                        size="icon"
-                                                        variant="ghost"
-                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
-                                                    >
-                                                        <Pencil className="h-4 w-4" />
-                                                    </Button>
-                                                }
-                                            />
-                                        </div>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                                                title="Akses Dibatasi"
+                                                onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk melakukan perubahan data toko." })}
+                                            >
+                                                <Pencil className="h-4 w-4" />
+                                            </Button>
                                     </TableCell>
                                 </TableRow>
                             ))}

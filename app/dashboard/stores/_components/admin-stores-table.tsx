@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Search, Pencil, Trash2, Plus, Upload } from "lucide-react";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -43,7 +43,7 @@ type StoreItem = Awaited<ReturnType<typeof getAdminStores>>["stores"][0];
 const OWNERSHIP_FILTER_OPTIONS = [
     { value: "REGULAR", label: "Regular" },
     { value: "FRANCHISE", label: "Franchise" },
-    { value: "UNKNOWN", label: "-" },
+    { value: "UNKNOWN", label: "Tidak Diketahui" },
 ] as const;
 
 function formatBrandLabel(brand: string | null) {
@@ -55,7 +55,7 @@ function formatOwnershipLabel(ownershipType: StoreItem["ownershipType"]) {
     const labels: Record<StoreItem["ownershipType"], string> = {
         REGULAR: "Regular",
         FRANCHISE: "Franchise",
-        UNKNOWN: "-",
+        UNKNOWN: "Tidak Diketahui",
     };
     return labels[ownershipType];
 }
@@ -132,6 +132,7 @@ export function AdminStoresTable({
     allBrands,
     areaNamesByBranch,
     canManage = true,
+    userRole,
     initialSearch,
     initialBranchName,
     initialAreaName,
@@ -146,6 +147,7 @@ export function AdminStoresTable({
     allBrands?: string[];
     areaNamesByBranch?: Record<string, string[]>;
     canManage?: boolean;
+    userRole?: string;
     initialSearch?: string;
     initialBranchName?: string;
     initialAreaName?: string;
@@ -440,12 +442,36 @@ export function AdminStoresTable({
 
                 {canManage ? (
                     <div className="flex items-center gap-2 ml-auto">
-                        <ImportStoresDialog branches={branches} />
-                        <AdminStoreFormDialog 
-                            allBranchNames={branches} 
-                            allBrands={allBrands}
-                            areaNamesByBranch={areaNamesByBranch}
-                        />
+                        {userRole === "BMC" ? (
+                            <>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="gap-1.5"
+                                    onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    Import
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    className="gap-1.5"
+                                    onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk menambahkan data toko baru." })}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Tambah Toko
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <ImportStoresDialog branches={branches} />
+                                <AdminStoreFormDialog 
+                                    allBranchNames={branches} 
+                                    allBrands={allBrands}
+                                    areaNamesByBranch={areaNamesByBranch}
+                                />
+                            </>
+                        )}
                     </div>
                 ) : null}
             </div>
@@ -538,27 +564,41 @@ export function AdminStoresTable({
                                         {canManage ? (
                                             <TableCell className="text-center">
                                                 <div className="flex items-center justify-center gap-1">
-                                                    <AdminStoreFormDialog
-                                                        allBranchNames={branches}
-                                                        allBrands={allBrands}
-                                                        areaNamesByBranch={areaNamesByBranch}
-                                                        editStore={store}
-                                                        trigger={
-                                                            <Button
-                                                                size="icon"
-                                                                variant="ghost"
-                                                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                                                            >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        }
-                                                    />
-                                                    <DeleteStoreDialog
-                                                        store={store}
-                                                        onDeleted={
-                                                            handleDeleted
-                                                        }
-                                                    />
+                                                    {userRole === "BMC" ? (
+                                                        <Button
+                                                            size="icon"
+                                                            variant="ghost"
+                                                            className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                            title="Akses Dibatasi"
+                                                            onClick={() => toast.info("Akses Dibatasi", { description: "Silakan hubungi tim Head Office (Admin) untuk melakukan perubahan data toko." })}
+                                                        >
+                                                            <Pencil className="h-3.5 w-3.5" />
+                                                        </Button>
+                                                    ) : (
+                                                        <>
+                                                            <AdminStoreFormDialog
+                                                                allBranchNames={branches}
+                                                                allBrands={allBrands}
+                                                                areaNamesByBranch={areaNamesByBranch}
+                                                                editStore={store}
+                                                                trigger={
+                                                                    <Button
+                                                                        size="icon"
+                                                                        variant="ghost"
+                                                                        className="h-7 w-7 text-muted-foreground hover:text-foreground"
+                                                                    >
+                                                                        <Pencil className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                }
+                                                            />
+                                                            <DeleteStoreDialog
+                                                                store={store}
+                                                                onDeleted={
+                                                                    handleDeleted
+                                                                }
+                                                            />
+                                                        </>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         ) : null}
