@@ -9,7 +9,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-c
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
-RUN npm ci
+RUN npm install
 RUN npx prisma generate
 
 FROM base AS builder
