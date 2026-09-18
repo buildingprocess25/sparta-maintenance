@@ -9,8 +9,7 @@ RUN apt-get update -y && apt-get install -y --no-install-recommends openssl ca-c
 FROM base AS deps
 COPY package.json package-lock.json* ./
 COPY prisma ./prisma
-RUN npm install
-RUN npm install lightningcss-linux-x64-gnu --no-save
+RUN npm ci
 RUN npx prisma generate
 
 FROM base AS builder

@@ -1,20 +1,24 @@
-# Fix Docker Build for Tailwind/LightningCSS Native Module
+# Fix Docker Build: Restore lightningcss Linux Binary in package-lock.json
 
 ## Scope
 
-Fix GitHub Actions Docker build failing due to missing `lightningcss` Linux native binary. The `package-lock.json` was generated on Windows so `lightningcss-linux-x64-gnu` was never recorded in the lockfile, causing the build to fail inside a Linux container.
+Restore the missing `lightningcss-linux-x64-gnu` and `lightningcss-linux-x64-musl` entries in `package-lock.json` that were stripped during the merge of `feat/bms-balance`. Also declare `lightningcss-linux-x64-gnu` as an `optionalDependency` in `package.json` to prevent future regressions. The `Dockerfile` is restored to its original state (`npm ci`).
 
 ## Context and Sources
 
-GitHub Actions build failed with `Cannot find module '../lightningcss.linux-x64-gnu.node'` during `npm run build` (Next.js 16 Turbopack + Tailwind CSS v4). Root cause: `lightningcss` declares its platform-specific binaries as `optionalDependencies`; npm on Windows skips the Linux ones and never records them in `package-lock.json`, so even `npm install` inside Linux Docker re-uses the lockfile and skips the Linux binary.
+Root cause: when `feat/bms-balance` was merged into `main`, the `package-lock.json` from that branch (generated on Windows) **overwrote** the `main` lockfile and removed the Linux-specific `lightningcss` binary entries (`lightningcss-linux-x64-gnu`, `lightningcss-linux-x64-musl`). These had been present in the `main` lockfile at commit `65c47d5`. Without them, Docker builds (running Linux) failed with `Cannot find module '../lightningcss.linux-x64-gnu.node'`.
+
+Confirmed by: `git show 65c47d5:package-lock.json | Select-String "lightningcss-linux-x64"` — entries were present. `git diff 65c47d5..6934d04 -- package-lock.json | Select-String "lightningcss-linux-x64"` — entries were deleted by the merge.
 
 ## Changed Files
 
-- `Dockerfile`: Changed `RUN npm ci` → `RUN npm install`, then added `RUN npm install lightningcss-linux-x64-gnu --no-save` to explicitly install the Linux x64 native binary.
+- `package.json`: Added `optionalDependencies` with `lightningcss-linux-x64-gnu` to prevent future regressions.
+- `package-lock.json`: Restored the missing Linux binary entries by running `npm install`.
+- `Dockerfile`: Reverted back to `npm ci` (correct for CI/Docker). All previous intermediate changes to Dockerfile are undone.
 
 ## Decisions
 
-The cleanest fix without altering `package.json` or regenerating `package-lock.json` is to explicitly install the Linux-specific optional native package inside the Docker build layer. `--no-save` ensures it doesn't touch any local files.
+The actual fix is restoring the lockfile entries. Adding `optionalDependencies` in `package.json` is a safeguard so future `npm install` runs on any platform will always record all platform binaries. `npm ci` is kept in Dockerfile as it is the correct, deterministic command for CI environments.
 
 ## Verification
 
