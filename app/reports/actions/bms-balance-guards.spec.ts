@@ -27,4 +27,32 @@ assert(
     "lock check must run before the status transition guard and update path",
 );
 
+const resubmitSource = readFileSync("app/reports/actions/resubmit.ts", "utf8");
+
+assert.match(
+    resubmitSource,
+    /import\s+\{[^}]*calculateBmsBalance[^}]*createNewBmsPeriod[^}]*getBmsActivePeriod[^}]*hasBmsRepairItems[^}]*\}\s+from\s+"@\/lib\/balance";/,
+    "resubmitReport must import BMS balance helpers",
+);
+assert.match(
+    resubmitSource,
+    /const\s+hasBalanceImpact\s*=\s*hasBmsRepairItems\(itemsJson\);/,
+    "resubmitReport must detect BMS repair items after rebuilding item JSON",
+);
+assert.match(
+    resubmitSource,
+    /const\s+availableForThisReport\s*=\s*balance\.availableBalance\s*\+\s*previousEstimation;/,
+    "resubmitReport must add the previous reserve back before validating revised estimation",
+);
+assert.match(
+    resubmitSource,
+    /if\s*\(\s*revisedEstimation\s*>\s*availableForThisReport\s*\)/,
+    "resubmitReport must validate revised estimation amount against report-adjusted available balance",
+);
+assert.match(
+    resubmitSource,
+    /balancePeriodId:\s*activePeriodId,/,
+    "resubmitReport must persist balancePeriodId when needed",
+);
+
 console.log("BMS balance server guard assertions passed");

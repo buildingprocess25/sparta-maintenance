@@ -14,6 +14,12 @@ import { revalidatePath } from "next/cache";
 import type { DraftData } from "./types";
 import { createResubmitDataSchema } from "./types";
 import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
+import {
+    calculateBmsBalance,
+    createNewBmsPeriod,
+    getBmsActivePeriod,
+    hasBmsRepairItems,
+} from "@/lib/balance";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import type { ReportItemJson } from "@/types/report";
 
@@ -30,7 +36,13 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         const report = await prisma.report.findUnique({
             where: { reportNumber },
-            select: { createdByNIK: true, status: true, items: true },
+            select: {
+                createdByNIK: true,
+                status: true,
+                items: true,
+                totalEstimation: true,
+                balancePeriodId: true,
+            },
         });
 
         if (!report) {
@@ -72,6 +84,47 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
 
         const itemsJson = buildItemsJson(data);
         const estimationsJson = buildEstimationsJson(data);
+        const hasBalanceImpact = hasBmsRepairItems(itemsJson);
+        let activePeriodId = report.balancePeriodId;
+
+        if (
+            hasBalanceImpact &&
+            currentStatus === "ESTIMATION_REJECTED_REVISION"
+        ) {
+            const balance = await calculateBmsBalance(user.NIK);
+            if (balance.isLocked) {
+                return {
+                    error:
+                        "Saldo operasional Anda sedang terkunci karena ada PJUM yang menunggu persetujuan BNM. Harap tunggu hingga PJUM diproses.",
+                };
+            }
+
+            const previousEstimation = Number(report.totalEstimation ?? 0);
+            const revisedEstimation = data.totalEstimation || 0;
+            const availableForThisReport =
+                balance.availableBalance + previousEstimation;
+
+            if (revisedEstimation > availableForThisReport) {
+                const formatter = new Intl.NumberFormat("id-ID", {
+                    style: "currency",
+                    currency: "IDR",
+                    minimumFractionDigits: 0,
+                });
+                return {
+                    error: `Estimasi biaya ${formatter.format(revisedEstimation)} melebihi sisa saldo operasional Anda sebesar ${formatter.format(availableForThisReport)}. Harap sesuaikan estimasi atau koordinasikan dengan BMC.`,
+                };
+            }
+
+            if (!activePeriodId) {
+                const period = await getBmsActivePeriod(user.NIK);
+                if (!period) {
+                    const newPeriod = await createNewBmsPeriod(user.NIK);
+                    activePeriodId = newPeriod.id;
+                } else {
+                    activePeriodId = period.id;
+                }
+            }
+        }
 
         const revisedItems = itemsJson as unknown as ReportItemJson[];
         const newStatus =
@@ -97,6 +150,7 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
                     status: newStatus,
                     items: itemsJson,
                     estimations: estimationsJson,
+                    balancePeriodId: activePeriodId,
                 },
             });
 
