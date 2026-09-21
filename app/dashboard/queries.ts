@@ -1838,7 +1838,7 @@ export async function getAdminCommandCenterData(
 
         let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
         if (branchScope) {
-            visibleBranchNames = visibleBranchNames.filter(b => branchScope.includes(b));
+            visibleBranchNames = new Set([...visibleBranchNames].filter(b => branchScope.includes(b)));
         }
 
         const [kpi, branches, trends, stuckReports] =
