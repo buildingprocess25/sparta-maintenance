@@ -206,10 +206,13 @@ export function hasBmsHandledItems(items: unknown): boolean {
 }
 
 export function requiresPjum(totalReal: unknown, items: unknown): boolean {
+    return true;
+    /*
     return (
         resolveReportTotalRealisasi(totalReal, items) > 0 ||
         hasBmsHandledItems(items)
     );
+    */
 }
 
 export function resolveReportTotalRealisasi(

@@ -59,7 +59,7 @@ const result = classifyPjumApprovalReports({
             reportNumber: "NO-PJUM",
             status: "COMPLETED",
             finishedAt: new Date("2026-08-04T10:00:00.000Z"),
-            requiresPjum: false,
+            requiresPjum: true, // Diubah menjadi true
             pjumExportedAt: null,
             pjumHangingAt: null,
             pjumExpiredAt: null,
@@ -70,7 +70,7 @@ const result = classifyPjumApprovalReports({
     toEndExclusive,
 });
 
-assert.deepEqual(result.carryReportNumbers, ["E"]);
+assert.deepEqual(result.carryReportNumbers, ["E", "NO-PJUM"]);
 assert.deepEqual(result.expireReportNumbers, ["OLD-OMITTED"]);
 
 assert.equal(
