@@ -58,19 +58,23 @@ export async function getOmittedHangingReportsForPjum(input: {
             storeCode: true,
             finishedAt: true,
             totalReal: true,
+            items: true,
+            pjumHangingAt: true,
         },
         orderBy: { finishedAt: "asc" },
     });
 
-    return reports.map((report) => ({
-        reportNumber: report.reportNumber,
-        storeName: report.storeName,
-        storeCode: report.storeCode,
-        finishedAt: report.finishedAt,
-        realizedAmount: report.totalReal
-            ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
-            : 0,
-    }));
+    return reports
+        .filter((report) => report.pjumHangingAt !== null || requiresPjum(report.totalReal, report.items))
+        .map((report) => ({
+            reportNumber: report.reportNumber,
+            storeName: report.storeName,
+            storeCode: report.storeCode,
+            finishedAt: report.finishedAt,
+            realizedAmount: report.totalReal
+                ? new Prisma.Decimal(report.totalReal.toString()).toNumber()
+                : 0,
+        }));
 }
 
 export async function getIncludedHangingReportsForPjum(input: {
