@@ -26,9 +26,9 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
         case "BMS":
             return <BmsDashboard user={user} />;
         case "BMC":
-            return <BmcDashboard user={user} />;
+            return <BmcDashboard user={user} period={period} brand={brand} />;
         case "BNM_MANAGER":
-            return <BnmDashboard user={user} />;
+            return <BnmDashboard user={user} period={period} brand={brand} />;
         case "ADMIN":
             return <AdminNewDashboard user={user} period={period} brand={brand} />;
         default:

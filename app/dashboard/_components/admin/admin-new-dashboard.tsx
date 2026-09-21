@@ -79,7 +79,7 @@ function formatDate(date: Date): string {
     return formatJakartaDate(date);
 }
 
-function DashboardHeader({ kpi, brand }: { kpi: AdminKpiMetric; brand: StoreBrandFilter }) {
+export function DashboardHeader({ kpi, brand }: { kpi: AdminKpiMetric; brand: StoreBrandFilter }) {
     return (
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-2">
@@ -112,7 +112,7 @@ function DashboardHeader({ kpi, brand }: { kpi: AdminKpiMetric; brand: StoreBran
     );
 }
 
-function KpiGrid({
+export function KpiGrid({
     kpi,
     pjum,
     breakdown,
@@ -397,7 +397,7 @@ const SLA_STATUS_GUIDE = [
     },
 ] as const;
 
-function StatusDistributionKpis({
+export function StatusDistributionKpis({
     status,
     breakdown,
 }: {
@@ -564,7 +564,7 @@ function StatusDistributionKpis({
     );
 }
 
-function SlaStatusGuide() {
+export function SlaStatusGuide() {
     return (
         <aside className="rounded-lg border bg-background p-3">
             <div className="flex items-center justify-between gap-3">
@@ -661,7 +661,7 @@ function formatRelativeDate(date: Date): string {
     return formatDate(date);
 }
 
-function AdminRecentActivityCard({
+export function AdminRecentActivityCard({
     activities,
 }: {
     activities: ActivityItem[];
@@ -755,7 +755,7 @@ function AdminRecentActivityCard({
 
 // Removed TrendPeriodFilter definition
 
-function BranchPerformanceTable({
+export function BranchPerformanceTable({
     branches,
     brand,
 }: {
