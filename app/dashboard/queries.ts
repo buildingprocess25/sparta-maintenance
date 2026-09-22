@@ -1380,7 +1380,7 @@ async function getAdminKpiMetric(
     for (const row of statusCounts) {
         if (row.status === "ESTIMATION_REJECTED") rejectedReports += row._count._all;
         if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
-        if (["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+        if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
         if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
     }
 
@@ -1468,7 +1468,7 @@ async function getAdminBrandBreakdownKpi(
     
     for (const row of statusCounts) {
         if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
-        if (["PENDING_ESTIMATION", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+        if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
         if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
     }
 
