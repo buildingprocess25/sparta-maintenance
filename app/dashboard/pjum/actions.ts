@@ -32,6 +32,7 @@ export type PjumSummary = {
     total: number;
     pendingReview: number;
     approved: number;
+    rejected: number;
     reportCount: number;
     stalePending: number;
     pendingStaleDays: number;
@@ -266,6 +267,7 @@ export async function searchDashboardPjumCandidates(input: {
     bmsNIK: string;
     from: string;
     to: string;
+    editingPjumId?: string;
 }): Promise<DashboardPjumCandidateResult> {
     const user = await requireRole("BMC");
     const bmsNIK = input.bmsNIK.trim();
@@ -324,6 +326,17 @@ export async function searchDashboardPjumCandidates(input: {
         activePjums.flatMap((pjum) => pjum.reportNumbers),
     );
 
+    let editingReportNumbers = new Set<string>();
+    if (input.editingPjumId) {
+        const editingPjum = await prisma.pjumExport.findUnique({
+            where: { id: input.editingPjumId },
+            select: { reportNumbers: true },
+        });
+        if (editingPjum) {
+            editingReportNumbers = new Set(editingPjum.reportNumbers);
+        }
+    }
+
     let eligibleTotalRealisasi = 0;
     let eligibleCount = 0;
     let blockedCount = 0;
@@ -336,8 +349,9 @@ export async function searchDashboardPjumCandidates(input: {
         );
         const reportRequiresPjum = requiresPjum(report.totalReal, report.items);
         const isAlreadyInPjum =
-            Boolean(report.pjumExportedAt) ||
-            numbersInActivePjum.has(report.reportNumber);
+            !editingReportNumbers.has(report.reportNumber) &&
+            (Boolean(report.pjumExportedAt) ||
+                numbersInActivePjum.has(report.reportNumber));
             
         const isHangingReport = Boolean(
             report.pjumHangingAt &&
@@ -852,12 +866,17 @@ export async function getAdminPjum(
                     acc.approved += 1;
                 }
 
+                if (row.status === "REJECTED") {
+                    acc.rejected += 1;
+                }
+
                 return acc;
             },
             {
                 total: 0,
                 pendingReview: 0,
                 approved: 0,
+                rejected: 0,
                 reportCount: 0,
                 stalePending: 0,
                 pendingStaleDays: pjumPolicy.pendingStaleDays,
@@ -1088,3 +1107,330 @@ function isGoogleDriveNotFoundError(error: unknown) {
     );
 }
 
+export async function updateDashboardPjum(input: {
+    editingPjumId: string;
+    reportNumbers: string[];
+    bmsNIK: string;
+    from: string;
+    to: string;
+    weekNumber: number;
+    monthName: string;
+}): Promise<{ error: string | null; pjumExportId: string | null }> {
+    const correlationId = crypto.randomUUID();
+    const start = performance.now();
+
+    try {
+        const user = await requireRole("BMC");
+        await validateCSRF(await headers());
+
+        const bmsNIK = input.bmsNIK.trim();
+        const safeNumbers = Array.from(
+            new Set(input.reportNumbers.map((value) => value.trim())),
+        ).filter((value) => value.length > 0);
+
+        if (!bmsNIK) {
+            return { error: "BMS wajib dipilih", pjumExportId: null };
+        }
+
+        if (safeNumbers.length === 0) {
+            return {
+                error: "Pilih minimal 1 laporan valid untuk dibuat PJUM",
+                pjumExportId: null,
+            };
+        }
+
+        if (!Number.isInteger(input.weekNumber) || input.weekNumber < 1) {
+            return {
+                error: "Minggu ke harus diisi dengan angka valid",
+                pjumExportId: null,
+            };
+        }
+
+        const monthName = input.monthName.trim();
+        if (!monthName) {
+            return {
+                error: "Bulan wajib dipilih",
+                pjumExportId: null,
+            };
+        }
+
+        const bmsUser = await prisma.user.findUnique({
+            where: { NIK: bmsNIK },
+            select: { role: true, branchNames: true, deletedAt: true },
+        });
+        const hasBmsAccess =
+            bmsUser?.role === "BMS" &&
+            !bmsUser.deletedAt &&
+            bmsUser.branchNames.some((branchName) =>
+                user.branchNames.includes(branchName),
+            );
+
+        if (!hasBmsAccess) {
+            return {
+                error: "BMS tidak valid atau berada di luar scope cabang",
+                pjumExportId: null,
+            };
+        }
+        
+        const currentPjum = await prisma.pjumExport.findUnique({
+            where: { id: input.editingPjumId },
+        });
+        
+        if (!currentPjum || currentPjum.status !== "REJECTED") {
+            return {
+                error: "PJUM tidak valid atau tidak dalam status revisi",
+                pjumExportId: null,
+            };
+        }
+
+        const { fromDate, toDate, toEndOfDay } = parsePjumDateRange(input);
+        const reports = await getDashboardPjumReportsInRange({
+            bmsNIK,
+            branchNames: user.branchNames,
+            fromDate,
+            toDate: new Date(toEndOfDay.getTime() - 1),
+        });
+        const reportMap = new Map(
+            reports.map((report) => [report.reportNumber, report]),
+        );
+
+        const missingReport = safeNumbers.find(
+            (reportNumber) => !reportMap.has(reportNumber),
+        );
+        if (missingReport) {
+            return {
+                error: `Laporan ${missingReport} tidak ada dalam periode atau cabang BMC ini`,
+                pjumExportId: null,
+            };
+        }
+
+        const expiredSelectedReport = safeNumbers
+            .map((reportNumber) => reportMap.get(reportNumber))
+            .find((report) => report?.pjumExpiredAt);
+        if (expiredSelectedReport) {
+            return {
+                error: `Laporan ${expiredSelectedReport.reportNumber} sudah hangus dan tidak bisa masuk PJUM`,
+                pjumExportId: null,
+            };
+        }
+
+        const invalidReport = safeNumbers
+            .map((reportNumber) => reportMap.get(reportNumber))
+            .find(
+                (report) =>
+                    !report ||
+                    report.status !== "COMPLETED" ||
+                    !requiresPjum(report.totalReal, report.items) ||
+                    (report.pjumExportedAt && !currentPjum.reportNumbers.includes(report.reportNumber)),
+            );
+        if (invalidReport) {
+            return {
+                error:
+                    invalidReport.status !== "COMPLETED"
+                        ? `Laporan ${invalidReport.reportNumber} belum SELESAI`
+                        : !requiresPjum(
+                                invalidReport.totalReal,
+                                invalidReport.items,
+                            )
+                          ? `Laporan ${invalidReport.reportNumber} tidak memiliki biaya atau pekerjaan BMS yang perlu PJUM`
+                        : `Laporan ${invalidReport.reportNumber} sudah masuk PJUM`,
+                pjumExportId: null,
+            };
+        }
+
+        const activeExportWithSelectedReports = await prisma.pjumExport.findFirst(
+            {
+                where: {
+                    status: { in: ["PENDING_APPROVAL", "APPROVED"] },
+                    reportNumbers: { hasSome: safeNumbers },
+                    id: { not: input.editingPjumId },
+                },
+                select: { id: true, reportNumbers: true },
+            },
+        );
+
+        if (activeExportWithSelectedReports) {
+            const duplicateNumbers =
+                activeExportWithSelectedReports.reportNumbers.filter(
+                    (reportNumber) => safeNumbers.includes(reportNumber),
+                );
+            return {
+                error:
+                    duplicateNumbers.length > 0
+                        ? `Laporan ${duplicateNumbers.join(", ")} sudah masuk PJUM lain`
+                        : "Beberapa laporan sudah masuk PJUM lain",
+                pjumExportId: null,
+            };
+        }
+
+        const selectedReports = safeNumbers
+            .map((reportNumber) => reportMap.get(reportNumber))
+            .filter((report): report is DashboardPjumCandidate => !!report);
+            
+        const policyRows = reports.map((report) => {
+            const wasExportedInOtherPjum = report.pjumExportedAt && !currentPjum.reportNumbers.includes(report.reportNumber);
+            return {
+                reportNumber: report.reportNumber,
+                totalRealisasi: resolveReportTotalRealisasi(
+                    report.totalReal,
+                    report.items,
+                ),
+                isHangingReport: Boolean(
+                    report.pjumHangingAt &&
+                        !report.pjumExpiredAt &&
+                        !wasExportedInOtherPjum,
+                ),
+                isValid:
+                    report.status === "COMPLETED" &&
+                    requiresPjum(report.totalReal, report.items) &&
+                    !wasExportedInOtherPjum &&
+                    !report.pjumExpiredAt,
+            };
+        });
+        
+        const selectionPolicy = evaluatePjumSelectionPolicy({
+            rows: policyRows,
+            selectedReportNumbers: safeNumbers,
+        });
+
+        if (selectionPolicy.missingMandatoryHangingReportNumbers.length > 0) {
+            return {
+                error: `Laporan gantung ${selectionPolicy.missingMandatoryHangingReportNumbers.join(", ")} wajib masuk PJUM periode ini`,
+                pjumExportId: null,
+            };
+        }
+
+        if (selectionPolicy.exceedsLimit) {
+            return {
+                error: `Total nominal laporan yang akan di-PJUM-kan tidak boleh lebih dari Rp ${PJUM_SELECTION_LIMIT.toLocaleString("id-ID")}`,
+                pjumExportId: null,
+            };
+        }
+
+        const branchNames = new Set(selectedReports.map((row) => row.branchName));
+        if (branchNames.size !== 1) {
+            return {
+                error: "Laporan PJUM harus berasal dari satu cabang yang sama",
+                pjumExportId: null,
+            };
+        }
+        const branchName = selectedReports[0].branchName;
+
+        const areaNames = Array.from(
+            new Set(
+                selectedReports
+                    .map((row) => row.areaName)
+                    .filter((areaName): areaName is string =>
+                        Boolean(areaName),
+                    ),
+            ),
+        );
+
+        const activePeriod = await getBmsActivePeriod(bmsNIK);
+
+        // find reports to add and remove
+        const reportsToRemove = currentPjum.reportNumbers.filter((num) => !safeNumbers.includes(num));
+        const reportsToAdd = safeNumbers.filter((num) => !currentPjum.reportNumbers.includes(num));
+
+        const pjumExport = await prisma.$transaction(async (tx) => {
+            if (reportsToRemove.length > 0) {
+                await tx.report.updateMany({
+                    where: { reportNumber: { in: reportsToRemove } },
+                    data: { pjumExportedAt: null },
+                });
+            }
+
+            if (reportsToAdd.length > 0) {
+                const reportResult = await tx.report.updateMany({
+                    where: {
+                        reportNumber: { in: reportsToAdd },
+                        status: "COMPLETED",
+                        pjumExportedAt: null,
+                        pjumExpiredAt: null,
+                        branchName,
+                        createdByNIK: bmsNIK,
+                    },
+                    data: { pjumExportedAt: new Date() },
+                });
+
+                if (reportResult.count !== reportsToAdd.length) {
+                    throw new Error(
+                        "Data laporan tambahan berubah. Klik Cek Laporan lagi sebelum menyimpan PJUM",
+                    );
+                }
+            }
+            
+            const hangingReportNumbers = selectedReports
+                .filter(
+                    (report) =>
+                        report.pjumHangingAt &&
+                        !report.pjumExpiredAt &&
+                        (!report.pjumExportedAt || currentPjum.reportNumbers.includes(report.reportNumber)),
+                )
+                .map((report) => report.reportNumber);
+
+            if (hangingReportNumbers.length > 0 && activePeriod) {
+                await tx.report.updateMany({
+                    where: { reportNumber: { in: hangingReportNumbers } },
+                    data: { balancePeriodId: activePeriod.id },
+                });
+            }
+
+            return tx.pjumExport.update({
+                where: { id: input.editingPjumId },
+                data: {
+                    status: "PENDING_APPROVAL",
+                    bmsNIK,
+                    branchName,
+                    areaNames,
+                    weekNumber: input.weekNumber,
+                    monthName,
+                    fromDate,
+                    toDate,
+                    reportNumbers: safeNumbers,
+                },
+            });
+        });
+
+        await lockBmsPeriodForPjum(bmsNIK, pjumExport.id);
+
+        revalidatePath("/dashboard/pjum");
+        revalidatePath(`/dashboard/pjum/${pjumExport.id}`);
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard");
+        revalidatePath("/reports/pjum");
+
+        dispatchNotificationEvent({
+            type: "PJUM_CREATED",
+            actorNIK: user.NIK,
+            pjumExportId: pjumExport.id,
+        });
+
+        const durationMs = Math.round(performance.now() - start);
+        logger.info(
+            {
+                operation: "updateDashboardPjum",
+                correlationId,
+                durationMs,
+                pjumExportId: pjumExport.id,
+                bmsNIK,
+                branchName,
+                reportCount: safeNumbers.length,
+            },
+            "Updated dashboard PJUM (re-submitted after revision)",
+        );
+
+        return { error: null, pjumExportId: pjumExport.id };
+    } catch (error) {
+        const durationMs = Math.round(performance.now() - start);
+        logger.error(
+            { operation: "updateDashboardPjum", correlationId, durationMs },
+            "Failed",
+            error,
+        );
+        if (error instanceof Error && error.message.includes("Data laporan")) {
+            return { error: error.message, pjumExportId: null };
+        }
+        return { error: "Terjadi kesalahan saat menyimpan ulang PJUM", pjumExportId: null };
+    }
+}

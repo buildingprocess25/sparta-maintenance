@@ -35,6 +35,9 @@ import { cn } from "@/lib/utils";
 import { getPjumPolicySettings } from "@/lib/app-settings";
 import { PjumApprovalButton } from "./_components/pjum-approval-button";
 import { PjumCancelButton } from "./_components/pjum-cancel-button";
+import { PjumRevisionButton } from "./_components/pjum-revision-button";
+import { CreatePjumDialog } from "../_components/create-pjum-dialog";
+import { getDashboardPjumBmsUsers, type DashboardPjumBmsUser } from "../actions";
 import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import {
     getIncludedHangingReportsForPjum,
@@ -87,6 +90,11 @@ export default async function AdminPjumDetailPage({ params }: Props) {
         detail.includedHangingReports.length +
             detail.omittedHangingReports.length >
         0;
+
+    let bmsUsers: DashboardPjumBmsUser[] = [];
+    if (user.role === "BMC" && detail.pjum.status === "REJECTED") {
+        bmsUsers = await getDashboardPjumBmsUsers();
+    }
 
     return (
         <AdminDashboardShell
@@ -166,6 +174,28 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                 (report) => report.reportNumber,
                             )}
                         />
+                        {user.role === "BNM_MANAGER" && detail.pjum.status === "PENDING_APPROVAL" ? (
+                            <PjumRevisionButton pjumExportId={detail.pjum.id} />
+                        ) : null}
+                        {user.role === "BMC" && detail.pjum.status === "REJECTED" ? (
+                            <CreatePjumDialog 
+                                bmsUsers={bmsUsers} 
+                                editingPjum={{
+                                    id: detail.pjum.id,
+                                    bmsNIK: detail.pjum.bmsNIK,
+                                    from: detail.pjum.fromDate.toISOString(),
+                                    to: detail.pjum.toDate.toISOString(),
+                                    weekNumber: detail.pjum.weekNumber,
+                                    monthName: detail.pjum.monthName ?? "",
+                                    selectedReports: detail.reports.map((r) => r.reportNumber),
+                                }} 
+                                triggerButton={
+                                    <Button size="sm" className="gap-1.5 text-xs">
+                                        Mulai Revisi / Submit Ulang
+                                    </Button>
+                                }
+                            />
+                        ) : null}
                         {canCancelPjum ? (
                             <PjumCancelButton
                                 pjumExportId={detail.pjum.id}
@@ -188,7 +218,8 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                     items={[
                                         ["Cabang", detail.pjum.branchName],
                                         ["BMS", detail.bmsName],
-                                        ["NIK BMS", detail.pjum.bmsNIK],
+                                        ["Minggu", String(detail.pjum.weekNumber)],
+                                        ["Bulan", detail.pjum.monthName ?? "-"],
                                     ]}
                                 />
                                 <KeyValueGroup
@@ -234,6 +265,30 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                                 />
                             </div>
                         </section>
+
+                        {detail.pjum.status === "REJECTED" &&
+                        Array.isArray(detail.pjum.revisionHistory) &&
+                        detail.pjum.revisionHistory.length > 0 ? (
+                            <section className="rounded-lg border border-orange-200 bg-orange-50/60">
+                                <div className="border-b border-orange-200 px-4 py-3">
+                                    <h2 className="flex items-center gap-2 text-sm font-semibold text-orange-900">
+                                        <AlertTriangle className="h-4 w-4" />
+                                        Riwayat Revisi
+                                    </h2>
+                                </div>
+                                <div className="divide-y divide-orange-200 p-4">
+                                    {(detail.pjum.revisionHistory as any[]).map((rev, i) => (
+                                        <div key={i} className="py-3 first:pt-0 last:pb-0">
+                                            <div className="flex justify-between items-center text-xs text-orange-800 mb-1.5">
+                                                <span className="font-semibold">{rev.actorName}</span>
+                                                <span>{formatDateTime(rev.date)}</span>
+                                            </div>
+                                            <p className="text-sm text-orange-950 whitespace-pre-wrap">{rev.note}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        ) : null}
 
                         {detail.pjum.status === "PENDING_APPROVAL" &&
                         hasHangingReviewInfo ? (
@@ -425,6 +480,7 @@ async function getPjumDetail(id: string) {
             bmsNIK: true,
             branchName: true,
             weekNumber: true,
+            monthName: true,
             fromDate: true,
             toDate: true,
             reportNumbers: true,
@@ -432,6 +488,7 @@ async function getPjumDetail(id: string) {
             approvedByNIK: true,
             approvedAt: true,
             pjumFinalDriveUrl: true,
+            revisionHistory: true,
             createdAt: true,
         },
     });

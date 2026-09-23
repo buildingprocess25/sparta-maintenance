@@ -696,15 +696,93 @@ export async function approvePjumExport(input: {
 }
 
 /**
- * Reject flow is temporarily disabled per business request.
+ * Manager requests a revision (rejects PJUM).
+ * PJUM returns to BMC for re-submission.
  */
 export async function rejectPjumExport(input: {
     pjumExportId: string;
     notes: string;
 }): Promise<{ error: string | null }> {
-    logger.warn(
-        { operation: "rejectPjumExport", pjumExportId: input.pjumExportId },
-        "Reject PJUM is disabled",
-    );
-    return { error: "Fitur penolakan PJUM sementara dinonaktifkan" };
+    const startTime = Date.now();
+    try {
+        const user = await requireRole("BNM_MANAGER");
+        await validateCSRF(await headers());
+
+        const pjumExportId = input.pjumExportId;
+        const notes = input.notes.trim();
+
+        if (!notes) {
+            return { error: "Alasan revisi wajib diisi" };
+        }
+
+        const pjumExport = await prisma.pjumExport.findUnique({
+            where: { id: pjumExportId },
+            select: {
+                id: true,
+                branchName: true,
+                status: true,
+                bmsNIK: true,
+                revisionHistory: true,
+            },
+        });
+
+        if (!pjumExport) {
+            return { error: "PJUM tidak ditemukan" };
+        }
+        if (!user.branchNames.includes(pjumExport.branchName)) {
+            return { error: "PJUM tidak dalam cabang Anda" };
+        }
+        if (pjumExport.status !== "PENDING_APPROVAL") {
+            return { error: "PJUM sudah diproses sebelumnya" };
+        }
+
+        const newRevision = {
+            date: new Date().toISOString(),
+            actorName: user.name,
+            note: notes,
+        };
+
+        const currentHistory = Array.isArray(pjumExport.revisionHistory) 
+            ? pjumExport.revisionHistory 
+            : [];
+            
+        await prisma.pjumExport.update({
+            where: { id: pjumExportId },
+            data: {
+                status: "REJECTED",
+                revisionHistory: [...currentHistory, newRevision],
+                pjumPdfPath: null,
+            },
+        });
+
+        await unlockBmsPeriodAfterPjumRejection(pjumExport.bmsNIK, pjumExportId);
+
+        dispatchNotificationEvent({
+            type: "PJUM_REJECTED",
+            actorNIK: user.NIK,
+            pjumExportId: pjumExport.id,
+        });
+
+        logger.info(
+            {
+                operation: "rejectPjumExport",
+                pjumExportId: pjumExport.id,
+                rejectedBy: user.NIK,
+                duration: Date.now() - startTime,
+            },
+            "PJUM returned for revision",
+        );
+
+        revalidatePath("/reports/pjum");
+        revalidatePath(`/reports/pjum/${pjumExport.id}`);
+        revalidatePath("/dashboard/pjum");
+        revalidatePath(`/dashboard/pjum/${pjumExport.id}`);
+        revalidatePath("/dashboard/reports");
+        revalidatePath("/dashboard");
+
+        return { error: null };
+    } catch (error) {
+        logger.error({ operation: "rejectPjumExport" }, "Failed to reject PJUM", error);
+        return { error: "Terjadi kesalahan saat meminta revisi PJUM" };
+    }
 }

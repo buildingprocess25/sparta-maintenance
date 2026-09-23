@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/table";
 import {
     createDashboardPjum,
+    updateDashboardPjum,
     getBlockedRangesForBms,
     searchDashboardPjumCandidates,
     type DashboardPjumBlockedRange,
@@ -68,6 +69,16 @@ import { formatJakartaDate, getJakartaDayKey, getJakartaDayRange } from "@/lib/t
 
 type CreatePjumDialogProps = {
     bmsUsers: DashboardPjumBmsUser[];
+    editingPjum?: {
+        id: string;
+        bmsNIK: string;
+        from: string;
+        to: string;
+        weekNumber: number;
+        monthName: string;
+        selectedReports: string[];
+    };
+    triggerButton?: React.ReactNode;
 };
 
 function toDateInputValue(date: Date) {
@@ -135,20 +146,22 @@ function findOverlappingRange(
     );
 }
 
-export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
+export function CreatePjumDialog({ bmsUsers, editingPjum, triggerButton }: CreatePjumDialogProps) {
     const defaultRange = useMemo(() => getDefaultDateRange(), []);
     const [open, setOpen] = useState(false);
-    const [bmsNIK, setBmsNIK] = useState(bmsUsers[0]?.NIK ?? "");
+    const [bmsNIK, setBmsNIK] = useState(editingPjum?.bmsNIK ?? bmsUsers[0]?.NIK ?? "");
     const [from, setFrom] = useState<Date | undefined>(() => {
+        if (editingPjum) return new Date(editingPjum.from);
         const d = new Date(defaultRange.from);
         return isNaN(d.getTime()) ? undefined : d;
     });
     const [to, setTo] = useState<Date | undefined>(() => {
+        if (editingPjum) return new Date(editingPjum.to);
         const d = new Date(defaultRange.to);
         return isNaN(d.getTime()) ? undefined : d;
     });
-    const [weekNumber, setWeekNumber] = useState("1");
-    const [monthName, setMonthName] = useState<string>("");
+    const [weekNumber, setWeekNumber] = useState(editingPjum ? String(editingPjum.weekNumber) : "1");
+    const [monthName, setMonthName] = useState<string>(editingPjum?.monthName ?? "");
     const [result, setResult] = useState<DashboardPjumCandidateResult | null>(
         null,
     );
@@ -251,13 +264,21 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                     bmsNIK,
                     from: getJakartaDayKey(from!),
                     to: getJakartaDayKey(to!),
+                    editingPjumId: editingPjum?.id,
                 });
                 setResult(nextResult);
-                setSelectedReports(
-                    nextResult.rows
-                        .filter((row) => row.isValid)
-                        .map((row) => row.reportNumber),
-                );
+                
+                if (editingPjum && !result) {
+                    // On first search in edit mode, restore selected reports exactly
+                    setSelectedReports(editingPjum.selectedReports);
+                } else {
+                    setSelectedReports(
+                        nextResult.rows
+                            .filter((row) => row.isValid)
+                            .map((row) => row.reportNumber),
+                    );
+                }
+                
                 setIsConfirmed(false);
             } catch (error) {
                 toast.error(
@@ -309,23 +330,44 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
         }
 
         startCreateTransition(async () => {
-            const response = await createDashboardPjum({
-                reportNumbers: selectedReports,
-                bmsNIK,
-                from: getJakartaDayKey(from!),
-                to: getJakartaDayKey(to!),
-                weekNumber: Number(weekNumber),
-                monthName,
-            });
+            if (editingPjum) {
+                const response = await updateDashboardPjum({
+                    editingPjumId: editingPjum.id,
+                    reportNumbers: selectedReports,
+                    bmsNIK,
+                    from: getJakartaDayKey(from!),
+                    to: getJakartaDayKey(to!),
+                    weekNumber: Number(weekNumber),
+                    monthName,
+                });
 
-            if (response.error) {
-                toast.error(response.error);
-                return;
+                if (response.error) {
+                    toast.error(response.error);
+                    return;
+                }
+
+                toast.success("PJUM berhasil disubmit ulang");
+                window.dispatchEvent(new CustomEvent("dashboard-pjum-created"));
+                setOpen(false);
+            } else {
+                const response = await createDashboardPjum({
+                    reportNumbers: selectedReports,
+                    bmsNIK,
+                    from: getJakartaDayKey(from!),
+                    to: getJakartaDayKey(to!),
+                    weekNumber: Number(weekNumber),
+                    monthName,
+                });
+
+                if (response.error) {
+                    toast.error(response.error);
+                    return;
+                }
+
+                toast.success("PJUM berhasil dibuat dan menunggu review BNM");
+                window.dispatchEvent(new CustomEvent("dashboard-pjum-created"));
+                setOpen(false);
             }
-
-            toast.success("PJUM berhasil dibuat dan menunggu review BNM");
-            window.dispatchEvent(new CustomEvent("dashboard-pjum-created"));
-            setOpen(false);
         });
     }
 
@@ -338,14 +380,16 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
             }}
         >
             <DialogTrigger asChild>
-                <Button size="sm">
-                    <Plus data-icon="inline-start" />
-                    Buat PJUM
-                </Button>
+                {triggerButton ?? (
+                    <Button size="sm">
+                        <Plus data-icon="inline-start" />
+                        Buat PJUM
+                    </Button>
+                )}
             </DialogTrigger>
             <DialogContent className="flex h-[86vh] max-h-[720px] min-h-[560px] flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
                 <DialogHeader className="shrink-0 border-b px-4 py-3">
-                    <DialogTitle>Buat PJUM</DialogTitle>
+                    <DialogTitle>{editingPjum ? "Submit Ulang PJUM" : "Buat PJUM"}</DialogTitle>
                     <DialogDescription>
                         Pilih periode, cek laporan selesai, lalu centang laporan
                         valid yang akan masuk PJUM.
@@ -752,10 +796,10 @@ export function CreatePjumDialog({ bmsUsers }: CreatePjumDialogProps) {
                                 className="animate-spin"
                                 data-icon="inline-start"
                             />
-                        ) : (
+                        ) : editingPjum ? null : (
                             <Plus data-icon="inline-start" />
                         )}
-                        Buat PJUM
+                        {editingPjum ? "Simpan Perubahan" : "Buat PJUM"}
                     </Button>
                 </DialogFooter>
             </DialogContent>

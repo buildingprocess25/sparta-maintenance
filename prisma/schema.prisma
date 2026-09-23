@@ -429,6 +429,7 @@ model PjumExport {
 
   // Rejection notes
   rejectionNotes String?
+  revisionHistory Json @default("[]")
 
   // PDF snapshot path, final archival URL, and public verification identity
   pjumPdfPath       String?

@@ -19,7 +19,7 @@ type AdminPjumPageProps = {
     }>;
 };
 
-const VALID_INITIAL_PJUM_STATUS = new Set(["PENDING_APPROVAL", "APPROVED"]);
+const VALID_INITIAL_PJUM_STATUS = new Set(["PENDING_APPROVAL", "APPROVED", "REJECTED"]);
 
 export default async function AdminPjumPage({
     searchParams,

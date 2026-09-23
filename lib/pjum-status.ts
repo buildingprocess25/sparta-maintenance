@@ -1,7 +1,7 @@
 export const PJUM_STATUS_LABELS = {
     PENDING_APPROVAL: "Review BNM",
     APPROVED: "Disetujui",
-    REJECTED: "Ditolak",
+    REJECTED: "Direvisi",
 } as const;
 
 export type PjumStatusKey = keyof typeof PJUM_STATUS_LABELS;
@@ -13,7 +13,7 @@ export const PJUM_STATUS_OPTIONS = Object.entries(PJUM_STATUS_LABELS).map(
 export const PJUM_STATUS_BADGE_CLASS: Record<PjumStatusKey, string> = {
     PENDING_APPROVAL: "bg-amber-100 text-amber-700 hover:bg-amber-100",
     APPROVED: "bg-green-100 text-green-700 hover:bg-green-100",
-    REJECTED: "bg-red-100 text-red-700 hover:bg-red-100",
+    REJECTED: "border-orange-200 bg-orange-100 text-orange-800 hover:bg-orange-100",
 };
 
 export function isPjumStatusKey(status: string): status is PjumStatusKey {

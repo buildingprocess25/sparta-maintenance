@@ -40,11 +40,13 @@ import { cn } from "@/lib/utils";
 
 const PJUM_STATUS_FILTER_OPTIONS = [
     { value: "PENDING_APPROVAL", label: "Menunggu Review" },
+    { value: "REJECTED", label: "Direvisi" },
     { value: "APPROVED", label: "Disetujui" },
 ];
 const QUICK_FILTERS = [
     { key: "all", label: "Semua" },
     { key: "review_bnm", label: "Review BNM" },
+    { key: "rejected", label: "Direvisi" },
     { key: "approved", label: "Disetujui" },
 ] as const;
 
@@ -54,6 +56,7 @@ function resolveInitialQuickFilter(
     initialStatus?: string,
 ): QuickFilterKey {
     if (initialStatus === "PENDING_APPROVAL") return "review_bnm";
+    if (initialStatus === "REJECTED") return "rejected";
     if (initialStatus === "APPROVED") return "approved";
     return "all";
 }
@@ -191,9 +194,11 @@ export function AdminPjumTable({
     const quickStatus =
         quickFilter === "review_bnm"
             ? "PENDING_APPROVAL"
-            : quickFilter === "approved"
-              ? "APPROVED"
-              : "";
+            : quickFilter === "rejected"
+              ? "REJECTED"
+              : quickFilter === "approved"
+                ? "APPROVED"
+                : "";
     const hasAnyActiveFilter = hasActiveFilter || quickFilter !== "all";
 
     const urlDebounceRef = useRef<NodeJS.Timeout | null>(null);
@@ -214,6 +219,8 @@ export function AdminPjumTable({
 
                 if (resolvedQuick === "review_bnm") {
                     params.set("status", "PENDING_APPROVAL");
+                } else if (resolvedQuick === "rejected") {
+                    params.set("status", "REJECTED");
                 } else if (resolvedQuick === "approved") {
                     params.set("status", "APPROVED");
                 } else {
@@ -586,6 +593,8 @@ function PjumSummaryStrip({ summary }: { summary: PjumSummary }) {
         total > 0 ? Math.round((summary.pendingReview / total) * 100) : 0;
     const approvedPercent =
         total > 0 ? Math.round((summary.approved / total) * 100) : 0;
+    const rejectedPercent =
+        total > 0 ? Math.round((summary.rejected / total) * 100) : 0;
     const stalePercent =
         total > 0 ? Math.round((summary.stalePending / total) * 100) : 0;
     const distribution = [
@@ -596,6 +605,14 @@ function PjumSummaryStrip({ summary }: { summary: PjumSummary }) {
             percent: pendingPercent,
             className: "bg-amber-400",
             dotClassName: "bg-amber-400",
+        },
+        {
+            key: "rejected",
+            label: "Direvisi",
+            value: summary.rejected,
+            percent: rejectedPercent,
+            className: "bg-orange-400",
+            dotClassName: "bg-orange-400",
         },
         {
             key: "approved",
@@ -630,6 +647,14 @@ function PjumSummaryStrip({ summary }: { summary: PjumSummary }) {
             icon: FileCheck2,
             tone: "text-emerald-700",
             bg: "bg-emerald-50",
+        },
+        {
+            label: "Direvisi",
+            value: summary.rejected,
+            helper: `${rejectedPercent}% perlu perbaikan`,
+            icon: AlertTriangle,
+            tone: "text-orange-700",
+            bg: "bg-orange-50",
         },
         {
             label: "Laporan Masuk PJUM",
