@@ -26,7 +26,7 @@ const prismaClientSingleton = () => {
     const cleanDatabaseUrl = databaseUrl.replace("?sslmode=require", "");
 
     const isDevelopment = process.env.NODE_ENV === "development";
-    const defaultPoolMax = 3;
+    const defaultPoolMax = 15;
     const poolMax = parsePositiveInteger(
         process.env.DATABASE_POOL_MAX,
         defaultPoolMax,
