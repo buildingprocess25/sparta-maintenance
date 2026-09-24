@@ -76,7 +76,7 @@ export default async function AdminPjumDetailPage({ params }: Props) {
     const pjumPolicy = await getPjumPolicySettings();
     const pjumUrl =
         detail.pjum.status === "APPROVED"
-            ? detail.pjum.pjumFinalDriveUrl || detail.pjum.pjumPdfPath
+            ? detail.pjum.pjumFinalDriveUrl
             : null;
     const isStalePending = isPjumStalePending(
         detail.pjum,
