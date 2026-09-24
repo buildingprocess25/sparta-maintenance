@@ -756,7 +756,7 @@ export async function rejectPjumExport(input: {
             },
         });
 
-        await unlockBmsPeriodAfterPjumRejection(pjumExport.bmsNIK, pjumExportId);
+        await unlockBmsPeriodAfterPjumRejection(pjumExport.bmsNIK);
 
         dispatchNotificationEvent({
             type: "PJUM_REJECTED",
