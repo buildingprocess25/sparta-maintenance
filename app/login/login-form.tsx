@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useTransition } from "react";
 import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import Link from "next/link";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { loginAction, type LoginState } from "./action";
+import { loginAction, type LoginState, devQuickLoginAction } from "./action";
 
 const initialState: LoginState = {
     errors: {},
@@ -66,11 +66,25 @@ export function LoginForm({
     const [showPassword, setShowPassword] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [isLocalhost, setIsLocalhost] = useState(false);
+
     const [state, formAction, isPending] = useActionState(
         loginAction,
         initialState,
     );
+    const [isQuickLoginPending, startQuickLogin] = useTransition();
     const resetMessage = getResetMessage(resetStatus);
+
+    useEffect(() => {
+        const hostname = window.location.hostname;
+        setIsLocalhost(
+            hostname === "localhost" ||
+            hostname === "127.0.0.1" ||
+            hostname.includes("ngrok") ||
+            hostname.includes("devtunnels.ms") ||
+            process.env.NODE_ENV === "development"
+        );
+    }, []);
 
     // Inline form errors handle display — no duplicate toast needed
 
@@ -86,7 +100,7 @@ export function LoginForm({
 
     return (
         <>
-            <LoadingOverlay isOpen={isPending} message="Memproses login..." />
+            <LoadingOverlay isOpen={isPending || isQuickLoginPending} message="Memproses login..." />
 
             <div className="flex-1 flex items-center justify-center p-4">
                 <Card className="w-full max-w-lg ring-0 shadow-[0_0_0_0]">
@@ -112,18 +126,77 @@ export function LoginForm({
                                 </div>
                             )}
 
-                            <div className="py-4">
-                                <Button
-                                    type="button"
-                                    onClick={() => {
-                                        const fallbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://sparta-alfamart.web.id';
-                                        window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || fallbackUrl;
-                                    }}
-                                    className="w-full h-12 text-base font-bold bg-[#005a9e] hover:bg-[#004a80] transition-transform active:scale-[0.98] shadow-md"
-                                >
-                                    Masuk via SPARTA SSO
-                                </Button>
-                            </div>
+                            {isLocalhost ? (
+                                <div className="space-y-4">
+                                    {process.env.NODE_ENV === "development" && (
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Quick Login (Dev Only)</label>
+                                            <div className="grid grid-cols-2 gap-2">
+                                                {["ADMIN", "BMS", "BMC", "BNM_MANAGER"].map(role => (
+                                                    <Button 
+                                                        key={role}
+                                                        type="button" 
+                                                        variant="secondary" 
+                                                        className="w-full text-xs h-8"
+                                                        onClick={() => startQuickLogin(() => devQuickLoginAction(role))}
+                                                        disabled={isQuickLoginPending || isPending}
+                                                    >
+                                                        {role}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                            <div className="relative my-4">
+                                                <div className="absolute inset-0 flex items-center">
+                                                    <span className="w-full border-t" />
+                                                </div>
+                                                <div className="relative flex justify-center text-xs uppercase">
+                                                    <span className="bg-card px-2 text-muted-foreground">
+                                                        Atau
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {state.errors?.form && (
+                                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                                            {state.errors.form[0]}
+                                        </div>
+                                    )}
+                                    {callbackUrl && (
+                                        <input type="hidden" name="callbackUrl" value={callbackUrl} />
+                                    )}
+
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            const fallbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://sparta-alfamart.web.id';
+                                            window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || fallbackUrl;
+                                        }}
+                                        className="w-full h-12 text-base font-bold bg-[#005a9e] hover:bg-[#004a80] transition-transform active:scale-[0.98] shadow-md"
+                                    >
+                                        Masuk via SPARTA SSO
+                                    </Button>
+                                </div>
+                            ) : (
+                                <div className="py-4 space-y-4">
+                                    {state.errors?.form && (
+                                        <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm font-medium text-destructive">
+                                            {state.errors.form[0]}
+                                        </div>
+                                    )}
+                                    <Button
+                                        type="button"
+                                        onClick={() => {
+                                            const fallbackUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:5173' : 'https://sparta-alfamart.web.id';
+                                            window.location.href = process.env.NEXT_PUBLIC_SSO_PORTAL_URL || fallbackUrl;
+                                        }}
+                                        className="w-full h-12 text-base font-bold bg-[#005a9e] hover:bg-[#004a80] transition-transform active:scale-[0.98] shadow-md"
+                                    >
+                                        Masuk via SPARTA SSO
+                                    </Button>
+                                </div>
+                            )}
 
                             {/* Divider */}
                             <div className="relative my-4">

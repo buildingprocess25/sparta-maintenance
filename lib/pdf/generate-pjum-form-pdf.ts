@@ -306,8 +306,8 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                     Text,
                     { style: s.title },
                     `PERTANGGUNGJAWABAN UANG MUKA (PJUM)${
-                        data.revisionCount && data.revisionCount > 0
-                            ? ` - Revisi ke-${data.revisionCount}`
+                        pjum.revisionCount && pjum.revisionCount > 0
+                            ? ` - Revisi ke-${pjum.revisionCount}`
                             : ""
                     }`,
                 ),

@@ -178,3 +178,30 @@ export async function loginAction(
     const safeRedirect = getSafeRedirectPath(callbackUrl);
     redirect(safeRedirect);
 }
+
+export async function devQuickLoginAction(role: string): Promise<void> {
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("Quick login is not allowed in production");
+    }
+
+    const user = await prisma.user.findFirst({
+        where: { 
+            role, 
+            deletedAt: null,
+            email: {
+                endsWith: "@admin.com"
+            }
+        },
+        select: {
+            NIK: true,
+            role: true,
+        },
+    });
+
+    if (!user) {
+        throw new Error(`No active user found with role ${role}`);
+    }
+
+    await createSession(user.NIK, user.role, false);
+    redirect("/dashboard");
+}

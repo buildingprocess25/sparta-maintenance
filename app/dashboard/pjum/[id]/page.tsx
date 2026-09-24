@@ -75,9 +75,9 @@ export default async function AdminPjumDetailPage({ params }: Props) {
 
     const pjumPolicy = await getPjumPolicySettings();
     const pjumUrl =
-        detail.pjum.status === "PENDING_APPROVAL"
-            ? null
-            : buildPjumViewUrl(detail.pjum);
+        detail.pjum.status === "APPROVED"
+            ? detail.pjum.pjumFinalDriveUrl || detail.pjum.pjumPdfPath
+            : null;
     const isStalePending = isPjumStalePending(
         detail.pjum,
         pjumPolicy.pendingStaleDays,
@@ -567,21 +567,6 @@ async function getPjumDetail(id: string) {
 }
 
 type PjumDetail = NonNullable<Awaited<ReturnType<typeof getPjumDetail>>>;
-
-function buildPjumViewUrl(pjum: PjumDetail["pjum"]) {
-    if (pjum.pjumFinalDriveUrl) return pjum.pjumFinalDriveUrl;
-
-    const search = new URLSearchParams({
-        ids: pjum.reportNumbers.join(","),
-        bmsNIK: pjum.bmsNIK,
-        from: pjum.fromDate.toISOString(),
-        to: pjum.toDate.toISOString(),
-        week: String(pjum.weekNumber),
-    });
-
-    return `/api/reports/pjum-pdf?${search.toString()}`;
-}
-
 function isPjumStalePending(pjum: PjumDetail["pjum"], staleDays: number) {
     if (pjum.status !== "PENDING_APPROVAL") return false;
 
