@@ -402,7 +402,7 @@ export async function getManagerDashboardData({
             prisma.pjumExport.count({
                 where: {
                     branchName: { in: visibleBranches },
-                    status: "PENDING_APPROVAL",
+                    status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
                 },
             }),
             prisma.pjumExport.findMany({
@@ -447,7 +447,7 @@ export async function getManagerDashboardData({
             prisma.pjumExport.findMany({
                 where: {
                     branchName: { in: visibleBranches },
-                    status: "PENDING_APPROVAL",
+                    status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
                 },
                 orderBy: [{ createdAt: "asc" }, { id: "desc" }],
                 take: 5,

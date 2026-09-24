@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
     AlertTriangle,
     CalendarDays,
@@ -370,6 +370,13 @@ export function CreatePjumDialog({ bmsUsers, editingPjum, triggerButton }: Creat
             }
         });
     }
+
+    useEffect(() => {
+        if (open && editingPjum && !result && canSearch && !isSearching) {
+            handleSearch();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, editingPjum, result, canSearch, isSearching]);
 
     return (
         <Dialog
