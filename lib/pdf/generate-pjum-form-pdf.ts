@@ -35,6 +35,7 @@ export type PjumFormData = {
         qrDataUrl: string;
         displayCode: string;
     };
+    revisionCount?: number;
 };
 
 const FIXED_UM = 1_000_000;
@@ -304,7 +305,11 @@ function buildPjumFormDocument(pjum: PjumFormData) {
                 React.createElement(
                     Text,
                     { style: s.title },
-                    "PERTANGGUNGJAWABAN UANG MUKA (PJUM)",
+                    `PERTANGGUNGJAWABAN UANG MUKA (PJUM)${
+                        data.revisionCount && data.revisionCount > 0
+                            ? ` - Revisi ke-${data.revisionCount}`
+                            : ""
+                    }`,
                 ),
 
                 // Form rows

@@ -53,6 +53,7 @@ export type PjumRow = {
     pjumFinalDriveUrl: string | null;
     createdAt: Date;
     isStalePending: boolean;
+    hasRevisionHistory: boolean;
 };
 
 export type DashboardPjumBmsUser = {
@@ -827,6 +828,7 @@ export async function getAdminPjum(
                     reportNumbers: true,
                     pjumFinalDriveUrl: true,
                     createdAt: true,
+                    revisionHistory: true,
                 },
             }),
         ]);
@@ -905,6 +907,7 @@ export async function getAdminPjum(
             createdAt: p.createdAt,
             isStalePending:
                 p.status === "PENDING_APPROVAL" && p.createdAt < staleBefore,
+            hasRevisionHistory: Array.isArray(p.revisionHistory) && p.revisionHistory.length > 0,
         }));
 
         return {

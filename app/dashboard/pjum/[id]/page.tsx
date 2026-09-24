@@ -266,8 +266,7 @@ export default async function AdminPjumDetailPage({ params }: Props) {
                             </div>
                         </section>
 
-                        {detail.pjum.status === "REJECTED" &&
-                        Array.isArray(detail.pjum.revisionHistory) &&
+                        {Array.isArray(detail.pjum.revisionHistory) &&
                         detail.pjum.revisionHistory.length > 0 ? (
                             <section className="rounded-lg border border-orange-200 bg-orange-50/60">
                                 <div className="border-b border-orange-200 px-4 py-3">

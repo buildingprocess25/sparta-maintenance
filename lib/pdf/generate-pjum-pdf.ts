@@ -313,6 +313,7 @@ export type PjumPdfData = {
     reports: PjumPdfRow[];
     watermarkLogoBase64?: string;
     verification?: { qrDataUrl: string; displayCode: string };
+    revisionCount?: number;
 };
 
 function buildPjumDocument(data: PjumPdfData) {
@@ -440,7 +441,11 @@ function buildPjumDocument(data: PjumPdfData) {
             React.createElement(
                 Text,
                 { style: styles.docTitle },
-                "REKAPAN LAPORAN MAINTENANCE TOKO",
+                `REKAPAN LAPORAN MAINTENANCE TOKO${
+                    data.revisionCount && data.revisionCount > 0
+                        ? ` - Revisi ke-${data.revisionCount}`
+                        : ""
+                }`,
             ),
 
             // ── Info grid ──

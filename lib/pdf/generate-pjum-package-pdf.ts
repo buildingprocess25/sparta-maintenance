@@ -110,6 +110,7 @@ export async function generatePjumPackagePdf(params: {
     let exportCreatedAt: string | null = null;
     let canIncludeFallbackPjumForm = false;
     let pjumExportMonthName: string | null = null;
+    let revisionCount = 0;
 
     if (params.requireExported) {
         const pjumExport = await prisma.pjumExport.findFirst({
@@ -121,6 +122,7 @@ export async function generatePjumPackagePdf(params: {
                 createdAt: true,
                 status: true,
                 monthName: true,
+                revisionHistory: true,
             },
             orderBy: { createdAt: "desc" },
         });
@@ -140,6 +142,9 @@ export async function generatePjumPackagePdf(params: {
             exportCreatedAt = pjumExport.createdAt.toISOString();
         }
         pjumExportMonthName = pjumExport?.monthName ?? null;
+        if (pjumExport?.revisionHistory && Array.isArray(pjumExport.revisionHistory)) {
+            revisionCount = pjumExport.revisionHistory.length;
+        }
 
         canIncludeFallbackPjumForm = pjumExport?.status === "APPROVED";
 
@@ -191,6 +196,7 @@ export async function generatePjumPackagePdf(params: {
         reports: recapRows,
         watermarkLogoBase64: WATERMARK_LOGO_BASE64,
         verification: params.verification,
+        revisionCount,
     });
 
     const fullReports = await prisma.report.findMany({
@@ -268,6 +274,7 @@ export async function generatePjumPackagePdf(params: {
                   periodeFrom: params.from || reports[0].createdAt.toISOString(),
                   periodeTo: params.to || reports[0].createdAt.toISOString(),
                   verification: params.verification,
+                  revisionCount,
               }
             : null);
 

@@ -13,6 +13,7 @@ import {
     FileCheck2,
     FileText,
     Loader2,
+    RefreshCw,
     Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -538,19 +539,26 @@ export function AdminPjumTable({
                                             </span>
                                         </TableCell>
                                         <TableCell>
-                                            <Badge
-                                                variant="secondary"
-                                                className={cn(
-                                                    "font-normal",
-                                                    getPjumStatusBadgeClass(
+                                            <div className="flex flex-col gap-1 items-start">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className={cn(
+                                                        "font-normal",
+                                                        getPjumStatusBadgeClass(
+                                                            item.status,
+                                                        ),
+                                                    )}
+                                                >
+                                                    {getPjumStatusLabel(
                                                         item.status,
-                                                    ),
+                                                    )}
+                                                </Badge>
+                                                {item.hasRevisionHistory && item.status !== "REJECTED" && (
+                                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                                        <RefreshCw className="h-3 w-3" /> Pernah direvisi
+                                                    </span>
                                                 )}
-                                            >
-                                                {getPjumStatusLabel(
-                                                    item.status,
-                                                )}
-                                            </Badge>
+                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             {formatDateTime(item.createdAt)}
