@@ -166,7 +166,7 @@ export function buildNotificationTemplate(
             case "PJUM_REJECTED":
                 return {
                     ...base,
-                    title: "PJUM ditolak",
+                    title: "PJUM diminta revisi",
                     body: `PJUM minggu ${pjum.weekNumber} dikembalikan. Buka detail PJUM untuk melihat catatan.`,
                 };
         }
