@@ -135,35 +135,44 @@ async function getDashboardPjumReportsInRange(params: {
     branchNames: string[];
     fromDate: Date;
     toDate: Date;
+    editingReportNumbers?: string[];
 }): Promise<DashboardPjumCandidate[]> {
-    const { bmsNIK, branchNames, fromDate, toDate } = params;
+    const { bmsNIK, branchNames, fromDate, toDate, editingReportNumbers } = params;
+
+    const orConditions: any[] = [
+        {
+            status: "COMPLETED",
+            finishedAt: { not: null, gte: fromDate, lte: toDate },
+        },
+        {
+            status: "COMPLETED",
+            pjumExportedAt: null,
+            pjumHangingAt: { not: null },
+            pjumExpiredAt: null,
+            balancePeriod: {
+                bmsNIK,
+                status: { in: ["ACTIVE", "LOCKED_PJUM"] },
+            },
+        },
+        {
+            status: {
+                notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
+            },
+            createdAt: { gte: fromDate, lte: toDate },
+        },
+    ];
+
+    if (editingReportNumbers && editingReportNumbers.length > 0) {
+        orConditions.push({
+            reportNumber: { in: editingReportNumbers },
+        });
+    }
 
     const rows = await prisma.report.findMany({
         where: {
             createdByNIK: bmsNIK,
             branchName: { in: branchNames },
-            OR: [
-                {
-                    status: "COMPLETED",
-                    finishedAt: { not: null, gte: fromDate, lte: toDate },
-                },
-                {
-                    status: "COMPLETED",
-                    pjumExportedAt: null,
-                    pjumHangingAt: { not: null },
-                    pjumExpiredAt: null,
-                    balancePeriod: {
-                        bmsNIK,
-                        status: { in: ["ACTIVE", "LOCKED_PJUM"] },
-                    },
-                },
-                {
-                    status: {
-                        notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
-                    },
-                    createdAt: { gte: fromDate, lte: toDate },
-                },
-            ],
+            OR: orConditions,
         },
         select: {
             reportNumber: true,
@@ -304,12 +313,24 @@ export async function searchDashboardPjumCandidates(input: {
         };
     }
 
+    let editingReportNumbers = new Set<string>();
+    if (input.editingPjumId) {
+        const editingPjum = await prisma.pjumExport.findUnique({
+            where: { id: input.editingPjumId },
+            select: { reportNumbers: true },
+        });
+        if (editingPjum) {
+            editingReportNumbers = new Set(editingPjum.reportNumbers);
+        }
+    }
+
     const { fromDate, toEndOfDay } = parsePjumDateRange(input);
     const reports = await getDashboardPjumReportsInRange({
         bmsNIK,
         branchNames: user.branchNames,
         fromDate,
         toDate: new Date(toEndOfDay.getTime() - 1), // to keep lte semantics if used
+        editingReportNumbers: Array.from(editingReportNumbers),
     });
 
     const reportNumbers = reports.map((report) => report.reportNumber);
@@ -326,17 +347,6 @@ export async function searchDashboardPjumCandidates(input: {
     const numbersInActivePjum = new Set(
         activePjums.flatMap((pjum) => pjum.reportNumbers),
     );
-
-    let editingReportNumbers = new Set<string>();
-    if (input.editingPjumId) {
-        const editingPjum = await prisma.pjumExport.findUnique({
-            where: { id: input.editingPjumId },
-            select: { reportNumbers: true },
-        });
-        if (editingPjum) {
-            editingReportNumbers = new Set(editingPjum.reportNumbers);
-        }
-    }
 
     let eligibleTotalRealisasi = 0;
     let eligibleCount = 0;
@@ -357,7 +367,7 @@ export async function searchDashboardPjumCandidates(input: {
         const isHangingReport = Boolean(
             report.pjumHangingAt &&
                 !report.pjumExpiredAt &&
-                !report.pjumExportedAt,
+                (!report.pjumExportedAt || editingReportNumbers.has(report.reportNumber)),
         );
         
         let invalidReason = null;
