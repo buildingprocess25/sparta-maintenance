@@ -186,7 +186,7 @@ export async function devQuickLoginAction(role: string): Promise<void> {
 
     const user = await prisma.user.findFirst({
         where: { 
-            role, 
+            role: role as any, 
             deletedAt: null,
             email: {
                 endsWith: "@admin.com"
