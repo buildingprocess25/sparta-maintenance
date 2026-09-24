@@ -72,7 +72,7 @@ export function PjumRevisionButton({
                 </DialogHeader>
                 
                 <div className="space-y-3 py-4">
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                         <label className="text-sm font-medium">Alasan Revisi <span className="text-destructive">*</span></label>
                         <Textarea
                             placeholder="Tuliskan catatan detail mengenai apa yang harus diperbaiki..."
@@ -94,7 +94,6 @@ export function PjumRevisionButton({
                     </Button>
                     <Button
                         variant="default"
-                        className="bg-orange-600 hover:bg-orange-700 text-white"
                         onClick={handleSubmit}
                         disabled={isSubmitting || !notes.trim()}
                     >
