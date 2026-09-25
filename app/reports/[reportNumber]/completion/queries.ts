@@ -24,6 +24,7 @@ export async function getReportForCompletion(
             items: true,
             estimations: true,
             totalEstimation: true,
+            totalReal: true,
             startSelfieUrl: true,
             startReceiptUrls: true,
             startMaterialStores: true,
@@ -46,6 +47,7 @@ export async function getReportForCompletion(
     return {
         ...report,
         totalEstimation: Number(report.totalEstimation),
+        totalReal: report.totalReal !== null ? Number(report.totalReal) : null,
         items: report.items as unknown as ReportItemJson[],
         estimations: report.estimations as unknown as MaterialEstimationJson[],
         startSelfieUrls: parseStartWorkPhotoUrls(report.startSelfieUrl),

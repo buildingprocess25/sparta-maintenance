@@ -91,7 +91,10 @@ export function CompletionClient({
     setUnexpectedCostNotes,
   } = useCompletionWorkForm(
     report,
-    bmsBalanceInfo.availableBalance + report.totalEstimation,
+    bmsBalanceInfo.availableBalance + 
+      ((["PENDING_REVIEW", "APPROVED_BMC", "REVIEW_REJECTED_REVISION"].includes(report.status) && report.totalReal !== null) 
+        ? report.totalReal 
+        : report.totalEstimation),
   );
 
   const onSubmitClick = () => {
