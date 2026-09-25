@@ -84,6 +84,7 @@ export async function submitCompletionWork(
                 startReceiptUrls: true,
                 startMaterialStores: true,
                 drivePhotoFileIds: true,
+                totalReal: true,
             },
         });
 
@@ -210,10 +211,18 @@ export async function submitCompletionWork(
         const hasBalanceImpact = hasBmsRepairItems(updatedItems);
         if (hasBalanceImpact) {
             const balance = await calculateBmsBalance(user.NIK);
-            const reportTotalEstimation = report.totalEstimation
-                ? new Prisma.Decimal(report.totalEstimation.toString()).toNumber()
-                : 0;
-            const maxAvailableBudget = balance.availableBalance + reportTotalEstimation;
+            
+            const hasRealization = [
+                "PENDING_REVIEW", 
+                "APPROVED_BMC", 
+                "REVIEW_REJECTED_REVISION"
+            ].includes(report.status) && report.totalReal !== null;
+
+            const reservedCost = hasRealization 
+                ? new Prisma.Decimal(report.totalReal!.toString()).toNumber()
+                : (report.totalEstimation ? new Prisma.Decimal(report.totalEstimation.toString()).toNumber() : 0);
+
+            const maxAvailableBudget = balance.availableBalance + reservedCost;
 
             if (totalReal > maxAvailableBudget) {
                 if (!safeCostNotes) {
