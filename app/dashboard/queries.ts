@@ -6,26 +6,32 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import {
-    ARCHIVED_PREVENTIVE_STATUS,
-    getReportStatusLabel,
-    OPERATIONAL_EXCLUDED_REPORT_STATUSES,
+  ARCHIVED_PREVENTIVE_STATUS,
+  getReportStatusLabel,
+  OPERATIONAL_EXCLUDED_REPORT_STATUSES,
 } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { requiresPjum } from "@/lib/realisasi";
 import type { ReportItemJson } from "@/types/report";
-import { StoreBrandFilter, buildPjumBrandWhere, getReportBrandWhere, getVisibleBrandBranchNames, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import {
-    formatJakartaDate,
-    getJakartaDayKey,
-    getJakartaMonth,
-    getJakartaMonthKey,
-    getJakartaMonthWindow,
-    getJakartaStartOfRecentDays,
-    getJakartaStartOfRecentMonths,
-    getJakartaTodayStart,
-    getJakartaWeekStartKey,
-    getJakartaYear,
-    getJakartaYearWindow,
+  StoreBrandFilter,
+  buildPjumBrandWhere,
+  getReportBrandWhere,
+  getVisibleBrandBranchNames,
+  getStoreBrandWhere,
+} from "@/lib/store-brand-filter";
+import {
+  formatJakartaDate,
+  getJakartaDayKey,
+  getJakartaMonth,
+  getJakartaMonthKey,
+  getJakartaMonthWindow,
+  getJakartaStartOfRecentDays,
+  getJakartaStartOfRecentMonths,
+  getJakartaTodayStart,
+  getJakartaWeekStartKey,
+  getJakartaYear,
+  getJakartaYearWindow,
 } from "@/lib/time";
 
 /**
@@ -36,81 +42,81 @@ import {
  * - completed: Laporan yang sudah selesai
  */
 export async function getUserStats(userId: string) {
-    try {
-        const base = {
-            createdByNIK: userId,
-            status: { not: ARCHIVED_PREVENTIVE_STATUS },
-        };
+  try {
+    const base = {
+      createdByNIK: userId,
+      status: { not: ARCHIVED_PREVENTIVE_STATUS },
+    };
 
-        const [
-            totalReports,
-            needsAction,
-            waitingReview,
-            inProgress,
-            completed,
-            activeReports,
-        ] = await Promise.all([
-            prisma.report.count({ where: base }),
-            // Things BMS must act on (start work / revise)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        in: [
-                            "ESTIMATION_APPROVED",
-                            "ESTIMATION_REJECTED_REVISION",
-                            "REVIEW_REJECTED_REVISION",
-                        ],
-                    },
-                },
-            }),
-            // Waiting for others (BMC)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        in: [
-                            "PENDING_ESTIMATION",
-                            "PENDING_CHECKLIST_REVIEW",
-                            "PENDING_REVIEW",
-                            "APPROVED_BMC",
-                        ],
-                    },
-                },
-            }),
-            prisma.report.count({
-                where: { ...base, status: "IN_PROGRESS" },
-            }),
-            prisma.report.count({
-                where: { ...base, status: "COMPLETED" },
-            }),
-            // Active Reports (everything not completed)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
-                    },
-                },
-            }),
-        ]);
+    const [
+      totalReports,
+      needsAction,
+      waitingReview,
+      inProgress,
+      completed,
+      activeReports,
+    ] = await Promise.all([
+      prisma.report.count({ where: base }),
+      // Things BMS must act on (start work / revise)
+      prisma.report.count({
+        where: {
+          ...base,
+          status: {
+            in: [
+              "ESTIMATION_APPROVED",
+              "ESTIMATION_REJECTED_REVISION",
+              "REVIEW_REJECTED_REVISION",
+            ],
+          },
+        },
+      }),
+      // Waiting for others (BMC)
+      prisma.report.count({
+        where: {
+          ...base,
+          status: {
+            in: [
+              "PENDING_ESTIMATION",
+              "PENDING_CHECKLIST_REVIEW",
+              "PENDING_REVIEW",
+              "APPROVED_BMC",
+            ],
+          },
+        },
+      }),
+      prisma.report.count({
+        where: { ...base, status: "IN_PROGRESS" },
+      }),
+      prisma.report.count({
+        where: { ...base, status: "COMPLETED" },
+      }),
+      // Active Reports (everything not completed)
+      prisma.report.count({
+        where: {
+          ...base,
+          status: {
+            notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
+          },
+        },
+      }),
+    ]);
 
-        return {
-            totalReports,
-            needsAction,
-            waitingReview,
-            inProgress,
-            completed,
-            activeReports,
-        };
-    } catch (error) {
-        logger.error(
-            { operation: "getUserStats", userId },
-            "Failed to fetch user stats",
-            error,
-        );
-        throw error;
-    }
+    return {
+      totalReports,
+      needsAction,
+      waitingReview,
+      inProgress,
+      completed,
+      activeReports,
+    };
+  } catch (error) {
+    logger.error(
+      { operation: "getUserStats", userId },
+      "Failed to fetch user stats",
+      error,
+    );
+    throw error;
+  }
 }
 
 /**
@@ -120,55 +126,59 @@ export async function getUserStats(userId: string) {
  * - completed: Selesai
  */
 export async function getBMCStats(branchNames: string[]) {
-    try {
-        const base = {
+  try {
+    const base = {
+      branchName: { in: branchNames },
+      status: {
+        notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+      },
+    };
+
+    const [totalReports, needsReview, inProgress, completed] =
+      await Promise.all([
+        prisma.report.count({ where: base }),
+        // Things BMC must act on: review estimation OR review completion
+        prisma.report.count({
+          where: {
             branchName: { in: branchNames },
             status: {
-                notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+              in: [
+                "PENDING_ESTIMATION",
+                "PENDING_CHECKLIST_REVIEW",
+                "PENDING_REVIEW",
+              ],
             },
-        };
+          },
+        }),
+        // Estimation approved + actively being worked on
+        prisma.report.count({
+          where: {
+            branchName: { in: branchNames },
+            status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
+          },
+        }),
+        prisma.report.count({
+          where: {
+            branchName: { in: branchNames },
+            status: "COMPLETED",
+          },
+        }),
+      ]);
 
-        const [totalReports, needsReview, inProgress, completed] =
-            await Promise.all([
-                prisma.report.count({ where: base }),
-                // Things BMC must act on: review estimation OR review completion
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: {
-                            in: ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"],
-                        },
-                    },
-                }),
-                // Estimation approved + actively being worked on
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "COMPLETED",
-                    },
-                }),
-            ]);
-
-        return {
-            totalReports,
-            needsReview,
-            inProgress,
-            completed,
-        };
-    } catch (error) {
-        logger.error(
-            { operation: "getBMCStats", branchNames },
-            "Failed to fetch BMC stats",
-            error,
-        );
-        throw error;
-    }
+    return {
+      totalReports,
+      needsReview,
+      inProgress,
+      completed,
+    };
+  } catch (error) {
+    logger.error(
+      { operation: "getBMCStats", branchNames },
+      "Failed to fetch BMC stats",
+      error,
+    );
+    throw error;
+  }
 }
 
 /**
@@ -177,420 +187,425 @@ export async function getBMCStats(branchNames: string[]) {
  * - totalReports: Semua laporan (non-draft) di branch
  */
 export async function getBNMStats(branchNames: string[]) {
-    try {
-        const [pendingFinalApproval, completed, totalReports] =
-            await Promise.all([
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "APPROVED_BMC",
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "COMPLETED",
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: {
-                            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-                        },
-                    },
-                }),
-            ]);
+  try {
+    const [pendingFinalApproval, completed, totalReports] = await Promise.all([
+      prisma.report.count({
+        where: {
+          branchName: { in: branchNames },
+          status: "APPROVED_BMC",
+        },
+      }),
+      prisma.report.count({
+        where: {
+          branchName: { in: branchNames },
+          status: "COMPLETED",
+        },
+      }),
+      prisma.report.count({
+        where: {
+          branchName: { in: branchNames },
+          status: {
+            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+          },
+        },
+      }),
+    ]);
 
-        return { pendingFinalApproval, completed, totalReports };
-    } catch (error) {
-        logger.error(
-            { operation: "getBNMStats", branchNames },
-            "Failed to fetch BNM stats",
-            error,
-        );
-        throw error;
-    }
+    return { pendingFinalApproval, completed, totalReports };
+  } catch (error) {
+    logger.error(
+      { operation: "getBNMStats", branchNames },
+      "Failed to fetch BNM stats",
+      error,
+    );
+    throw error;
+  }
 }
 
 /**
  * Count PJUM exports pending BnM Manager approval.
  */
 export async function getPendingPjumCount(
-    branchNames: string[],
+  branchNames: string[],
 ): Promise<number> {
-    try {
-        return await prisma.pjumExport.count({
-            where: {
-                branchName: { in: branchNames },
-                status: "PENDING_APPROVAL",
-            },
-        });
-    } catch (error) {
-        logger.error(
-            { operation: "getPendingPjumCount", branchNames },
-            "Failed",
-            error,
-        );
-        return 0;
-    }
+  try {
+    return await prisma.pjumExport.count({
+      where: {
+        branchName: { in: branchNames },
+        status: "PENDING_APPROVAL",
+      },
+    });
+  } catch (error) {
+    logger.error(
+      { operation: "getPendingPjumCount", branchNames },
+      "Failed",
+      error,
+    );
+    return 0;
+  }
 }
 
 const MANAGER_ACTIVE_REPORT_STATUSES = [
-    "PENDING_ESTIMATION",
-    "PENDING_CHECKLIST_REVIEW",
-    "ESTIMATION_APPROVED",
-    "ESTIMATION_REJECTED_REVISION",
-    "IN_PROGRESS",
-    "PENDING_REVIEW",
-    "APPROVED_BMC",
-    "REVIEW_REJECTED_REVISION",
+  "PENDING_ESTIMATION",
+  "PENDING_CHECKLIST_REVIEW",
+  "ESTIMATION_APPROVED",
+  "ESTIMATION_REJECTED_REVISION",
+  "IN_PROGRESS",
+  "PENDING_REVIEW",
+  "APPROVED_BMC",
+  "REVIEW_REJECTED_REVISION",
 ] as const;
 
 export type ManagerDashboardRole = "BMC" | "BNM_MANAGER";
 
 export type ManagerDashboardReport = {
-    reportNumber: string;
-    storeName: string;
-    branchName: string;
-    status: string;
-    statusLabel: string;
-    createdAt: Date;
-    lastActivityAt: Date;
-    ownerName: string;
-    totalEstimation: number;
-    totalReal: number | null;
-    ageDays: number;
+  reportNumber: string;
+  storeName: string;
+  branchName: string;
+  status: string;
+  statusLabel: string;
+  createdAt: Date;
+  lastActivityAt: Date;
+  ownerName: string;
+  totalEstimation: number;
+  totalReal: number | null;
+  ageDays: number;
 };
 
 export type ManagerDashboardPjum = {
-    id: string;
-    weekNumber: number;
-    branchName: string;
-    bmsNIK: string;
-    bmsName: string;
-    reportCount: number;
-    status: string;
-    createdAt: Date;
+  id: string;
+  weekNumber: number;
+  branchName: string;
+  bmsNIK: string;
+  bmsName: string;
+  reportCount: number;
+  status: string;
+  createdAt: Date;
 };
 
 export type ManagerDashboardData = {
-    branchNames: string[];
-    kpi: {
-        totalReports: number;
-        activeReports: number;
-        pendingReports: number;
-        completedReports: number;
-        completionRate: number;
-        pendingPjum: number;
-        approvedPjumReportCount: number;
-        totalRealisasi: number;
-    };
-    priorityReports: ManagerDashboardReport[];
-    pendingPjums: ManagerDashboardPjum[];
-    recentActivity: ActivityItem[];
+  branchNames: string[];
+  kpi: {
+    totalReports: number;
+    activeReports: number;
+    pendingReports: number;
+    completedReports: number;
+    completionRate: number;
+    pendingPjum: number;
+    approvedPjumReportCount: number;
+    totalRealisasi: number;
+  };
+  priorityReports: ManagerDashboardReport[];
+  pendingPjums: ManagerDashboardPjum[];
+  recentActivity: ActivityItem[];
 };
 
 function getManagerPriorityStatuses(role: ManagerDashboardRole) {
-    if (role === "BNM_MANAGER") {
-        return ["APPROVED_BMC"] as const;
-    }
+  if (role === "BNM_MANAGER") {
+    return ["APPROVED_BMC"] as const;
+  }
 
-    return ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"] as const;
+  return [
+    "PENDING_ESTIMATION",
+    "PENDING_CHECKLIST_REVIEW",
+    "PENDING_REVIEW",
+  ] as const;
 }
 
 function normalizeManagerBranchNames(branchNames: string[]) {
-    return branchNames.filter(
-        (branchName) => branchName.trim() !== "",
-    );
+  return branchNames.filter((branchName) => branchName.trim() !== "");
 }
 
 function mapManagerReport(report: {
-    reportNumber: string;
-    storeName: string;
-    branchName: string;
-    status: string;
-    createdAt: Date;
-    totalEstimation: unknown;
-    totalReal: unknown | null;
-    createdBy: { name: string };
-    activities: { createdAt: Date }[];
+  reportNumber: string;
+  storeName: string;
+  branchName: string;
+  status: string;
+  createdAt: Date;
+  totalEstimation: unknown;
+  totalReal: unknown | null;
+  createdBy: { name: string };
+  activities: { createdAt: Date }[];
 }): ManagerDashboardReport {
-    const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
+  const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
 
-    return {
-        reportNumber: report.reportNumber,
-        storeName: report.storeName,
-        branchName: report.branchName,
-        status: report.status,
-        statusLabel: getReportStatusLabel(report.status),
-        createdAt: report.createdAt,
-        lastActivityAt,
-        ownerName: report.createdBy.name,
-        totalEstimation: Number(report.totalEstimation ?? 0),
-        totalReal: report.totalReal === null ? null : Number(report.totalReal),
-        ageDays: calculateAgeDays(lastActivityAt),
-    };
+  return {
+    reportNumber: report.reportNumber,
+    storeName: report.storeName,
+    branchName: report.branchName,
+    status: report.status,
+    statusLabel: getReportStatusLabel(report.status),
+    createdAt: report.createdAt,
+    lastActivityAt,
+    ownerName: report.createdBy.name,
+    totalEstimation: Number(report.totalEstimation ?? 0),
+    totalReal: report.totalReal === null ? null : Number(report.totalReal),
+    ageDays: calculateAgeDays(lastActivityAt),
+  };
 }
 
 export async function getManagerDashboardData({
-    role,
-    branchNames,
+  role,
+  branchNames,
 }: {
-    role: ManagerDashboardRole;
-    branchNames: string[];
+  role: ManagerDashboardRole;
+  branchNames: string[];
 }): Promise<ManagerDashboardData> {
-    const visibleBranches = normalizeManagerBranchNames(branchNames);
-    const empty: ManagerDashboardData = {
-        branchNames: visibleBranches,
-        kpi: {
-            totalReports: 0,
-            activeReports: 0,
-            pendingReports: 0,
-            completedReports: 0,
-            completionRate: 0,
-            pendingPjum: 0,
-            approvedPjumReportCount: 0,
-            totalRealisasi: 0,
+  const visibleBranches = normalizeManagerBranchNames(branchNames);
+  const empty: ManagerDashboardData = {
+    branchNames: visibleBranches,
+    kpi: {
+      totalReports: 0,
+      activeReports: 0,
+      pendingReports: 0,
+      completedReports: 0,
+      completionRate: 0,
+      pendingPjum: 0,
+      approvedPjumReportCount: 0,
+      totalRealisasi: 0,
+    },
+    priorityReports: [],
+    pendingPjums: [],
+    recentActivity: [],
+  };
+
+  if (visibleBranches.length === 0) return empty;
+
+  const priorityStatuses = getManagerPriorityStatuses(role);
+  const reportBase = {
+    branchName: { in: visibleBranches },
+    status: {
+      notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+    },
+  };
+  const completedBase = {
+    branchName: { in: visibleBranches },
+    status: "COMPLETED" as const,
+  };
+
+  try {
+    const [
+      totalReports,
+      activeReports,
+      pendingReports,
+      completedReports,
+      pendingPjum,
+      approvedPjumRows,
+      totalRealisasi,
+      priorityRows,
+      pendingPjumRows,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.report.count({ where: reportBase }),
+      prisma.report.count({
+        where: {
+          branchName: { in: visibleBranches },
+          status: { in: [...MANAGER_ACTIVE_REPORT_STATUSES] },
         },
-        priorityReports: [],
-        pendingPjums: [],
-        recentActivity: [],
-    };
-
-    if (visibleBranches.length === 0) return empty;
-
-    const priorityStatuses = getManagerPriorityStatuses(role);
-    const reportBase = {
-        branchName: { in: visibleBranches },
-        status: {
-            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+      }),
+      prisma.report.count({
+        where: {
+          branchName: { in: visibleBranches },
+          status: { in: [...priorityStatuses] },
         },
+      }),
+      prisma.report.count({ where: completedBase }),
+      prisma.pjumExport.count({
+        where: {
+          branchName: { in: visibleBranches },
+          status:
+            role === "BMC"
+              ? { in: ["PENDING_APPROVAL", "REJECTED"] }
+              : "PENDING_APPROVAL",
+        },
+      }),
+      prisma.pjumExport.findMany({
+        where: {
+          branchName: { in: visibleBranches },
+          status: "APPROVED",
+        },
+        select: {
+          reportNumbers: true,
+        },
+      }),
+      prisma.report.aggregate({
+        where: {
+          ...completedBase,
+          totalReal: { not: null },
+        },
+        _sum: { totalReal: true },
+      }),
+      prisma.report.findMany({
+        where: {
+          branchName: { in: visibleBranches },
+          status: { in: [...priorityStatuses] },
+        },
+        orderBy: [{ updatedAt: "asc" }, { reportNumber: "desc" }],
+        take: 6,
+        select: {
+          reportNumber: true,
+          storeName: true,
+          branchName: true,
+          status: true,
+          createdAt: true,
+          totalEstimation: true,
+          totalReal: true,
+          createdBy: { select: { name: true } },
+          activities: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true },
+          },
+        },
+      }),
+      prisma.pjumExport.findMany({
+        where: {
+          branchName: { in: visibleBranches },
+          status:
+            role === "BMC"
+              ? { in: ["PENDING_APPROVAL", "REJECTED"] }
+              : "PENDING_APPROVAL",
+        },
+        orderBy: [{ createdAt: "asc" }, { id: "desc" }],
+        take: 5,
+        select: {
+          id: true,
+          weekNumber: true,
+          branchName: true,
+          bmsNIK: true,
+          reportNumbers: true,
+          status: true,
+          createdAt: true,
+        },
+      }),
+      getBranchActivity(visibleBranches, 8),
+    ]);
+
+    const pjumBmsNiks = Array.from(
+      new Set(pendingPjumRows.map((pjum) => pjum.bmsNIK)),
+    );
+    const bmsUsers =
+      pjumBmsNiks.length > 0
+        ? await prisma.user.findMany({
+            where: { NIK: { in: pjumBmsNiks } },
+            select: { NIK: true, name: true },
+          })
+        : [];
+    const bmsNameMap = new Map(bmsUsers.map((user) => [user.NIK, user.name]));
+
+    return {
+      branchNames: visibleBranches,
+      kpi: {
+        totalReports,
+        activeReports,
+        pendingReports,
+        completedReports,
+        completionRate:
+          totalReports > 0
+            ? Math.round((completedReports / totalReports) * 100)
+            : 0,
+        pendingPjum,
+        approvedPjumReportCount: approvedPjumRows.reduce(
+          (sum, pjum) => sum + pjum.reportNumbers.length,
+          0,
+        ),
+        totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+      },
+      priorityReports: priorityRows.map(mapManagerReport),
+      pendingPjums: pendingPjumRows.map((pjum) => ({
+        id: pjum.id,
+        weekNumber: pjum.weekNumber,
+        branchName: pjum.branchName,
+        bmsNIK: pjum.bmsNIK,
+        bmsName: bmsNameMap.get(pjum.bmsNIK) ?? pjum.bmsNIK,
+        reportCount: pjum.reportNumbers.length,
+        status: pjum.status,
+        createdAt: pjum.createdAt,
+      })),
+      recentActivity,
     };
-    const completedBase = {
-        branchName: { in: visibleBranches },
-        status: "COMPLETED" as const,
-    };
-
-    try {
-        const [
-            totalReports,
-            activeReports,
-            pendingReports,
-            completedReports,
-            pendingPjum,
-            approvedPjumRows,
-            totalRealisasi,
-            priorityRows,
-            pendingPjumRows,
-            recentActivity,
-        ] = await Promise.all([
-            prisma.report.count({ where: reportBase }),
-            prisma.report.count({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: { in: [...MANAGER_ACTIVE_REPORT_STATUSES] },
-                },
-            }),
-            prisma.report.count({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: { in: [...priorityStatuses] },
-                },
-            }),
-            prisma.report.count({ where: completedBase }),
-            prisma.pjumExport.count({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
-                },
-            }),
-            prisma.pjumExport.findMany({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: "APPROVED",
-                },
-                select: {
-                    reportNumbers: true,
-                },
-            }),
-            prisma.report.aggregate({
-                where: {
-                    ...completedBase,
-                    totalReal: { not: null },
-                },
-                _sum: { totalReal: true },
-            }),
-            prisma.report.findMany({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: { in: [...priorityStatuses] },
-                },
-                orderBy: [{ updatedAt: "asc" }, { reportNumber: "desc" }],
-                take: 6,
-                select: {
-                    reportNumber: true,
-                    storeName: true,
-                    branchName: true,
-                    status: true,
-                    createdAt: true,
-                    totalEstimation: true,
-                    totalReal: true,
-                    createdBy: { select: { name: true } },
-                    activities: {
-                        orderBy: { createdAt: "desc" },
-                        take: 1,
-                        select: { createdAt: true },
-                    },
-                },
-            }),
-            prisma.pjumExport.findMany({
-                where: {
-                    branchName: { in: visibleBranches },
-                    status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
-                },
-                orderBy: [{ createdAt: "asc" }, { id: "desc" }],
-                take: 5,
-                select: {
-                    id: true,
-                    weekNumber: true,
-                    branchName: true,
-                    bmsNIK: true,
-                    reportNumbers: true,
-                    status: true,
-                    createdAt: true,
-                },
-            }),
-            getBranchActivity(visibleBranches, 8),
-        ]);
-
-        const pjumBmsNiks = Array.from(
-            new Set(pendingPjumRows.map((pjum) => pjum.bmsNIK)),
-        );
-        const bmsUsers =
-            pjumBmsNiks.length > 0
-                ? await prisma.user.findMany({
-                      where: { NIK: { in: pjumBmsNiks } },
-                      select: { NIK: true, name: true },
-                  })
-                : [];
-        const bmsNameMap = new Map(
-            bmsUsers.map((user) => [user.NIK, user.name]),
-        );
-
-        return {
-            branchNames: visibleBranches,
-            kpi: {
-                totalReports,
-                activeReports,
-                pendingReports,
-                completedReports,
-                completionRate:
-                    totalReports > 0
-                        ? Math.round((completedReports / totalReports) * 100)
-                        : 0,
-                pendingPjum,
-                approvedPjumReportCount: approvedPjumRows.reduce(
-                    (sum, pjum) => sum + pjum.reportNumbers.length,
-                    0,
-                ),
-                totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
-            },
-            priorityReports: priorityRows.map(mapManagerReport),
-            pendingPjums: pendingPjumRows.map((pjum) => ({
-                id: pjum.id,
-                weekNumber: pjum.weekNumber,
-                branchName: pjum.branchName,
-                bmsNIK: pjum.bmsNIK,
-                bmsName: bmsNameMap.get(pjum.bmsNIK) ?? pjum.bmsNIK,
-                reportCount: pjum.reportNumbers.length,
-                status: pjum.status,
-                createdAt: pjum.createdAt,
-            })),
-            recentActivity,
-        };
-    } catch (error) {
-        logger.error(
-            { operation: "getManagerDashboardData", role, branchNames },
-            "Failed to fetch manager dashboard data",
-            error,
-        );
-        return empty;
-    }
+  } catch (error) {
+    logger.error(
+      { operation: "getManagerDashboardData", role, branchNames },
+      "Failed to fetch manager dashboard data",
+      error,
+    );
+    return empty;
+  }
 }
 
 export type ActivityItem = {
-    id: string;
-    reportNumber: string;
-    action: string; // ActivityAction enum value
-    isChecklistOnly: boolean;
-    notes: string | null;
-    createdAt: Date;
-    actor: { name: string; NIK: string };
-    report: {
-        storeName: string;
-        storeCode: string | null;
-        branchName: string;
-        status: string;
-        completedPdfPath: string | null;
-        reportFinalDriveUrl: string | null;
-    };
+  id: string;
+  reportNumber: string;
+  action: string; // ActivityAction enum value
+  isChecklistOnly: boolean;
+  notes: string | null;
+  createdAt: Date;
+  actor: { name: string; NIK: string };
+  report: {
+    storeName: string;
+    storeCode: string | null;
+    branchName: string;
+    status: string;
+    completedPdfPath: string | null;
+    reportFinalDriveUrl: string | null;
+  };
 };
 
 // ── internal helper ───────────────────────────────────────────────────────────
 
 async function fetchActivityLogs(
-    where: NonNullable<
-        Parameters<typeof prisma.activityLog.findMany>[0]
-    >["where"],
-    limit: number,
+  where: NonNullable<
+    Parameters<typeof prisma.activityLog.findMany>[0]
+  >["where"],
+  limit: number,
 ): Promise<ActivityItem[]> {
-    const rows = await prisma.activityLog.findMany({
-        where: {
-            AND: [
-                where ?? {},
-                {
-                    report: {
-                        status: { not: ARCHIVED_PREVENTIVE_STATUS },
-                    },
-                },
-            ],
+  const rows = await prisma.activityLog.findMany({
+    where: {
+      AND: [
+        where ?? {},
+        {
+          report: {
+            status: { not: ARCHIVED_PREVENTIVE_STATUS },
+          },
         },
-        orderBy: { createdAt: "desc" },
-        take: limit,
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: {
+      id: true,
+      reportNumber: true,
+      action: true,
+      notes: true,
+      createdAt: true,
+      actor: { select: { name: true, NIK: true } },
+      report: {
         select: {
-            id: true,
-            reportNumber: true,
-            action: true,
-            notes: true,
-            createdAt: true,
-            actor: { select: { name: true, NIK: true } },
-            report: {
-                select: {
-                    storeName: true,
-                    storeCode: true,
-                    branchName: true,
-                    status: true,
-                    completedPdfPath: true,
-                    reportFinalDriveUrl: true,
-                    items: true,
-                },
-            },
+          storeName: true,
+          storeCode: true,
+          branchName: true,
+          status: true,
+          completedPdfPath: true,
+          reportFinalDriveUrl: true,
+          items: true,
         },
-    });
-    return rows.map((row) => {
-        const { items, ...report } = row.report;
-        const reportItems = Array.isArray(items)
-            ? (items as unknown as ReportItemJson[])
-            : [];
+      },
+    },
+  });
+  return rows.map((row) => {
+    const { items, ...report } = row.report;
+    const reportItems = Array.isArray(items)
+      ? (items as unknown as ReportItemJson[])
+      : [];
 
-        return {
-            ...row,
-            action: row.action as string,
-            isChecklistOnly: isChecklistOnlyReport(reportItems),
-            report,
-        };
-    });
+    return {
+      ...row,
+      action: row.action as string,
+      isChecklistOnly: isChecklistOnlyReport(reportItems),
+      report,
+    };
+  });
 }
 
 // ── public query functions ────────────────────────────────────────────────────
@@ -599,49 +614,46 @@ async function fetchActivityLogs(
  * Fetch activity log for reports created by a specific BMS user.
  */
 export async function getBMSActivity(
-    userId: string,
-    limit = 5,
+  userId: string,
+  limit = 5,
 ): Promise<ActivityItem[]> {
-    try {
-        return await fetchActivityLogs(
-            { report: { createdByNIK: userId } },
-            limit,
-        );
-    } catch (error) {
-        logger.error({ operation: "getBMSActivity", userId }, "Failed", error);
-        return [];
-    }
+  try {
+    return await fetchActivityLogs({ report: { createdByNIK: userId } }, limit);
+  } catch (error) {
+    logger.error({ operation: "getBMSActivity", userId }, "Failed", error);
+    return [];
+  }
 }
 
 /**
  * Fetch activity log for all reports in the given branches.
  */
 export async function getBranchActivity(
-    branchNames: string[],
-    limit = 5,
+  branchNames: string[],
+  limit = 5,
 ): Promise<ActivityItem[]> {
-    try {
-        return await fetchActivityLogs(
-            { report: { branchName: { in: branchNames } } },
-            limit,
-        );
-    } catch (error) {
-        logger.error(
-            { operation: "getBranchActivity", branchNames },
-            "Failed",
-            error,
-        );
-        return [];
-    }
+  try {
+    return await fetchActivityLogs(
+      { report: { branchName: { in: branchNames } } },
+      limit,
+    );
+  } catch (error) {
+    logger.error(
+      { operation: "getBranchActivity", branchNames },
+      "Failed",
+      error,
+    );
+    return [];
+  }
 }
 
 export type PjumActivityItem = {
-    id: string;
-    label: string;
-    action: string;
-    createdAt: Date;
-    actor: { name: string; NIK: string };
-    branchName: string;
+  id: string;
+  label: string;
+  action: string;
+  createdAt: Date;
+  actor: { name: string; NIK: string };
+  branchName: string;
 };
 
 /**
@@ -649,899 +661,929 @@ export type PjumActivityItem = {
  * Returns both created and approved activities based on status/timestamps.
  */
 export async function getPjumActivity(
-    branchNames: string[],
-    limit = 5,
+  branchNames: string[],
+  limit = 5,
 ): Promise<PjumActivityItem[]> {
-    try {
-        const exports = await prisma.pjumExport.findMany({
-            where: { branchName: { in: branchNames } },
-            orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
-            take: limit,
+  try {
+    const exports = await prisma.pjumExport.findMany({
+      where: { branchName: { in: branchNames } },
+      orderBy: [{ approvedAt: "desc" }, { createdAt: "desc" }],
+      take: limit,
+    });
+
+    // Collect unique NIKs
+    const niks = new Set<string>();
+    exports.forEach((e) => {
+      niks.add(e.createdByNIK);
+      if (e.approvedByNIK) niks.add(e.approvedByNIK);
+    });
+
+    // Fetch user records to get actual names
+    const users = await prisma.user.findMany({
+      where: { NIK: { in: Array.from(niks) } },
+      select: { NIK: true, name: true },
+    });
+    const userMap = new Map(users.map((u) => [u.NIK, u.name]));
+
+    const activities: PjumActivityItem[] = [];
+
+    for (const pjum of exports) {
+      // Include created activity
+      activities.push({
+        id: `${pjum.id}-created`,
+        label: `PJUM Minggu ke-${pjum.weekNumber}`,
+        action: "PJUM_CREATED",
+        createdAt: pjum.createdAt,
+        actor: {
+          name: userMap.get(pjum.createdByNIK) ?? pjum.createdByNIK,
+          NIK: pjum.createdByNIK,
+        },
+        branchName: pjum.branchName,
+      });
+
+      // If approved, also include approved activity
+      if (pjum.status === "APPROVED" && pjum.approvedAt && pjum.approvedByNIK) {
+        activities.push({
+          id: `${pjum.id}-approved`,
+          label: `PJUM Minggu ke-${pjum.weekNumber}`,
+          action: "PJUM_APPROVED",
+          createdAt: pjum.approvedAt,
+          actor: {
+            name: userMap.get(pjum.approvedByNIK) ?? pjum.approvedByNIK,
+            NIK: pjum.approvedByNIK,
+          },
+          branchName: pjum.branchName,
         });
-
-        // Collect unique NIKs
-        const niks = new Set<string>();
-        exports.forEach((e) => {
-            niks.add(e.createdByNIK);
-            if (e.approvedByNIK) niks.add(e.approvedByNIK);
-        });
-
-        // Fetch user records to get actual names
-        const users = await prisma.user.findMany({
-            where: { NIK: { in: Array.from(niks) } },
-            select: { NIK: true, name: true },
-        });
-        const userMap = new Map(users.map((u) => [u.NIK, u.name]));
-
-        const activities: PjumActivityItem[] = [];
-
-        for (const pjum of exports) {
-            // Include created activity
-            activities.push({
-                id: `${pjum.id}-created`,
-                label: `PJUM Minggu ke-${pjum.weekNumber}`,
-                action: "PJUM_CREATED",
-                createdAt: pjum.createdAt,
-                actor: {
-                    name: userMap.get(pjum.createdByNIK) ?? pjum.createdByNIK,
-                    NIK: pjum.createdByNIK,
-                },
-                branchName: pjum.branchName,
-            });
-
-            // If approved, also include approved activity
-            if (
-                pjum.status === "APPROVED" &&
-                pjum.approvedAt &&
-                pjum.approvedByNIK
-            ) {
-                activities.push({
-                    id: `${pjum.id}-approved`,
-                    label: `PJUM Minggu ke-${pjum.weekNumber}`,
-                    action: "PJUM_APPROVED",
-                    createdAt: pjum.approvedAt,
-                    actor: {
-                        name:
-                            userMap.get(pjum.approvedByNIK) ??
-                            pjum.approvedByNIK,
-                        NIK: pjum.approvedByNIK,
-                    },
-                    branchName: pjum.branchName,
-                });
-            }
-        }
-
-        // Sort combined activities and limit
-        return activities
-            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-            .slice(0, limit);
-    } catch (error) {
-        logger.error(
-            { operation: "getPjumActivity", branchNames },
-            "Failed",
-            error,
-        );
-        return [];
+      }
     }
+
+    // Sort combined activities and limit
+    return activities
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
+  } catch (error) {
+    logger.error(
+      { operation: "getPjumActivity", branchNames },
+      "Failed",
+      error,
+    );
+    return [];
+  }
 }
 
 /**
  * Fetch BMC's own approval/rejection actions (estimation & work completion).
  */
 export async function getBMCApprovalHistory(
-    actorNIK: string,
-    limit = 500,
+  actorNIK: string,
+  limit = 500,
 ): Promise<ActivityItem[]> {
-    const BMC_ACTIONS = [
-        "ESTIMATION_APPROVED",
-        "ESTIMATION_REJECTED",
-        "ESTIMATION_REJECTED_REVISION",
-        "WORK_APPROVED",
-        "WORK_REJECTED_REVISION",
-    ];
-    try {
-        return await fetchActivityLogs(
-            { actorNIK, action: { in: BMC_ACTIONS as never[] } },
-            limit,
-        );
-    } catch (error) {
-        logger.error(
-            { operation: "getBMCApprovalHistory", actorNIK },
-            "Failed",
-            error,
-        );
-        return [];
-    }
+  const BMC_ACTIONS = [
+    "ESTIMATION_APPROVED",
+    "ESTIMATION_REJECTED",
+    "ESTIMATION_REJECTED_REVISION",
+    "WORK_APPROVED",
+    "WORK_REJECTED_REVISION",
+  ];
+  try {
+    return await fetchActivityLogs(
+      { actorNIK, action: { in: BMC_ACTIONS as never[] } },
+      limit,
+    );
+  } catch (error) {
+    logger.error(
+      { operation: "getBMCApprovalHistory", actorNIK },
+      "Failed",
+      error,
+    );
+    return [];
+  }
 }
 
 /**
  * Fetch global activity log (for /activity page, ADMIN role).
  */
 export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
-    try {
-        return await fetchActivityLogs(
-            { report: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } },
-            limit,
-        );
-    } catch (error) {
-        logger.error({ operation: "getGlobalActivity" }, "Failed", error);
-        return [];
-    }
+  try {
+    return await fetchActivityLogs(
+      { report: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } },
+      limit,
+    );
+  } catch (error) {
+    logger.error({ operation: "getGlobalActivity" }, "Failed", error);
+    return [];
+  }
 }
 
 // ─── YTD helper ───────────────────────────────────────────────────────────────
 
 function getYtdStart(): Date {
-    return getJakartaYearWindow(getJakartaYear()).start;
+  return getJakartaYearWindow(getJakartaYear()).start;
 }
 
 export async function getAdminVisibleOnlineUserCount(): Promise<number> {
-    try {
-        const onlineUserIds = await getOnlineUsers();
-        if (onlineUserIds.length === 0) return 0;
+  try {
+    const onlineUserIds = await getOnlineUsers();
+    if (onlineUserIds.length === 0) return 0;
 
-        return await prisma.user.count({
-            where: {
-                NIK: { in: onlineUserIds },
-                deletedAt: null,
-                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
-            },
-        });
-    } catch (error) {
-        logger.error(
-            { operation: "getAdminVisibleOnlineUserCount" },
-            "Failed",
-            error,
-        );
-        return 0;
-    }
+    return await prisma.user.count({
+      where: {
+        NIK: { in: onlineUserIds },
+        deletedAt: null,
+        NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+      },
+    });
+  } catch (error) {
+    logger.error(
+      { operation: "getAdminVisibleOnlineUserCount" },
+      "Failed",
+      error,
+    );
+    return 0;
+  }
 }
 
 export type AdminKpiMetric = {
-    totalReports: number;
-    completedReports: number;
-    activeReports: number;
-    rejectedReports: number;
-    inProgressReports: number;
-    pendingReviewReports: number;
-    revisionReports: number;
-    completionRate: number;
-    totalRealisasi: number;
-    avgRealisasi: number;
-    avgBmsWeeklyRealisasi: number;
-    activeUsers: number;
-    pjumCompletedReports: number;
-    unpjumCompletedReports: number;
-    unpjumNotRequiredReports: number;
-    pendingPjum: number;
+  totalReports: number;
+  completedReports: number;
+  activeReports: number;
+  rejectedReports: number;
+  inProgressReports: number;
+  pendingReviewReports: number;
+  revisionReports: number;
+  completionRate: number;
+  totalRealisasi: number;
+  avgRealisasi: number;
+  avgBmsWeeklyRealisasi: number;
+  activeUsers: number;
+  pjumCompletedReports: number;
+  unpjumCompletedReports: number;
+  unpjumNotRequiredReports: number;
+  pendingPjum: number;
 };
 
 export type AdminStatusDatum = {
-    status: string;
-    label: string;
-    count: number;
-    slaDays: number | null;
-    overdueCount: number;
+  status: string;
+  label: string;
+  count: number;
+  slaDays: number | null;
+  overdueCount: number;
 };
 
 export type AdminTrendDatum = {
-    label: string;
-    branchName: string;
-    completed: number;
-    realisasi: number;
-    avgRealisasi: number;
-    avgBmsWeeklyRealisasi: number;
+  label: string;
+  branchName: string;
+  completed: number;
+  realisasi: number;
+  avgRealisasi: number;
+  avgBmsWeeklyRealisasi: number;
 };
 
 export type AdminTrendPeriod = string;
 
 export type AdminBranchOption = {
-    name: string;
+  name: string;
 };
 
 export type AdminBranchPerformanceDatum = {
-    branchName: string;
-    totalReports: number;
-    completedReports: number;
-    openReports: number;
-    completionRate: number;
-    totalRealisasi: number;
-    avgRealisasi: number;
+  branchName: string;
+  totalReports: number;
+  completedReports: number;
+  openReports: number;
+  completionRate: number;
+  totalRealisasi: number;
+  avgRealisasi: number;
 };
 
 export type AdminAttentionReport = {
-    reportNumber: string;
-    storeName: string;
-    branchName: string;
-    status: string;
-    statusLabel: string;
-    createdAt: Date;
-    updatedAt: Date;
-    ageDays: number;
-    ownerName: string;
+  reportNumber: string;
+  storeName: string;
+  branchName: string;
+  status: string;
+  statusLabel: string;
+  createdAt: Date;
+  updatedAt: Date;
+  ageDays: number;
+  ownerName: string;
 };
 
 export type AdminPjumSummary = {
-    total: number;
-    pending: number;
-    approved: number;
-    rejected: number;
+  total: number;
+  pending: number;
+  approved: number;
+  rejected: number;
 };
 
 export type AdminCommandCenterDataBreakdown = {
-    kpi: AdminKpiMetric;
+  kpi: AdminKpiMetric;
 };
 
 export type AdminCommandCenterData = {
-    kpi: AdminKpiMetric;
-    status: AdminStatusDatum[];
-    trends: AdminTrendDatum[];
-    branchOptions: AdminBranchOption[];
-    branches: AdminBranchPerformanceDatum[];
-    stuckReports: AdminAttentionReport[];
-    pjum: AdminPjumSummary;
-    recentActivity: ActivityItem[];
-    brandBreakdown?: {
-        alfamart: AdminCommandCenterDataBreakdown;
-        lawson: AdminCommandCenterDataBreakdown;
-    };
+  kpi: AdminKpiMetric;
+  status: AdminStatusDatum[];
+  trends: AdminTrendDatum[];
+  branchOptions: AdminBranchOption[];
+  branches: AdminBranchPerformanceDatum[];
+  stuckReports: AdminAttentionReport[];
+  pjum: AdminPjumSummary;
+  recentActivity: ActivityItem[];
+  brandBreakdown?: {
+    alfamart: AdminCommandCenterDataBreakdown;
+    lawson: AdminCommandCenterDataBreakdown;
+  };
+  slaPerformance?: AdminSlaPerformanceData;
+  userStats?: {
+    totalStoreAlfamart: number;
+    totalStoreLawson: number;
+    totalTimCabang: number;
+    totalManagerCabang: number;
+    totalBmc: number;
+    totalBms: number;
+  };
 };
 
 export type AdminBranchHierarchy = {
-    options: AdminBranchOption[];
-    parentMap: Map<string, string>;
+  options: AdminBranchOption[];
+  parentMap: Map<string, string>;
 };
 
 type AdminBranchAccumulator = {
-    branchName: string;
-    totalReports: number;
-    completedReports: number;
-    totalRealisasi: number;
+  branchName: string;
+  totalReports: number;
+  completedReports: number;
+  totalRealisasi: number;
 };
 
 const ADMIN_STATUS_LABELS: Record<string, string> = {
-    PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
-    ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
-    ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
-        "ESTIMATION_REJECTED_REVISION",
-    ),
-    ESTIMATION_REJECTED: getReportStatusLabel("ESTIMATION_REJECTED"),
-    IN_PROGRESS: getReportStatusLabel("IN_PROGRESS"),
-    PENDING_REVIEW: getReportStatusLabel("PENDING_REVIEW"),
-    APPROVED_BMC: getReportStatusLabel("APPROVED_BMC"),
-    REVIEW_REJECTED_REVISION: getReportStatusLabel(
-        "REVIEW_REJECTED_REVISION",
-    ),
-    COMPLETED: getReportStatusLabel("COMPLETED"),
+  PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+  ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
+  ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
+    "ESTIMATION_REJECTED_REVISION",
+  ),
+  ESTIMATION_REJECTED: getReportStatusLabel("ESTIMATION_REJECTED"),
+  IN_PROGRESS: getReportStatusLabel("IN_PROGRESS"),
+  PENDING_REVIEW: getReportStatusLabel("PENDING_REVIEW"),
+  APPROVED_BMC: getReportStatusLabel("APPROVED_BMC"),
+  REVIEW_REJECTED_REVISION: getReportStatusLabel("REVIEW_REJECTED_REVISION"),
+  COMPLETED: getReportStatusLabel("COMPLETED"),
 };
 
 const ADMIN_STATUS_ORDER = [
-    "PENDING_ESTIMATION",
-    "ESTIMATION_APPROVED",
-    "IN_PROGRESS",
-    "PENDING_REVIEW",
-    "APPROVED_BMC",
-    "ESTIMATION_REJECTED_REVISION",
-    "REVIEW_REJECTED_REVISION",
-    "ESTIMATION_REJECTED",
-    "COMPLETED",
+  "PENDING_ESTIMATION",
+  "ESTIMATION_APPROVED",
+  "IN_PROGRESS",
+  "PENDING_REVIEW",
+  "APPROVED_BMC",
+  "ESTIMATION_REJECTED_REVISION",
+  "REVIEW_REJECTED_REVISION",
+  "ESTIMATION_REJECTED",
+  "COMPLETED",
 ];
 
 function getMonthKey(date: Date): string {
-    return getJakartaMonthKey(date);
+  return getJakartaMonthKey(date);
 }
 
 function getMonthLabel(date: Date): string {
-    const month = getJakartaMonth(date);
-    return `${MONTH_LABELS[month - 1]} ${getJakartaYear(date)}`;
+  const month = getJakartaMonth(date);
+  return `${MONTH_LABELS[month - 1]} ${getJakartaYear(date)}`;
 }
 
 function getDayKey(date: Date): string {
-    return getJakartaDayKey(date);
+  return getJakartaDayKey(date);
 }
 
 function getDayLabel(date: Date): string {
-    return formatJakartaDate(date);
+  return formatJakartaDate(date);
 }
 
 function getRecentMonthKeys(count: number): { key: string; label: string }[] {
-    const months: { key: string; label: string }[] = [];
-    const currentYear = getJakartaYear();
-    const currentMonth = getJakartaMonth();
+  const months: { key: string; label: string }[] = [];
+  const currentYear = getJakartaYear();
+  const currentMonth = getJakartaMonth();
 
-    for (let i = count - 1; i >= 0; i--) {
-        const date = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
-        months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
-    }
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(Date.UTC(currentYear, currentMonth - 1 - i, 1));
+    months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
+  }
 
-    return months;
+  return months;
 }
 
 function getYtdMonthKeys(): { key: string; label: string }[] {
-    const months: { key: string; label: string }[] = [];
-    const year = getJakartaYear();
-    const currentMonth = getJakartaMonth();
+  const months: { key: string; label: string }[] = [];
+  const year = getJakartaYear();
+  const currentMonth = getJakartaMonth();
 
-    for (let month = 1; month <= currentMonth; month++) {
-        const date = new Date(Date.UTC(year, month - 1, 1));
-        months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
-    }
+  for (let month = 1; month <= currentMonth; month++) {
+    const date = new Date(Date.UTC(year, month - 1, 1));
+    months.push({ key: getMonthKey(date), label: getMonthLabel(date) });
+  }
 
-    return months;
+  return months;
 }
 
 function getRecentDayKeys(count: number): { key: string; label: string }[] {
-    const days: { key: string; label: string }[] = [];
-    const current = getJakartaTodayStart();
+  const days: { key: string; label: string }[] = [];
+  const current = getJakartaTodayStart();
 
-    for (let i = count - 1; i >= 0; i--) {
-        const date = new Date(current.getTime() - i * 86_400_000);
-        days.push({ key: getDayKey(date), label: getDayLabel(date) });
-    }
+  for (let i = count - 1; i >= 0; i--) {
+    const date = new Date(current.getTime() - i * 86_400_000);
+    days.push({ key: getDayKey(date), label: getDayLabel(date) });
+  }
 
-    return days;
+  return days;
 }
 
 function getStartOfRecentMonths(count: number): Date {
-    return getJakartaStartOfRecentMonths(count);
+  return getJakartaStartOfRecentMonths(count);
 }
 
 function getStartOfRecentDays(count: number): Date {
-    return getJakartaStartOfRecentDays(count);
+  return getJakartaStartOfRecentDays(count);
 }
 
 function getTrendWindow(period: string): {
-    start: Date;
-    end?: Date;
-    buckets: { key: string; label: string }[];
-    bucketKey: (date: Date) => string;
+  start: Date;
+  end?: Date;
+  buckets: { key: string; label: string }[];
+  bucketKey: (date: Date) => string;
 } {
-    if (/^\d{2}-\d{4}$/.test(period)) {
-        const [mStr, yStr] = period.split("-");
-        const month = parseInt(mStr, 10);
-        const year = parseInt(yStr, 10);
-        const { start, endExclusive } = getJakartaMonthWindow(year, month);
-        const days = [];
-        const today = getJakartaTodayStart();
-        const current = new Date(start);
+  if (/^\d{2}-\d{4}$/.test(period)) {
+    const [mStr, yStr] = period.split("-");
+    const month = parseInt(mStr, 10);
+    const year = parseInt(yStr, 10);
+    const { start, endExclusive } = getJakartaMonthWindow(year, month);
+    const days = [];
+    const today = getJakartaTodayStart();
+    const current = new Date(start);
 
-        while (current < endExclusive && current <= today) {
-            days.push({ key: getDayKey(current), label: getDayLabel(current) });
-            current.setTime(current.getTime() + 86_400_000);
-        }
-
-        return {
-            start,
-            end: endExclusive,
-            buckets: days,
-            bucketKey: getDayKey,
-        };
-    }
-    if (period === "30d") {
-        return {
-            start: getStartOfRecentDays(30),
-            buckets: getRecentDayKeys(30),
-            bucketKey: getDayKey,
-        };
-    }
-
-    if (period === "90d") {
-        return {
-            start: getStartOfRecentDays(90),
-            buckets: getRecentDayKeys(90),
-            bucketKey: getDayKey,
-        };
-    }
-
-    if (period === "12m") {
-        return {
-            start: getStartOfRecentMonths(12),
-            buckets: getRecentMonthKeys(12),
-            bucketKey: getMonthKey,
-        };
+    while (current < endExclusive && current <= today) {
+      days.push({ key: getDayKey(current), label: getDayLabel(current) });
+      current.setTime(current.getTime() + 86_400_000);
     }
 
     return {
-        start: getYtdStart(),
-        buckets: getYtdMonthKeys(),
-        bucketKey: getMonthKey,
+      start,
+      end: endExclusive,
+      buckets: days,
+      bucketKey: getDayKey,
     };
+  }
+  if (period === "30d") {
+    return {
+      start: getStartOfRecentDays(30),
+      buckets: getRecentDayKeys(30),
+      bucketKey: getDayKey,
+    };
+  }
+
+  if (period === "90d") {
+    return {
+      start: getStartOfRecentDays(90),
+      buckets: getRecentDayKeys(90),
+      bucketKey: getDayKey,
+    };
+  }
+
+  if (period === "12m") {
+    return {
+      start: getStartOfRecentMonths(12),
+      buckets: getRecentMonthKeys(12),
+      bucketKey: getMonthKey,
+    };
+  }
+
+  return {
+    start: getYtdStart(),
+    buckets: getYtdMonthKeys(),
+    bucketKey: getMonthKey,
+  };
 }
 
 function calculateAgeDays(date: Date): number {
-    const diff = Date.now() - date.getTime();
-    return Math.max(0, Math.floor(diff / 86_400_000));
+  const diff = Date.now() - date.getTime();
+  return Math.max(0, Math.floor(diff / 86_400_000));
 }
 
 function getWeekKey(date: Date): string {
-    return getJakartaWeekStartKey(date);
+  return getJakartaWeekStartKey(date);
 }
 
 function averageMapValues(map: Map<string, number>): number {
-    if (map.size === 0) return 0;
+  if (map.size === 0) return 0;
 
-    let total = 0;
-    for (const value of map.values()) {
-        total += value;
-    }
+  let total = 0;
+  for (const value of map.values()) {
+    total += value;
+  }
 
-    return Math.round(total / map.size);
+  return Math.round(total / map.size);
 }
 
 function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
-    return {
-        kpi: {
-            totalReports: 0,
-            completedReports: 0,
-            activeReports: 0,
-            rejectedReports: 0,
-            inProgressReports: 0,
-            pendingReviewReports: 0,
-            revisionReports: 0,
-            completionRate: 0,
-            totalRealisasi: 0,
-            avgRealisasi: 0,
-            avgBmsWeeklyRealisasi: 0,
-            activeUsers: 0,
-            pjumCompletedReports: 0,
-            unpjumCompletedReports: 0,
-            unpjumNotRequiredReports: 0,
-            pendingPjum: 0,
-        },
-        status: [],
-        trends: [],
-        branchOptions: [],
-        branches: [],
-        stuckReports: [],
-        pjum: { total: 0, pending: 0, approved: 0, rejected: 0 },
-        recentActivity: [],
-    };
+  return {
+    kpi: {
+      totalReports: 0,
+      completedReports: 0,
+      activeReports: 0,
+      rejectedReports: 0,
+      inProgressReports: 0,
+      pendingReviewReports: 0,
+      revisionReports: 0,
+      completionRate: 0,
+      totalRealisasi: 0,
+      avgRealisasi: 0,
+      avgBmsWeeklyRealisasi: 0,
+      activeUsers: 0,
+      pjumCompletedReports: 0,
+      unpjumCompletedReports: 0,
+      unpjumNotRequiredReports: 0,
+      pendingPjum: 0,
+    },
+    status: [],
+    trends: [],
+    branchOptions: [],
+    branches: [],
+    stuckReports: [],
+    pjum: { total: 0, pending: 0, approved: 0, rejected: 0 },
+    recentActivity: [],
+  };
 }
 
 export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
-    const users = await prisma.user.findMany({
-        where: { deletedAt: null },
-        select: { branchNames: true },
-    });
+  const users = await prisma.user.findMany({
+    where: { deletedAt: null },
+    select: { branchNames: true },
+  });
 
-    const optionNames = Array.from(
-        new Set(
-            users
-                .map((user) => user.branchNames[0])
-                .filter(
-                    (name) =>
-                        name &&
-                        name.trim() !== "" &&
-                        name !== EXCLUDED_ADMIN_BRANCH_NAME,
-                ),
+  const optionNames = Array.from(
+    new Set(
+      users
+        .map((user) => user.branchNames[0])
+        .filter(
+          (name) =>
+            name && name.trim() !== "" && name !== EXCLUDED_ADMIN_BRANCH_NAME,
         ),
-    ).sort((a, b) => a.localeCompare(b, "id-ID"));
+    ),
+  ).sort((a, b) => a.localeCompare(b, "id-ID"));
 
-    const parentMap = new Map<string, string>();
-    for (const user of users) {
-        const parentBranch = user.branchNames[0];
-        if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
-            continue;
-        }
-
-        for (const branchName of user.branchNames) {
-            if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
-                continue;
-            }
-            parentMap.set(branchName, parentBranch);
-        }
+  const parentMap = new Map<string, string>();
+  for (const user of users) {
+    const parentBranch = user.branchNames[0];
+    if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
+      continue;
     }
 
-    return {
-        options: optionNames.map((name) => ({ name })),
-        parentMap,
-    };
+    for (const branchName of user.branchNames) {
+      if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+        continue;
+      }
+      parentMap.set(branchName, parentBranch);
+    }
+  }
+
+  return {
+    options: optionNames.map((name) => ({ name })),
+    parentMap,
+  };
 }
 
 export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
-    try {
-        const activeUserIds = await getTodayActiveUsers();
-        if (activeUserIds.length === 0) return 0;
+  try {
+    const activeUserIds = await getTodayActiveUsers();
+    if (activeUserIds.length === 0) return 0;
 
-        return await prisma.user.count({
-            where: {
-                NIK: { in: activeUserIds },
-                deletedAt: null,
-                NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
-            },
-        });
-    } catch (error) {
-        logger.error(
-            { operation: "getAdminVisibleTodayActiveUserCount" },
-            "Failed",
-            error,
-        );
-        return 0;
-    }
+    return await prisma.user.count({
+      where: {
+        NIK: { in: activeUserIds },
+        deletedAt: null,
+        NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+      },
+    });
+  } catch (error) {
+    logger.error(
+      { operation: "getAdminVisibleTodayActiveUserCount" },
+      "Failed",
+      error,
+    );
+    return 0;
+  }
 }
 
 export async function getAdminBranchOptions(): Promise<AdminBranchOption[]> {
-    const hierarchy = await getAdminBranchHierarchy();
-    return hierarchy.options;
+  const hierarchy = await getAdminBranchHierarchy();
+  return hierarchy.options;
 }
 
 function resolveAdminParentBranch(
-    branchName: string,
-    hierarchy: AdminBranchHierarchy,
+  branchName: string,
+  hierarchy: AdminBranchHierarchy,
 ): string {
-    return hierarchy.parentMap.get(branchName) ?? branchName;
+  return hierarchy.parentMap.get(branchName) ?? branchName;
 }
 
 async function getAdminStatusDistribution(
-    window: { start: Date; end?: Date },
-    slaDaysByStatus: Partial<Record<string, number>>,
-    brand: StoreBrandFilter,
-    branchScope?: string[],
+  window: { start: Date; end?: Date },
+  slaDaysByStatus: Partial<Record<string, number>>,
+  brand: StoreBrandFilter,
+  branchScope?: string[],
 ): Promise<AdminStatusDatum[]> {
-    const statusRows = await prisma.report.groupBy({
-        by: ["status"],
+  const statusRows = await prisma.report.groupBy({
+    by: ["status"],
+    where: {
+      ...getReportBrandWhere(brand),
+      ...(branchScope ? { branchName: { in: branchScope } } : {}),
+      NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+      status: {
+        notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+      },
+      createdAt: {
+        gte: window.start,
+        ...(window.end ? { lt: window.end } : {}),
+      },
+    },
+    _count: { _all: true },
+  });
+
+  const statusCountMap = new Map(
+    statusRows.map((r) => [r.status, r._count._all]),
+  );
+  const now = new Date();
+  const slaEntries = Object.entries(slaDaysByStatus) as [string, number][];
+  const overdueEntries = await Promise.all(
+    slaEntries.map(async ([status, days]) => {
+      const threshold = new Date(now);
+      threshold.setDate(threshold.getDate() - days);
+      const createdBefore =
+        window.end && window.end < threshold ? window.end : threshold;
+
+      const count = await prisma.report.count({
         where: {
-            ...getReportBrandWhere(brand),
-            ...(branchScope ? { branchName: { in: branchScope } } : {}),
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: {
-                notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+          ...getReportBrandWhere(brand),
+          ...(branchScope ? { branchName: { in: branchScope } } : {}),
+          NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+          status: status as never,
+          createdAt: {
+            gte: window.start,
+            lt: createdBefore,
+          },
+          activities: {
+            none: {
+              createdAt: { gte: threshold },
             },
-            createdAt: {
-                gte: window.start,
-                ...(window.end ? { lt: window.end } : {})
-            },
+          },
         },
-        _count: { _all: true },
-    });
+      });
 
-    const statusCountMap = new Map(
-        statusRows.map((r) => [r.status, r._count._all]),
-    );
-    const now = new Date();
-    const slaEntries = Object.entries(slaDaysByStatus) as [
-        string,
-        number,
-    ][];
-    const overdueEntries = await Promise.all(
-        slaEntries.map(async ([status, days]) => {
-            const threshold = new Date(now);
-            threshold.setDate(threshold.getDate() - days);
-            const createdBefore =
-                window.end && window.end < threshold ? window.end : threshold;
+      return [status, count] as const;
+    }),
+  );
+  const overdueCountMap = new Map(overdueEntries);
 
-            const count = await prisma.report.count({
-                where: {
-                    ...getReportBrandWhere(brand),
-                    ...(branchScope ? { branchName: { in: branchScope } } : {}),
-                    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                    status: status as never,
-                    createdAt: {
-                        gte: window.start,
-                        lt: createdBefore,
-                    },
-                    activities: {
-                        none: {
-                            createdAt: { gte: threshold },
-                        },
-                    },
-                },
-            });
-
-            return [status, count] as const;
-        }),
-    );
-    const overdueCountMap = new Map(overdueEntries);
-
-    return ADMIN_STATUS_ORDER.map((statusKey) => ({
-        status: statusKey,
-        label: ADMIN_STATUS_LABELS[statusKey] ?? statusKey,
-        count: statusCountMap.get(statusKey as never) ?? 0,
-        slaDays: slaDaysByStatus[statusKey] ?? null,
-        overdueCount: overdueCountMap.get(statusKey) ?? 0,
-    })).filter((item) => item.count > 0);
+  return ADMIN_STATUS_ORDER.map((statusKey) => ({
+    status: statusKey,
+    label: ADMIN_STATUS_LABELS[statusKey] ?? statusKey,
+    count: statusCountMap.get(statusKey as never) ?? 0,
+    slaDays: slaDaysByStatus[statusKey] ?? null,
+    overdueCount: overdueCountMap.get(statusKey) ?? 0,
+  })).filter((item) => item.count > 0);
 }
 
-async function getAdminPjumSummary(window: { start: Date; end?: Date }, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminPjumSummary> {
-    const baseWhere: Prisma.PjumExportWhereInput = {
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        createdAt: {
-            gte: window.start,
-            ...(window.end ? { lt: window.end } : {})
-        },
-    };
-    const brandReportNumbers = brand === "ALL"
-        ? []
-        : (await prisma.report.findMany({
+async function getAdminPjumSummary(
+  window: { start: Date; end?: Date },
+  brand: StoreBrandFilter,
+  branchScope?: string[],
+): Promise<AdminPjumSummary> {
+  const baseWhere: Prisma.PjumExportWhereInput = {
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    createdAt: {
+      gte: window.start,
+      ...(window.end ? { lt: window.end } : {}),
+    },
+  };
+  const brandReportNumbers =
+    brand === "ALL"
+      ? []
+      : (
+          await prisma.report.findMany({
             where: getReportBrandWhere(brand),
             select: { reportNumber: true },
-        })).map((report) => report.reportNumber);
-    const pjumWhere = buildPjumBrandWhere(baseWhere, brand, brandReportNumbers);
+          })
+        ).map((report) => report.reportNumber);
+  const pjumWhere = buildPjumBrandWhere(baseWhere, brand, brandReportNumbers);
 
-    const pjumRows = await prisma.pjumExport.groupBy({
-        by: ["status"],
-        where: pjumWhere,
-        _count: { _all: true },
-    });
+  const pjumRows = await prisma.pjumExport.groupBy({
+    by: ["status"],
+    where: pjumWhere,
+    _count: { _all: true },
+  });
 
-    const pjumCountMap = new Map(
-        pjumRows.map((r) => [r.status, r._count._all]),
-    );
+  const pjumCountMap = new Map(pjumRows.map((r) => [r.status, r._count._all]));
 
-    return {
-        pending: pjumCountMap.get("PENDING_APPROVAL") ?? 0,
-        approved: pjumCountMap.get("APPROVED") ?? 0,
-        rejected: pjumCountMap.get("REJECTED") ?? 0,
-        total: pjumRows.reduce((sum, row) => sum + row._count._all, 0),
-    };
+  return {
+    pending: pjumCountMap.get("PENDING_APPROVAL") ?? 0,
+    approved: pjumCountMap.get("APPROVED") ?? 0,
+    rejected: pjumCountMap.get("REJECTED") ?? 0,
+    total: pjumRows.reduce((sum, row) => sum + row._count._all, 0),
+  };
 }
 
 async function getAdminKpiMetric(
-    window: { start: Date; end?: Date },
-    activeUsers: number,
-    pendingPjum: number,
-    brand: StoreBrandFilter,
-    branchScope?: string[],
+  window: { start: Date; end?: Date },
+  activeUsers: number,
+  pendingPjum: number,
+  brand: StoreBrandFilter,
+  branchScope?: string[],
 ): Promise<AdminKpiMetric> {
-    const baseWhere = {
-        ...getReportBrandWhere(brand),
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        status: {
-            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-        },
-        createdAt: {
-            gte: window.start,
-            ...(window.end ? { lt: window.end } : {})
-        },
-    };
-    const completedWhere = {
-        ...getReportBrandWhere(brand),
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        status: "COMPLETED" as const,
-        finishedAt: { 
-            gte: window.start,
-            ...(window.end ? { lt: window.end } : {})
-        },
-    };
+  const baseWhere = {
+    ...getReportBrandWhere(brand),
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    status: {
+      notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+    },
+    createdAt: {
+      gte: window.start,
+      ...(window.end ? { lt: window.end } : {}),
+    },
+  };
+  const completedWhere = {
+    ...getReportBrandWhere(brand),
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    status: "COMPLETED" as const,
+    finishedAt: {
+      gte: window.start,
+      ...(window.end ? { lt: window.end } : {}),
+    },
+  };
 
-    const [
-        totalReports,
-        completedReports,
-        statusCounts,
-        pjumCompletedReports,
-        unpjumCompletedReports,
-        totalRealisasi,
-        avgRealisasi,
-        bmsWeeklyRows,
-    ] = await Promise.all([
-        prisma.report.count({ where: baseWhere }),
-        prisma.report.count({ where: completedWhere }),
-        prisma.report.groupBy({
-            by: ["status"],
-            where: baseWhere,
-            _count: { _all: true },
-        }),
-        prisma.report.count({
-            where: {
-                ...completedWhere,
-                pjumExportedAt: { not: null },
-            },
-        }),
-        countRequiredUnpjumReports(completedWhere),
-        prisma.report.aggregate({
-            where: {
-                ...completedWhere,
-                pjumExportedAt: { not: null },
-                totalReal: { not: null },
-            },
-            _sum: { totalReal: true },
-        }),
-        prisma.report.aggregate({
-            where: {
-                ...completedWhere,
-                pjumExportedAt: { not: null },
-                totalReal: { not: null },
-            },
-            _avg: { totalReal: true },
-        }),
-        prisma.report.findMany({
-            where: {
-                ...completedWhere,
-                pjumExportedAt: { not: null },
-                totalReal: { not: null },
-            },
-            select: {
-                createdByNIK: true,
-                finishedAt: true,
-                totalReal: true,
-            },
-        }),
-    ]);
+  const [
+    totalReports,
+    completedReports,
+    statusCounts,
+    pjumCompletedReports,
+    unpjumCompletedReports,
+    totalRealisasi,
+    avgRealisasi,
+    bmsWeeklyRows,
+  ] = await Promise.all([
+    prisma.report.count({ where: baseWhere }),
+    prisma.report.count({ where: completedWhere }),
+    prisma.report.groupBy({
+      by: ["status"],
+      where: baseWhere,
+      _count: { _all: true },
+    }),
+    prisma.report.count({
+      where: {
+        ...completedWhere,
+        pjumExportedAt: { not: null },
+      },
+    }),
+    countRequiredUnpjumReports(completedWhere),
+    prisma.report.aggregate({
+      where: {
+        ...completedWhere,
+        pjumExportedAt: { not: null },
+        totalReal: { not: null },
+      },
+      _sum: { totalReal: true },
+    }),
+    prisma.report.aggregate({
+      where: {
+        ...completedWhere,
+        pjumExportedAt: { not: null },
+        totalReal: { not: null },
+      },
+      _avg: { totalReal: true },
+    }),
+    prisma.report.findMany({
+      where: {
+        ...completedWhere,
+        pjumExportedAt: { not: null },
+        totalReal: { not: null },
+      },
+      select: {
+        createdByNIK: true,
+        finishedAt: true,
+        totalReal: true,
+      },
+    }),
+  ]);
 
-    const bmsWeekTotals = new Map<string, number>();
-    for (const row of bmsWeeklyRows) {
-        if (!row.finishedAt) continue;
+  const bmsWeekTotals = new Map<string, number>();
+  for (const row of bmsWeeklyRows) {
+    if (!row.finishedAt) continue;
 
-        const key = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
-        bmsWeekTotals.set(
-            key,
-            (bmsWeekTotals.get(key) ?? 0) + Number(row.totalReal ?? 0),
-        );
-    }
+    const key = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
+    bmsWeekTotals.set(
+      key,
+      (bmsWeekTotals.get(key) ?? 0) + Number(row.totalReal ?? 0),
+    );
+  }
 
-    let rejectedReports = 0;
-    let inProgressReports = 0;
-    let pendingReviewReports = 0;
-    let revisionReports = 0;
-    
-    for (const row of statusCounts) {
-        if (row.status === "ESTIMATION_REJECTED") rejectedReports += row._count._all;
-        if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
-        if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
-        if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
-    }
+  let rejectedReports = 0;
+  let inProgressReports = 0;
+  let pendingReviewReports = 0;
+  let revisionReports = 0;
 
-    return {
-        totalReports,
-        completedReports,
-        activeReports:
-            inProgressReports + pendingReviewReports + revisionReports,
-        rejectedReports,
-        inProgressReports,
-        pendingReviewReports,
-        revisionReports,
-        completionRate:
-            totalReports > 0
-                ? Math.round((completedReports / totalReports) * 100)
-                : 0,
-        totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
-        avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
-        avgBmsWeeklyRealisasi: averageMapValues(bmsWeekTotals),
-        activeUsers,
-        pjumCompletedReports,
-        unpjumCompletedReports,
-        unpjumNotRequiredReports:
-            completedReports - pjumCompletedReports - unpjumCompletedReports,
-        pendingPjum,
-    };
+  for (const row of statusCounts) {
+    if (row.status === "ESTIMATION_REJECTED")
+      rejectedReports += row._count._all;
+    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status))
+      inProgressReports += row._count._all;
+    if (
+      [
+        "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
+        "PENDING_REVIEW",
+        "APPROVED_BMC",
+      ].includes(row.status)
+    )
+      pendingReviewReports += row._count._all;
+    if (
+      ["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(
+        row.status,
+      )
+    )
+      revisionReports += row._count._all;
+  }
+
+  return {
+    totalReports,
+    completedReports,
+    activeReports: inProgressReports + pendingReviewReports + revisionReports,
+    rejectedReports,
+    inProgressReports,
+    pendingReviewReports,
+    revisionReports,
+    completionRate:
+      totalReports > 0
+        ? Math.round((completedReports / totalReports) * 100)
+        : 0,
+    totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+    avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
+    avgBmsWeeklyRealisasi: averageMapValues(bmsWeekTotals),
+    activeUsers,
+    pjumCompletedReports,
+    unpjumCompletedReports,
+    unpjumNotRequiredReports:
+      completedReports - pjumCompletedReports - unpjumCompletedReports,
+    pendingPjum,
+  };
 }
 
 async function getAdminBrandBreakdownKpi(
-    window: { start: Date; end?: Date },
-    activeUsers: number,
-    pendingPjum: number,
-    brand: StoreBrandFilter,
-    branchScope?: string[],
+  window: { start: Date; end?: Date },
+  activeUsers: number,
+  pendingPjum: number,
+  brand: StoreBrandFilter,
+  branchScope?: string[],
 ): Promise<AdminKpiMetric> {
-    const baseWhere = {
-        ...getReportBrandWhere(brand),
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        status: {
-            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-        },
-        createdAt: {
-            gte: window.start,
-            ...(window.end ? { lt: window.end } : {})
-        },
-    };
-    const completedWhere = {
-        ...getReportBrandWhere(brand),
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-        status: "COMPLETED" as const,
-        finishedAt: { 
-            gte: window.start,
-            ...(window.end ? { lt: window.end } : {})
-        },
-    };
+  const baseWhere = {
+    ...getReportBrandWhere(brand),
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    status: {
+      notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+    },
+    createdAt: {
+      gte: window.start,
+      ...(window.end ? { lt: window.end } : {}),
+    },
+  };
+  const completedWhere = {
+    ...getReportBrandWhere(brand),
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    status: "COMPLETED" as const,
+    finishedAt: {
+      gte: window.start,
+      ...(window.end ? { lt: window.end } : {}),
+    },
+  };
 
-    const [
-        totalReports,
-        completedReports,
-        statusCounts,
-        totalRealisasi,
-    ] = await Promise.all([
-        prisma.report.count({ where: baseWhere }),
-        prisma.report.count({ where: completedWhere }),
-        prisma.report.groupBy({
-            by: ["status"],
-            where: baseWhere,
-            _count: { _all: true },
-        }),
-        prisma.report.aggregate({
-            where: {
-                ...completedWhere,
-                pjumExportedAt: { not: null },
-                totalReal: { not: null },
-            },
-            _sum: { totalReal: true },
-        }),
+  const [totalReports, completedReports, statusCounts, totalRealisasi] =
+    await Promise.all([
+      prisma.report.count({ where: baseWhere }),
+      prisma.report.count({ where: completedWhere }),
+      prisma.report.groupBy({
+        by: ["status"],
+        where: baseWhere,
+        _count: { _all: true },
+      }),
+      prisma.report.aggregate({
+        where: {
+          ...completedWhere,
+          pjumExportedAt: { not: null },
+          totalReal: { not: null },
+        },
+        _sum: { totalReal: true },
+      }),
     ]);
 
-    let inProgressReports = 0;
-    let pendingReviewReports = 0;
-    let revisionReports = 0;
-    
-    for (const row of statusCounts) {
-        if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
-        if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
-        if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
-    }
+  let inProgressReports = 0;
+  let pendingReviewReports = 0;
+  let revisionReports = 0;
 
-    return {
-        totalReports,
-        completedReports,
-        activeReports: inProgressReports + pendingReviewReports + revisionReports,
-        rejectedReports: 0,
-        inProgressReports: 0,
-        pendingReviewReports: 0,
-        revisionReports: 0,
-        completionRate: totalReports > 0 ? Math.round((completedReports / totalReports) * 100) : 0,
-        totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
-        avgRealisasi: 0,
-        avgBmsWeeklyRealisasi: 0,
-        activeUsers,
-        pjumCompletedReports: 0,
-        unpjumCompletedReports: 0,
-        unpjumNotRequiredReports: 0,
-        pendingPjum,
-    };
+  for (const row of statusCounts) {
+    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status))
+      inProgressReports += row._count._all;
+    if (
+      [
+        "PENDING_ESTIMATION",
+        "PENDING_CHECKLIST_REVIEW",
+        "PENDING_REVIEW",
+        "APPROVED_BMC",
+      ].includes(row.status)
+    )
+      pendingReviewReports += row._count._all;
+    if (
+      ["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(
+        row.status,
+      )
+    )
+      revisionReports += row._count._all;
+  }
+
+  return {
+    totalReports,
+    completedReports,
+    activeReports: inProgressReports + pendingReviewReports + revisionReports,
+    rejectedReports: 0,
+    inProgressReports: 0,
+    pendingReviewReports: 0,
+    revisionReports: 0,
+    completionRate:
+      totalReports > 0
+        ? Math.round((completedReports / totalReports) * 100)
+        : 0,
+    totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
+    avgRealisasi: 0,
+    avgBmsWeeklyRealisasi: 0,
+    activeUsers,
+    pjumCompletedReports: 0,
+    unpjumCompletedReports: 0,
+    unpjumNotRequiredReports: 0,
+    pendingPjum,
+  };
 }
 
 function getBranchAccumulator(
-    map: Map<string, AdminBranchAccumulator>,
-    branchName: string,
+  map: Map<string, AdminBranchAccumulator>,
+  branchName: string,
 ): AdminBranchAccumulator {
-    const current = map.get(branchName);
-    if (current) return current;
+  const current = map.get(branchName);
+  if (current) return current;
 
-    const next = {
-        branchName,
-        totalReports: 0,
-        completedReports: 0,
-        totalRealisasi: 0,
-    };
-    map.set(branchName, next);
-    return next;
+  const next = {
+    branchName,
+    totalReports: 0,
+    completedReports: 0,
+    totalRealisasi: 0,
+  };
+  map.set(branchName, next);
+  return next;
 }
 
 async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
-    const withTotalReal = await prisma.report.count({
-        where: {
-            AND: [
-                where,
-                {
-                    status: "COMPLETED",
-                    pjumExportedAt: null,
-                    totalReal: { gt: 0 },
-                },
-            ],
-        }
-    });
-
-    const others = await prisma.report.findMany({
-        where: {
-            AND: [
-                where,
-                {
-                    status: "COMPLETED",
-                    pjumExportedAt: null,
-                    OR: [{ totalReal: null }, { totalReal: 0 }],
-                },
-            ],
+  const withTotalReal = await prisma.report.count({
+    where: {
+      AND: [
+        where,
+        {
+          status: "COMPLETED",
+          pjumExportedAt: null,
+          totalReal: { gt: 0 },
         },
-        select: {
-            totalReal: true,
-            items: true,
-        },
-    });
+      ],
+    },
+  });
 
-    const othersCount = others.filter((report) => requiresPjum(report.totalReal, report.items)).length;
-    return withTotalReal + othersCount;
+  const others = await prisma.report.findMany({
+    where: {
+      AND: [
+        where,
+        {
+          status: "COMPLETED",
+          pjumExportedAt: null,
+          OR: [{ totalReal: null }, { totalReal: 0 }],
+        },
+      ],
+    },
+    select: {
+      totalReal: true,
+      items: true,
+    },
+  });
+
+  const othersCount = others.filter((report) =>
+    requiresPjum(report.totalReal, report.items),
+  ).length;
+  return withTotalReal + othersCount;
 }
 
 async function getBrandOwnedBranchNames(
@@ -1554,7 +1596,7 @@ async function getBrandOwnedBranchNames(
   const rows = await prisma.store.findMany({
     where: { ...getStoreBrandWhere(brand), isActive: true },
     select: { branchName: true },
-    distinct: ['branchName'],
+    distinct: ["branchName"],
   });
   return getVisibleBrandBranchNames(
     brand,
@@ -1564,253 +1606,241 @@ async function getBrandOwnedBranchNames(
 }
 
 async function getAdminBranchPerformance(
-    window: { start: Date; end?: Date },
-    hierarchy: AdminBranchHierarchy,
-    brand: StoreBrandFilter,
-    visibleBranchNames: Set<string>,
+  window: { start: Date; end?: Date },
+  hierarchy: AdminBranchHierarchy,
+  brand: StoreBrandFilter,
+  visibleBranchNames: Set<string>,
 ): Promise<AdminBranchPerformanceDatum[]> {
-    const [totalRows, completedRows] = await Promise.all([
-        prisma.report.groupBy({
-            by: ["branchName"],
-            where: {
-                ...getReportBrandWhere(brand),
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: {
-                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-                },
-                createdAt: {
-                    gte: window.start,
-                    ...(window.end ? { lt: window.end } : {})
-                },
-            },
-            _count: { _all: true },
-        }),
-        prisma.report.groupBy({
-            by: ["branchName"],
-            where: {
-                ...getReportBrandWhere(brand),
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: "COMPLETED",
-                pjumExportedAt: { not: null },
-                finishedAt: { 
-                    gte: window.start,
-                    ...(window.end ? { lt: window.end } : {})
-                },
-            },
-            _count: { _all: true },
-            _sum: { totalReal: true },
-        }),
-    ]);
+  const [totalRows, completedRows] = await Promise.all([
+    prisma.report.groupBy({
+      by: ["branchName"],
+      where: {
+        ...getReportBrandWhere(brand),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: {
+          notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        },
+        createdAt: {
+          gte: window.start,
+          ...(window.end ? { lt: window.end } : {}),
+        },
+      },
+      _count: { _all: true },
+    }),
+    prisma.report.groupBy({
+      by: ["branchName"],
+      where: {
+        ...getReportBrandWhere(brand),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: "COMPLETED",
+        pjumExportedAt: { not: null },
+        finishedAt: {
+          gte: window.start,
+          ...(window.end ? { lt: window.end } : {}),
+        },
+      },
+      _count: { _all: true },
+      _sum: { totalReal: true },
+    }),
+  ]);
 
-    const branchMap = new Map<string, AdminBranchAccumulator>();
-    for (const option of hierarchy.options) {
-        if (visibleBranchNames.has(option.name)) {
-            getBranchAccumulator(branchMap, option.name);
-        }
+  const branchMap = new Map<string, AdminBranchAccumulator>();
+  for (const option of hierarchy.options) {
+    if (visibleBranchNames.has(option.name)) {
+      getBranchAccumulator(branchMap, option.name);
     }
+  }
 
-    for (const row of totalRows) {
-        const parentBranch = resolveAdminParentBranch(
-            row.branchName,
-            hierarchy,
-        );
-        const acc = branchMap.get(parentBranch);
-        if (acc) {
-            acc.totalReports += row._count._all;
-        }
+  for (const row of totalRows) {
+    const parentBranch = resolveAdminParentBranch(row.branchName, hierarchy);
+    const acc = branchMap.get(parentBranch);
+    if (acc) {
+      acc.totalReports += row._count._all;
     }
+  }
 
-    for (const row of completedRows) {
-        const parentBranch = resolveAdminParentBranch(
-            row.branchName,
-            hierarchy,
-        );
-        const acc = branchMap.get(parentBranch);
-        if (acc) {
-            acc.completedReports += row._count._all;
-            acc.totalRealisasi += Number(row._sum.totalReal ?? 0);
-        }
+  for (const row of completedRows) {
+    const parentBranch = resolveAdminParentBranch(row.branchName, hierarchy);
+    const acc = branchMap.get(parentBranch);
+    if (acc) {
+      acc.completedReports += row._count._all;
+      acc.totalRealisasi += Number(row._sum.totalReal ?? 0);
     }
+  }
 
-    return Array.from(branchMap.values())
-        .map((branch) => ({
-            branchName: branch.branchName,
-            totalReports: branch.totalReports,
-            completedReports: branch.completedReports,
-            openReports: branch.totalReports - branch.completedReports,
-            completionRate:
-                branch.totalReports > 0
-                    ? Math.round(
-                          (branch.completedReports / branch.totalReports) *
-                              100,
-                      )
-                    : 0,
-            totalRealisasi: branch.totalRealisasi,
-            avgRealisasi:
-                branch.completedReports > 0
-                    ? Math.round(
-                          branch.totalRealisasi / branch.completedReports,
-                      )
-                    : 0,
-        }))
-        .sort(
-            (a, b) =>
-                b.openReports - a.openReports ||
-                b.totalReports - a.totalReports,
-        )
-        .slice(0, 8);
+  return Array.from(branchMap.values())
+    .map((branch) => ({
+      branchName: branch.branchName,
+      totalReports: branch.totalReports,
+      completedReports: branch.completedReports,
+      openReports: branch.totalReports - branch.completedReports,
+      completionRate:
+        branch.totalReports > 0
+          ? Math.round((branch.completedReports / branch.totalReports) * 100)
+          : 0,
+      totalRealisasi: branch.totalRealisasi,
+      avgRealisasi:
+        branch.completedReports > 0
+          ? Math.round(branch.totalRealisasi / branch.completedReports)
+          : 0,
+    }))
+    .sort(
+      (a, b) =>
+        b.openReports - a.openReports || b.totalReports - a.totalReports,
+    )
+    .slice(0, 8);
 }
 
 async function getAdminBranchTrend(
-    period: AdminTrendPeriod,
-    hierarchy: AdminBranchHierarchy,
-    brand: StoreBrandFilter,
-    visibleBranchNames: Set<string>,
+  period: AdminTrendPeriod,
+  hierarchy: AdminBranchHierarchy,
+  brand: StoreBrandFilter,
+  visibleBranchNames: Set<string>,
 ): Promise<AdminTrendDatum[]> {
-    const trendWindow = getTrendWindow(period);
-    const trendRows = await prisma.report.findMany({
-        where: {
-            ...getReportBrandWhere(brand),
-            NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-            status: "COMPLETED",
-            pjumExportedAt: { not: null },
-            finishedAt: { 
-                gte: trendWindow.start,
-                ...(trendWindow.end ? { lt: trendWindow.end } : {})
-            },
+  const trendWindow = getTrendWindow(period);
+  const trendRows = await prisma.report.findMany({
+    where: {
+      ...getReportBrandWhere(brand),
+      NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+      status: "COMPLETED",
+      pjumExportedAt: { not: null },
+      finishedAt: {
+        gte: trendWindow.start,
+        ...(trendWindow.end ? { lt: trendWindow.end } : {}),
+      },
+    },
+    select: {
+      branchName: true,
+      totalReal: true,
+      finishedAt: true,
+      createdByNIK: true,
+    },
+  });
+
+  const trendMap = new Map(
+    hierarchy.options
+      .filter((branch) => visibleBranchNames.has(branch.name))
+      .map((branch) => [
+        branch.name,
+        {
+          label: branch.name,
+          branchName: branch.name,
+          completed: 0,
+          realisasi: 0,
+          avgRealisasi: 0,
+          avgBmsWeeklyRealisasi: 0,
+          bmsWeekTotals: new Map<string, number>(),
         },
-        select: {
-            branchName: true,
-            totalReal: true,
-            finishedAt: true,
-            createdByNIK: true,
-        },
-    });
+      ]),
+  );
 
-    const trendMap = new Map(
-        hierarchy.options
-            .filter((branch) => visibleBranchNames.has(branch.name))
-            .map((branch) => [
-                branch.name,
-                {
-                    label: branch.name,
-                    branchName: branch.name,
-                    completed: 0,
-                    realisasi: 0,
-                    avgRealisasi: 0,
-                    avgBmsWeeklyRealisasi: 0,
-                    bmsWeekTotals: new Map<string, number>(),
-                },
-            ]),
-    );
+  for (const row of trendRows) {
+    const parentBranch = resolveAdminParentBranch(row.branchName, hierarchy);
+    const current = trendMap.get(parentBranch);
+    if (!current) continue;
 
-    for (const row of trendRows) {
-        const parentBranch = resolveAdminParentBranch(
-            row.branchName,
-            hierarchy,
-        );
-        const current = trendMap.get(parentBranch);
-        if (!current) continue;
+    const realisasi = Number(row.totalReal ?? 0);
+    current.completed += 1;
+    current.realisasi += realisasi;
 
-        const realisasi = Number(row.totalReal ?? 0);
-        current.completed += 1;
-        current.realisasi += realisasi;
-
-        if (row.finishedAt) {
-            const bmsWeekKey = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
-            current.bmsWeekTotals.set(
-                bmsWeekKey,
-                (current.bmsWeekTotals.get(bmsWeekKey) ?? 0) + realisasi,
-            );
-        }
+    if (row.finishedAt) {
+      const bmsWeekKey = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
+      current.bmsWeekTotals.set(
+        bmsWeekKey,
+        (current.bmsWeekTotals.get(bmsWeekKey) ?? 0) + realisasi,
+      );
     }
+  }
 
-    return Array.from(trendMap.values()).map((row) => ({
-        label: row.label,
-        branchName: row.branchName,
-        completed: row.completed,
-        realisasi: row.realisasi,
-        avgRealisasi:
-            row.completed > 0 ? Math.round(row.realisasi / row.completed) : 0,
-        avgBmsWeeklyRealisasi: averageMapValues(row.bmsWeekTotals),
-    }));
+  return Array.from(trendMap.values()).map((row) => ({
+    label: row.label,
+    branchName: row.branchName,
+    completed: row.completed,
+    realisasi: row.realisasi,
+    avgRealisasi:
+      row.completed > 0 ? Math.round(row.realisasi / row.completed) : 0,
+    avgBmsWeeklyRealisasi: averageMapValues(row.bmsWeekTotals),
+  }));
 }
 
 function mapAdminAttentionReport(report: {
-    reportNumber: string;
-    storeName: string;
-    branchName: string;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-    activities: { createdAt: Date }[];
-    createdBy: { name: string };
+  reportNumber: string;
+  storeName: string;
+  branchName: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  activities: { createdAt: Date }[];
+  createdBy: { name: string };
 }): AdminAttentionReport {
-    const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
+  const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
 
-    return {
-        reportNumber: report.reportNumber,
-        storeName: report.storeName,
-        branchName: report.branchName,
-        status: report.status,
-        statusLabel: ADMIN_STATUS_LABELS[report.status] ?? report.status,
-        createdAt: report.createdAt,
-        updatedAt: lastActivityAt,
-        ageDays: calculateAgeDays(lastActivityAt),
-        ownerName: report.createdBy.name,
-    };
+  return {
+    reportNumber: report.reportNumber,
+    storeName: report.storeName,
+    branchName: report.branchName,
+    status: report.status,
+    statusLabel: ADMIN_STATUS_LABELS[report.status] ?? report.status,
+    createdAt: report.createdAt,
+    updatedAt: lastActivityAt,
+    ageDays: calculateAgeDays(lastActivityAt),
+    ownerName: report.createdBy.name,
+  };
 }
 
 async function getAdminStuckReports(
-    slaDaysByStatus: Partial<Record<string, number>>,
-    brand: StoreBrandFilter,
-    branchScope?: string[],
+  slaDaysByStatus: Partial<Record<string, number>>,
+  brand: StoreBrandFilter,
+  branchScope?: string[],
 ): Promise<AdminAttentionReport[]> {
-    const now = new Date();
-    const slaEntries = Object.entries(slaDaysByStatus).filter(
-        ([status, days]) => status !== "COMPLETED" && days! > 0
-    ) as [string, number][];
+  const now = new Date();
+  const slaEntries = Object.entries(slaDaysByStatus).filter(
+    ([status, days]) => status !== "COMPLETED" && days! > 0,
+  ) as [string, number][];
 
-    const stuckReportsPromises = slaEntries.map(async ([status, days]) => {
-        const threshold = new Date(now);
-        threshold.setDate(threshold.getDate() - days);
+  const stuckReportsPromises = slaEntries.map(async ([status, days]) => {
+    const threshold = new Date(now);
+    threshold.setDate(threshold.getDate() - days);
 
-        return prisma.report.findMany({
-            where: {
-                ...getReportBrandWhere(brand),
-                ...(branchScope ? { branchName: { in: branchScope } } : {}),
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: status as never,
-                createdAt: { lt: threshold },
-                activities: {
-                    none: {
-                        createdAt: { gte: threshold },
-                    },
-                },
-            },
-            orderBy: [{ updatedAt: "asc" }],
-            take: 8,
-            select: {
-                reportNumber: true,
-                storeName: true,
-                branchName: true,
-                status: true,
-                createdAt: true,
-                updatedAt: true,
-                createdBy: { select: { name: true } },
-                activities: {
-                    orderBy: { createdAt: "desc" },
-                    take: 1,
-                    select: { createdAt: true },
-                },
-            },
-        });
+    return prisma.report.findMany({
+      where: {
+        ...getReportBrandWhere(brand),
+        ...(branchScope ? { branchName: { in: branchScope } } : {}),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: status as never,
+        createdAt: { lt: threshold },
+        activities: {
+          none: {
+            createdAt: { gte: threshold },
+          },
+        },
+      },
+      orderBy: [{ updatedAt: "asc" }],
+      take: 8,
+      select: {
+        reportNumber: true,
+        storeName: true,
+        branchName: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        createdBy: { select: { name: true } },
+        activities: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
+      },
     });
+  });
 
-    const results = await Promise.all(stuckReportsPromises);
-    const stuckReports = results.flat().sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime()).slice(0, 8);
+  const results = await Promise.all(stuckReportsPromises);
+  const stuckReports = results
+    .flat()
+    .sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime())
+    .slice(0, 8);
 
-    return stuckReports.map(mapAdminAttentionReport);
+  return stuckReports.map(mapAdminAttentionReport);
 }
 
 /**
@@ -1818,222 +1848,398 @@ async function getAdminStuckReports(
  * Combines operational backlog, branch performance, trend, PJUM, and activity data.
  */
 export async function getAdminCommandCenterData(
-    period: AdminTrendPeriod = "ytd",
-    brand: StoreBrandFilter = "ALL",
-    branchScope?: string[],
+  period: AdminTrendPeriod = "ytd",
+  brand: StoreBrandFilter = "ALL",
+  branchScope?: string[],
 ): Promise<AdminCommandCenterData> {
-    const trendWindow = getTrendWindow(period);
-    const empty = getEmptyAdminCommandCenterData();
+  const trendWindow = getTrendWindow(period);
+  const empty = getEmptyAdminCommandCenterData();
 
-    try {
-        const slaDaysByStatus = await getReportSlaDays();
-        const [activeUsers, hierarchy, status, pjum, recentActivity] =
-            await Promise.all([
-            getAdminVisibleTodayActiveUserCount(),
-            getAdminBranchHierarchy(),
-            getAdminStatusDistribution(trendWindow, slaDaysByStatus, brand, branchScope),
-            getAdminPjumSummary(trendWindow, brand, branchScope),
-            getGlobalActivity(8),
-        ]);
+  try {
+    const slaDaysByStatus = await getReportSlaDays();
+    const [activeUsers, hierarchy, status, pjum, recentActivity] =
+      await Promise.all([
+        getAdminVisibleTodayActiveUserCount(),
+        getAdminBranchHierarchy(),
+        getAdminStatusDistribution(
+          trendWindow,
+          slaDaysByStatus,
+          brand,
+          branchScope,
+        ),
+        getAdminPjumSummary(trendWindow, brand, branchScope),
+        getGlobalActivity(8),
+      ]);
 
-        let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
-        if (branchScope) {
-            visibleBranchNames = new Set([...visibleBranchNames].filter(b => branchScope.includes(b)));
-        }
-
-        const [kpi, branches, trends, stuckReports] =
-            await Promise.all([
-            getAdminKpiMetric(trendWindow, activeUsers, pjum.pending, brand, branchScope),
-            getAdminBranchPerformance(trendWindow, hierarchy, brand, visibleBranchNames),
-            getAdminBranchTrend(period, hierarchy, brand, visibleBranchNames),
-            getAdminStuckReports(slaDaysByStatus, brand, branchScope),
-        ]);
-
-        let brandBreakdown = undefined;
-        if (brand === "ALL") {
-            const [alfamartPjum, lawsonPjum] = await Promise.all([
-                getAdminPjumSummary(trendWindow, "ALFAMART", branchScope),
-                getAdminPjumSummary(trendWindow, "LAWSON", branchScope),
-            ]);
-            const [alfamartKpi, lawsonKpi] = await Promise.all([
-                getAdminBrandBreakdownKpi(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART", branchScope),
-                getAdminBrandBreakdownKpi(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON", branchScope),
-            ]);
-
-            brandBreakdown = {
-                alfamart: { kpi: alfamartKpi },
-                lawson: { kpi: lawsonKpi },
-            };
-        }
-        return {
-            kpi,
-            status,
-            trends,
-            branchOptions: hierarchy.options,
-            branches,
-            stuckReports,
-            pjum,
-            recentActivity,
-            brandBreakdown,
-        };
-    } catch (error) {
-        logger.error(
-            { operation: "getAdminCommandCenterData" },
-            "Failed",
-            error,
-        );
-        return empty;
+    let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
+    if (branchScope) {
+      visibleBranchNames = new Set(
+        [...visibleBranchNames].filter((b) => branchScope.includes(b)),
+      );
     }
+
+    const [kpi, branches, trends, stuckReports] = await Promise.all([
+      getAdminKpiMetric(
+        trendWindow,
+        activeUsers,
+        pjum.pending,
+        brand,
+        branchScope,
+      ),
+      getAdminBranchPerformance(
+        trendWindow,
+        hierarchy,
+        brand,
+        visibleBranchNames,
+      ),
+      getAdminBranchTrend(period, hierarchy, brand, visibleBranchNames),
+      getAdminStuckReports(slaDaysByStatus, brand, branchScope),
+    ]);
+
+    const [
+      slaPerformance,
+      totalStoreAlfamart,
+      totalStoreLawson,
+      totalBms,
+      totalBmc,
+      totalManager,
+    ] = await Promise.all([
+      getAdminSlaPerformanceData(trendWindow, brand, branchScope),
+      prisma.store.count({ where: { brand: "ALFAMART", isActive: true } }),
+      prisma.store.count({ where: { brand: "LAWSON", isActive: true } }),
+      prisma.user.count({ where: { role: "BMS", deletedAt: null } }),
+      prisma.user.count({ where: { role: "BMC", deletedAt: null } }),
+      prisma.user.count({ where: { role: "BNM_MANAGER", deletedAt: null } }),
+    ]);
+
+    let brandBreakdown = undefined;
+    if (brand === "ALL") {
+      const [alfamartPjum, lawsonPjum] = await Promise.all([
+        getAdminPjumSummary(trendWindow, "ALFAMART", branchScope),
+        getAdminPjumSummary(trendWindow, "LAWSON", branchScope),
+      ]);
+      const [alfamartKpi, lawsonKpi] = await Promise.all([
+        getAdminBrandBreakdownKpi(
+          trendWindow,
+          activeUsers,
+          alfamartPjum.pending,
+          "ALFAMART",
+          branchScope,
+        ),
+        getAdminBrandBreakdownKpi(
+          trendWindow,
+          activeUsers,
+          lawsonPjum.pending,
+          "LAWSON",
+          branchScope,
+        ),
+      ]);
+
+      brandBreakdown = {
+        alfamart: { kpi: alfamartKpi },
+        lawson: { kpi: lawsonKpi },
+      };
+    }
+    return {
+      kpi,
+      status,
+      trends,
+      branchOptions: hierarchy.options,
+      branches,
+      stuckReports,
+      pjum,
+      recentActivity,
+      brandBreakdown,
+      slaPerformance,
+      userStats: {
+        totalStoreAlfamart,
+        totalStoreLawson,
+        totalTimCabang: totalBms + totalBmc + totalManager,
+        totalManagerCabang: totalManager,
+        totalBmc,
+        totalBms,
+      },
+    };
+  } catch (error) {
+    logger.error({ operation: "getAdminCommandCenterData" }, "Failed", error);
+    return empty;
+  }
 }
 
 // ─── Realisasi Detail (YTD) ────────────────────────────────────────────────────
 
 export type RealisasiBranchStat = {
-    branchName: string;
-    count: number;
-    avg: number;
-    max: number;
-    min: number;
+  branchName: string;
+  count: number;
+  avg: number;
+  max: number;
+  min: number;
 };
 
 export type RealisasiMonthStat = {
-    yearMonth: string; // "2025-01"
-    label: string; // "Jan 2025"
-    count: number;
-    avg: number;
+  yearMonth: string; // "2025-01"
+  label: string; // "Jan 2025"
+  count: number;
+  avg: number;
 };
 
 export type AdminRealisasiDetail = {
-    globalAvg: number;
-    totalCompleted: number;
-    byBranch: RealisasiBranchStat[];
-    byMonth: RealisasiMonthStat[];
-    byMonthByBranch: Record<string, RealisasiMonthStat[]>;
+  globalAvg: number;
+  totalCompleted: number;
+  byBranch: RealisasiBranchStat[];
+  byMonth: RealisasiMonthStat[];
+  byMonthByBranch: Record<string, RealisasiMonthStat[]>;
 };
 
 const MONTH_LABELS = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "Mei",
-    "Jun",
-    "Jul",
-    "Agu",
-    "Sep",
-    "Okt",
-    "Nov",
-    "Des",
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mei",
+  "Jun",
+  "Jul",
+  "Agu",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Des",
 ];
 
 /**
  * Returns detailed avg realisasi breakdown — per branch and per month (YTD).
  */
 export async function getAdminRealisasiDetail(
-    brand: StoreBrandFilter = "ALL",
-    branchScope?: string[]
+  brand: StoreBrandFilter = "ALL",
+  branchScope?: string[],
 ): Promise<AdminRealisasiDetail> {
-    const ytdStart = getYtdStart();
-    const empty: AdminRealisasiDetail = {
-        globalAvg: 0,
-        totalCompleted: 0,
-        byBranch: [],
-        byMonth: [],
-        byMonthByBranch: {},
+  const ytdStart = getYtdStart();
+  const empty: AdminRealisasiDetail = {
+    globalAvg: 0,
+    totalCompleted: 0,
+    byBranch: [],
+    byMonth: [],
+    byMonthByBranch: {},
+  };
+
+  try {
+    const rows = await prisma.report.findMany({
+      where: {
+        ...getReportBrandWhere(brand),
+        ...(branchScope ? { branchName: { in: branchScope } } : {}),
+        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        status: "COMPLETED",
+        totalReal: { not: null },
+        createdAt: { gte: ytdStart },
+      },
+      select: { branchName: true, totalReal: true, createdAt: true },
+    });
+
+    if (rows.length === 0) return empty;
+
+    const branchMap = new Map<string, number[]>();
+    const monthMap = new Map<string, number[]>();
+    const branchMonthMap = new Map<string, Map<string, number[]>>();
+
+    for (const r of rows) {
+      const val = Number(r.totalReal ?? 0);
+      if (!branchMap.has(r.branchName)) branchMap.set(r.branchName, []);
+      branchMap.get(r.branchName)!.push(val);
+
+      const key = getJakartaMonthKey(r.createdAt);
+      if (!monthMap.has(key)) monthMap.set(key, []);
+      monthMap.get(key)!.push(val);
+
+      if (!branchMonthMap.has(r.branchName)) {
+        branchMonthMap.set(r.branchName, new Map());
+      }
+      const branchMonth = branchMonthMap.get(r.branchName)!;
+      if (!branchMonth.has(key)) branchMonth.set(key, []);
+      branchMonth.get(key)!.push(val);
+    }
+
+    const byBranch: RealisasiBranchStat[] = Array.from(branchMap.entries())
+      .map(([branchName, vals]) => ({
+        branchName,
+        count: vals.length,
+        avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
+        max: Math.max(...vals),
+        min: Math.min(...vals),
+      }))
+      .sort((a, b) => b.avg - a.avg);
+
+    // Build ordered list from January to the current Jakarta month.
+    const currentYear = getJakartaYear();
+    const currentMonth = getJakartaMonth();
+    const buildMonthStats = (
+      source: Map<string, number[]>,
+    ): RealisasiMonthStat[] => {
+      const stats: RealisasiMonthStat[] = [];
+      for (let month = 1; month <= currentMonth; month++) {
+        const key = `${currentYear}-${String(month).padStart(2, "0")}`;
+        const vals = source.get(key) ?? [];
+        stats.push({
+          yearMonth: key,
+          label: `${MONTH_LABELS[month - 1]} ${currentYear}`,
+          count: vals.length,
+          avg:
+            vals.length > 0
+              ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length)
+              : 0,
+        });
+      }
+      return stats;
     };
 
-    try {
-        const rows = await prisma.report.findMany({
-            where: {
-                ...getReportBrandWhere(brand),
-                ...(branchScope ? { branchName: { in: branchScope } } : {}),
-                NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
-                status: "COMPLETED",
-                totalReal: { not: null },
-                createdAt: { gte: ytdStart },
-            },
-            select: { branchName: true, totalReal: true, createdAt: true },
-        });
-
-        if (rows.length === 0) return empty;
-
-        const branchMap = new Map<string, number[]>();
-        const monthMap = new Map<string, number[]>();
-        const branchMonthMap = new Map<string, Map<string, number[]>>();
-
-        for (const r of rows) {
-            const val = Number(r.totalReal ?? 0);
-            if (!branchMap.has(r.branchName)) branchMap.set(r.branchName, []);
-            branchMap.get(r.branchName)!.push(val);
-
-            const key = getJakartaMonthKey(r.createdAt);
-            if (!monthMap.has(key)) monthMap.set(key, []);
-            monthMap.get(key)!.push(val);
-
-            if (!branchMonthMap.has(r.branchName)) {
-                branchMonthMap.set(r.branchName, new Map());
-            }
-            const branchMonth = branchMonthMap.get(r.branchName)!;
-            if (!branchMonth.has(key)) branchMonth.set(key, []);
-            branchMonth.get(key)!.push(val);
-        }
-
-        const byBranch: RealisasiBranchStat[] = Array.from(branchMap.entries())
-            .map(([branchName, vals]) => ({
-                branchName,
-                count: vals.length,
-                avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
-                max: Math.max(...vals),
-                min: Math.min(...vals),
-            }))
-            .sort((a, b) => b.avg - a.avg);
-
-        // Build ordered list from January to the current Jakarta month.
-        const currentYear = getJakartaYear();
-        const currentMonth = getJakartaMonth();
-        const buildMonthStats = (
-            source: Map<string, number[]>,
-        ): RealisasiMonthStat[] => {
-            const stats: RealisasiMonthStat[] = [];
-            for (let month = 1; month <= currentMonth; month++) {
-                const key = `${currentYear}-${String(month).padStart(2, "0")}`;
-                const vals = source.get(key) ?? [];
-                stats.push({
-                    yearMonth: key,
-                    label: `${MONTH_LABELS[month - 1]} ${currentYear}`,
-                    count: vals.length,
-                    avg:
-                        vals.length > 0
-                            ? Math.round(
-                                  vals.reduce((s, v) => s + v, 0) / vals.length,
-                              )
-                            : 0,
-                });
-            }
-            return stats;
-        };
-
-        const byMonth = buildMonthStats(monthMap);
-        const byMonthByBranch: Record<string, RealisasiMonthStat[]> = {};
-        for (const { branchName } of byBranch) {
-            const branchMonths = branchMonthMap.get(branchName) ?? new Map();
-            byMonthByBranch[branchName] = buildMonthStats(branchMonths);
-        }
-
-        const allVals = rows.map((r) => Number(r.totalReal ?? 0));
-        const globalAvg = Math.round(
-            allVals.reduce((s, v) => s + v, 0) / allVals.length,
-        );
-
-        return {
-            globalAvg,
-            totalCompleted: rows.length,
-            byBranch,
-            byMonth,
-            byMonthByBranch,
-        };
-    } catch (error) {
-        logger.error({ operation: "getAdminRealisasiDetail" }, "Failed", error);
-        return empty;
+    const byMonth = buildMonthStats(monthMap);
+    const byMonthByBranch: Record<string, RealisasiMonthStat[]> = {};
+    for (const { branchName } of byBranch) {
+      const branchMonths = branchMonthMap.get(branchName) ?? new Map();
+      byMonthByBranch[branchName] = buildMonthStats(branchMonths);
     }
+
+    const allVals = rows.map((r) => Number(r.totalReal ?? 0));
+    const globalAvg = Math.round(
+      allVals.reduce((s, v) => s + v, 0) / allVals.length,
+    );
+
+    return {
+      globalAvg,
+      totalCompleted: rows.length,
+      byBranch,
+      byMonth,
+      byMonthByBranch,
+    };
+  } catch (error) {
+    logger.error({ operation: "getAdminRealisasiDetail" }, "Failed", error);
+    return empty;
+  }
+}
+
+export type AdminSlaPerformanceDatum = {
+  branchName: string;
+  avgDurationHours: number;
+  formattedDuration: string;
+};
+
+export type AdminSlaPerformanceData = {
+  estimasiToAppvBmc: AdminSlaPerformanceDatum[];
+  appvBmcToAppvMgr: AdminSlaPerformanceDatum[];
+  durasiPekerjaanBms: AdminSlaPerformanceDatum[];
+};
+
+export async function getAdminSlaPerformanceData(
+  window: { start: Date; end?: Date },
+  brand: StoreBrandFilter,
+  branchScope?: string[],
+): Promise<AdminSlaPerformanceData> {
+  const baseWhere = {
+    ...getReportBrandWhere(brand),
+    ...(branchScope ? { branchName: { in: branchScope } } : {}),
+    NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+    status: { in: ["APPROVED_BMC", "COMPLETED"] },
+    updatedAt: { gte: window.start, ...(window.end ? { lt: window.end } : {}) },
+  };
+
+  const reports: {
+    reportNumber: string;
+    branchName: string;
+    activities: { action: string; createdAt: Date }[];
+  }[] = [];
+
+  let cursor: string | undefined = undefined;
+  const take = 1000;
+
+  while (true) {
+    const chunk = await prisma.report.findMany({
+      where: baseWhere as any,
+      take,
+      skip: cursor ? 1 : undefined,
+      cursor: cursor ? { reportNumber: cursor } : undefined,
+      orderBy: { reportNumber: "asc" },
+      select: {
+        reportNumber: true,
+        branchName: true,
+        activities: {
+          select: { action: true, createdAt: true },
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    if (chunk.length === 0) {
+      break;
+    }
+
+    reports.push(...chunk);
+    cursor = chunk[chunk.length - 1].reportNumber;
+  }
+
+  const slaEstimasi = new Map<string, number[]>();
+  const slaAppvMgr = new Map<string, number[]>();
+  const slaPekerjaan = new Map<string, number[]>();
+
+  for (const report of reports) {
+    const branch = report.branchName;
+    let submittedAt = null,
+      estimasiApprovedAt = null,
+      workStartedAt = null,
+      completionSubmittedAt = null,
+      appvBmcAt = null,
+      appvMgrAt = null;
+
+    for (const act of report.activities) {
+      if (act.action === "SUBMITTED") submittedAt = act.createdAt;
+      if (act.action === "ESTIMATION_APPROVED")
+        estimasiApprovedAt = act.createdAt;
+      if (act.action === "WORK_STARTED") workStartedAt = act.createdAt;
+      if (act.action === "COMPLETION_SUBMITTED")
+        completionSubmittedAt = act.createdAt;
+      if (act.action === "WORK_APPROVED") appvBmcAt = act.createdAt;
+      if (act.action === "FINAL_APPROVED_BNM") appvMgrAt = act.createdAt;
+    }
+
+    if (submittedAt && estimasiApprovedAt) {
+      const hrs =
+        (estimasiApprovedAt.getTime() - submittedAt.getTime()) / 3600000;
+      if (!slaEstimasi.has(branch)) slaEstimasi.set(branch, []);
+      slaEstimasi.get(branch)!.push(hrs);
+    }
+
+    if (appvBmcAt && appvMgrAt) {
+      const hrs = (appvMgrAt.getTime() - appvBmcAt.getTime()) / 3600000;
+      if (!slaAppvMgr.has(branch)) slaAppvMgr.set(branch, []);
+      slaAppvMgr.get(branch)!.push(hrs);
+    }
+
+    if (workStartedAt && completionSubmittedAt) {
+      const hrs =
+        (completionSubmittedAt.getTime() - workStartedAt.getTime()) / 3600000;
+      if (!slaPekerjaan.has(branch)) slaPekerjaan.set(branch, []);
+      slaPekerjaan.get(branch)!.push(hrs);
+    }
+  }
+
+  const formatSla = (map: Map<string, number[]>) => {
+    return Array.from(map.entries())
+      .map(([branchName, durations]) => {
+        const avgHours =
+          durations.reduce((a, b) => a + b, 0) / durations.length;
+        const days = Math.floor(avgHours / 24);
+        const hours = Math.round(avgHours % 24);
+        return {
+          branchName,
+          avgDurationHours: avgHours,
+          formattedDuration: `${days.toString().padStart(2, "0")},${hours.toString().padStart(2, "0")}`,
+        };
+      })
+      .sort((a, b) => b.avgDurationHours - a.avgDurationHours)
+      .slice(0, 5);
+  };
+
+  return {
+    estimasiToAppvBmc: formatSla(slaEstimasi),
+    appvBmcToAppvMgr: formatSla(slaAppvMgr),
+    durasiPekerjaanBms: formatSla(slaPekerjaan),
+  };
 }
