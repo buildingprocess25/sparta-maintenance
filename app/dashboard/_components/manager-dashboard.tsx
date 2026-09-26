@@ -41,10 +41,12 @@ import {
 import { 
     DashboardHeader, 
     KpiGrid, 
-    StatusDistributionKpis, 
-    SlaStatusGuide, 
     AdminRecentActivityCard
 } from "./admin/admin-new-dashboard";
+import { StatusDistributionKpis } from "./admin/status-distribution";
+import { SlaStatusGuide } from "./admin/sla-status-guide";
+import { PreventiveKpiWidget } from "./admin/preventive-kpi-widget";
+import { ProcessDurationWidget } from "./admin/process-duration-widget";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
 import { getPjumStatusBadgeClass, getPjumStatusLabel } from "@/lib/pjum-status";
 import {
@@ -390,6 +392,12 @@ export async function ManagerDashboard({
                 </div>
                 <SlaStatusGuide />
             </div>
+            
+            <div className="mt-6">
+                <PreventiveKpiWidget />
+            </div>
+            
+            <ProcessDurationWidget />
             
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start pt-6 border-t mt-8">
                 <PriorityReportsTable

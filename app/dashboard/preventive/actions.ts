@@ -17,6 +17,7 @@ import {
     getJakartaTodayStart,
     getJakartaYear,
     getJakartaYearWindow,
+    getJakartaMonth,
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { type StoreBrandFilter, getStoreBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
@@ -115,6 +116,34 @@ export type AdminPreventiveResult = {
     summary: PreventiveSummary;
     nextCursor: string | null;
     totalCount: number;
+};
+
+export type PreventiveKpiListItem = {
+    label: string;
+    completed: number;
+    total: number;
+    percentage: number;
+};
+
+export type PreventiveKpiData = {
+    capaianNasional: number;
+    tercapai: number;
+    belum: number;
+    listTitle: string;
+    listItems: PreventiveKpiListItem[];
+    branchNames: string[];
+};
+
+export type ProcessDurationItem = {
+    branchName: string;
+    durationSeconds: number;
+    formattedDuration: string;
+};
+
+export type ProcessDurationData = {
+    estimasiToBmc: ProcessDurationItem[];
+    bmcToManager: ProcessDurationItem[];
+    bmsWork: ProcessDurationItem[];
 };
 
 const QUARTER_KEYS: PreventiveQuarterKey[] = ["q1", "q2", "q3", "q4"];
@@ -646,5 +675,272 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
         total,
         completionRate,
         quarterLabel: quarterLabels[quarter] + " " + year
+    };
+}
+
+export async function getAdminPreventiveKpiData(
+    year: number,
+    quarter: PreventiveQuarter | "all",
+    branchName?: string,
+): Promise<PreventiveKpiData> {
+    const user = await getAuthUser();
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
+        throw new Error("Unauthorized");
+    }
+
+    const where: Prisma.StoreWhereInput = {
+        isActive: true,
+        ...getBranchScope(user),
+    };
+
+    if (branchName && branchName !== "all") {
+        if (user.role !== "ADMIN" && !user.branchNames.includes(branchName)) {
+            throw new Error("Unauthorized");
+        }
+        where.branchName = branchName;
+    }
+
+    const allStores = await prisma.store.findMany({
+        where,
+        select: { code: true, branchName: true },
+    });
+
+    const storeCodes = allStores.map((s) => s.code);
+    
+    let qStart: Date, qEnd: Date;
+    if (quarter === "all") {
+        const win = getJakartaYearWindow(year);
+        qStart = win.start;
+        qEnd = win.endExclusive;
+    } else {
+        const win = getJakartaQuarterWindow(year, quarter);
+        qStart = win.start;
+        qEnd = win.endExclusive;
+    }
+
+    const reportPredicates: Prisma.Sql[] = [
+        completePreventiveEvidenceSql({
+            statusColumn: Prisma.sql`r."status"`,
+            itemsColumn: Prisma.sql`r."items"`,
+        }),
+        Prisma.sql`r."createdAt" >= ${qStart}`,
+        Prisma.sql`r."createdAt" < ${qEnd}`,
+    ];
+
+    if (user.role === "ADMIN") {
+        if (branchName && branchName !== "all") {
+            reportPredicates.push(Prisma.sql`r."branchName" = ${branchName}`);
+        } else {
+            reportPredicates.push(Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`);
+        }
+    } else if (user.branchNames.length > 0) {
+        reportPredicates.push(Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`);
+    }
+
+    const reports = storeCodes.length === 0 ? [] : await prisma.$queryRaw<{ storeCode: string, createdAt: Date }[]>`
+        SELECT r."storeCode", r."createdAt"
+        FROM "Report" r
+        WHERE ${Prisma.join(reportPredicates, " AND ")}
+          AND r."storeCode" IN (${Prisma.join(storeCodes)})
+    `;
+
+    // Deduplicate: a store might have multiple complete reports. Take the earliest one.
+    const completedStores = new Map<string, Date>();
+    for (const r of reports) {
+        const existing = completedStores.get(r.storeCode);
+        if (!existing || r.createdAt < existing) {
+            completedStores.set(r.storeCode, r.createdAt);
+        }
+    }
+    
+    const totalCompleted = completedStores.size;
+    const totalStoresCount = allStores.length;
+    const capaianNasional = totalStoresCount === 0 ? 0 : Math.round((totalCompleted / totalStoresCount) * 100);
+    
+    let listTitle = "";
+    let listItems: PreventiveKpiListItem[] = [];
+    
+    if (!branchName || branchName === "all") {
+        listTitle = "5 Cabang Preventif Terendah";
+        const groupMap = new Map<string, { total: number; completed: number }>();
+        for (const store of allStores) {
+            const current = groupMap.get(store.branchName) || { total: 0, completed: 0 };
+            current.total++;
+            if (completedStores.has(store.code)) current.completed++;
+            groupMap.set(store.branchName, current);
+        }
+        
+        listItems = Array.from(groupMap.entries())
+            .map(([label, data]) => ({
+                label,
+                completed: data.completed,
+                total: data.total,
+                percentage: data.total === 0 ? 0 : Math.round((data.completed / data.total) * 100)
+            }))
+            .sort((a, b) => a.percentage - b.percentage)
+            .slice(0, 5);
+    } else {
+        if (quarter === "all") {
+            listTitle = "Tren Penyelesaian per Triwulan";
+            const quartersData = [
+                { label: "Triwulan 1", completed: 0 },
+                { label: "Triwulan 2", completed: 0 },
+                { label: "Triwulan 3", completed: 0 },
+                { label: "Triwulan 4", completed: 0 },
+            ];
+            for (const date of completedStores.values()) {
+                const q = getJakartaCurrentQuarter(date);
+                quartersData[q - 1].completed++;
+            }
+            listItems = quartersData.map(q => ({
+                label: q.label,
+                completed: q.completed,
+                total: totalStoresCount,
+                percentage: totalStoresCount === 0 ? 0 : Math.round((q.completed / totalStoresCount) * 100)
+            }));
+        } else {
+            listTitle = "Tren Penyelesaian per Bulan";
+            const monthNames = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+            const startMonthIdx = (quarter - 1) * 3;
+            
+            const monthsData = [
+                { label: monthNames[startMonthIdx], completed: 0, monthIdx: startMonthIdx + 1 },
+                { label: monthNames[startMonthIdx + 1], completed: 0, monthIdx: startMonthIdx + 2 },
+                { label: monthNames[startMonthIdx + 2], completed: 0, monthIdx: startMonthIdx + 3 },
+            ];
+            
+            for (const date of completedStores.values()) {
+                const m = getJakartaMonth(date); 
+                const bucket = monthsData.find(md => md.monthIdx === m);
+                if (bucket) bucket.completed++;
+            }
+            
+            listItems = monthsData.map(m => ({
+                label: m.label,
+                completed: m.completed,
+                total: totalStoresCount,
+                percentage: totalStoresCount === 0 ? 0 : Math.round((m.completed / totalStoresCount) * 100)
+            }));
+        }
+    }
+
+    return { 
+        capaianNasional, 
+        tercapai: totalCompleted, 
+        belum: totalStoresCount - totalCompleted, 
+        listTitle, 
+        listItems,
+        branchNames: Array.from(new Set(allStores.map(s => s.branchName))).sort()
+    };
+}
+
+function formatDuration(seconds: number): string {
+    if (!seconds || isNaN(seconds)) return "-";
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.round((seconds % 3600) / 60);
+    if (hrs === 0) return `${mins}m`;
+    return `${hrs}j ${mins}m`;
+}
+
+export async function getAdminProcessDurationData(
+    year: number,
+    quarter: PreventiveQuarter | "all"
+): Promise<ProcessDurationData> {
+    const user = await getAuthUser();
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
+        throw new Error("Unauthorized");
+    }
+
+    let qStart: Date, qEnd: Date;
+    if (quarter === "all") {
+        const win = getJakartaYearWindow(year);
+        qStart = win.start;
+        qEnd = win.endExclusive;
+    } else {
+        const win = getJakartaQuarterWindow(year, quarter);
+        qStart = win.start;
+        qEnd = win.endExclusive;
+    }
+
+    const reportPredicates: Prisma.Sql[] = [
+        Prisma.sql`r."createdAt" >= ${qStart}`,
+        Prisma.sql`r."createdAt" < ${qEnd}`,
+    ];
+
+    if (user.role === "ADMIN") {
+        reportPredicates.push(Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`);
+    } else if (user.branchNames.length > 0) {
+        reportPredicates.push(Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`);
+    }
+
+    // Raw SQL to compute durations
+    const rows = await prisma.$queryRaw<{ 
+        branchName: string; 
+        avg_estimasi_bmc: number | null; 
+        avg_bmc_bnm: number | null; 
+        avg_bms_work: number | null; 
+    }[]>`
+        WITH report_events AS (
+            SELECT 
+                r."branchName",
+                r."reportNumber",
+                MAX(a."createdAt") FILTER (WHERE a.action IN ('SUBMITTED', 'RESUBMITTED_ESTIMATION')) AS estimasi_submit_at,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'ESTIMATION_APPROVED') AS bmc_estimasi_approve_at,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'WORK_STARTED') AS bms_start_at,
+                MAX(a."createdAt") FILTER (WHERE a.action IN ('COMPLETION_SUBMITTED', 'RESUBMITTED_WORK')) AS bms_complete_at,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'WORK_APPROVED') AS bmc_work_approve_at,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'FINAL_APPROVED_BNM') AS bnm_approve_at
+            FROM "Report" r
+            JOIN "ActivityLog" a ON r."reportNumber" = a."reportNumber"
+            WHERE ${Prisma.join(reportPredicates, " AND ")}
+            GROUP BY r."branchName", r."reportNumber"
+        )
+        SELECT 
+            "branchName",
+            AVG(EXTRACT(EPOCH FROM (bmc_estimasi_approve_at - estimasi_submit_at))) AS avg_estimasi_bmc,
+            AVG(EXTRACT(EPOCH FROM (bnm_approve_at - bmc_work_approve_at))) AS avg_bmc_bnm,
+            AVG(EXTRACT(EPOCH FROM (bms_complete_at - bms_start_at))) AS avg_bms_work
+        FROM report_events
+        GROUP BY "branchName"
+    `;
+
+    // Map and format results
+    const estimasiToBmc: ProcessDurationItem[] = [];
+    const bmcToManager: ProcessDurationItem[] = [];
+    const bmsWork: ProcessDurationItem[] = [];
+
+    for (const row of rows) {
+        if (row.avg_estimasi_bmc != null) {
+            estimasiToBmc.push({
+                branchName: row.branchName,
+                durationSeconds: Number(row.avg_estimasi_bmc),
+                formattedDuration: formatDuration(Number(row.avg_estimasi_bmc))
+            });
+        }
+        if (row.avg_bmc_bnm != null) {
+            bmcToManager.push({
+                branchName: row.branchName,
+                durationSeconds: Number(row.avg_bmc_bnm),
+                formattedDuration: formatDuration(Number(row.avg_bmc_bnm))
+            });
+        }
+        if (row.avg_bms_work != null) {
+            bmsWork.push({
+                branchName: row.branchName,
+                durationSeconds: Number(row.avg_bms_work),
+                formattedDuration: formatDuration(Number(row.avg_bms_work))
+            });
+        }
+    }
+
+    // Sort descending by duration
+    estimasiToBmc.sort((a, b) => b.durationSeconds - a.durationSeconds);
+    bmcToManager.sort((a, b) => b.durationSeconds - a.durationSeconds);
+    bmsWork.sort((a, b) => b.durationSeconds - a.durationSeconds);
+
+    return {
+        estimasiToBmc: estimasiToBmc.slice(0, 5),
+        bmcToManager: bmcToManager.slice(0, 5),
+        bmsWork: bmsWork.slice(0, 5),
     };
 }

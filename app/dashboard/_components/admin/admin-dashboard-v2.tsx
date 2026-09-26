@@ -14,6 +14,15 @@ import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
 import { AdminKpiCards } from "./kpi-cards";
 import { LeaderboardList, type LeaderboardItem } from "./leaderboard-list";
+import { SlaStatusGuide } from "./sla-status-guide";
+import { StatusDistributionKpis } from "./status-distribution";
+import { PreventiveKpiWidget } from "./preventive-kpi-widget";
+import { ProcessDurationWidget } from "./process-duration-widget";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
 
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
@@ -23,8 +32,9 @@ import {
   Cell,
   ResponsiveContainer,
   Tooltip as RechartsTooltip,
-  LineChart,
+  ComposedChart,
   Line,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -91,51 +101,6 @@ export function AdminDashboardV2({
   const selectedPeriod = period ? period : "ytd";
   const selectedBrand = normalizeStoreBrandFilter(brand);
 
-  const maxEstimasiSla = Math.max(
-    ...(data.slaPerformance?.estimasiToAppvBmc.map(
-      (s) => s.avgDurationHours,
-    ) || [1]),
-  );
-  const estimasiSlaItems: LeaderboardItem[] = (
-    data.slaPerformance?.estimasiToAppvBmc || []
-  ).map((s) => ({
-    label: s.branchName,
-    value: s.avgDurationHours,
-    valueLabel: s.formattedDuration,
-    maxValue: maxEstimasiSla,
-    colorClass: "bg-orange-500",
-  }));
-
-  const maxPekerjaanSla = Math.max(
-    ...(data.slaPerformance?.durasiPekerjaanBms.map(
-      (s) => s.avgDurationHours,
-    ) || [1]),
-  );
-  const pekerjaanSlaItems: LeaderboardItem[] = (
-    data.slaPerformance?.durasiPekerjaanBms || []
-  ).map((s) => ({
-    label: s.branchName,
-    value: s.avgDurationHours,
-    valueLabel: s.formattedDuration,
-    maxValue: maxPekerjaanSla,
-    colorClass: "bg-[#005ea2]",
-  }));
-
-  const maxMgrSla = Math.max(
-    ...(data.slaPerformance?.appvBmcToAppvMgr.map(
-      (s) => s.avgDurationHours,
-    ) || [1]),
-  );
-  const mgrSlaItems: LeaderboardItem[] = (
-    data.slaPerformance?.appvBmcToAppvMgr || []
-  ).map((s) => ({
-    label: s.branchName,
-    value: s.avgDurationHours,
-    valueLabel: s.formattedDuration,
-    maxValue: maxMgrSla,
-    colorClass: "bg-purple-500",
-  }));
-
   // Mock data for preventif as it was hardcoded in the original file
   const preventifItems: LeaderboardItem[] = [
     {
@@ -180,213 +145,202 @@ export function AdminDashboardV2({
       {/* Row 1: KPI Cards */}
       <AdminKpiCards data={data} />
 
-      {/* Row 2: Status Bottleneck & Preventif */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-1 shadow-sm border-muted/60">
-          <CardHeader className="pb-2 bg-muted/20 border-b">
-            <CardTitle className="text-sm font-semibold text-muted-foreground uppercase">
-              Status Bottleneck
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="overflow-auto max-h-64 p-4">
-            <div className="space-y-3 mt-1 text-sm">
-              {data.status.map((s) => (
-                <div
-                  key={s.status}
-                  className="flex justify-between items-center border-b border-muted/40 pb-3 last:border-0 last:pb-0"
-                >
-                  <span className="text-muted-foreground font-medium">
-                    {s.label}
-                  </span>
-                  <span className="font-bold bg-secondary/80 px-2.5 py-0.5 rounded-md text-foreground/80">
-                    {s.count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="lg:col-span-1 shadow-sm border-muted/60">
-          <CardHeader className="pb-2 bg-muted/20 border-b">
-            <CardTitle className="text-sm font-semibold text-muted-foreground text-center uppercase">
-              PENCAPAIAN PREVENTIF
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center justify-center h-56 relative p-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: "OK", value: 87 },
-                    { name: "NOT OK", value: 13 },
-                  ]}
-                  innerRadius={65}
-                  outerRadius={85}
-                  dataKey="value"
-                  stroke="none"
-                >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#ef4444" />
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-3xl font-extrabold tracking-tighter mt-8">
-              87%
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="lg:col-span-1 h-64">
-          <LeaderboardList
-            title="5 Cabang Preventif Rendah"
-            items={preventifItems}
+      {/* Row 2: SLA Leaderboards & SLA Guide */}
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Distribusi Status &amp; SLA
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Komposisi laporan aktif dan status yang melewati batas waktu
+              operasional.
+            </p>
+          </div>
+          <StatusDistributionKpis
+            status={data.status}
+            breakdown={
+              data.brandBreakdown
+                ? {
+                    alfamart: data.brandBreakdown.alfamart.kpi.activeReports,
+                    lawson: data.brandBreakdown.lawson.kpi.activeReports,
+                  }
+                : undefined
+            }
           />
         </div>
-      </div>
+        <SlaStatusGuide />
+      </section>
 
-      {/* Row 3: SLA Performance */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto min-h-64">
-        <LeaderboardList
-          title="SL Estimasi ke Appv BMC Tertinggi"
-          items={estimasiSlaItems}
-        />
-        <LeaderboardList
-          title="SL Durasi Pekerjaan BMS Tertinggi"
-          items={pekerjaanSlaItems}
-        />
-        <LeaderboardList
-          title="SL Appv BMC ke Appv Mgr Tertinggi"
-          items={mgrSlaItems}
-        />
-      </div>
-
-      {/* Footer Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground uppercase">
-              Total Toko Nasional
-            </div>
-            <div className="text-2xl font-bold mt-2">
-              {(data.userStats?.totalStoreAlfamart || 0) +
-                (data.userStats?.totalStoreLawson || 0)}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground uppercase">
-              Total Tim Cabang
-            </div>
-            <div className="text-2xl font-bold mt-2">
-              {data.userStats?.totalTimCabang || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground uppercase">
-              Manager Cabang
-            </div>
-            <div className="text-2xl font-bold mt-2">
-              {data.userStats?.totalManagerCabang || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground uppercase">
-              Total BMC Cabang
-            </div>
-            <div className="text-2xl font-bold mt-2">
-              {data.userStats?.totalBmc || 0}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6 text-center">
-            <div className="text-sm font-medium text-muted-foreground uppercase">
-              Total BMS Cabang
-            </div>
-            <div className="text-2xl font-bold mt-2">
-              {data.userStats?.totalBms || 0}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Row 3: Preventif */}
+      <PreventiveKpiWidget />
+      <ProcessDurationWidget />
 
       {/* Row 4: Dana Taktis Line Chart */}
       <Card className="w-full">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-center uppercase">
-            Rata-Rata Penggunaan Dana Taktis Per Laporan
-          </CardTitle>
+        <CardHeader className="pb-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg font-semibold tracking-tight">
+                Rata-Rata Realisasi Per Laporan
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Perbandingan antara total jumlah laporan dan rata-rata realisasi biaya per laporan di setiap cabang
+              </p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="h-[400px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={realisasiData.byBranch}
-              margin={{ top: 20, right: 20, bottom: 60, left: 20 }}
+          <ChartContainer 
+            config={{
+              count: { label: "Jumlah Laporan", color: "var(--chart-3)" },
+              avg: { label: "Rata-Rata Biaya", color: "#f4bb44" }
+            }} 
+            className="h-full w-full"
+          >
+            <ComposedChart
+              data={[...realisasiData.byBranch].sort((a, b) => a.branchName.localeCompare(b.branchName))}
+              margin={{ top: 10, right: 10, bottom: 60, left: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
               <XAxis
                 dataKey="branchName"
                 angle={-45}
                 textAnchor="end"
                 height={80}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                dy={10}
               />
               <YAxis
                 yAxisId="left"
                 orientation="left"
-                stroke="#ef4444"
                 tickFormatter={(val) => `Rp ${val / 1000}k`}
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                dx={-10}
               />
               <YAxis
                 yAxisId="right"
                 orientation="right"
-                stroke="#3b82f6"
-                tick={{ fontSize: 10 }}
+                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                dx={10}
               />
-              <RechartsTooltip
-                formatter={(value: number, name: string) => [
-                  name === "avg"
-                    ? `Rp ${value.toLocaleString("id-ID")}`
-                    : value,
-                  name === "avg" ? "AVG BIAYA" : "JUMLAH LAPORAN",
-                ]}
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    className="min-w-60"
+                    labelFormatter={(label) => <div className="text-sm font-semibold mb-1">{label}</div>}
+                    formatter={(value, name) => (
+                      <div className="flex w-full justify-between items-center gap-4">
+                        <span className="text-muted-foreground text-xs">
+                          {name === "avg" ? "Rata-Rata Biaya" : "Jumlah Laporan"}
+                        </span>
+                        <span className="font-mono font-medium text-xs">
+                          {name === "avg" ? `Rp ${Number(value).toLocaleString("id-ID")}` : value}
+                        </span>
+                      </div>
+                    )}
+                  />
+                }
               />
               <Legend
                 verticalAlign="top"
-                height={36}
+                height={40}
+                iconType="circle"
+                wrapperStyle={{ fontSize: '12px', fontWeight: 500 }}
                 formatter={(value) => (
-                  <span className="text-xs font-semibold">
-                    {value === "avg" ? "AVG BIAYA" : "JUMLAH LAPORAN"}
+                  <span className="text-muted-foreground ml-1">
+                    {value === "avg" ? "Rata-Rata Biaya" : "Jumlah Laporan"}
                   </span>
                 )}
+              />
+              <Bar 
+                yAxisId="right" 
+                dataKey="count" 
+                fill="var(--color-count)" 
+                radius={[4, 4, 0, 0]}
+                barSize={32}
               />
               <Line
                 yAxisId="left"
                 type="monotone"
                 dataKey="avg"
-                stroke="#ef4444"
-                strokeWidth={2}
-                activeDot={{ r: 6 }}
+                stroke="var(--color-avg)"
+                strokeWidth={3}
+                dot={false}
+                activeDot={{ r: 6, strokeWidth: 0, fill: "var(--color-avg)" }}
               />
-              <Line
-                yAxisId="right"
-                type="monotone"
-                dataKey="count"
-                stroke="#3b82f6"
-                strokeWidth={2}
-                activeDot={{ r: 6 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
+            </ComposedChart>
+          </ChartContainer>
         </CardContent>
       </Card>
+
+      {/* Footer Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
+              Total Toko Nasional
+            </div>
+            <div className="text-3xl font-black tracking-tight">
+              {((data.userStats?.totalStoreAlfamart || 0) + (data.userStats?.totalStoreLawson || 0)).toLocaleString("id-ID")}
+            </div>
+            <div className="flex items-center justify-center gap-3 mt-3 text-[11px] font-medium">
+              <span className="text-red-700">
+                Alfamart: {(data.userStats?.totalStoreAlfamart || 0).toLocaleString("id-ID")}
+              </span>
+              <span className="text-sky-700">
+                Lawson: {(data.userStats?.totalStoreLawson || 0).toLocaleString("id-ID")}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
+              Total Tim Cabang
+            </div>
+            <div className="text-3xl font-black tracking-tight">
+              {(data.userStats?.totalTimCabang || 0).toLocaleString("id-ID")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
+              Manager Cabang
+            </div>
+            <div className="text-3xl font-black tracking-tight">
+              {(data.userStats?.totalManagerCabang || 0).toLocaleString("id-ID")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
+              Total BMC Cabang
+            </div>
+            <div className="text-3xl font-black tracking-tight">
+              {(data.userStats?.totalBmc || 0).toLocaleString("id-ID")}
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
+          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+            <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
+              Total BMS Cabang
+            </div>
+            <div className="text-3xl font-black tracking-tight">
+              {(data.userStats?.totalBms || 0).toLocaleString("id-ID")}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </AdminDashboardShell>
   );
 }

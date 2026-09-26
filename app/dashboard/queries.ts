@@ -2059,13 +2059,16 @@ export async function getAdminRealisasiDetail(
     }
 
     const byBranch: RealisasiBranchStat[] = Array.from(branchMap.entries())
-      .map(([branchName, vals]) => ({
-        branchName,
-        count: vals.length,
-        avg: Math.round(vals.reduce((s, v) => s + v, 0) / vals.length),
-        max: Math.max(...vals),
-        min: Math.min(...vals),
-      }))
+      .map(([branchName, vals]) => {
+        const validVals = vals.filter((v) => v >= 1000);
+        return {
+          branchName,
+          count: vals.length,
+          avg: validVals.length > 0 ? Math.round(validVals.reduce((s, v) => s + v, 0) / validVals.length) : 0,
+          max: vals.length > 0 ? Math.max(...vals) : 0,
+          min: vals.length > 0 ? Math.min(...vals) : 0,
+        };
+      })
       .sort((a, b) => b.avg - a.avg);
 
     // Build ordered list from January to the current Jakarta month.
@@ -2078,13 +2081,14 @@ export async function getAdminRealisasiDetail(
       for (let month = 1; month <= currentMonth; month++) {
         const key = `${currentYear}-${String(month).padStart(2, "0")}`;
         const vals = source.get(key) ?? [];
+        const validVals = vals.filter((v) => v >= 1000);
         stats.push({
           yearMonth: key,
           label: `${MONTH_LABELS[month - 1]} ${currentYear}`,
           count: vals.length,
           avg:
-            vals.length > 0
-              ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length)
+            validVals.length > 0
+              ? Math.round(validVals.reduce((s, v) => s + v, 0) / validVals.length)
               : 0,
         });
       }
