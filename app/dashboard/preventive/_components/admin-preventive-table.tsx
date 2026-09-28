@@ -7,6 +7,7 @@ import type { ReactNode } from "react";
 import {
     Activity,
     AlertCircle,
+    ArrowDownUp,
     BarChart3,
     CalendarClock,
     CheckCircle2,
@@ -235,6 +236,7 @@ export function AdminPreventiveTable({
     initialQuarter,
     initialBrand: initialBrandProp,
     initialTab,
+    initialBranchSort,
 }: {
     initialData: AdminPreventiveResult;
     branches: string[];
@@ -247,9 +249,11 @@ export function AdminPreventiveTable({
     initialQuarter?: PreventiveQuarter;
     initialBrand?: StoreBrandFilter;
     initialTab?: string;
+    initialBranchSort?: "asc" | "desc";
 }) {
     const currentYear = getJakartaYear();
     const [activeTab, setActiveTab] = useState(initialTab ?? "quarter");
+    const [branchSort, setBranchSort] = useState<"asc" | "desc">(initialBranchSort ?? "asc");
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
         initialData.nextCursor,
@@ -425,6 +429,15 @@ export function AdminPreventiveTable({
     const selectedQuarter = useMemo(
         () => quarterOptions.find((item) => item.value === quarter),
         [quarter],
+    );
+
+    const sortedBranchSummaries = useMemo(() => 
+        [...branchSummaries].sort((a, b) =>
+            branchSort === "asc"
+                ? a.completionRate - b.completionRate
+                : b.completionRate - a.completionRate
+        ),
+        [branchSummaries, branchSort]
     );
 
     const filteredRows = data;
@@ -1014,6 +1027,18 @@ export function AdminPreventiveTable({
 
                     {showBranchControls ? (
                         <TabsContent value="branches" className="mt-0">
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-sm text-muted-foreground">
+                                    Ringkasan capaian checklist preventif per cabang.
+                                </p>
+                                <button
+                                    onClick={() => setBranchSort(prev => prev === "asc" ? "desc" : "asc")}
+                                    className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
+                                >
+                                    <ArrowDownUp className="h-3.5 w-3.5" />
+                                    {branchSort === "asc" ? "Terendah dulu" : "Tertinggi dulu"}
+                                </button>
+                            </div>
                             <div className="overflow-hidden rounded-lg border bg-background">
                                 <Table>
                                     <TableHeader>
@@ -1027,7 +1052,7 @@ export function AdminPreventiveTable({
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {branchSummaries.length === 0 ? (
+                                        {sortedBranchSummaries.length === 0 ? (
                                             <TableRow>
                                                 <TableCell colSpan={6}>
                                                     <EmptyTable
@@ -1038,7 +1063,7 @@ export function AdminPreventiveTable({
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
-                                            branchSummaries.map((branch) => (
+                                            sortedBranchSummaries.map((branch) => (
                                                 <TableRow key={branch.branchName}>
                                                     <TableCell className="text-xs font-medium">
                                                         {branch.branchName}

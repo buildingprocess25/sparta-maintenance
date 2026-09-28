@@ -132,6 +132,7 @@ export type PreventiveKpiData = {
     listTitle: string;
     listItems: PreventiveKpiListItem[];
     branchNames: string[];
+    allBranchItems: PreventiveKpiListItem[];
 };
 
 export type ProcessDurationItem = {
@@ -759,6 +760,7 @@ export async function getAdminPreventiveKpiData(
     
     let listTitle = "";
     let listItems: PreventiveKpiListItem[] = [];
+    let allBranchItemsForReturn: PreventiveKpiListItem[] = [];
     
     if (!branchName || branchName === "all") {
         listTitle = "5 Cabang Preventif Terendah";
@@ -770,15 +772,17 @@ export async function getAdminPreventiveKpiData(
             groupMap.set(store.branchName, current);
         }
         
-        listItems = Array.from(groupMap.entries())
+        const allBranches = Array.from(groupMap.entries())
             .map(([label, data]) => ({
                 label,
                 completed: data.completed,
                 total: data.total,
                 percentage: data.total === 0 ? 0 : Math.round((data.completed / data.total) * 100)
             }))
-            .sort((a, b) => a.percentage - b.percentage)
-            .slice(0, 5);
+            .sort((a, b) => a.percentage - b.percentage);
+
+        allBranchItemsForReturn = allBranches;
+        listItems = allBranches.slice(0, 5);
     } else {
         if (quarter === "all") {
             listTitle = "Tren Penyelesaian per Triwulan";
@@ -830,7 +834,8 @@ export async function getAdminPreventiveKpiData(
         belum: totalStoresCount - totalCompleted, 
         listTitle, 
         listItems,
-        branchNames: Array.from(new Set(allStores.map(s => s.branchName))).sort()
+        branchNames: Array.from(new Set(allStores.map(s => s.branchName))).sort(),
+        allBranchItems: allBranchItemsForReturn,
     };
 }
 

@@ -18,11 +18,12 @@ type Props = {
         quarter?: string;
         brand?: string;
         tab?: string;
+        sort?: string;
     }>;
 };
 
 const VALID_QUARTERS = new Set(["1", "2", "3", "4"]);
-const VALID_TABS = new Set(["quarter", "history"]);
+const VALID_TABS = new Set(["quarter", "pending", "matrix", "branches", "history"]);
 
 function normalizeQuarter(value?: string): PreventiveQuarter | undefined {
     if (value && VALID_QUARTERS.has(value)) {
@@ -54,6 +55,7 @@ export default async function AdminPreventivePage({ searchParams }: Props) {
     const initialBrand = isAdmin ? normalizeStoreBrandFilter(params.brand) : "ALL";
     const initialTab =
         params.tab && VALID_TABS.has(params.tab) ? params.tab : "quarter";
+    const initialSort: "asc" | "desc" = params.sort === "desc" ? "desc" : "asc";
 
     const [branchOptions, years, initialData] = await Promise.all([
         isAdmin ? getPreventiveBranchOptions() : Promise.resolve([]),
@@ -93,6 +95,7 @@ export default async function AdminPreventivePage({ searchParams }: Props) {
                 initialQuarter={initialQuarter}
                 initialBrand={initialBrand}
                 initialTab={initialTab}
+                initialBranchSort={initialSort}
             />
         </AdminDashboardShell>
     );

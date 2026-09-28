@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAdminPreventiveKpiData, getPreventiveBranchOptions, type PreventiveKpiData, type PreventiveQuarter } from "../../preventive/actions";
@@ -13,6 +13,7 @@ export function PreventiveKpiWidget() {
     const [branchName, setBranchName] = useState<string>("all");
     const [data, setData] = useState<PreventiveKpiData | null>(null);
     const [availableBranches, setAvailableBranches] = useState<string[]>([]);
+    const [branchSort, setBranchSort] = useState<"asc" | "desc">("asc");
     const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
@@ -29,6 +30,20 @@ export function PreventiveKpiWidget() {
         { name: "Tercapai", value: data.capaianNasional, color: "#10b981" }, // emerald-500
         { name: "Belum", value: 100 - data.capaianNasional, color: "#f43f5e" } // rose-500
     ] : [];
+
+    const displayedBranchItems = (() => {
+        if (!data?.allBranchItems?.length) return data?.listItems ?? [];
+        const items = [...data.allBranchItems].sort((a, b) =>
+            branchSort === "asc"
+                ? a.percentage - b.percentage
+                : b.percentage - a.percentage
+        );
+        return items.slice(0, 5);
+    })();
+
+    const branchListTitle = branchSort === "asc"
+        ? "5 Cabang Preventif Terendah"
+        : "5 Cabang Preventif Tertinggi";
 
     return (
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
@@ -82,7 +97,7 @@ export function PreventiveKpiWidget() {
                             <div className="relative h-48 w-48 mx-auto flex items-center justify-center">
                                 <PieChart width={192} height={192} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                                     <Tooltip 
-                                        formatter={(value: number) => [`${value}%`, "Total"]}
+                                        formatter={(value: any) => [`${value}%`, "Total"]}
                                         contentStyle={{ 
                                             borderRadius: '8px', 
                                             border: '1px solid hsl(var(--border))',
@@ -143,17 +158,34 @@ export function PreventiveKpiWidget() {
                 <div>
                     <div className="flex justify-between items-center mb-4">
                         <div className="text-sm font-medium">
-                            {data ? data.listTitle : "Memuat..."}
+                            {branchName === "all"
+                                ? branchListTitle
+                                : (data ? data.listTitle : "Memuat...")}
                         </div>
-                        {branchName === "all" && (
-                            <Link href="/dashboard/preventive" className="text-xs text-primary hover:underline flex items-center">
-                                Lihat semua <ArrowUpRight className="h-3 w-3 ml-0.5" />
-                            </Link>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {branchName === "all" && (
+                                <button
+                                    onClick={() => setBranchSort(prev => prev === "asc" ? "desc" : "asc")}
+                                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                                    title={branchSort === "asc" ? "Tampilkan tertinggi" : "Tampilkan terendah"}
+                                >
+                                    <ArrowDownUp className="h-3 w-3" />
+                                    {branchSort === "asc" ? "Terendah" : "Tertinggi"}
+                                </button>
+                            )}
+                            {branchName === "all" && (
+                                <Link
+                                    href={`/dashboard/preventive?tab=branches&sort=${branchSort}`}
+                                    className="text-xs text-primary hover:underline flex items-center"
+                                >
+                                    Lihat semua <ArrowUpRight className="h-3 w-3 ml-0.5" />
+                                </Link>
+                            )}
+                        </div>
                     </div>
 
                     <div className="space-y-4">
-                        {data ? data.listItems.map((item, i) => {
+                        {data ? displayedBranchItems.map((item, i) => {
                             let barColor = "bg-rose-500";
                             let textColor = "text-rose-600 dark:text-rose-400";
                             
