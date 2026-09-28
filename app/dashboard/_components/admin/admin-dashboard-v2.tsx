@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
-import { AdminKpiCards } from "./kpi-cards";
+import { KpiGrid } from "./admin-new-dashboard";
 import { LeaderboardList, type LeaderboardItem } from "./leaderboard-list";
 import { SlaStatusGuide } from "./sla-status-guide";
 import { StatusDistributionKpis } from "./status-distribution";
@@ -143,7 +143,13 @@ export function AdminDashboardV2({
       <DashboardHeader kpi={data.kpi} brand={selectedBrand} />
 
       {/* Row 1: KPI Cards */}
-      <AdminKpiCards data={data} />
+      <KpiGrid
+        kpi={data.kpi}
+        pjum={data.pjum}
+        breakdown={data.brandBreakdown}
+        isBrandFiltered={selectedBrand !== "ALL"}
+        brand={selectedBrand}
+      />
 
       {/* Row 2: SLA Leaderboards & SLA Guide */}
       <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
