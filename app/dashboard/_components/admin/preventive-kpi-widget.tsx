@@ -5,14 +5,19 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAdminPreventiveKpiData, type PreventiveKpiData, type PreventiveQuarter } from "../../preventive/actions";
+import { getAdminPreventiveKpiData, getPreventiveBranchOptions, type PreventiveKpiData, type PreventiveQuarter } from "../../preventive/actions";
 import { getJakartaYear, getJakartaCurrentQuarter } from "@/lib/time";
 
 export function PreventiveKpiWidget() {
     const [quarter, setQuarter] = useState<PreventiveQuarter | "all">(getJakartaCurrentQuarter());
     const [branchName, setBranchName] = useState<string>("all");
     const [data, setData] = useState<PreventiveKpiData | null>(null);
+    const [availableBranches, setAvailableBranches] = useState<string[]>([]);
     const [isPending, startTransition] = useTransition();
+
+    useEffect(() => {
+        getPreventiveBranchOptions().then(setAvailableBranches);
+    }, []);
 
     useEffect(() => {
         startTransition(() => {
@@ -24,8 +29,6 @@ export function PreventiveKpiWidget() {
         { name: "Tercapai", value: data.capaianNasional, color: "#10b981" }, // emerald-500
         { name: "Belum", value: 100 - data.capaianNasional, color: "#f43f5e" } // rose-500
     ] : [];
-
-    const availableBranches = data?.branchNames || [];
 
     return (
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
@@ -76,8 +79,8 @@ export function PreventiveKpiWidget() {
                     </div>
                     {data ? (
                         <>
-                            <div className="relative h-48 w-48 flex items-center justify-center">
-                                <PieChart width={192} height={192}>
+                            <div className="relative h-48 w-48 mx-auto flex items-center justify-center">
+                                <PieChart width={192} height={192} margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                                     <Tooltip 
                                         formatter={(value: number) => [`${value}%`, "Total"]}
                                         contentStyle={{ 
@@ -91,8 +94,8 @@ export function PreventiveKpiWidget() {
                                     />
                                     <Pie
                                         data={pieData}
-                                        cx={96}
-                                        cy={96}
+                                        cx="50%"
+                                        cy="50%"
                                         innerRadius={60}
                                         outerRadius={80}
                                         startAngle={90}
@@ -115,9 +118,9 @@ export function PreventiveKpiWidget() {
                                         ))}
                                     </Pie>
                                 </PieChart>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span className="text-2xl font-bold">{data.capaianNasional}%</span>
-                                    <span className="text-xs text-muted-foreground">capaian</span>
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none mt-1">
+                                    <span className="text-2xl font-bold leading-none">{data.capaianNasional}%</span>
+                                    <span className="text-xs text-muted-foreground mt-1">capaian</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-6 mt-4 text-xs">
