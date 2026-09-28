@@ -38,63 +38,46 @@ import {
  */
 export async function getUserStats(userId: string) {
     try {
-        const base = {
-            createdByNIK: userId,
-            status: { not: ARCHIVED_PREVENTIVE_STATUS },
-        };
+        const statusCounts = await prisma.report.groupBy({
+            by: ["status"],
+            where: {
+                createdByNIK: userId,
+                status: { not: ARCHIVED_PREVENTIVE_STATUS },
+            },
+            _count: { _all: true },
+        });
 
-        const [
-            totalReports,
-            needsAction,
-            waitingReview,
-            inProgress,
-            completed,
-            activeReports,
-        ] = await Promise.all([
-            prisma.report.count({ where: base }),
-            // Things BMS must act on (start work / revise)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        in: [
-                            "ESTIMATION_APPROVED",
-                            "ESTIMATION_REJECTED_REVISION",
-                            "REVIEW_REJECTED_REVISION",
-                        ],
-                    },
-                },
-            }),
-            // Waiting for others (BMC)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        in: [
-                            "PENDING_ESTIMATION",
-                            "PENDING_CHECKLIST_REVIEW",
-                            "PENDING_REVIEW",
-                            "APPROVED_BMC",
-                        ],
-                    },
-                },
-            }),
-            prisma.report.count({
-                where: { ...base, status: "IN_PROGRESS" },
-            }),
-            prisma.report.count({
-                where: { ...base, status: "COMPLETED" },
-            }),
-            // Active Reports (everything not completed)
-            prisma.report.count({
-                where: {
-                    ...base,
-                    status: {
-                        notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
-                    },
-                },
-            }),
-        ]);
+        const countMap = new Map(
+            statusCounts.map((row) => [row.status, row._count._all]),
+        );
+
+        const needsActionStatuses = [
+            "ESTIMATION_APPROVED",
+            "ESTIMATION_REJECTED_REVISION",
+            "REVIEW_REJECTED_REVISION",
+        ];
+        const waitingReviewStatuses = [
+            "PENDING_ESTIMATION",
+            "PENDING_CHECKLIST_REVIEW",
+            "PENDING_REVIEW",
+            "APPROVED_BMC",
+        ];
+
+        let totalReports = 0;
+        let needsAction = 0;
+        let waitingReview = 0;
+        let inProgress = 0;
+        let completed = 0;
+
+        for (const [status, count] of countMap) {
+            totalReports += count;
+            if (needsActionStatuses.includes(status)) needsAction += count;
+            if (waitingReviewStatuses.includes(status)) waitingReview += count;
+            if (status === "IN_PROGRESS") inProgress += count;
+            if (status === "COMPLETED") completed += count;
+        }
+
+        const activeReports = totalReports - completed;
 
         return {
             totalReports,
@@ -122,39 +105,41 @@ export async function getUserStats(userId: string) {
  */
 export async function getBMCStats(branchNames: string[]) {
     try {
-        const base = {
-            branchName: { in: branchNames },
-            status: {
-                notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        const statusCounts = await prisma.report.groupBy({
+            by: ["status"],
+            where: {
+                branchName: { in: branchNames },
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
             },
-        };
+            _count: { _all: true },
+        });
 
-        const [totalReports, needsReview, inProgress, completed] =
-            await Promise.all([
-                prisma.report.count({ where: base }),
-                // Things BMC must act on: review estimation OR review completion
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: {
-                            in: ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"],
-                        },
-                    },
-                }),
-                // Estimation approved + actively being worked on
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "COMPLETED",
-                    },
-                }),
-            ]);
+        const countMap = new Map(
+            statusCounts.map((row) => [row.status, row._count._all]),
+        );
+
+        const needsReviewStatuses = [
+            "PENDING_ESTIMATION",
+            "PENDING_CHECKLIST_REVIEW",
+            "PENDING_REVIEW",
+        ];
+        const inProgressStatuses = [
+            "ESTIMATION_APPROVED",
+            "IN_PROGRESS",
+        ];
+
+        let totalReports = 0;
+        let needsReview = 0;
+        let inProgress = 0;
+        const completed = countMap.get("COMPLETED") ?? 0;
+
+        for (const [status, count] of countMap) {
+            totalReports += count;
+            if (needsReviewStatuses.includes(status)) needsReview += count;
+            if (inProgressStatuses.includes(status)) inProgress += count;
+        }
 
         return {
             totalReports,
@@ -179,31 +164,31 @@ export async function getBMCStats(branchNames: string[]) {
  */
 export async function getBNMStats(branchNames: string[]) {
     try {
-        const [pendingFinalApproval, completed, totalReports] =
-            await Promise.all([
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "APPROVED_BMC",
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: "COMPLETED",
-                    },
-                }),
-                prisma.report.count({
-                    where: {
-                        branchName: { in: branchNames },
-                        status: {
-                            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-                        },
-                    },
-                }),
-            ]);
+        const statusCounts = await prisma.report.groupBy({
+            by: ["status"],
+            where: {
+                branchName: { in: branchNames },
+                status: {
+                    notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+                },
+            },
+            _count: { _all: true },
+        });
 
-        return { pendingFinalApproval, completed, totalReports };
+        const countMap = new Map(
+            statusCounts.map((row) => [row.status, row._count._all]),
+        );
+
+        let totalReports = 0;
+        for (const count of countMap.values()) {
+            totalReports += count;
+        }
+
+        return {
+            pendingFinalApproval: countMap.get("APPROVED_BMC") ?? 0,
+            completed: countMap.get("COMPLETED") ?? 0,
+            totalReports,
+        };
     } catch (error) {
         logger.error(
             { operation: "getBNMStats", branchNames },
