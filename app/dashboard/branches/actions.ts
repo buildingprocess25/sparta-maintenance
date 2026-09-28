@@ -905,18 +905,42 @@ export async function getAdminDetailedSLAData(
             AVG(EXTRACT(EPOCH FROM (t_real_appv - t_realisasi))) AS avg_realisasi_to_appv_bmc,
             AVG(EXTRACT(EPOCH FROM (t_mgr_appv - t_real_appv))) AS avg_appv_bmc_to_mgr
         FROM report_events
-        GROUP BY "branchName", "bmsName"
-        ORDER BY "branchName", "bmsName"
+        GROUP BY GROUPING SETS (
+            ("branchName"),
+            ("branchName", "bmsName")
+        )
+        ORDER BY "branchName", "bmsName" NULLS FIRST
     `;
 
-    const branchMap = new Map<string, SLADurationBMS[]>();
+    const branchMap = new Map<string, SLADurationBranch>();
 
     for (const row of rows) {
         if (!branchMap.has(row.branchName)) {
-            branchMap.set(row.branchName, []);
+            branchMap.set(row.branchName, {
+                branchName: row.branchName,
+                bmsList: [],
+                estimasiToAppvBMC: null,
+                estimasiToRevisiBMC: null,
+                appvBMCToWorkStart: null,
+                workStartToRealisasi: null,
+                realisasiToRevisiBMC: null,
+                realisasiToAppvBMC: null,
+                appvBMCToAppvMGR: null,
+            });
         }
-        branchMap.get(row.branchName)!.push({
-            bmsName: row.bmsName,
+        const branchEntry = branchMap.get(row.branchName)!;
+
+        if (row.bmsName === null) {
+            branchEntry.estimasiToAppvBMC = row.avg_est_to_appv_bmc ? Number(row.avg_est_to_appv_bmc) : null;
+            branchEntry.estimasiToRevisiBMC = row.avg_est_to_rev_bmc ? Number(row.avg_est_to_rev_bmc) : null;
+            branchEntry.appvBMCToWorkStart = row.avg_appv_bmc_to_start ? Number(row.avg_appv_bmc_to_start) : null;
+            branchEntry.workStartToRealisasi = row.avg_start_to_realisasi ? Number(row.avg_start_to_realisasi) : null;
+            branchEntry.realisasiToRevisiBMC = row.avg_realisasi_to_rev_bmc ? Number(row.avg_realisasi_to_rev_bmc) : null;
+            branchEntry.realisasiToAppvBMC = row.avg_realisasi_to_appv_bmc ? Number(row.avg_realisasi_to_appv_bmc) : null;
+            branchEntry.appvBMCToAppvMGR = row.avg_appv_bmc_to_mgr ? Number(row.avg_appv_bmc_to_mgr) : null;
+        } else {
+            branchEntry.bmsList.push({
+                bmsName: row.bmsName,
             estimasiToAppvBMC: row.avg_est_to_appv_bmc ? Number(row.avg_est_to_appv_bmc) : null,
             estimasiToRevisiBMC: row.avg_est_to_rev_bmc ? Number(row.avg_est_to_rev_bmc) : null,
             appvBMCToWorkStart: row.avg_appv_bmc_to_start ? Number(row.avg_appv_bmc_to_start) : null,
@@ -925,13 +949,9 @@ export async function getAdminDetailedSLAData(
             realisasiToAppvBMC: row.avg_realisasi_to_appv_bmc ? Number(row.avg_realisasi_to_appv_bmc) : null,
             appvBMCToAppvMGR: row.avg_appv_bmc_to_mgr ? Number(row.avg_appv_bmc_to_mgr) : null,
         });
+        }
     }
 
-    const result: SLADurationBranch[] = [];
-    for (const [branchName, bmsList] of branchMap.entries()) {
-        result.push({ branchName, bmsList });
-    }
-
-    return result;
+    return Array.from(branchMap.values());
 }
 
