@@ -1,4 +1,5 @@
 // import "server-only";
+import { unstable_cache, revalidateTag } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
@@ -1098,44 +1099,68 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
     };
 }
 
-export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
-    const users = await prisma.user.findMany({
-        where: { deletedAt: null },
-        select: { branchNames: true },
-    });
+type AdminBranchHierarchySerialized = {
+    options: AdminBranchOption[];
+    parentEntries: [string, string][];
+};
 
-    const optionNames = Array.from(
-        new Set(
-            users
-                .map((user) => user.branchNames[0])
-                .filter(
-                    (name) =>
-                        name &&
-                        name.trim() !== "" &&
-                        name !== EXCLUDED_ADMIN_BRANCH_NAME,
-                ),
-        ),
-    ).sort((a, b) => a.localeCompare(b, "id-ID"));
+const getAdminBranchHierarchyCached = unstable_cache(
+    async (): Promise<AdminBranchHierarchySerialized> => {
+        const users = await prisma.user.findMany({
+            where: { deletedAt: null },
+            select: { branchNames: true },
+        });
 
-    const parentMap = new Map<string, string>();
-    for (const user of users) {
-        const parentBranch = user.branchNames[0];
-        if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
-            continue;
-        }
+        const optionNames = Array.from(
+            new Set(
+                users
+                    .map((user) => user.branchNames[0])
+                    .filter(
+                        (name) =>
+                            name &&
+                            name.trim() !== "" &&
+                            name !== EXCLUDED_ADMIN_BRANCH_NAME,
+                    ),
+            ),
+        ).sort((a, b) => a.localeCompare(b, "id-ID"));
 
-        for (const branchName of user.branchNames) {
-            if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+        const parentMap = new Map<string, string>();
+        for (const user of users) {
+            const parentBranch = user.branchNames[0];
+            if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
                 continue;
             }
-            parentMap.set(branchName, parentBranch);
-        }
-    }
 
+            for (const branchName of user.branchNames) {
+                if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+                    continue;
+                }
+                parentMap.set(branchName, parentBranch);
+            }
+        }
+
+        return {
+            options: optionNames.map((name) => ({ name })),
+            parentEntries: Array.from(parentMap.entries()),
+        };
+    },
+    ["admin-branch-hierarchy"],
+    { revalidate: 600, tags: ["branch-hierarchy"] },
+);
+
+export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
+    const cached = await getAdminBranchHierarchyCached();
     return {
-        options: optionNames.map((name) => ({ name })),
-        parentMap,
+        options: cached.options,
+        parentMap: new Map(cached.parentEntries),
     };
+}
+
+/**
+ * Call after user or branch data changes to bust hierarchy cache.
+ */
+export function revalidateBranchHierarchyCache() {
+    revalidateTag("branch-hierarchy");
 }
 
 export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
