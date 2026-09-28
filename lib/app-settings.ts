@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { logger } from "@/lib/logger";
 import type { ReportStatusKey } from "@/lib/report-status";
 
@@ -174,48 +175,61 @@ function parsePositiveInteger(
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-export async function getReportSlaDays(): Promise<
-    Partial<Record<ReportStatusKey, number>>
-> {
-    const settings = await getAppSettings(
-        REPORT_SLA_SETTING_FIELDS.map((field) => field.key),
-    );
+export const getReportSlaDays = unstable_cache(
+    async (): Promise<Partial<Record<ReportStatusKey, number>>> => {
+        const settings = await getAppSettings(
+            REPORT_SLA_SETTING_FIELDS.map((field) => field.key),
+        );
 
-    return Object.fromEntries(
-        REPORT_SLA_SETTING_FIELDS.map((field) => {
-            const fallback = DEFAULT_REPORT_SLA_DAYS[field.status] ?? 1;
-            return [
-                field.status,
-                parsePositiveInteger(settings[field.key]?.value, fallback),
-            ];
-        }),
-    ) as Partial<Record<ReportStatusKey, number>>;
-}
+        return Object.fromEntries(
+            REPORT_SLA_SETTING_FIELDS.map((field) => {
+                const fallback = DEFAULT_REPORT_SLA_DAYS[field.status] ?? 1;
+                return [
+                    field.status,
+                    parsePositiveInteger(settings[field.key]?.value, fallback),
+                ];
+            }),
+        ) as Partial<Record<ReportStatusKey, number>>;
+    },
+    ["report-sla-days"],
+    { revalidate: 300, tags: ["app-settings"] },
+);
 
-export async function getPjumPolicySettings() {
-    const settings = await getAppSettings([
-        SETTING_KEYS.PJUM_PENDING_STALE_DAYS,
-        SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT,
-        SETTING_KEYS.PJUM_PERIOD_DAYS,
-    ]);
+export const getPjumPolicySettings = unstable_cache(
+    async () => {
+        const settings = await getAppSettings([
+            SETTING_KEYS.PJUM_PENDING_STALE_DAYS,
+            SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT,
+            SETTING_KEYS.PJUM_PERIOD_DAYS,
+        ]);
 
-    return {
-        pendingStaleDays: parsePositiveInteger(
-            settings[SETTING_KEYS.PJUM_PENDING_STALE_DAYS]?.value,
-            DEFAULT_PJUM_POLICY_SETTINGS.pendingStaleDays,
-        ),
-        weeklyAdvanceAmount: parsePositiveInteger(
-            settings[SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT]?.value,
-            DEFAULT_PJUM_POLICY_SETTINGS.weeklyAdvanceAmount,
-        ),
-        periodDays: parsePositiveInteger(
-            settings[SETTING_KEYS.PJUM_PERIOD_DAYS]?.value,
-            DEFAULT_PJUM_POLICY_SETTINGS.periodDays,
-        ),
-    };
-}
+        return {
+            pendingStaleDays: parsePositiveInteger(
+                settings[SETTING_KEYS.PJUM_PENDING_STALE_DAYS]?.value,
+                DEFAULT_PJUM_POLICY_SETTINGS.pendingStaleDays,
+            ),
+            weeklyAdvanceAmount: parsePositiveInteger(
+                settings[SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT]?.value,
+                DEFAULT_PJUM_POLICY_SETTINGS.weeklyAdvanceAmount,
+            ),
+            periodDays: parsePositiveInteger(
+                settings[SETTING_KEYS.PJUM_PERIOD_DAYS]?.value,
+                DEFAULT_PJUM_POLICY_SETTINGS.periodDays,
+            ),
+        };
+    },
+    ["pjum-policy-settings"],
+    { revalidate: 300, tags: ["app-settings"] },
+);
 
 export async function getBmsInitialBalance(): Promise<number> {
     const setting = await getAppSetting(SETTING_KEYS.PJUM_WEEKLY_ADVANCE_AMOUNT);
     return parsePositiveInteger(setting, DEFAULT_PJUM_POLICY_SETTINGS.weeklyAdvanceAmount);
+}
+
+/**
+ * Call after admin updates any app setting to bust the cache immediately.
+ */
+export function revalidateAppSettingsCache() {
+    revalidateTag("app-settings");
 }
