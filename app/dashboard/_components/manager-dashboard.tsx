@@ -40,9 +40,9 @@ import {
 } from "../queries";
 import { 
     DashboardHeader, 
-    KpiGrid, 
     AdminRecentActivityCard
 } from "./admin/admin-new-dashboard";
+import { KpiGrid } from "./admin/kpi-cards";
 import { StatusDistributionKpis } from "./admin/status-distribution";
 import { SlaStatusGuide } from "./admin/sla-status-guide";
 import { PreventiveKpiWidget } from "./admin/preventive-kpi-widget";
