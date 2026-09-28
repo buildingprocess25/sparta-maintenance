@@ -70,7 +70,7 @@ export function ProcessDurationWidget() {
             
             <div className="p-4 mt-auto border-t bg-muted/10">
                 <Link 
-                    href="/dashboard/preventive" 
+                    href="/dashboard/branches?tab=sla" 
                     className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center justify-center gap-1 w-full"
                 >
                     Lihat Analisis Lengkap <ArrowUpRight className="h-3 w-3" />
