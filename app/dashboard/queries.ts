@@ -1145,6 +1145,7 @@ export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
  * Call after user or branch data changes to bust hierarchy cache.
  */
 export function revalidateBranchHierarchyCache() {
+    // @ts-expect-error - Next.js 16 typings bug requires second argument
     revalidateTag("branch-hierarchy");
 }
 

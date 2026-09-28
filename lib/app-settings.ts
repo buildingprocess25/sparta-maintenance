@@ -231,5 +231,6 @@ export async function getBmsInitialBalance(): Promise<number> {
  * Call after admin updates any app setting to bust the cache immediately.
  */
 export function revalidateAppSettingsCache() {
+    // @ts-expect-error - Next.js 16 typings bug requires second argument
     revalidateTag("app-settings");
 }
