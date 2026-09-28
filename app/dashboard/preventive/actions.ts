@@ -236,6 +236,7 @@ export async function getAdminPreventive(
         if (brand === null) throw new Error("Invalid brand filter");
 
         const where: Prisma.StoreWhereInput = {
+            isActive: true,
             ...getBranchScope(user),
         };
 
