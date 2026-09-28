@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
-import { KpiGrid } from "./admin-new-dashboard";
+import { KpiGrid } from "./kpi-cards";
 import { LeaderboardList, type LeaderboardItem } from "./leaderboard-list";
 import { SlaStatusGuide } from "./sla-status-guide";
 import { StatusDistributionKpis } from "./status-distribution";
