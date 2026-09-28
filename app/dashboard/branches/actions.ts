@@ -18,7 +18,7 @@ import {
 } from "@/lib/report-status";
 import { requiresPjum } from "@/lib/realisasi";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import type { AuthUser } from "@/lib/authorization";
 import type { ReportItemJson } from "@/types/report";
 import {
@@ -812,3 +812,117 @@ export async function getAdminBranchDetail(
         })),
     };
 }
+
+export type SLADurationBMS = {
+    bmsName: string;
+    estimasiToAppvBMC: number | null;
+    estimasiToRevisiBMC: number | null;
+    appvBMCToWorkStart: number | null;
+    workStartToRealisasi: number | null;
+    realisasiToRevisiBMC: number | null;
+    realisasiToAppvBMC: number | null;
+    appvBMCToAppvMGR: number | null;
+};
+
+export type SLADurationBranch = {
+    branchName: string;
+    bmsList: SLADurationBMS[];
+};
+
+export async function getAdminDetailedSLAData(
+    period: string,
+    brandFilter: StoreBrandFilter,
+): Promise<SLADurationBranch[]> {
+    const user = await requireBranchMonitor();
+
+    const { start, endExclusive } = getActivityPeriodWindow(period);
+
+    const predicates: Prisma.Sql[] = [
+        Prisma.sql`r."createdAt" >= ${start}`,
+        Prisma.sql`r."createdAt" < ${endExclusive}`,
+    ];
+
+    if (user.role === "ADMIN") {
+        predicates.push(Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`);
+        if (brandFilter !== "ALL") {
+            const brand = parseStoreBrandFilter(brandFilter);
+            if (brand) {
+                predicates.push(Prisma.sql`s."brand" = ${brand}`);
+            }
+        }
+    } else if (user.branchNames.length > 0) {
+        predicates.push(Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`);
+    }
+
+    const rows = await prisma.$queryRaw<{
+        branchName: string;
+        bmsName: string;
+        avg_est_to_appv_bmc: number | null;
+        avg_est_to_rev_bmc: number | null;
+        avg_appv_bmc_to_start: number | null;
+        avg_start_to_realisasi: number | null;
+        avg_realisasi_to_rev_bmc: number | null;
+        avg_realisasi_to_appv_bmc: number | null;
+        avg_appv_bmc_to_mgr: number | null;
+    }[]>`
+        WITH report_events AS (
+            SELECT 
+                r."branchName",
+                u."name" AS "bmsName",
+                r."reportNumber",
+                MAX(a."createdAt") FILTER (WHERE a.action IN ('SUBMITTED', 'RESUBMITTED_ESTIMATION')) AS t_submit,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'ESTIMATION_APPROVED') AS t_est_appv,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'ESTIMATION_REJECTED_REVISION') AS t_est_rev,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'WORK_STARTED') AS t_start,
+                MAX(a."createdAt") FILTER (WHERE a.action IN ('COMPLETION_SUBMITTED', 'RESUBMITTED_WORK')) AS t_realisasi,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'WORK_REJECTED_REVISION') AS t_real_rev,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'WORK_APPROVED') AS t_real_appv,
+                MAX(a."createdAt") FILTER (WHERE a.action = 'FINAL_APPROVED_BNM') AS t_mgr_appv
+            FROM "Report" r
+            JOIN "User" u ON r."createdByNIK" = u."NIK"
+            LEFT JOIN "Store" s ON r."storeCode" = s.code
+            JOIN "ActivityLog" a ON r."reportNumber" = a."reportNumber"
+            WHERE ${Prisma.join(predicates, " AND ")}
+            GROUP BY r."branchName", u."name", r."reportNumber"
+        )
+        SELECT 
+            "branchName",
+            "bmsName",
+            AVG(EXTRACT(EPOCH FROM (t_est_appv - t_submit))) AS avg_est_to_appv_bmc,
+            AVG(EXTRACT(EPOCH FROM (t_est_rev - t_submit))) AS avg_est_to_rev_bmc,
+            AVG(EXTRACT(EPOCH FROM (t_start - t_est_appv))) AS avg_appv_bmc_to_start,
+            AVG(EXTRACT(EPOCH FROM (t_realisasi - t_start))) AS avg_start_to_realisasi,
+            AVG(EXTRACT(EPOCH FROM (t_real_rev - t_realisasi))) AS avg_realisasi_to_rev_bmc,
+            AVG(EXTRACT(EPOCH FROM (t_real_appv - t_realisasi))) AS avg_realisasi_to_appv_bmc,
+            AVG(EXTRACT(EPOCH FROM (t_mgr_appv - t_real_appv))) AS avg_appv_bmc_to_mgr
+        FROM report_events
+        GROUP BY "branchName", "bmsName"
+        ORDER BY "branchName", "bmsName"
+    `;
+
+    const branchMap = new Map<string, SLADurationBMS[]>();
+
+    for (const row of rows) {
+        if (!branchMap.has(row.branchName)) {
+            branchMap.set(row.branchName, []);
+        }
+        branchMap.get(row.branchName)!.push({
+            bmsName: row.bmsName,
+            estimasiToAppvBMC: row.avg_est_to_appv_bmc ? Number(row.avg_est_to_appv_bmc) : null,
+            estimasiToRevisiBMC: row.avg_est_to_rev_bmc ? Number(row.avg_est_to_rev_bmc) : null,
+            appvBMCToWorkStart: row.avg_appv_bmc_to_start ? Number(row.avg_appv_bmc_to_start) : null,
+            workStartToRealisasi: row.avg_start_to_realisasi ? Number(row.avg_start_to_realisasi) : null,
+            realisasiToRevisiBMC: row.avg_realisasi_to_rev_bmc ? Number(row.avg_realisasi_to_rev_bmc) : null,
+            realisasiToAppvBMC: row.avg_realisasi_to_appv_bmc ? Number(row.avg_realisasi_to_appv_bmc) : null,
+            appvBMCToAppvMGR: row.avg_appv_bmc_to_mgr ? Number(row.avg_appv_bmc_to_mgr) : null,
+        });
+    }
+
+    const result: SLADurationBranch[] = [];
+    for (const [branchName, bmsList] of branchMap.entries()) {
+        result.push({ branchName, bmsList });
+    }
+
+    return result;
+}
+
