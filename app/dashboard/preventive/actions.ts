@@ -206,7 +206,11 @@ function getQuarterTiming(year: number, quarter: PreventiveQuarter) {
 
 function calculateRate(completed: number, total: number) {
     if (total === 0) return 0;
-    return Math.round((completed / total) * 100);
+    if (completed === total) return 100;
+    const rate = Math.round((completed / total) * 100);
+    if (rate === 100 && completed < total) return 99;
+    if (rate === 0 && completed > 0) return 1;
+    return rate;
 }
 
 function toIso(value: Date | null) {
@@ -669,7 +673,7 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
     }
 
     const total = completed.length + pending.length;
-    const completionRate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+    const completionRate = calculateRate(completed.length, total);
 
     return {
         completed,
@@ -757,7 +761,7 @@ export async function getAdminPreventiveKpiData(
     
     const totalCompleted = completedStores.size;
     const totalStoresCount = allStores.length;
-    const capaianNasional = totalStoresCount === 0 ? 0 : Math.round((totalCompleted / totalStoresCount) * 100);
+    const capaianNasional = calculateRate(totalCompleted, totalStoresCount);
     
     let listTitle = "";
     let listItems: PreventiveKpiListItem[] = [];
@@ -778,7 +782,7 @@ export async function getAdminPreventiveKpiData(
                 label,
                 completed: data.completed,
                 total: data.total,
-                percentage: data.total === 0 ? 0 : Math.round((data.completed / data.total) * 100)
+                percentage: calculateRate(data.completed, data.total)
             }))
             .sort((a, b) => a.percentage - b.percentage);
 
@@ -801,7 +805,7 @@ export async function getAdminPreventiveKpiData(
                 label: q.label,
                 completed: q.completed,
                 total: totalStoresCount,
-                percentage: totalStoresCount === 0 ? 0 : Math.round((q.completed / totalStoresCount) * 100)
+                percentage: calculateRate(q.completed, totalStoresCount)
             }));
         } else {
             listTitle = "Tren Penyelesaian per Bulan";
@@ -824,7 +828,7 @@ export async function getAdminPreventiveKpiData(
                 label: m.label,
                 completed: m.completed,
                 total: totalStoresCount,
-                percentage: totalStoresCount === 0 ? 0 : Math.round((m.completed / totalStoresCount) * 100)
+                percentage: calculateRate(m.completed, totalStoresCount)
             }));
         }
     }
