@@ -827,6 +827,13 @@ export type SLADurationBMS = {
 export type SLADurationBranch = {
     branchName: string;
     bmsList: SLADurationBMS[];
+    estimasiToAppvBMC: number | null;
+    estimasiToRevisiBMC: number | null;
+    appvBMCToWorkStart: number | null;
+    workStartToRealisasi: number | null;
+    realisasiToRevisiBMC: number | null;
+    realisasiToAppvBMC: number | null;
+    appvBMCToAppvMGR: number | null;
 };
 
 export async function getAdminDetailedSLAData(
