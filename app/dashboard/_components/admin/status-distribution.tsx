@@ -11,6 +11,7 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { getStatusSegmentClass } from "./sla-status-guide";
+import { isActiveReportStatus } from "@/lib/report-status";
 import type { AdminStatusDatum } from "../../../queries";
 
 function formatNumber(value: number): string {
@@ -24,7 +25,7 @@ export function StatusDistributionKpis({
     status: AdminStatusDatum[];
     breakdown?: { alfamart: number; lawson: number };
 }) {
-    const visibleStatus = status.filter((item) => item.slaDays !== null);
+    const visibleStatus = status.filter((item) => isActiveReportStatus(item.status));
     const totalActive = visibleStatus.reduce(
         (sum, item) => sum + item.count,
         0,
@@ -135,11 +136,15 @@ export function StatusDistributionKpis({
                                             className={
                                                 item.overdueCount > 0
                                                     ? "border-red-200 bg-red-50 text-red-700"
+                                                    : item.slaDays === null
+                                                    ? "border-slate-200 bg-slate-50 text-slate-700"
                                                     : "border-emerald-200 bg-emerald-50 text-emerald-700"
                                             }
                                         >
                                             {item.overdueCount > 0
                                                 ? `${formatNumber(item.overdueCount)} lewat batas`
+                                                : item.slaDays === null
+                                                ? "Tanpa batas waktu"
                                                 : `Batas ${item.slaDays} hari`}
                                         </Badge>
                                     </TableCell>
