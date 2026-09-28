@@ -44,55 +44,85 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
             
             <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
                 <div className="w-full overflow-x-auto">
-                    <Table className="text-xs [&_td]:py-2 [&_th]:py-2 border-collapse">
-                        <TableHeader className="bg-orange-100/50">
+                    <Table className="text-sm [&_td]:py-3 [&_th]:py-3 border-collapse">
+                        <TableHeader className="bg-muted/50">
                             <TableRow className="divide-x divide-border/50">
-                                <TableHead className="min-w-[200px] font-bold text-black border-r border-border/50">Nama Cabang / BMS</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PENGAJUAN ESTIMASI - APPV ESTIMASI BMC</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PEKERJAAN DIMULAI - REALISASI DIAJUKAN</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">REALISASI DIAJUKAN - APPV BMC</TableHead>
-                                <TableHead className="min-w-[130px] font-bold text-center text-black">APPV BMC - APPV MGR</TableHead>
+                                <TableHead className="font-bold text-black border-r border-border/50 w-12 text-center">#</TableHead>
+                                <TableHead className="font-bold text-black border-r border-border/50">Nama Cabang</TableHead>
+                                <TableHead className="font-bold text-black border-r border-border/50 w-32 text-center">Jumlah BMS</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {data.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={8} className="h-32 text-center text-sm text-muted-foreground">
+                                    <TableCell colSpan={3} className="h-32 text-center text-sm text-muted-foreground">
                                         Tidak ada data SLA.
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                data.map((branch) => {
+                                data.map((branch, index) => {
                                     const isExpanded = expandedBranches.has(branch.branchName);
                                     return (
                                         <React.Fragment key={branch.branchName}>
                                             <TableRow 
-                                                className="cursor-pointer bg-muted/20 hover:bg-muted/40 divide-x divide-border/50" 
+                                                className="cursor-pointer bg-background hover:bg-muted/20 divide-x divide-border/50 transition-colors" 
                                                 onClick={() => toggleBranch(branch.branchName)}
                                             >
-                                                <TableCell colSpan={8} className="font-semibold text-primary py-3">
-                                                    <div className="flex items-center gap-2">
+                                                <TableCell className="text-center font-medium">
+                                                    <div className="flex items-center justify-center">
                                                         {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                                                        {branch.branchName} ({branch.bmsList.length} BMS)
                                                     </div>
                                                 </TableCell>
+                                                <TableCell className="font-semibold text-primary">{branch.branchName}</TableCell>
+                                                <TableCell className="text-center font-medium">{branch.bmsList.length} BMS</TableCell>
                                             </TableRow>
                                             
-                                            {isExpanded && branch.bmsList.map((bms) => (
-                                                <TableRow key={`${branch.branchName}-${bms.bmsName}`} className="divide-x divide-border/50 bg-background hover:bg-muted/10">
-                                                    <TableCell className="pl-8 font-medium">{bms.bmsName}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.estimasiToAppvBMC)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.estimasiToRevisiBMC)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.appvBMCToWorkStart)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.workStartToRealisasi)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.realisasiToRevisiBMC)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.realisasiToAppvBMC)}</TableCell>
-                                                    <TableCell className="text-center font-mono">{formatDuration(bms.appvBMCToAppvMGR)}</TableCell>
+                                            {isExpanded && (
+                                                <TableRow className="bg-muted/5">
+                                                    <TableCell colSpan={3} className="p-0 border-b">
+                                                        <div className="p-4 bg-muted/10 inner-shadow-sm">
+                                                            <div className="rounded-md border bg-background overflow-x-auto">
+                                                                <Table className="text-xs [&_td]:py-2 [&_th]:py-2">
+                                                                    <TableHeader className="bg-orange-100/50">
+                                                                        <TableRow className="divide-x divide-border/50">
+                                                                            <TableHead className="min-w-[200px] font-bold text-black border-r border-border/50">Nama BMS</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PENGAJUAN ESTIMASI - APPV ESTIMASI BMC</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PEKERJAAN DIMULAI - REALISASI DIAJUKAN</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">REALISASI DIAJUKAN - APPV BMC</TableHead>
+                                                                            <TableHead className="min-w-[130px] font-bold text-center text-black">APPV BMC - APPV MGR</TableHead>
+                                                                        </TableRow>
+                                                                    </TableHeader>
+                                                                    <TableBody>
+                                                                        {branch.bmsList.length === 0 ? (
+                                                                            <TableRow>
+                                                                                <TableCell colSpan={8} className="text-center text-muted-foreground py-4">
+                                                                                    Belum ada laporan.
+                                                                                </TableCell>
+                                                                            </TableRow>
+                                                                        ) : (
+                                                                            branch.bmsList.map((bms) => (
+                                                                                <TableRow key={`${branch.branchName}-${bms.bmsName}`} className="divide-x divide-border/50 hover:bg-muted/10">
+                                                                                    <TableCell className="font-medium">{bms.bmsName}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.estimasiToAppvBMC)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.estimasiToRevisiBMC)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.appvBMCToWorkStart)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.workStartToRealisasi)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.realisasiToRevisiBMC)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.realisasiToAppvBMC)}</TableCell>
+                                                                                    <TableCell className="text-center font-mono">{formatDuration(bms.appvBMCToAppvMGR)}</TableCell>
+                                                                                </TableRow>
+                                                                            ))
+                                                                        )}
+                                                                    </TableBody>
+                                                                </Table>
+                                                            </div>
+                                                        </div>
+                                                    </TableCell>
                                                 </TableRow>
-                                            ))}
+                                            )}
                                         </React.Fragment>
                                     );
                                 })

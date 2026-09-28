@@ -835,12 +835,14 @@ export async function getAdminDetailedSLAData(
 ): Promise<SLADurationBranch[]> {
     const user = await requireBranchMonitor();
 
-    const { start, endExclusive } = getActivityPeriodWindow(period);
+    const { start, end } = getActivityPeriodWindow(period);
 
     const predicates: Prisma.Sql[] = [
         Prisma.sql`r."createdAt" >= ${start}`,
-        Prisma.sql`r."createdAt" < ${endExclusive}`,
     ];
+    if (end) {
+        predicates.push(Prisma.sql`r."createdAt" < ${end}`);
+    }
 
     if (user.role === "ADMIN") {
         predicates.push(Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`);
