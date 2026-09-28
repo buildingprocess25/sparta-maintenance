@@ -6,6 +6,7 @@ import {
     SETTING_KEYS,
     setSettingOverride,
     updateAppSetting,
+    revalidateAppSettingsCache,
 } from "@/lib/app-settings";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -23,6 +24,7 @@ export async function toggleMaintenanceMode(enabled: boolean) {
             "Maintenance mode toggled"
         );
         
+        revalidateAppSettingsCache();
         revalidatePath("/dashboard/settings");
         return { success: true };
     } catch (error) {
@@ -113,6 +115,7 @@ export async function updateOperationalSettings(
             "Operational settings updated",
         );
 
+        revalidateAppSettingsCache();
         revalidatePath("/dashboard/settings");
         revalidatePath("/dashboard");
         revalidatePath("/dashboard/reports");

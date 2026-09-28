@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { saveServerDraft } from "@/app/reports/actions";
 import type { DraftData } from "@/app/reports/actions";
 
-export const SERVER_DRAFT_IDLE_MS = 10_000;
+export const SERVER_DRAFT_IDLE_MS = 17_000;
 
 export function shouldServerAutosave(input: { isSubmitting: boolean; hasStore: boolean; isDirty: boolean; inFlight: boolean }) {
   return !input.isSubmitting && input.hasStore && input.isDirty && !input.inFlight;

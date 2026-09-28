@@ -5,7 +5,7 @@ const source = fs.readFileSync("lib/pdf/generate-pjum-form-pdf.ts", "utf8");
 
 assert.match(
     source,
-    /verification\?: \{\s*qrDataUrl: string;\s*displayCode: string;\s*\}/s,
+    /verification\?: \{\s*qrDataUrl: string;\s*displayCode: string;\s*\}/,
 );
 assert.match(source, /Scan untuk validasi/);
 assert.match(source, /Kode: /);

@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { getSession } from "./session";
 import prisma from "./prisma";
 import { logger } from "./logger";
@@ -33,7 +34,7 @@ export class AuthorizationError extends Error {
  * Get current authenticated user with full details
  * Returns null if not authenticated
  */
-export async function getAuthUser(): Promise<AuthUser | null> {
+export const getAuthUser = cache(async (): Promise<AuthUser | null> => {
     const session = await getSession();
     if (!session?.userId) return null;
 
@@ -70,7 +71,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
             "Terjadi kesalahan saat mengambil data pengguna. Silakan coba lagi.",
         );
     }
-}
+});
 
 /**
  * Require authentication - redirect to login if not authenticated.

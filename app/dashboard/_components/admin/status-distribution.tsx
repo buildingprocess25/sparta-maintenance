@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/table";
 import { getStatusSegmentClass } from "./sla-status-guide";
 import { isActiveReportStatus } from "@/lib/report-status";
-import type { AdminStatusDatum } from "../../../queries";
+import type { AdminStatusDatum } from "@/app/dashboard/queries";
 
 function formatNumber(value: number): string {
     return value.toLocaleString("id-ID");

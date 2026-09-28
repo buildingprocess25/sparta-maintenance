@@ -1,11 +1,11 @@
 "use client";
 
-import type { User } from "@prisma/client";
+import { type AuthUser } from "@/lib/authorization";
 import type {
   AdminCommandCenterData,
   AdminRealisasiDetail,
   AdminKpiMetric,
-} from "../../../queries";
+} from "@/app/dashboard/queries";
 import Link from "next/link";
 import { Activity, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export function DashboardHeader({
 }
 
 type AdminDashboardV2Props = {
-  user: User;
+  user: AuthUser;
   data: AdminCommandCenterData;
   realisasiData: AdminRealisasiDetail;
   period?: string;

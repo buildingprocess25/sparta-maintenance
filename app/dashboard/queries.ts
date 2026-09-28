@@ -1,4 +1,5 @@
 // import "server-only";
+import { unstable_cache, revalidateTag } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import { logger } from "@/lib/logger";
@@ -43,63 +44,46 @@ import {
  */
 export async function getUserStats(userId: string) {
   try {
-    const base = {
-      createdByNIK: userId,
-      status: { not: ARCHIVED_PREVENTIVE_STATUS },
-    };
+    const statusCounts = await prisma.report.groupBy({
+      by: ["status"],
+      where: {
+        createdByNIK: userId,
+        status: { not: ARCHIVED_PREVENTIVE_STATUS },
+      },
+      _count: { _all: true },
+    });
 
-    const [
-      totalReports,
-      needsAction,
-      waitingReview,
-      inProgress,
-      completed,
-      activeReports,
-    ] = await Promise.all([
-      prisma.report.count({ where: base }),
-      // Things BMS must act on (start work / revise)
-      prisma.report.count({
-        where: {
-          ...base,
-          status: {
-            in: [
-              "ESTIMATION_APPROVED",
-              "ESTIMATION_REJECTED_REVISION",
-              "REVIEW_REJECTED_REVISION",
-            ],
-          },
-        },
-      }),
-      // Waiting for others (BMC)
-      prisma.report.count({
-        where: {
-          ...base,
-          status: {
-            in: [
-              "PENDING_ESTIMATION",
-              "PENDING_CHECKLIST_REVIEW",
-              "PENDING_REVIEW",
-              "APPROVED_BMC",
-            ],
-          },
-        },
-      }),
-      prisma.report.count({
-        where: { ...base, status: "IN_PROGRESS" },
-      }),
-      prisma.report.count({
-        where: { ...base, status: "COMPLETED" },
-      }),
-      // Active Reports (everything not completed)
-      prisma.report.count({
-        where: {
-          ...base,
-          status: {
-            notIn: ["COMPLETED", ARCHIVED_PREVENTIVE_STATUS],
-          },
-        },
-      }),
-    ]);
+    const countMap = new Map(
+      statusCounts.map((row) => [row.status, row._count._all]),
+    );
+
+    const needsActionStatuses = [
+      "ESTIMATION_APPROVED",
+      "ESTIMATION_REJECTED_REVISION",
+      "REVIEW_REJECTED_REVISION",
+    ];
+    const waitingReviewStatuses = [
+      "PENDING_ESTIMATION",
+      "PENDING_CHECKLIST_REVIEW",
+      "PENDING_REVIEW",
+      "APPROVED_BMC",
+    ];
+
+    let totalReports = 0;
+    let needsAction = 0;
+    let waitingReview = 0;
+    let inProgress = 0;
+    let completed = 0;
+
+    for (const [status, count] of countMap) {
+      totalReports += count;
+      if (needsActionStatuses.includes(status)) needsAction += count;
+      if (waitingReviewStatuses.includes(status)) waitingReview += count;
+      if (status === "IN_PROGRESS") inProgress += count;
+      if (status === "COMPLETED") completed += count;
+    }
+
+    const activeReports = totalReports - completed;
 
     return {
       totalReports,
@@ -127,43 +111,38 @@ export async function getUserStats(userId: string) {
  */
 export async function getBMCStats(branchNames: string[]) {
   try {
-    const base = {
-      branchName: { in: branchNames },
-      status: {
-        notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+    const statusCounts = await prisma.report.groupBy({
+      by: ["status"],
+      where: {
+        branchName: { in: branchNames },
+        status: {
+          notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
+        },
       },
-    };
+      _count: { _all: true },
+    });
 
-    const [totalReports, needsReview, inProgress, completed] =
-      await Promise.all([
-        prisma.report.count({ where: base }),
-        // Things BMC must act on: review estimation OR review completion
-        prisma.report.count({
-          where: {
-            branchName: { in: branchNames },
-            status: {
-              in: [
-                "PENDING_ESTIMATION",
-                "PENDING_CHECKLIST_REVIEW",
-                "PENDING_REVIEW",
-              ],
-            },
-          },
-        }),
-        // Estimation approved + actively being worked on
-        prisma.report.count({
-          where: {
-            branchName: { in: branchNames },
-            status: { in: ["ESTIMATION_APPROVED", "IN_PROGRESS"] },
-          },
-        }),
-        prisma.report.count({
-          where: {
-            branchName: { in: branchNames },
-            status: "COMPLETED",
-          },
-        }),
-      ]);
+    const countMap = new Map(
+      statusCounts.map((row) => [row.status, row._count._all]),
+    );
+
+    const needsReviewStatuses = [
+      "PENDING_ESTIMATION",
+      "PENDING_CHECKLIST_REVIEW",
+      "PENDING_REVIEW",
+    ];
+    const inProgressStatuses = ["ESTIMATION_APPROVED", "IN_PROGRESS"];
+
+    let totalReports = 0;
+    let needsReview = 0;
+    let inProgress = 0;
+    const completed = countMap.get("COMPLETED") ?? 0;
+
+    for (const [status, count] of countMap) {
+      totalReports += count;
+      if (needsReviewStatuses.includes(status)) needsReview += count;
+      if (inProgressStatuses.includes(status)) inProgress += count;
+    }
 
     return {
       totalReports,
@@ -188,30 +167,31 @@ export async function getBMCStats(branchNames: string[]) {
  */
 export async function getBNMStats(branchNames: string[]) {
   try {
-    const [pendingFinalApproval, completed, totalReports] = await Promise.all([
-      prisma.report.count({
-        where: {
-          branchName: { in: branchNames },
-          status: "APPROVED_BMC",
+    const statusCounts = await prisma.report.groupBy({
+      by: ["status"],
+      where: {
+        branchName: { in: branchNames },
+        status: {
+          notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
         },
-      }),
-      prisma.report.count({
-        where: {
-          branchName: { in: branchNames },
-          status: "COMPLETED",
-        },
-      }),
-      prisma.report.count({
-        where: {
-          branchName: { in: branchNames },
-          status: {
-            notIn: [...OPERATIONAL_EXCLUDED_REPORT_STATUSES],
-          },
-        },
-      }),
-    ]);
+      },
+      _count: { _all: true },
+    });
 
-    return { pendingFinalApproval, completed, totalReports };
+    const countMap = new Map(
+      statusCounts.map((row) => [row.status, row._count._all]),
+    );
+
+    let totalReports = 0;
+    for (const count of countMap.values()) {
+      totalReports += count;
+    }
+
+    return {
+      pendingFinalApproval: countMap.get("APPROVED_BMC") ?? 0,
+      completed: countMap.get("COMPLETED") ?? 0,
+      totalReports,
+    };
   } catch (error) {
     logger.error(
       { operation: "getBNMStats", branchNames },
@@ -1111,42 +1091,67 @@ function getEmptyAdminCommandCenterData(): AdminCommandCenterData {
   };
 }
 
-export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
-  const users = await prisma.user.findMany({
-    where: { deletedAt: null },
-    select: { branchNames: true },
-  });
+type AdminBranchHierarchySerialized = {
+  options: AdminBranchOption[];
+  parentEntries: [string, string][];
+};
 
-  const optionNames = Array.from(
-    new Set(
-      users
-        .map((user) => user.branchNames[0])
-        .filter(
-          (name) =>
-            name && name.trim() !== "" && name !== EXCLUDED_ADMIN_BRANCH_NAME,
-        ),
-    ),
-  ).sort((a, b) => a.localeCompare(b, "id-ID"));
+const getAdminBranchHierarchyCached = unstable_cache(
+  async (): Promise<AdminBranchHierarchySerialized> => {
+    const users = await prisma.user.findMany({
+      where: { deletedAt: null },
+      select: { branchNames: true },
+    });
 
-  const parentMap = new Map<string, string>();
-  for (const user of users) {
-    const parentBranch = user.branchNames[0];
-    if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
-      continue;
-    }
+    const optionNames = Array.from(
+      new Set(
+        users
+          .map((user) => user.branchNames[0])
+          .filter(
+            (name) =>
+              name && name.trim() !== "" && name !== EXCLUDED_ADMIN_BRANCH_NAME,
+          ),
+      ),
+    ).sort((a, b) => a.localeCompare(b, "id-ID"));
 
-    for (const branchName of user.branchNames) {
-      if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+    const parentMap = new Map<string, string>();
+    for (const user of users) {
+      const parentBranch = user.branchNames[0];
+      if (!parentBranch || parentBranch === EXCLUDED_ADMIN_BRANCH_NAME) {
         continue;
       }
-      parentMap.set(branchName, parentBranch);
-    }
-  }
 
+      for (const branchName of user.branchNames) {
+        if (!branchName || branchName === EXCLUDED_ADMIN_BRANCH_NAME) {
+          continue;
+        }
+        parentMap.set(branchName, parentBranch);
+      }
+    }
+
+    return {
+      options: optionNames.map((name) => ({ name })),
+      parentEntries: Array.from(parentMap.entries()),
+    };
+  },
+  ["admin-branch-hierarchy"],
+  { revalidate: 600, tags: ["branch-hierarchy"] },
+);
+
+export async function getAdminBranchHierarchy(): Promise<AdminBranchHierarchy> {
+  const cached = await getAdminBranchHierarchyCached();
   return {
-    options: optionNames.map((name) => ({ name })),
-    parentMap,
+    options: cached.options,
+    parentMap: new Map(cached.parentEntries),
   };
+}
+
+/**
+ * Call after user or branch data changes to bust hierarchy cache.
+ */
+export function revalidateBranchHierarchyCache() {
+  // @ts-expect-error - Next.js 16 typings bug requires second argument
+  revalidateTag("branch-hierarchy");
 }
 
 export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
@@ -2064,7 +2069,12 @@ export async function getAdminRealisasiDetail(
         return {
           branchName,
           count: vals.length,
-          avg: validVals.length > 0 ? Math.round(validVals.reduce((s, v) => s + v, 0) / validVals.length) : 0,
+          avg:
+            validVals.length > 0
+              ? Math.round(
+                  validVals.reduce((s, v) => s + v, 0) / validVals.length,
+                )
+              : 0,
           max: vals.length > 0 ? Math.max(...vals) : 0,
           min: vals.length > 0 ? Math.min(...vals) : 0,
         };
@@ -2088,7 +2098,9 @@ export async function getAdminRealisasiDetail(
           count: vals.length,
           avg:
             validVals.length > 0
-              ? Math.round(validVals.reduce((s, v) => s + v, 0) / validVals.length)
+              ? Math.round(
+                  validVals.reduce((s, v) => s + v, 0) / validVals.length,
+                )
               : 0,
         });
       }
@@ -2155,7 +2167,11 @@ export async function getAdminSlaPerformanceData(
   const take = 1000;
 
   while (true) {
-    const chunk = await prisma.report.findMany({
+    const chunk: {
+      reportNumber: string;
+      branchName: string;
+      activities: { action: string; createdAt: Date }[];
+    }[] = await prisma.report.findMany({
       where: baseWhere as any,
       take,
       skip: cursor ? 1 : undefined,

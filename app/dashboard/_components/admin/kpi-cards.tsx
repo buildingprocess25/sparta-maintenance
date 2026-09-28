@@ -3,7 +3,7 @@ import { ArrowUpRight, CheckCircle2, CircleDollarSign, FileText } from "lucide-r
 import { Progress } from "@/components/ui/progress";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 import { formatDashboardCurrency } from "@/lib/utils";
-import type { AdminKpiMetric, AdminPjumSummary } from "../../../queries";
+import type { AdminKpiMetric, AdminPjumSummary } from "@/app/dashboard/queries";
 
 function withBrandHref(href: string, brand: StoreBrandFilter) {
     if (brand === "ALL") return href;
