@@ -3,13 +3,15 @@ import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "../_components/admin/admin-trend-filter";
 import { AdminBranchesTable } from "./_components/admin-branches-table";
-import { getAdminBranchesData } from "./actions";
+import { getAdminBranchesData, getAdminDetailedSLAData } from "./actions";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { AdminSLATable } from "./_components/admin-sla-table";
 
 export const dynamic = "force-dynamic";
 
 type Props = {
-    searchParams: Promise<{ period?: string | string[]; brand?: string }>
+    searchParams: Promise<{ period?: string | string[]; brand?: string; tab?: string }>
 };
 
 function normalizePeriod(value?: string | string[]) {
@@ -30,7 +32,12 @@ export default async function AdminBranchesPage({ searchParams }: Props) {
     const brand = user.role === "ADMIN"
         ? normalizeStoreBrandFilter(params.brand)
         : "ALL";
-    const data = await getAdminBranchesData(period, brand);
+    const activeTab = params.tab === "sla" ? "sla" : "ringkasan";
+        
+    const [data, slaData] = await Promise.all([
+        getAdminBranchesData(period, brand),
+        getAdminDetailedSLAData(period, brand)
+    ]);
 
     return (
         <AdminDashboardShell
@@ -45,9 +52,24 @@ export default async function AdminBranchesPage({ searchParams }: Props) {
                     basePath="/dashboard/branches"
                 />
             }
-            contentClassName="h-full"
+            contentClassName="h-full flex flex-col min-h-0 p-0"
         >
-            <AdminBranchesTable data={data} brand={brand} />
+            <Tabs defaultValue={activeTab} className="flex-1 flex flex-col min-h-0">
+                <div className="px-6 pt-6 pb-2 border-b">
+                    <TabsList>
+                        <TabsTrigger value="ringkasan">Ringkasan Operasional</TabsTrigger>
+                        <TabsTrigger value="sla">SLA Proses</TabsTrigger>
+                    </TabsList>
+                </div>
+                
+                <TabsContent value="ringkasan" className="flex-1 overflow-y-auto p-6 mt-0">
+                    <AdminBranchesTable data={data} brand={brand} />
+                </TabsContent>
+                
+                <TabsContent value="sla" className="flex-1 overflow-y-auto p-6 mt-0">
+                    <AdminSLATable data={slaData} />
+                </TabsContent>
+            </Tabs>
         </AdminDashboardShell>
     );
 }
