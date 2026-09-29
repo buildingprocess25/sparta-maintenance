@@ -264,26 +264,12 @@ export async function getAdminPreventive(
             Prisma.sql`r."createdAt" < ${yearEnd}`,
         ];
 
-        if (user.role === "ADMIN") {
-            if (filters.branchName && filters.branchName !== "all") {
-                reportPredicates.push(
-                    Prisma.sql`r."branchName" = ${filters.branchName}`,
-                );
-            } else {
-                reportPredicates.push(
-                    Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`,
-                );
-            }
-        } else if (user.branchNames.length > 0) {
-            reportPredicates.push(
-                Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`,
-            );
-        }
-
-        if (filters.search) {
+        if (allStoreCodes.length > 0) {
             reportPredicates.push(
                 Prisma.sql`r."storeCode" IN (${Prisma.join(allStoreCodes)})`,
             );
+        } else {
+            reportPredicates.push(Prisma.sql`FALSE`);
         }
 
         const reports: PreventiveReportRow[] =
