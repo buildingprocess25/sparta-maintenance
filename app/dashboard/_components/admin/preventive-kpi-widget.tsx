@@ -226,7 +226,7 @@ export function PreventiveKpiWidget() {
                                                 {item.percentage}%
                                             </span>
                                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                                ({item.completed} Toko)
+                                                ({item.completed}/{item.total} Toko)
                                             </span>
                                         </div>
                                     </div>

@@ -45,7 +45,7 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
             <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
                 <div className="w-full overflow-x-auto">
                     <Table className="text-xs [&_td]:py-2 [&_th]:py-2 border-collapse">
-                        <TableHeader className="bg-orange-100/50">
+                        <TableHeader className="bg-blue-100/50">
                             <TableRow className="divide-x divide-border/50">
                                 <TableHead className="min-w-[200px] font-bold text-black border-r border-border/50">Nama Cabang / BMS</TableHead>
                                 <TableHead className="min-w-[130px] font-bold text-center text-black border-r border-border/50 whitespace-pre-wrap">PENGAJUAN ESTIMASI - APPV ESTIMASI BMC</TableHead>
