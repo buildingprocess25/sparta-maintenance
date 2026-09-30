@@ -415,7 +415,7 @@ export async function ManagerDashboard({
             <ProcessDurationWidget />
             
             <div className="mt-6">
-                <RealisasiChartWidget initialData={realisasiData} brand={resolvedBrand} />
+                <RealisasiChartWidget initialData={realisasiData} brand={resolvedBrand} mode="bms" />
             </div>
             
             <div className="mt-6">

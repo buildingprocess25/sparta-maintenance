@@ -1993,12 +1993,21 @@ export type RealisasiMonthStat = {
   avg: number;
 };
 
+export type RealisasiBmsStat = {
+  bmsName: string;
+  count: number;
+  validCount: number;
+  total: number;
+  avg: number;
+};
+
 export type AdminRealisasiDetail = {
   globalAvg: number;
   totalCompleted: number;
   byBranch: RealisasiBranchStat[];
   byMonth: RealisasiMonthStat[];
   byMonthByBranch: Record<string, RealisasiMonthStat[]>;
+  byBMS: RealisasiBmsStat[];
 };
 
 const MONTH_LABELS = [
@@ -2054,6 +2063,7 @@ export async function getAdminRealisasiDetail(
     byBranch: [],
     byMonth: [],
     byMonthByBranch: {},
+    byBMS: [],
   };
 
   try {
@@ -2065,7 +2075,14 @@ export async function getAdminRealisasiDetail(
         status: "COMPLETED",
         createdAt: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
       },
-      select: { branchName: true, totalReal: true, createdAt: true },
+      select: { 
+        branchName: true, 
+        totalReal: true, 
+        createdAt: true,
+        createdBy: {
+          select: { name: true }
+        }
+      },
     });
 
     if (rows.length === 0) return empty;
@@ -2073,11 +2090,16 @@ export async function getAdminRealisasiDetail(
     const branchMap = new Map<string, number[]>();
     const monthMap = new Map<string, number[]>();
     const branchMonthMap = new Map<string, Map<string, number[]>>();
+    const bmsMap = new Map<string, number[]>();
 
     for (const r of rows) {
       const val = Number(r.totalReal ?? 0);
       if (!branchMap.has(r.branchName)) branchMap.set(r.branchName, []);
       branchMap.get(r.branchName)!.push(val);
+
+      const bmsName = r.createdBy?.name || "Unknown";
+      if (!bmsMap.has(bmsName)) bmsMap.set(bmsName, []);
+      bmsMap.get(bmsName)!.push(val);
 
       const key = getJakartaMonthKey(r.createdAt);
       if (!monthMap.has(key)) monthMap.set(key, []);
@@ -2148,12 +2170,27 @@ export async function getAdminRealisasiDetail(
       allVals.reduce((s, v) => s + v, 0) / allVals.length,
     );
 
+    const byBMS: RealisasiBmsStat[] = Array.from(bmsMap.entries())
+      .map(([bmsName, vals]) => {
+        const validVals = vals.filter((v) => v >= 1000);
+        const totalSum = validVals.reduce((s, v) => s + v, 0);
+        return {
+          bmsName,
+          count: vals.length,
+          validCount: validVals.length,
+          total: totalSum,
+          avg: validVals.length > 0 ? Math.round(totalSum / validVals.length) : 0,
+        };
+      })
+      .sort((a, b) => b.total - a.total); // Sort by highest cost
+
     return {
       globalAvg,
       totalCompleted: rows.length,
       byBranch,
       byMonth,
       byMonthByBranch,
+      byBMS,
     };
   } catch (error) {
     logger.error({ operation: "getAdminRealisasiDetail" }, "Failed", error);

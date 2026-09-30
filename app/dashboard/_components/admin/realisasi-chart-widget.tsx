@@ -33,11 +33,13 @@ import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 type RealisasiChartWidgetProps = {
   initialData: AdminRealisasiDetail;
   brand: StoreBrandFilter;
+  mode?: "branch" | "bms";
 };
 
 export function RealisasiChartWidget({
   initialData,
   brand,
+  mode = "branch",
 }: RealisasiChartWidgetProps) {
   const [period, setPeriod] = useState<string>("ytd");
   const [data, setData] = useState<AdminRealisasiDetail>(initialData);
@@ -50,9 +52,13 @@ export function RealisasiChartWidget({
     });
   }, [brand, period]);
 
-  const sortedData = [...data.byBranch].sort((a, b) =>
-    a.branchName.localeCompare(b.branchName)
-  );
+  const chartData = mode === "bms" ? data.byBMS : data.byBranch;
+  const sortedData = [...chartData].sort((a: any, b: any) => {
+    if (mode === "bms") {
+      return a.bmsName.localeCompare(b.bmsName);
+    }
+    return a.branchName.localeCompare(b.branchName);
+  });
 
   return (
     <Card className="w-full relative">
@@ -69,7 +75,7 @@ export function RealisasiChartWidget({
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
               Perbandingan antara total jumlah laporan dan rata-rata realisasi
-              biaya per laporan di setiap cabang
+              biaya per laporan di setiap {mode === "bms" ? "BMS/Teknisi" : "cabang"}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -77,8 +83,8 @@ export function RealisasiChartWidget({
               variant="outline"
               size="sm"
               onClick={() => {
-                const rows = sortedData.map((item) => ({
-                  Cabang: item.branchName,
+                const rows = sortedData.map((item: any) => ({
+                  [mode === "bms" ? "BMS" : "Cabang"]: mode === "bms" ? item.bmsName : item.branchName,
                   "Jumlah Laporan (Total)": item.count,
                   "Jumlah Laporan (Ada Biaya)": item.validCount,
                   "Total Realisasi": item.total,
@@ -140,7 +146,7 @@ export function RealisasiChartWidget({
               stroke="hsl(var(--border))"
             />
             <XAxis
-              dataKey="branchName"
+              dataKey={mode === "bms" ? "bmsName" : "branchName"}
               angle={-45}
               textAnchor="end"
               height={60}
@@ -170,8 +176,8 @@ export function RealisasiChartWidget({
               cursor={false}
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
-                  // data = { branchName, count, validCount, total, avg }
-                  const data = payload[0].payload as RealisasiBranchStat;
+                  // data = { count, validCount, total, avg, ... }
+                  const data = payload[0].payload as any;
                   return (
                     <div className="rounded-xl border border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-4 shadow-xl min-w-[280px] animate-in fade-in zoom-in-95 duration-200">
                       <div className="text-[14px] font-bold tracking-tight text-foreground mb-3 flex items-center gap-2">
