@@ -67,11 +67,13 @@ export function AdminTrendPeriodFilter({
   initialPeriod,
   initialBrand = "ALL",
   showBrandFilter = false,
+  showPeriodFilter = true,
   basePath = "/dashboard",
 }: {
   initialPeriod: string;
   initialBrand?: string;
   showBrandFilter?: boolean;
+  showPeriodFilter?: boolean;
   basePath?: string;
 }) {
   const router = useRouter();
@@ -140,31 +142,33 @@ export function AdminTrendPeriodFilter({
         </Select>
       ) : null}
 
-      <Select value={periodVal} onValueChange={handlePeriodChange}>
-        <SelectTrigger className="h-8 w-40 text-xs">
-          <SelectValue>
-            {periodVal === "ytd" ? "YTD (Tahun Ini)" : getMonthLabel(periodVal)}
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent align="end">
-          <SelectItem value="ytd" className="text-xs">
-            YTD (Tahun Ini)
-          </SelectItem>
-          <SelectSeparator />
-          <SelectGroup>
-            <SelectLabel className="text-xs font-medium text-muted-foreground">
-              Bulan
-            </SelectLabel>
-            {MONTH_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value} className="text-xs">
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
+      {showPeriodFilter && (
+        <Select value={periodVal} onValueChange={handlePeriodChange}>
+          <SelectTrigger className="h-8 w-40 text-xs">
+            <SelectValue>
+              {periodVal === "ytd" ? "YTD (Tahun Ini)" : getMonthLabel(periodVal)}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent align="end">
+            <SelectItem value="ytd" className="text-xs">
+              YTD (Tahun Ini)
+            </SelectItem>
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel className="text-xs font-medium text-muted-foreground">
+                Bulan
+              </SelectLabel>
+              {MONTH_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      )}
 
-      {isMonthMode && (
+      {showPeriodFilter && isMonthMode && (
         <Input
           type="text"
           inputMode="numeric"

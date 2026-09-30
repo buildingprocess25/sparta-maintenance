@@ -2017,8 +2017,32 @@ const MONTH_LABELS = [
 export async function getAdminRealisasiDetail(
   brand: StoreBrandFilter = "ALL",
   branchScope?: string[],
+  period?: string,
 ): Promise<AdminRealisasiDetail> {
-  const ytdStart = getYtdStart();
+  let startDate = getYtdStart();
+  let endDate: Date | undefined;
+
+  if (period && period !== "ytd") {
+    // support Q1, Q2 format from RealisasiWidget
+    if (period.startsWith("Q")) {
+      const q = parseInt(period.substring(1), 10) as 1 | 2 | 3 | 4;
+      if (!isNaN(q) && q >= 1 && q <= 4) {
+        const win = getJakartaQuarterWindow(getJakartaYear(), q);
+        startDate = win.start;
+        endDate = win.endExclusive;
+      }
+    } else {
+      const [mStr, yStr] = period.split("-");
+      const m = parseInt(mStr, 10);
+      const y = parseInt(yStr, 10);
+      if (!isNaN(m) && !isNaN(y)) {
+        const win = getJakartaMonthWindow(y, m);
+        startDate = win.start;
+        endDate = win.endExclusive;
+      }
+    }
+  }
+
   const empty: AdminRealisasiDetail = {
     globalAvg: 0,
     totalCompleted: 0,
@@ -2035,7 +2059,7 @@ export async function getAdminRealisasiDetail(
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: "COMPLETED",
         totalReal: { not: null },
-        createdAt: { gte: ytdStart },
+        createdAt: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
       },
       select: { branchName: true, totalReal: true, createdAt: true },
     });

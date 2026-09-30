@@ -18,6 +18,7 @@ import { SlaStatusGuide } from "./sla-status-guide";
 import { StatusDistributionKpis } from "./status-distribution";
 import { PreventiveKpiWidget } from "./preventive-kpi-widget";
 import { ProcessDurationWidget } from "./process-duration-widget";
+import { RealisasiChartWidget } from "./realisasi-chart-widget";
 import {
   ChartContainer,
   ChartTooltip,
@@ -49,16 +50,25 @@ function withBrandHref(href: string, brand: StoreBrandFilter) {
 export function DashboardHeader({
   kpi,
   brand,
+  period,
 }: {
   kpi: AdminKpiMetric;
   brand: StoreBrandFilter;
+  period: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-2">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Ringkasan Operasional
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Ringkasan Operasional
+          </h1>
+          <AdminTrendPeriodFilter
+            initialPeriod={period}
+            showBrandFilter={false}
+            showPeriodFilter={true}
+          />
+        </div>
         <p className="max-w-3xl text-sm text-muted-foreground">
           Monitor status laporan, realisasi biaya, performa cabang, dan antrian
           PJUM tahun berjalan.
@@ -137,10 +147,11 @@ export function AdminDashboardV2({
           initialPeriod={selectedPeriod}
           initialBrand={selectedBrand}
           showBrandFilter
+          showPeriodFilter={false}
         />
       }
     >
-      <DashboardHeader kpi={data.kpi} brand={selectedBrand} />
+      <DashboardHeader kpi={data.kpi} brand={selectedBrand} period={selectedPeriod} />
 
       {/* Row 1: KPI Cards */}
       <KpiGrid
@@ -183,108 +194,7 @@ export function AdminDashboardV2({
       <ProcessDurationWidget />
 
       {/* Row 4: Dana Taktis Line Chart */}
-      <Card className="w-full">
-        <CardHeader className="pb-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-lg font-semibold tracking-tight">
-                Rata-Rata Realisasi Per Laporan
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Perbandingan antara total jumlah laporan dan rata-rata realisasi biaya per laporan di setiap cabang
-              </p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="h-[400px]">
-          <ChartContainer 
-            config={{
-              count: { label: "Jumlah Laporan", color: "var(--chart-3)" },
-              avg: { label: "Rata-Rata Biaya", color: "#f4bb44" }
-            }} 
-            className="h-full w-full"
-          >
-            <ComposedChart
-              data={[...realisasiData.byBranch].sort((a, b) => a.branchName.localeCompare(b.branchName))}
-              margin={{ top: 10, right: 10, bottom: 60, left: 0 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="branchName"
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickLine={false}
-                axisLine={false}
-                dy={10}
-              />
-              <YAxis
-                yAxisId="left"
-                orientation="left"
-                tickFormatter={(val) => `Rp ${val / 1000}k`}
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickLine={false}
-                axisLine={false}
-                dx={-10}
-              />
-              <YAxis
-                yAxisId="right"
-                orientation="right"
-                tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
-                tickLine={false}
-                axisLine={false}
-                dx={10}
-              />
-              <ChartTooltip
-                content={
-                  <ChartTooltipContent
-                    className="min-w-60"
-                    labelFormatter={(label) => <div className="text-sm font-semibold mb-1">{label}</div>}
-                    formatter={(value, name) => (
-                      <div className="flex w-full justify-between items-center gap-4">
-                        <span className="text-muted-foreground text-xs">
-                          {name === "avg" ? "Rata-Rata Biaya" : "Jumlah Laporan"}
-                        </span>
-                        <span className="font-mono font-medium text-xs">
-                          {name === "avg" ? `Rp ${Number(value).toLocaleString("id-ID")}` : value}
-                        </span>
-                      </div>
-                    )}
-                  />
-                }
-              />
-              <Legend
-                verticalAlign="top"
-                height={40}
-                iconType="circle"
-                wrapperStyle={{ fontSize: '12px', fontWeight: 500 }}
-                formatter={(value) => (
-                  <span className="text-muted-foreground ml-1">
-                    {value === "avg" ? "Rata-Rata Biaya" : "Jumlah Laporan"}
-                  </span>
-                )}
-              />
-              <Bar 
-                yAxisId="right" 
-                dataKey="count" 
-                fill="var(--color-count)" 
-                radius={[4, 4, 0, 0]}
-                barSize={32}
-              />
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="avg"
-                stroke="var(--color-avg)"
-                strokeWidth={3}
-                dot={false}
-                activeDot={{ r: 6, strokeWidth: 0, fill: "var(--color-avg)" }}
-              />
-            </ComposedChart>
-          </ChartContainer>
-        </CardContent>
-      </Card>
+      <RealisasiChartWidget initialData={realisasiData} brand={selectedBrand} />
 
       {/* Footer Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

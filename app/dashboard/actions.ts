@@ -16,3 +16,10 @@ export async function fetchBalanceHistoryAction(): Promise<BmsBalanceHistoryItem
     const history = await getBmsBalanceHistory(user.NIK);
     return history;
 }
+
+import { getAdminRealisasiDetail } from "./queries";
+import type { StoreBrandFilter } from "@/lib/store-brand-filter";
+
+export async function fetchAdminRealisasiDetailAction(brand: StoreBrandFilter, period: string) {
+    return await getAdminRealisasiDetail(brand, undefined, period);
+}
