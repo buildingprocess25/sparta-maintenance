@@ -34,6 +34,7 @@ import { cn, formatDashboardCurrency } from "@/lib/utils";
 import {
     getManagerDashboardData,
     getAdminCommandCenterData,
+    getAdminRealisasiDetail,
     type ManagerDashboardData,
     type ManagerDashboardReport,
     type ManagerDashboardRole,
@@ -42,6 +43,7 @@ import {
     DashboardHeader, 
     AdminRecentActivityCard
 } from "./admin/admin-new-dashboard";
+import { RealisasiChartWidget } from "./admin/realisasi-chart-widget";
 import { KpiGrid } from "./admin/kpi-cards";
 import { StatusDistributionKpis } from "./admin/status-distribution";
 import { SlaStatusGuide } from "./admin/sla-status-guide";
@@ -362,6 +364,11 @@ export async function ManagerDashboard({
         resolvedBrand,
         user.branchNames
     );
+    const realisasiData = await getAdminRealisasiDetail(
+        resolvedBrand,
+        user.branchNames,
+        resolvedPeriod
+    );
 
     return (
         <AdminDashboardShell
@@ -378,6 +385,14 @@ export async function ManagerDashboard({
                 isBrandFiltered={resolvedBrand !== "ALL"} 
                 brand={resolvedBrand} 
             />
+            
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start pt-2 border-b pb-6 mb-2">
+                <PriorityReportsTable
+                    reports={data.priorityReports}
+                    role={role}
+                />
+                <SidePanel data={data} />
+            </div>
             
             <div className="grid gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-2">
@@ -399,15 +414,12 @@ export async function ManagerDashboard({
             
             <ProcessDurationWidget />
             
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px] xl:items-start pt-6 border-t mt-8">
-                <PriorityReportsTable
-                    reports={data.priorityReports}
-                    role={role}
-                />
-                <SidePanel data={data} />
+            <div className="mt-6">
+                <RealisasiChartWidget initialData={realisasiData} brand={resolvedBrand} />
             </div>
             
-            <AdminRecentActivityCard activities={adminData.recentActivity} />
+            <div className="mt-6">
+                <AdminRecentActivityCard activities={adminData.recentActivity} />
         </AdminDashboardShell>
     );
 }
