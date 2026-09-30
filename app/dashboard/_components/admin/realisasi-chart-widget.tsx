@@ -23,7 +23,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+import { Button } from "@/components/ui/button";
 import { fetchAdminRealisasiDetailAction } from "../../actions";
 import type { AdminRealisasiDetail } from "../../queries";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
@@ -70,31 +72,55 @@ export function RealisasiChartWidget({
               biaya per laporan di setiap cabang
             </p>
           </div>
-          <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-[150px] h-9 text-xs">
-              <SelectValue placeholder="Pilih Periode" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ytd">YTD (Tahun Ini)</SelectItem>
-              <SelectItem value="Q1">Triwulan 1</SelectItem>
-              <SelectItem value="Q2">Triwulan 2</SelectItem>
-              <SelectItem value="Q3">Triwulan 3</SelectItem>
-              <SelectItem value="Q4">Triwulan 4</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const rows = sortedData.map((item) => ({
+                  Cabang: item.branchName,
+                  "Jumlah Laporan": item.count,
+                  "Total Rp Realisasi": item.total,
+                  "Avg Rp Realisasi": item.avg,
+                }));
+                const worksheet = XLSX.utils.json_to_sheet(rows);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Realisasi Per Laporan");
+                XLSX.writeFile(workbook, "Realisasi_Per_Laporan_SPARTA.xlsx");
+              }}
+              disabled={sortedData.length === 0 || isPending}
+              className="h-9 text-xs"
+            >
+              <Download className="mr-2 h-3.5 w-3.5" />
+              Export XLSX
+            </Button>
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-[150px] h-9 text-xs">
+                <SelectValue placeholder="Pilih Periode" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ytd">YTD (Tahun Ini)</SelectItem>
+                <SelectItem value="Q1">Triwulan 1</SelectItem>
+                <SelectItem value="Q2">Triwulan 2</SelectItem>
+                <SelectItem value="Q3">Triwulan 3</SelectItem>
+                <SelectItem value="Q4">Triwulan 4</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="h-[400px]">
         <ChartContainer
           config={{
             count: { label: "Jumlah Laporan", color: "var(--chart-3)" },
+            total: { label: "Total Realisasi", color: "var(--chart-2)" },
             avg: { label: "Rata-Rata Biaya", color: "#f4bb44" },
           }}
           className="h-full w-full"
         >
           <ComposedChart
             data={sortedData}
-            margin={{ top: 10, right: 10, bottom: 60, left: 0 }}
+            margin={{ top: 10, right: 10, bottom: 20, left: 0 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -105,7 +131,7 @@ export function RealisasiChartWidget({
               dataKey="branchName"
               angle={-45}
               textAnchor="end"
-              height={80}
+              height={60}
               tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
               tickLine={false}
               axisLine={false}
@@ -140,10 +166,12 @@ export function RealisasiChartWidget({
                       <span className="text-muted-foreground text-xs">
                         {name === "avg"
                           ? "Rata-Rata Biaya"
+                          : name === "total"
+                          ? "Total Realisasi"
                           : "Jumlah Laporan"}
                       </span>
                       <span className="font-mono font-medium text-xs">
-                        {name === "avg"
+                        {name === "avg" || name === "total"
                           ? `Rp ${Number(value).toLocaleString("id-ID")}`
                           : value}
                       </span>
@@ -169,6 +197,17 @@ export function RealisasiChartWidget({
               fill="var(--color-count)"
               radius={[4, 4, 0, 0]}
               barSize={32}
+            />
+            {/* Hidden line hanya untuk memunculkan total di tooltip, urutan penting */}
+            <Line
+              yAxisId="left"
+              type="monotone"
+              dataKey="total"
+              stroke="transparent"
+              strokeWidth={0}
+              dot={false}
+              activeDot={false}
+              legendType="none"
             />
             <Line
               yAxisId="left"

@@ -33,6 +33,7 @@ import {
   getJakartaWeekStartKey,
   getJakartaYear,
   getJakartaYearWindow,
+  getJakartaQuarterWindow,
 } from "@/lib/time";
 
 /**
@@ -1976,6 +1977,7 @@ export async function getAdminCommandCenterData(
 export type RealisasiBranchStat = {
   branchName: string;
   count: number;
+  total: number;
   avg: number;
   max: number;
   min: number;
@@ -2090,14 +2092,14 @@ export async function getAdminRealisasiDetail(
     const byBranch: RealisasiBranchStat[] = Array.from(branchMap.entries())
       .map(([branchName, vals]) => {
         const validVals = vals.filter((v) => v >= 1000);
+        const totalSum = validVals.reduce((s, v) => s + v, 0);
         return {
           branchName,
           count: vals.length,
+          total: totalSum,
           avg:
             validVals.length > 0
-              ? Math.round(
-                  validVals.reduce((s, v) => s + v, 0) / validVals.length,
-                )
+              ? Math.round(totalSum / validVals.length)
               : 0,
           max: vals.length > 0 ? Math.max(...vals) : 0,
           min: vals.length > 0 ? Math.min(...vals) : 0,

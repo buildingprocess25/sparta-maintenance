@@ -200,7 +200,7 @@ export function AdminDashboardV2({
       {/* Footer Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+          <CardContent className="flex flex-col items-center justify-center px-6 py-3 flex-1 text-center">
             <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
               Total Toko Nasional
             </div>
@@ -218,7 +218,7 @@ export function AdminDashboardV2({
           </CardContent>
         </Card>
         <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+          <CardContent className="flex flex-col items-center justify-center px-6 py-3 flex-1 text-center">
             <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
               Total Tim Cabang
             </div>
@@ -228,7 +228,7 @@ export function AdminDashboardV2({
           </CardContent>
         </Card>
         <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+          <CardContent className="flex flex-col items-center justify-center px-6 py-3 flex-1 text-center">
             <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
               Manager Cabang
             </div>
@@ -238,7 +238,7 @@ export function AdminDashboardV2({
           </CardContent>
         </Card>
         <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+          <CardContent className="flex flex-col items-center justify-center px-6 py-3 flex-1 text-center">
             <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
               Total BMC Cabang
             </div>
@@ -248,7 +248,7 @@ export function AdminDashboardV2({
           </CardContent>
         </Card>
         <Card className="flex flex-col overflow-hidden transition-all hover:shadow-md">
-          <CardContent className="flex flex-col items-center justify-center p-6 flex-1 text-center">
+          <CardContent className="flex flex-col items-center justify-center px-6 py-3 flex-1 text-center">
             <div className="text-[11px] font-bold text-muted-foreground tracking-wider uppercase mb-2">
               Total BMS Cabang
             </div>

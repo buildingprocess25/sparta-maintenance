@@ -25,6 +25,7 @@ import {
     getReportBrandWhere,
     getStoreBrandWhere,
     getVisibleBrandBranchNames,
+    parseStoreBrandFilter,
     type StoreBrandFilter,
 } from "@/lib/store-brand-filter";
 
@@ -815,6 +816,7 @@ export async function getAdminBranchDetail(
 
 export type SLADurationBMS = {
     bmsName: string;
+    reportCount: number;
     estimasiToAppvBMC: number | null;
     estimasiToRevisiBMC: number | null;
     appvBMCToWorkStart: number | null;
@@ -826,6 +828,7 @@ export type SLADurationBMS = {
 
 export type SLADurationBranch = {
     branchName: string;
+    reportCount: number;
     bmsList: SLADurationBMS[];
     estimasiToAppvBMC: number | null;
     estimasiToRevisiBMC: number | null;
@@ -866,6 +869,7 @@ export async function getAdminDetailedSLAData(
     const rows = await prisma.$queryRaw<{
         branchName: string;
         bmsName: string;
+        report_count: bigint;
         avg_est_to_appv_bmc: number | null;
         avg_est_to_rev_bmc: number | null;
         avg_appv_bmc_to_start: number | null;
@@ -897,6 +901,7 @@ export async function getAdminDetailedSLAData(
         SELECT 
             "branchName",
             "bmsName",
+            COUNT(*) AS report_count,
             AVG(EXTRACT(EPOCH FROM (t_est_appv - t_submit))) AS avg_est_to_appv_bmc,
             AVG(EXTRACT(EPOCH FROM (t_est_rev - t_submit))) AS avg_est_to_rev_bmc,
             AVG(EXTRACT(EPOCH FROM (t_start - t_est_appv))) AS avg_appv_bmc_to_start,
@@ -918,6 +923,7 @@ export async function getAdminDetailedSLAData(
         if (!branchMap.has(row.branchName)) {
             branchMap.set(row.branchName, {
                 branchName: row.branchName,
+                reportCount: 0,
                 bmsList: [],
                 estimasiToAppvBMC: null,
                 estimasiToRevisiBMC: null,
@@ -931,6 +937,7 @@ export async function getAdminDetailedSLAData(
         const branchEntry = branchMap.get(row.branchName)!;
 
         if (row.bmsName === null) {
+            branchEntry.reportCount = Number(row.report_count);
             branchEntry.estimasiToAppvBMC = row.avg_est_to_appv_bmc ? Number(row.avg_est_to_appv_bmc) : null;
             branchEntry.estimasiToRevisiBMC = row.avg_est_to_rev_bmc ? Number(row.avg_est_to_rev_bmc) : null;
             branchEntry.appvBMCToWorkStart = row.avg_appv_bmc_to_start ? Number(row.avg_appv_bmc_to_start) : null;
@@ -941,6 +948,7 @@ export async function getAdminDetailedSLAData(
         } else {
             branchEntry.bmsList.push({
                 bmsName: row.bmsName,
+                reportCount: Number(row.report_count),
             estimasiToAppvBMC: row.avg_est_to_appv_bmc ? Number(row.avg_est_to_appv_bmc) : null,
             estimasiToRevisiBMC: row.avg_est_to_rev_bmc ? Number(row.avg_est_to_rev_bmc) : null,
             appvBMCToWorkStart: row.avg_appv_bmc_to_start ? Number(row.avg_appv_bmc_to_start) : null,
