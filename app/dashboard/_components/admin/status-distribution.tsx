@@ -62,18 +62,20 @@ export function StatusDistributionKpis({
 
             <div className="flex h-4 overflow-hidden rounded-full bg-muted">
                 {visibleStatus.map((item) => (
-                    <span
-                        key={item.status}
-                        className={getStatusSegmentClass(item.status)}
-                        style={{
-                            width: `${Math.max(
-                                3,
-                                totalActive > 0
-                                    ? (item.count / totalActive) * 100
-                                    : 0,
-                            )}%`,
-                        }}
-                    />
+                    item.count > 0 ? (
+                        <span
+                            key={item.status}
+                            className={getStatusSegmentClass(item.status)}
+                            style={{
+                                width: `${Math.max(
+                                    3,
+                                    totalActive > 0
+                                        ? (item.count / totalActive) * 100
+                                        : 0,
+                                )}%`,
+                            }}
+                        />
+                    ) : null
                 ))}
             </div>
 

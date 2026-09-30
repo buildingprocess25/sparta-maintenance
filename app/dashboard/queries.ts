@@ -897,6 +897,7 @@ type AdminBranchAccumulator = {
 
 const ADMIN_STATUS_LABELS: Record<string, string> = {
   PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
+  PENDING_CHECKLIST_REVIEW: getReportStatusLabel("PENDING_CHECKLIST_REVIEW"),
   ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
   ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
     "ESTIMATION_REJECTED_REVISION",
@@ -911,6 +912,7 @@ const ADMIN_STATUS_LABELS: Record<string, string> = {
 
 const ADMIN_STATUS_ORDER = [
   "PENDING_ESTIMATION",
+  "PENDING_CHECKLIST_REVIEW",
   "ESTIMATION_APPROVED",
   "IN_PROGRESS",
   "PENDING_REVIEW",
@@ -1253,7 +1255,7 @@ async function getAdminStatusDistribution(
     count: statusCountMap.get(statusKey as never) ?? 0,
     slaDays: slaDaysByStatus[statusKey] ?? null,
     overdueCount: overdueCountMap.get(statusKey) ?? 0,
-  })).filter((item) => item.count > 0);
+  }));
 }
 
 async function getAdminPjumSummary(
@@ -2061,7 +2063,6 @@ export async function getAdminRealisasiDetail(
         ...(branchScope ? { branchName: { in: branchScope } } : {}),
         NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
         status: "COMPLETED",
-        totalReal: { not: null },
         createdAt: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
       },
       select: { branchName: true, totalReal: true, createdAt: true },

@@ -849,6 +849,7 @@ export async function getAdminDetailedSLAData(
 
     const predicates: Prisma.Sql[] = [
         Prisma.sql`r."createdAt" >= ${start}`,
+        Prisma.sql`r."status" = 'COMPLETED'`,
     ];
     if (end) {
         predicates.push(Prisma.sql`r."createdAt" < ${end}`);

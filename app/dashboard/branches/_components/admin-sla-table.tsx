@@ -41,7 +41,7 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
             rows.push({
                 "Nama Cabang": branch.branchName,
                 "Nama BMS": "[RATA-RATA CABANG]",
-                "JUMLAH LAPORAN": branch.reportCount,
+                "JUMLAH LAPORAN SELESAI": branch.reportCount,
                 "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(branch.estimasiToAppvBMC),
                 "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(branch.estimasiToRevisiBMC),
                 "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(branch.appvBMCToWorkStart),
@@ -55,7 +55,7 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
                 rows.push({
                     "Nama Cabang": branch.branchName,
                     "Nama BMS": bms.bmsName,
-                    "JUMLAH LAPORAN": bms.reportCount,
+                    "JUMLAH LAPORAN SELESAI": bms.reportCount,
                     "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(bms.estimasiToAppvBMC),
                     "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(bms.estimasiToRevisiBMC),
                     "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(bms.appvBMCToWorkStart),

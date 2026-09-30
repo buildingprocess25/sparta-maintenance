@@ -134,18 +134,20 @@ export function PreventiveKpiWidget() {
                                     </Pie>
                                 </PieChart>
                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center pointer-events-none mt-1">
-                                    <span className="text-2xl font-bold leading-none">{data.capaianNasional}%</span>
+                                    <span className="text-2xl font-bold leading-none">
+                                        {Number(data.capaianNasional).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%
+                                    </span>
                                     <span className="text-xs text-muted-foreground mt-1">capaian</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-6 mt-4 text-xs">
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                                    <span>Tercapai {data.capaianNasional}%</span>
+                                    <span>Tercapai {Number(data.capaianNasional).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-rose-500"></div>
-                                    <span>Belum {100 - data.capaianNasional}%</span>
+                                    <span>Belum {Number(100 - data.capaianNasional).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%</span>
                                 </div>
                             </div>
                         </>
@@ -223,7 +225,7 @@ export function PreventiveKpiWidget() {
                                         </div>
                                         <div className="flex items-baseline gap-1.5">
                                             <span className={`font-semibold font-mono ${textColor}`}>
-                                                {item.percentage}%
+                                                {Number(item.percentage).toLocaleString("id-ID", { maximumFractionDigits: 2 })}%
                                             </span>
                                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
                                                 ({item.completed}/{item.total} Toko)

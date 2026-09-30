@@ -207,9 +207,9 @@ function getQuarterTiming(year: number, quarter: PreventiveQuarter) {
 function calculateRate(completed: number, total: number) {
     if (total === 0) return 0;
     if (completed === total) return 100;
-    const rate = Math.round((completed / total) * 100);
-    if (rate === 100 && completed < total) return 99;
-    if (rate === 0 && completed > 0) return 1;
+    const rate = Number(((completed / total) * 100).toFixed(2));
+    if (rate === 100 && completed < total) return 99.99;
+    if (rate === 0 && completed > 0) return 0.01;
     return rate;
 }
 

@@ -27,7 +27,7 @@ import { Loader2, Download } from "lucide-react";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import { fetchAdminRealisasiDetailAction } from "../../actions";
-import type { AdminRealisasiDetail } from "../../queries";
+import type { AdminRealisasiDetail, RealisasiBranchStat } from "../../queries";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 
 type RealisasiChartWidgetProps = {
@@ -80,11 +80,23 @@ export function RealisasiChartWidget({
                 const rows = sortedData.map((item) => ({
                   Cabang: item.branchName,
                   "Jumlah Laporan (Total)": item.count,
-                  "Jumlah Laporan (Valid)": item.validCount,
-                  "Total Rp Realisasi": item.total,
-                  "Avg Rp Realisasi": item.avg,
+                  "Jumlah Laporan (Ada Biaya)": item.validCount,
+                  "Total Realisasi": item.total,
+                  "Rata-Rata Biaya": item.avg,
                 }));
                 const worksheet = XLSX.utils.json_to_sheet(rows);
+                
+                // Apply accounting format to currency columns (D and E)
+                const range = XLSX.utils.decode_range(worksheet['!ref'] || "A1:E1");
+                // Start from row 1 (skipping header)
+                for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+                  const totalCell = worksheet[XLSX.utils.encode_cell({ c: 3, r: R })];
+                  if (totalCell) totalCell.z = '[$Rp-id-ID] #,##0';
+                  
+                  const avgCell = worksheet[XLSX.utils.encode_cell({ c: 4, r: R })];
+                  if (avgCell) avgCell.z = '[$Rp-id-ID] #,##0';
+                }
+
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Realisasi Per Laporan");
                 XLSX.writeFile(workbook, "Realisasi_Per_Laporan_SPARTA.xlsx");
@@ -155,47 +167,57 @@ export function RealisasiChartWidget({
               dx={10}
             />
             <ChartTooltip
+              cursor={false}
               content={({ active, payload, label }) => {
                 if (active && payload && payload.length) {
                   // data = { branchName, count, validCount, total, avg }
                   const data = payload[0].payload as RealisasiBranchStat;
                   return (
-                    <div className="rounded-lg border bg-background p-3 shadow-sm min-w-64">
-                      <div className="text-[13px] font-bold mb-2 uppercase border-b pb-1">
+                    <div className="rounded-xl border border-border/50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 p-4 shadow-xl min-w-[280px] animate-in fade-in zoom-in-95 duration-200">
+                      <div className="text-[14px] font-bold tracking-tight text-foreground mb-3 flex items-center gap-2">
+                        <span className="w-2 h-5 rounded-sm bg-primary/20 block" />
                         {label}
                       </div>
-                      <div className="flex flex-col gap-2 mt-2">
-                        <div className="flex w-full justify-between items-center gap-4">
-                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[var(--color-count)]"></div>
-                            Jumlah Laporan (Total)
-                          </span>
-                          <span className="font-mono font-medium text-xs">{data.count}</span>
+                      
+                      <div className="flex flex-col gap-3">
+                        {/* Group 1: Report Counts */}
+                        <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/40 border border-muted/50">
+                          <div className="flex w-full justify-between items-center gap-4">
+                            <span className="text-muted-foreground text-[13px] flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-[2px] bg-[var(--color-count)] shadow-sm"></div>
+                              Total Laporan
+                            </span>
+                            <span className="font-semibold text-[13px] text-foreground">{data.count}</span>
+                          </div>
+                          <div className="flex w-full justify-between items-center gap-4">
+                            <span className="text-muted-foreground text-[13px] flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-[2px] bg-emerald-500/80 shadow-sm"></div>
+                              Laporan Ada Biaya
+                            </span>
+                            <span className="font-semibold text-[13px] text-foreground">{data.validCount}</span>
+                          </div>
                         </div>
-                        <div className="flex w-full justify-between items-center gap-4">
-                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-transparent"></div>
-                            Laporan Valid (Ada Biaya)
-                          </span>
-                          <span className="font-mono font-medium text-xs">{data.validCount}</span>
-                        </div>
-                        <div className="flex w-full justify-between items-center gap-4">
-                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-transparent"></div>
-                            Total Realisasi
-                          </span>
-                          <span className="font-mono font-medium text-xs">
-                            Rp {data.total.toLocaleString("id-ID")}
-                          </span>
-                        </div>
-                        <div className="flex w-full justify-between items-center gap-4">
-                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
-                            <div className="w-2 h-2 rounded-full bg-[#f4bb44]"></div>
-                            Rata-Rata Biaya
-                          </span>
-                          <span className="font-mono font-medium text-xs">
-                            Rp {data.avg.toLocaleString("id-ID")}
-                          </span>
+
+                        {/* Group 2: Costs */}
+                        <div className="flex flex-col gap-2 p-3 rounded-lg bg-muted/40 border border-muted/50">
+                          <div className="flex w-full justify-between items-center gap-4">
+                            <span className="text-muted-foreground text-[13px] flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-[2px] bg-transparent"></div>
+                              Total Realisasi
+                            </span>
+                            <span className="font-mono font-medium text-[13px] text-foreground">
+                              Rp {data.total.toLocaleString("id-ID")}
+                            </span>
+                          </div>
+                          <div className="flex w-full justify-between items-center gap-4">
+                            <span className="text-muted-foreground text-[13px] flex items-center gap-2">
+                              <div className="w-2.5 h-2.5 rounded-[2px] bg-[#f4bb44] shadow-sm"></div>
+                              Rata-Rata Biaya
+                            </span>
+                            <span className="font-mono font-semibold text-[13px] text-foreground">
+                              Rp {data.avg.toLocaleString("id-ID")}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>
