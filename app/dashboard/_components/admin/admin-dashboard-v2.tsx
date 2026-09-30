@@ -57,36 +57,37 @@ export function DashboardHeader({
   period: string;
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-2">
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between mb-4">
       <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Ringkasan Operasional
-          </h1>
-          <AdminTrendPeriodFilter
-            initialPeriod={period}
-            showBrandFilter={false}
-            showPeriodFilter={true}
-          />
-        </div>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Ringkasan Operasional
+        </h1>
         <p className="max-w-3xl text-sm text-muted-foreground">
           Monitor status laporan, realisasi biaya, performa cabang, dan antrian
           PJUM tahun berjalan.
         </p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline">
-          <Link href="/dashboard/activity">
-            <Activity className="h-4 w-4" />
-            Aktivitas
-          </Link>
-        </Button>
-        <Button asChild>
-          <Link href={withBrandHref("/dashboard/reports", brand)}>
-            <FileText className="h-4 w-4" />
-            Semua Laporan
-          </Link>
-        </Button>
+      <div className="flex flex-wrap items-center gap-3">
+        <AdminTrendPeriodFilter
+          initialPeriod={period}
+          showBrandFilter={false}
+          showPeriodFilter={true}
+        />
+        <div className="hidden sm:block h-5 w-px bg-border" aria-hidden="true" />
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+            <Link href="/dashboard/activity">
+              <Activity className="h-3.5 w-3.5 mr-1" />
+              Aktivitas
+            </Link>
+          </Button>
+          <Button asChild size="sm" className="h-8 text-xs">
+            <Link href={withBrandHref("/dashboard/reports", brand)}>
+              <FileText className="h-3.5 w-3.5 mr-1" />
+              Semua Laporan
+            </Link>
+          </Button>
+        </div>
       </div>
       <div className="sr-only">Completion rate {kpi.completionRate} persen</div>
     </div>
