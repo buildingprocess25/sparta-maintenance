@@ -79,7 +79,8 @@ export function RealisasiChartWidget({
               onClick={() => {
                 const rows = sortedData.map((item) => ({
                   Cabang: item.branchName,
-                  "Jumlah Laporan": item.count,
+                  "Jumlah Laporan (Total)": item.count,
+                  "Jumlah Laporan (Valid)": item.validCount,
                   "Total Rp Realisasi": item.total,
                   "Avg Rp Realisasi": item.avg,
                 }));
@@ -113,7 +114,6 @@ export function RealisasiChartWidget({
         <ChartContainer
           config={{
             count: { label: "Jumlah Laporan", color: "var(--chart-3)" },
-            total: { label: "Total Realisasi", color: "var(--chart-2)" },
             avg: { label: "Rata-Rata Biaya", color: "#f4bb44" },
           }}
           className="h-full w-full"
@@ -155,30 +155,54 @@ export function RealisasiChartWidget({
               dx={10}
             />
             <ChartTooltip
-              content={
-                <ChartTooltipContent
-                  className="min-w-60"
-                  labelFormatter={(label) => (
-                    <div className="text-sm font-semibold mb-1">{label}</div>
-                  )}
-                  formatter={(value, name) => (
-                    <div className="flex w-full justify-between items-center gap-4">
-                      <span className="text-muted-foreground text-xs">
-                        {name === "avg"
-                          ? "Rata-Rata Biaya"
-                          : name === "total"
-                          ? "Total Realisasi"
-                          : "Jumlah Laporan"}
-                      </span>
-                      <span className="font-mono font-medium text-xs">
-                        {name === "avg" || name === "total"
-                          ? `Rp ${Number(value).toLocaleString("id-ID")}`
-                          : value}
-                      </span>
+              content={({ active, payload, label }) => {
+                if (active && payload && payload.length) {
+                  // data = { branchName, count, validCount, total, avg }
+                  const data = payload[0].payload as RealisasiBranchStat;
+                  return (
+                    <div className="rounded-lg border bg-background p-3 shadow-sm min-w-64">
+                      <div className="text-[13px] font-bold mb-2 uppercase border-b pb-1">
+                        {label}
+                      </div>
+                      <div className="flex flex-col gap-2 mt-2">
+                        <div className="flex w-full justify-between items-center gap-4">
+                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[var(--color-count)]"></div>
+                            Jumlah Laporan (Total)
+                          </span>
+                          <span className="font-mono font-medium text-xs">{data.count}</span>
+                        </div>
+                        <div className="flex w-full justify-between items-center gap-4">
+                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-transparent"></div>
+                            Laporan Valid (Ada Biaya)
+                          </span>
+                          <span className="font-mono font-medium text-xs">{data.validCount}</span>
+                        </div>
+                        <div className="flex w-full justify-between items-center gap-4">
+                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-transparent"></div>
+                            Total Realisasi
+                          </span>
+                          <span className="font-mono font-medium text-xs">
+                            Rp {data.total.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                        <div className="flex w-full justify-between items-center gap-4">
+                          <span className="text-muted-foreground text-xs flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[#f4bb44]"></div>
+                            Rata-Rata Biaya
+                          </span>
+                          <span className="font-mono font-medium text-xs">
+                            Rp {data.avg.toLocaleString("id-ID")}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  )}
-                />
-              }
+                  );
+                }
+                return null;
+              }}
             />
             <Legend
               verticalAlign="top"
@@ -197,17 +221,6 @@ export function RealisasiChartWidget({
               fill="var(--color-count)"
               radius={[4, 4, 0, 0]}
               barSize={32}
-            />
-            {/* Hidden line hanya untuk memunculkan total di tooltip, urutan penting */}
-            <Line
-              yAxisId="left"
-              type="monotone"
-              dataKey="total"
-              stroke="transparent"
-              strokeWidth={0}
-              dot={false}
-              activeDot={false}
-              legendType="none"
             />
             <Line
               yAxisId="left"

@@ -1977,6 +1977,7 @@ export async function getAdminCommandCenterData(
 export type RealisasiBranchStat = {
   branchName: string;
   count: number;
+  validCount: number;
   total: number;
   avg: number;
   max: number;
@@ -2096,6 +2097,7 @@ export async function getAdminRealisasiDetail(
         return {
           branchName,
           count: vals.length,
+          validCount: validVals.length,
           total: totalSum,
           avg:
             validVals.length > 0
