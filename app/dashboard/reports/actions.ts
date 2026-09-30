@@ -608,6 +608,7 @@ export async function archiveAdminReport(
 export async function deleteAdminReport(
     reportNumber: string,
     confirmationReportNumber: string,
+    deleteReason: string,
 ): Promise<{ success?: true; error?: string }> {
     const correlationId = crypto.randomUUID();
     const start = performance.now();
@@ -626,6 +627,9 @@ export async function deleteAdminReport(
             )
         ) {
             return { error: "Konfirmasi nomor laporan tidak sesuai" };
+        }
+        if (!deleteReason || deleteReason.trim() === "") {
+            return { error: "Alasan penghapusan harus diisi" };
         }
 
         const result = await prisma.$transaction(async (tx) => {
@@ -704,6 +708,39 @@ export async function deleteAdminReport(
                     data: { reportNumbers: { set: update.reportNumbers } },
                 });
                 assertRetentionMutationApplied(detachment.count);
+            }
+
+            const fullReportForBackup = await tx.report.findUnique({
+                where: { reportNumber },
+            });
+            if (fullReportForBackup) {
+                let itemCount = 0;
+                try {
+                    const parsedItems = JSON.parse(
+                        typeof fullReportForBackup.items === "string"
+                            ? fullReportForBackup.items
+                            : JSON.stringify(fullReportForBackup.items)
+                    );
+                    itemCount = Array.isArray(parsedItems) ? parsedItems.length : 0;
+                } catch (e) {
+                    // Ignore JSON parse error
+                }
+
+                await tx.deletedReport.create({
+                    data: {
+                        reportNumber: fullReportForBackup.reportNumber,
+                        storeCode: fullReportForBackup.storeCode,
+                        storeName: fullReportForBackup.storeName,
+                        itemCount,
+                        totalEstimation: fullReportForBackup.totalEstimation,
+                        totalReal: fullReportForBackup.totalReal,
+                        lastStatus: fullReportForBackup.status,
+                        deletedByNIK: user.NIK,
+                        deletedByName: user.name,
+                        deleteReason: deleteReason.trim(),
+                        originalData: fullReportForBackup as any,
+                    }
+                });
             }
 
             await tx.approvalLog.deleteMany({ where: { reportNumber } });

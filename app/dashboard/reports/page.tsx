@@ -5,6 +5,8 @@ import { AdminReportsTable } from "./_components/admin-reports-table";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAdminReports } from "./actions";
 import { ExportReportsDialog } from "./_components/export-reports-dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DeletedReportsTable } from "./_components/deleted-reports-table";
 import { isReportStatusKey } from "@/lib/report-status";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
@@ -122,24 +124,39 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                     showBrandFilter={isAdmin}
                 />
             }
-            contentClassName="h-full"
+            contentClassName="h-full flex flex-col p-0"
         >
-            <AdminReportsTable
-                initialData={initialReports.reports}
-                initialNextCursor={initialReports.nextCursor}
-                initialTotalCount={initialReports.totalCount}
-                branches={branches}
-                areaNames={areaOptions}
-                initialStatus={initialStatus ?? "all"}
-                initialScope={initialScope ?? "all"}
-                initialPjumStatus={initialPjumStatus ?? "all"}
-                initialBranchName={initialBranchName ?? "all"}
-                initialAreaName={initialAreaName ?? "all"}
-                initialBrand={initialBrand}
-                initialFromDate={initialFromDate}
-                initialToDate={initialToDate}
-                showBrandFilter={isAdmin}
-            />
+            <Tabs defaultValue="active" className="flex flex-col h-full">
+                <div className="px-6 pt-4 border-b">
+                    <TabsList>
+                        <TabsTrigger value="active">Laporan Aktif</TabsTrigger>
+                        <TabsTrigger value="deleted">Laporan Dihapus</TabsTrigger>
+                    </TabsList>
+                </div>
+                
+                <TabsContent value="active" className="flex-1 m-0 h-full">
+                    <AdminReportsTable
+                        initialData={initialReports.reports}
+                        initialNextCursor={initialReports.nextCursor}
+                        initialTotalCount={initialReports.totalCount}
+                        branches={branches}
+                        areaNames={areaOptions}
+                        initialStatus={initialStatus ?? "all"}
+                        initialScope={initialScope ?? "all"}
+                        initialPjumStatus={initialPjumStatus ?? "all"}
+                        initialBranchName={initialBranchName ?? "all"}
+                        initialAreaName={initialAreaName ?? "all"}
+                        initialBrand={initialBrand}
+                        initialFromDate={initialFromDate}
+                        initialToDate={initialToDate}
+                        showBrandFilter={isAdmin}
+                    />
+                </TabsContent>
+                
+                <TabsContent value="deleted" className="flex-1 m-0 h-full overflow-hidden">
+                    <DeletedReportsTable />
+                </TabsContent>
+            </Tabs>
         </AdminDashboardShell>
     );
 }

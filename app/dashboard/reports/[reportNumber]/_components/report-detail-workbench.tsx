@@ -27,6 +27,7 @@ import {
     AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { hasCompletePreventiveEvidence } from "@/lib/report-preventive";
 import type { DetailPhoto, ReportDetailModel } from "../_lib/detail-data";
@@ -78,6 +79,7 @@ export function ReportDetailWorkbench({
     const [archiveOpen, setArchiveOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [deleteConfirmation, setDeleteConfirmation] = useState("");
+    const [deleteReason, setDeleteReason] = useState("");
 
     function handlePhotoSelect(photo: DetailPhoto) {
         reviewGate.markPhotoOpened(photo.id);
@@ -108,6 +110,7 @@ export function ReportDetailWorkbench({
             const result = await deleteAdminReport(
                 report.reportNumber,
                 deleteConfirmation,
+                deleteReason
             );
             if (result.error) {
                 toast.error("Gagal menghapus laporan", {
@@ -335,7 +338,10 @@ export function ReportDetailWorkbench({
                 open={deleteOpen}
                 onOpenChange={(open) => {
                     setDeleteOpen(open);
-                    if (!open) setDeleteConfirmation("");
+                    if (!open) {
+                        setDeleteConfirmation("");
+                        setDeleteReason("");
+                    }
                 }}
             >
                 <AlertDialogContent>
@@ -373,6 +379,22 @@ export function ReportDetailWorkbench({
                             disabled={isDeleting}
                         />
                     </div>
+                    <div className="grid gap-2">
+                        <label
+                            htmlFor="delete-report-reason"
+                            className="text-sm font-medium"
+                        >
+                            Alasan Penghapusan <span className="text-destructive">*</span>
+                        </label>
+                        <Textarea
+                            id="delete-report-reason"
+                            value={deleteReason}
+                            onChange={(event) => setDeleteReason(event.target.value)}
+                            placeholder="Alasan laporan ini dihapus permanen..."
+                            disabled={isDeleting}
+                            rows={3}
+                        />
+                    </div>
                     <AlertDialogFooter>
                         <AlertDialogCancel disabled={isDeleting}>
                             Batal
@@ -381,7 +403,8 @@ export function ReportDetailWorkbench({
                             variant="destructive"
                             disabled={
                                 isDeleting ||
-                                deleteConfirmation !== report.reportNumber
+                                deleteConfirmation !== report.reportNumber ||
+                                deleteReason.trim() === ""
                             }
                             onClick={(event) => {
                                 event.preventDefault();
