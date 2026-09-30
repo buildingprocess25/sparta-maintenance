@@ -59,7 +59,7 @@ export function DeletedReportsTable() {
     }
 
     return (
-        <div className="flex flex-col h-full gap-4 p-4">
+        <div className="flex flex-col h-full gap-4">
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-medium">History Laporan Dihapus (100 Terakhir)</h3>
                 <Button variant="outline" size="sm" onClick={handleExport} disabled={data.length === 0}>

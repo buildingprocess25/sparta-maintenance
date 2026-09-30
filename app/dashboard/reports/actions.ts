@@ -508,7 +508,6 @@ export async function archiveAdminReport(
                         status: { not: "APPROVED" },
                         reportNumbers: {
                             equals: reportNumbers,
-                            has: reportNumber,
                         },
                     },
                 });
@@ -524,7 +523,6 @@ export async function archiveAdminReport(
                         status: { not: "APPROVED" },
                         reportNumbers: {
                             equals: reportNumbers,
-                            has: reportNumber,
                         },
                     },
                     data: { reportNumbers: { set: update.reportNumbers } },
@@ -686,7 +684,6 @@ export async function deleteAdminReport(
                         status: { not: "APPROVED" },
                         reportNumbers: {
                             equals: reportNumbers,
-                            has: reportNumber,
                         },
                     },
                 });
@@ -702,7 +699,6 @@ export async function deleteAdminReport(
                         status: { not: "APPROVED" },
                         reportNumbers: {
                             equals: reportNumbers,
-                            has: reportNumber,
                         },
                     },
                     data: { reportNumbers: { set: update.reportNumbers } },

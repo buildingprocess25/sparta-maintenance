@@ -1,7 +1,7 @@
 "use server";
 
 import { getAuthUser } from "@/lib/authorization";
-import { prisma } from "@/lib/prisma";
+import prisma from "@/lib/prisma";
 
 export async function getDeletedReports() {
     const user = await getAuthUser();

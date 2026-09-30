@@ -124,17 +124,27 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                     showBrandFilter={isAdmin}
                 />
             }
-            contentClassName="h-full flex flex-col p-0"
+            contentClassName="h-full flex flex-col p-0 gap-0 overflow-hidden"
         >
             <Tabs defaultValue="active" className="flex flex-col h-full">
-                <div className="px-6 pt-4 border-b">
-                    <TabsList>
-                        <TabsTrigger value="active">Laporan Aktif</TabsTrigger>
-                        <TabsTrigger value="deleted">Laporan Dihapus</TabsTrigger>
+                <div className="bg-background border-b px-4 lg:px-6">
+                    <TabsList variant="line" className="h-12 w-full justify-start gap-6 bg-transparent p-0">
+                        <TabsTrigger 
+                            value="active" 
+                            className="h-full rounded-none px-1 text-sm font-medium hover:text-primary data-[state=active]:text-primary data-[state=active]:shadow-none relative after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100 transition-none"
+                        >
+                            Laporan Aktif
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="deleted" 
+                            className="h-full rounded-none px-1 text-sm font-medium hover:text-primary data-[state=active]:text-primary data-[state=active]:shadow-none relative after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[2px] after:bg-primary after:opacity-0 data-[state=active]:after:opacity-100 transition-none"
+                        >
+                            History Dihapus
+                        </TabsTrigger>
                     </TabsList>
                 </div>
                 
-                <TabsContent value="active" className="flex-1 m-0 h-full">
+                <TabsContent value="active" className="flex-1 m-0 h-full p-4 lg:p-6 overflow-hidden">
                     <AdminReportsTable
                         initialData={initialReports.reports}
                         initialNextCursor={initialReports.nextCursor}
@@ -153,7 +163,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                     />
                 </TabsContent>
                 
-                <TabsContent value="deleted" className="flex-1 m-0 h-full overflow-hidden">
+                <TabsContent value="deleted" className="flex-1 m-0 h-full p-4 lg:p-6 overflow-hidden">
                     <DeletedReportsTable />
                 </TabsContent>
             </Tabs>
