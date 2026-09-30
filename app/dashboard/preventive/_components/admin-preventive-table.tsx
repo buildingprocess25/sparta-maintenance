@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as XLSX from "xlsx";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 import {
@@ -13,6 +14,7 @@ import {
     CheckCircle2,
     ClipboardCheck,
     Clock,
+    Download,
     FileText,
     Loader2,
     Search,
@@ -480,6 +482,33 @@ export function AdminPreventiveTable({
         },
         [hasMoreHistoryRows, filteredHistoryRows.length],
     );
+
+    const handleExportXlsx = () => {
+        const rows = sortedBranchSummaries.map((branch) => ({
+            Cabang: branch.branchName,
+            Target: branch.totalStores,
+            Selesai: branch.completed,
+            Belum: branch.pending,
+            Coverage: branch.completionRate / 100,
+            Terakhir: formatDate(branch.lastDoneAt),
+        }));
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+
+        // Apply percentage formatting to the 'Coverage' column (Column E)
+        const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1:F1");
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+            const cellAddress = { c: 4, r: R };
+            const cellRef = XLSX.utils.encode_cell(cellAddress);
+            if (worksheet[cellRef]) {
+                worksheet[cellRef].z = "0.00%";
+            }
+        }
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Cabang");
+        XLSX.writeFile(workbook, "Preventive_Cabang_SPARTA.xlsx");
+    };
 
     return (
         <div className="flex min-h-full flex-col bg-muted/30">
@@ -1031,13 +1060,25 @@ export function AdminPreventiveTable({
                                 <p className="text-sm text-muted-foreground">
                                     Ringkasan capaian checklist preventif per cabang.
                                 </p>
-                                <button
-                                    onClick={() => setBranchSort(prev => prev === "asc" ? "desc" : "asc")}
-                                    className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors"
-                                >
-                                    <ArrowDownUp className="h-3.5 w-3.5" />
-                                    {branchSort === "asc" ? "Terendah dulu" : "Tertinggi dulu"}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={handleExportXlsx}
+                                        disabled={sortedBranchSummaries.length === 0}
+                                        className="h-8"
+                                    >
+                                        <Download className="mr-2 h-3.5 w-3.5" />
+                                        Ekspor XLSX
+                                    </Button>
+                                    <button
+                                        onClick={() => setBranchSort((prev) => (prev === "asc" ? "desc" : "asc"))}
+                                        className="flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted transition-colors h-8"
+                                    >
+                                        <ArrowDownUp className="h-3.5 w-3.5" />
+                                        {branchSort === "asc" ? "Terendah dulu" : "Tertinggi dulu"}
+                                    </button>
+                                </div>
                             </div>
                             <div className="overflow-hidden rounded-lg border bg-background">
                                 <Table>
