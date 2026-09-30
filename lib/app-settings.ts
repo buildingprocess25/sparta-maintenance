@@ -14,6 +14,8 @@ export const SETTING_KEYS = {
     MAINTENANCE_ENABLED: "maintenance_enabled",
     REPORT_SLA_PENDING_ESTIMATION_DAYS:
         "report_sla_pending_estimation_days",
+    REPORT_SLA_PENDING_CHECKLIST_REVIEW_DAYS:
+        "report_sla_pending_checklist_review_days",
     REPORT_SLA_ESTIMATION_APPROVED_DAYS:
         "report_sla_estimation_approved_days",
     REPORT_SLA_ESTIMATION_REVISION_DAYS:
@@ -31,6 +33,7 @@ export const SETTING_KEYS = {
 export const DEFAULT_REPORT_SLA_DAYS: Partial<Record<ReportStatusKey, number>> =
     {
         PENDING_ESTIMATION: 1,
+        PENDING_CHECKLIST_REVIEW: 1,
         ESTIMATION_APPROVED: 3,
         ESTIMATION_REJECTED_REVISION: 2,
         IN_PROGRESS: 7,
@@ -43,6 +46,10 @@ export const REPORT_SLA_SETTING_FIELDS = [
     {
         status: "PENDING_ESTIMATION",
         key: SETTING_KEYS.REPORT_SLA_PENDING_ESTIMATION_DAYS,
+    },
+    {
+        status: "PENDING_CHECKLIST_REVIEW",
+        key: SETTING_KEYS.REPORT_SLA_PENDING_CHECKLIST_REVIEW_DAYS,
     },
     {
         status: "ESTIMATION_APPROVED",

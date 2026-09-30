@@ -9,6 +9,11 @@ export const SLA_STATUS_GUIDE = [
     note: "BMC harus mulai review estimasi.",
   },
   {
+    status: "PENDING_CHECKLIST_REVIEW",
+    days: 1,
+    note: "BMC mereview kelengkapan checklist dari surveyor.",
+  },
+  {
     status: "ESTIMATION_APPROVED",
     days: 3,
     note: "BMS mulai kerja setelah estimasi disetujui.",
