@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Clock } from "lucide-react";
+import * as XLSX from "xlsx";
+import { ChevronDown, ChevronRight, Clock, Download } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -32,14 +34,63 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
         setExpandedBranches(next);
     };
 
+    const handleExport = () => {
+        const rows: Record<string, string>[] = [];
+
+        data.forEach((branch) => {
+            rows.push({
+                "Nama Cabang": branch.branchName,
+                "Nama BMS": "[RATA-RATA CABANG]",
+                "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(branch.estimasiToAppvBMC),
+                "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(branch.estimasiToRevisiBMC),
+                "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(branch.appvBMCToWorkStart),
+                "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDuration(branch.workStartToRealisasi),
+                "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDuration(branch.realisasiToRevisiBMC),
+                "REALISASI DIAJUKAN - APPV BMC": formatDuration(branch.realisasiToAppvBMC),
+                "APPV BMC - APPV MGR": formatDuration(branch.appvBMCToAppvMGR),
+            });
+
+            branch.bmsList.forEach((bms) => {
+                rows.push({
+                    "Nama Cabang": branch.branchName,
+                    "Nama BMS": bms.bmsName,
+                    "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(bms.estimasiToAppvBMC),
+                    "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(bms.estimasiToRevisiBMC),
+                    "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(bms.appvBMCToWorkStart),
+                    "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDuration(bms.workStartToRealisasi),
+                    "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDuration(bms.realisasiToRevisiBMC),
+                    "REALISASI DIAJUKAN - APPV BMC": formatDuration(bms.realisasiToAppvBMC),
+                    "APPV BMC - APPV MGR": formatDuration(bms.appvBMCToAppvMGR),
+                });
+            });
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(rows);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "SLA Proses");
+        XLSX.writeFile(workbook, "SLA_Proses_SPARTA.xlsx");
+    };
+
     return (
         <div className="space-y-4 min-w-0">
-            <div className="border-b pb-2">
-                <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-primary" />
-                    <h2 className="text-sm font-semibold">SLA Proses SPARTA</h2>
+            <div className="border-b pb-2 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-primary" />
+                        <h2 className="text-sm font-semibold">SLA Proses SPARTA</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">Rata-rata durasi proses per tahapan dikelompokkan per BMS.</p>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">Rata-rata durasi proses per tahapan dikelompokkan per BMS.</p>
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleExport}
+                    disabled={data.length === 0}
+                    className="shrink-0"
+                >
+                    <Download className="mr-2 h-4 w-4" />
+                    Ekspor XLSX
+                </Button>
             </div>
             
             <div className="min-w-0 overflow-hidden rounded-lg border bg-background">
