@@ -90,7 +90,7 @@ export function BmsMobileDashboardStats({
     <section className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
         <h2 className="font-heading text-lg font-semibold tracking-tight">
-          Stats Laporan
+          Status Laporan
         </h2>
         <p className="text-xs text-muted-foreground">
           Ketuk kartu untuk membuka daftar laporan terkait.
