@@ -452,3 +452,27 @@ model AppSetting {
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   updatedBy String? // NIK admin who last changed this
 }
+
+model DeletedReport {
+  id              String   @id @default(uuid())
+  reportNumber    String   @unique
+  storeCode       String?
+  storeName       String
+  itemCount       Int
+  totalEstimation Decimal  @db.Decimal(15, 2)
+  totalReal       Decimal? @db.Decimal(15, 2)
+  lastStatus      String
+  
+  deletedByNIK    String
+  deletedByName   String
+  deleteReason    String
+  
+  deletedAt       DateTime @default(now()) @db.Timestamptz(3)
+  
+  // Backup data laporan utuh jika sewaktu-waktu dibutuhkan
+  originalData    Json 
+
+  @@index([deletedAt])
+  @@index([storeCode])
+  @@index([deletedByNIK])
+}
