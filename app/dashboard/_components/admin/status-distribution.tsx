@@ -1,15 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableFooter,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
+
 import { getStatusSegmentClass } from "./sla-status-guide";
 import { isActiveReportStatus } from "@/lib/report-status";
 import type { AdminStatusDatum } from "@/app/dashboard/queries";
@@ -68,7 +60,7 @@ export function StatusDistributionKpis({
                 </div>
             </div>
 
-            <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+            <div className="flex h-4 overflow-hidden rounded-full bg-muted">
                 {visibleStatus.map((item) => (
                     <span
                         key={item.status}
@@ -85,99 +77,51 @@ export function StatusDistributionKpis({
                 ))}
             </div>
 
-            <div className="rounded-lg border">
-                <Table className="text-xs" containerClassName="max-h-[300px]">
-                    <TableHeader className="bg-muted/40">
-                        <TableRow>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-24 text-right">
-                                Jumlah
-                            </TableHead>
-                            <TableHead className="w-20 text-right">%</TableHead>
-                            <TableHead className="w-36 text-right">
-                                Kondisi SLA
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {visibleStatus.map((item) => {
-                            const percentage =
-                                totalActive > 0
-                                    ? Math.round(
-                                          (item.count / totalActive) * 100,
-                                      )
-                                    : 0;
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                {visibleStatus.map((item) => {
+                    const percentage =
+                        totalActive > 0
+                            ? Math.round((item.count / totalActive) * 100)
+                            : 0;
 
-                            return (
-                                <TableRow key={item.status}>
-                                    <TableCell>
-                                        <Link
-                                            href={`/dashboard/reports?status=${item.status}`}
-                                            className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
-                                        >
-                                            <span
-                                                className={`h-2.5 w-2.5 rounded-full ${getStatusSegmentClass(
-                                                    item.status,
-                                                )}`}
-                                            />
-                                            {item.label}
-                                            <ArrowUpRight className="h-3 w-3" />
-                                        </Link>
-                                    </TableCell>
-                                    <TableCell className="text-right font-mono font-semibold">
+                    return (
+                        <Link
+                            key={item.status}
+                            href={`/dashboard/reports?status=${item.status}`}
+                            className="group flex flex-col justify-between p-3 rounded-lg border bg-card hover:border-primary/50 transition-colors"
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`h-2.5 w-2.5 rounded-full shrink-0 ${getStatusSegmentClass(
+                                            item.status
+                                        )}`}
+                                    />
+                                    <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                        {item.label}
+                                    </span>
+                                </div>
+                                <ArrowUpRight className="h-3 w-3 shrink-0 text-muted-foreground/50 group-hover:text-primary transition-colors" />
+                            </div>
+                            
+                            <div className="mt-4 flex items-end justify-between gap-2">
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-2xl font-semibold tracking-tight leading-none">
                                         {formatNumber(item.count)}
-                                    </TableCell>
-                                    <TableCell className="text-right text-muted-foreground">
+                                    </span>
+                                    <span className="text-[11px] text-muted-foreground font-medium">
                                         {percentage}%
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Badge
-                                            variant="outline"
-                                            className={
-                                                item.overdueCount > 0
-                                                    ? "border-red-200 bg-red-50 text-red-700"
-                                                    : item.slaDays === null
-                                                    ? "border-slate-200 bg-slate-50 text-slate-700"
-                                                    : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                            }
-                                        >
-                                            {item.overdueCount > 0
-                                                ? `${formatNumber(item.overdueCount)} lewat batas`
-                                                : item.slaDays === null
-                                                ? "Tanpa batas waktu"
-                                                : `Batas ${item.slaDays} hari`}
-                                        </Badge>
-                                    </TableCell>
-                                </TableRow>
-                            );
-                        })}
-                    </TableBody>
-                    <TableFooter>
-                        <TableRow>
-                            <TableCell>Total</TableCell>
-                            <TableCell className="text-right font-mono font-semibold">
-                                {formatNumber(totalActive)}
-                            </TableCell>
-                            <TableCell className="text-right text-muted-foreground">
-                                100%
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <Badge
-                                    variant="outline"
-                                    className={
-                                        totalOverdue > 0
-                                            ? "border-red-200 bg-red-50 text-red-700"
-                                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                    }
-                                >
-                                    {totalOverdue > 0
-                                        ? `${formatNumber(totalOverdue)} lewat batas`
-                                        : "SLA aman"}
-                                </Badge>
-                            </TableCell>
-                        </TableRow>
-                    </TableFooter>
-                </Table>
+                                    </span>
+                                </div>
+                                {item.overdueCount > 0 && (
+                                    <span className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                        {formatNumber(item.overdueCount)} lewat SLA
+                                    </span>
+                                )}
+                            </div>
+                        </Link>
+                    );
+                })}
             </div>
 
             {visibleStatus.length === 0 && (
