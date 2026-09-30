@@ -24,8 +24,8 @@ import {
   YAxis,
 } from "recharts";
 import { Loader2 } from "lucide-react";
-import { fetchAdminRealisasiDetailAction } from "../../../actions";
-import type { AdminRealisasiDetail } from "../../../queries";
+import { fetchAdminRealisasiDetailAction } from "../../actions";
+import type { AdminRealisasiDetail } from "../../queries";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 
 type RealisasiChartWidgetProps = {
