@@ -420,6 +420,7 @@ export async function ManagerDashboard({
             
             <div className="mt-6">
                 <AdminRecentActivityCard activities={adminData.recentActivity} />
+            </div>
         </AdminDashboardShell>
     );
 }
