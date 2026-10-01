@@ -2070,8 +2070,7 @@ export async function getAdminRealisasiDetail(
     const rows = await prisma.report.findMany({
       where: {
         ...getReportBrandWhere(brand),
-        ...(branchScope ? { branchName: { in: branchScope } } : {}),
-        NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
+        ...(branchScope ? { branchName: { in: branchScope } } : { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } }),
         status: "COMPLETED",
         createdAt: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
       },
