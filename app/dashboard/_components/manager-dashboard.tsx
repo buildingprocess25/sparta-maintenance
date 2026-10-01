@@ -28,7 +28,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
+import { Suspense } from "react";
 import { AdminDashboardShell } from "./admin/admin-dashboard-shell";
+import { AdminDashboardSkeleton } from "./admin/admin-dashboard-skeleton";
 import type { AuthUser } from "@/lib/authorization";
 import { cn, formatDashboardCurrency } from "@/lib/utils";
 import {
@@ -140,7 +142,7 @@ function PriorityReportsTable({
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href={copy.primaryHref}>
+                        <Link prefetch={false} href={copy.primaryHref}>
                             Buka tabel
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -184,6 +186,7 @@ function PriorityReportsTable({
                                     <TableRow key={report.reportNumber}>
                                         <TableCell>
                                             <Link
+                                                prefetch={false}
                                                 href={`/dashboard/reports/${report.reportNumber}`}
                                                 className="inline-flex items-center gap-1 font-mono font-medium text-primary underline-offset-4 hover:underline"
                                             >
@@ -260,7 +263,7 @@ function SidePanel({ data }: { data: ManagerDashboardData }) {
                             </CardDescription>
                         </div>
                         <Button asChild variant="outline" size="sm">
-                            <Link href="/dashboard/pjum?status=PENDING_APPROVAL">
+                            <Link prefetch={false} href="/dashboard/pjum?status=PENDING_APPROVAL">
                                 Detail
                                 <ArrowUpRight className="h-4 w-4" />
                             </Link>
@@ -275,6 +278,7 @@ function SidePanel({ data }: { data: ManagerDashboardData }) {
                     ) : (
                         data.pendingPjums.map((pjum) => (
                             <Link
+                                prefetch={false}
                                 key={pjum.id}
                                 href={`/dashboard/pjum/${pjum.id}`}
                                 className="flex items-center justify-between gap-3 rounded-md border bg-background p-2 text-xs hover:border-primary/40 hover:bg-muted/30"
@@ -320,6 +324,7 @@ function SidePanel({ data }: { data: ManagerDashboardData }) {
                 </CardHeader>
                 <CardContent>
                     <Link
+                        prefetch={false}
                         href="/dashboard/reports?status=COMPLETED&pjumStatus=exported"
                         className="inline-flex items-center gap-2 text-2xl font-semibold tracking-tight text-primary underline-offset-4 hover:underline"
                     >
@@ -337,7 +342,7 @@ function SidePanel({ data }: { data: ManagerDashboardData }) {
 
 
 
-export async function ManagerDashboard({
+async function ManagerDashboardContent({
     user,
     role,
     period,
@@ -352,7 +357,6 @@ export async function ManagerDashboard({
         role,
         branchNames: user.branchNames,
     });
-    const copy = getDashboardCopy(role);
     const resolvedPeriod = (period as any) || "ytd";
     const resolvedBrand = brand || "ALL";
     const adminData = await getAdminCommandCenterData(
@@ -362,12 +366,7 @@ export async function ManagerDashboard({
     );
 
     return (
-        <AdminDashboardShell
-            user={user}
-            title={copy.title}
-            breadcrumbs={[{ label: copy.title }]}
-            contentClassName="md:p-6 space-y-6"
-        >
+        <>
             <DashboardHeader kpi={adminData.kpi} brand={resolvedBrand} />
             <KpiGrid 
                 kpi={adminData.kpi} 
@@ -400,6 +399,33 @@ export async function ManagerDashboard({
             </div>
             
             <AdminRecentActivityCard activities={adminData.recentActivity} />
+        </>
+    );
+}
+
+export function ManagerDashboard({
+    user,
+    role,
+    period,
+    brand,
+}: {
+    user: AuthUser;
+    role: ManagerDashboardRole;
+    period?: string;
+    brand?: StoreBrandFilter;
+}) {
+    const copy = getDashboardCopy(role);
+
+    return (
+        <AdminDashboardShell
+            user={user}
+            title={copy.title}
+            breadcrumbs={[{ label: copy.title }]}
+            contentClassName="md:p-6 space-y-6"
+        >
+            <Suspense fallback={<AdminDashboardSkeleton />}>
+                <ManagerDashboardContent user={user} role={role} period={period} brand={brand} />
+            </Suspense>
         </AdminDashboardShell>
     );
 }
