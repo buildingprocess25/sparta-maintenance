@@ -17,7 +17,12 @@ export function PreventiveKpiWidget() {
     const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
-        getPreventiveBranchOptions().then(setAvailableBranches);
+        getPreventiveBranchOptions().then((branches) => {
+            setAvailableBranches(branches);
+            if (branches.length === 1) {
+                setBranchName(branches[0]);
+            }
+        });
     }, []);
 
     useEffect(() => {
@@ -55,12 +60,14 @@ export function PreventiveKpiWidget() {
                     <p className="text-sm text-muted-foreground mt-1">Capaian checklist preventif per cabang dan triwulan</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    <Select value={branchName} onValueChange={setBranchName} disabled={!data}>
+                    <Select value={branchName} onValueChange={setBranchName} disabled={!data || availableBranches.length <= 1}>
                         <SelectTrigger className="w-[180px] h-9 text-xs">
                             <SelectValue placeholder="Semua Cabang" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Semua Cabang</SelectItem>
+                            {availableBranches.length !== 1 && (
+                                <SelectItem value="all">Semua Cabang</SelectItem>
+                            )}
                             {availableBranches.map(b => (
                                 <SelectItem key={b} value={b}>{b}</SelectItem>
                             ))}
