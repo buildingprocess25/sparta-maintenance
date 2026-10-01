@@ -6,21 +6,11 @@ import { logger } from "@/lib/logger";
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
-import {
-  ARCHIVED_PREVENTIVE_STATUS,
-  getReportStatusLabel,
-  OPERATIONAL_EXCLUDED_REPORT_STATUSES,
-} from "@/lib/report-status";
+import { ARCHIVED_PREVENTIVE_STATUS, getReportStatusLabel, OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
 import { requiresPjum } from "@/lib/realisasi";
 import type { ReportItemJson } from "@/types/report";
-import {
-  StoreBrandFilter,
-  buildPjumBrandWhere,
-  getReportBrandWhere,
-  getVisibleBrandBranchNames,
-  getStoreBrandWhere,
-} from "@/lib/store-brand-filter";
+import { StoreBrandFilter, buildPjumBrandWhere, getReportBrandWhere, getVisibleBrandBranchNames, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import {
   formatJakartaDate,
   getJakartaDayKey,
@@ -54,21 +44,10 @@ export async function getUserStats(userId: string) {
       _count: { _all: true },
     });
 
-    const countMap = new Map(
-      statusCounts.map((row) => [row.status, row._count._all]),
-    );
+    const countMap = new Map(statusCounts.map((row) => [row.status, row._count._all]));
 
-    const needsActionStatuses = [
-      "ESTIMATION_APPROVED",
-      "ESTIMATION_REJECTED_REVISION",
-      "REVIEW_REJECTED_REVISION",
-    ];
-    const waitingReviewStatuses = [
-      "PENDING_ESTIMATION",
-      "PENDING_CHECKLIST_REVIEW",
-      "PENDING_REVIEW",
-      "APPROVED_BMC",
-    ];
+    const needsActionStatuses = ["ESTIMATION_APPROVED", "ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"];
+    const waitingReviewStatuses = ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"];
 
     let totalReports = 0;
     let needsAction = 0;
@@ -95,11 +74,7 @@ export async function getUserStats(userId: string) {
       activeReports,
     };
   } catch (error) {
-    logger.error(
-      { operation: "getUserStats", userId },
-      "Failed to fetch user stats",
-      error,
-    );
+    logger.error({ operation: "getUserStats", userId }, "Failed to fetch user stats", error);
     throw error;
   }
 }
@@ -123,15 +98,9 @@ export async function getBMCStats(branchNames: string[]) {
       _count: { _all: true },
     });
 
-    const countMap = new Map(
-      statusCounts.map((row) => [row.status, row._count._all]),
-    );
+    const countMap = new Map(statusCounts.map((row) => [row.status, row._count._all]));
 
-    const needsReviewStatuses = [
-      "PENDING_ESTIMATION",
-      "PENDING_CHECKLIST_REVIEW",
-      "PENDING_REVIEW",
-    ];
+    const needsReviewStatuses = ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"];
     const inProgressStatuses = ["ESTIMATION_APPROVED", "IN_PROGRESS"];
 
     let totalReports = 0;
@@ -152,11 +121,7 @@ export async function getBMCStats(branchNames: string[]) {
       completed,
     };
   } catch (error) {
-    logger.error(
-      { operation: "getBMCStats", branchNames },
-      "Failed to fetch BMC stats",
-      error,
-    );
+    logger.error({ operation: "getBMCStats", branchNames }, "Failed to fetch BMC stats", error);
     throw error;
   }
 }
@@ -179,9 +144,7 @@ export async function getBNMStats(branchNames: string[]) {
       _count: { _all: true },
     });
 
-    const countMap = new Map(
-      statusCounts.map((row) => [row.status, row._count._all]),
-    );
+    const countMap = new Map(statusCounts.map((row) => [row.status, row._count._all]));
 
     let totalReports = 0;
     for (const count of countMap.values()) {
@@ -194,11 +157,7 @@ export async function getBNMStats(branchNames: string[]) {
       totalReports,
     };
   } catch (error) {
-    logger.error(
-      { operation: "getBNMStats", branchNames },
-      "Failed to fetch BNM stats",
-      error,
-    );
+    logger.error({ operation: "getBNMStats", branchNames }, "Failed to fetch BNM stats", error);
     throw error;
   }
 }
@@ -206,9 +165,7 @@ export async function getBNMStats(branchNames: string[]) {
 /**
  * Count PJUM exports pending BnM Manager approval.
  */
-export async function getPendingPjumCount(
-  branchNames: string[],
-): Promise<number> {
+export async function getPendingPjumCount(branchNames: string[]): Promise<number> {
   try {
     return await prisma.pjumExport.count({
       where: {
@@ -217,25 +174,12 @@ export async function getPendingPjumCount(
       },
     });
   } catch (error) {
-    logger.error(
-      { operation: "getPendingPjumCount", branchNames },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getPendingPjumCount", branchNames }, "Failed", error);
     return 0;
   }
 }
 
-const MANAGER_ACTIVE_REPORT_STATUSES = [
-  "PENDING_ESTIMATION",
-  "PENDING_CHECKLIST_REVIEW",
-  "ESTIMATION_APPROVED",
-  "ESTIMATION_REJECTED_REVISION",
-  "IN_PROGRESS",
-  "PENDING_REVIEW",
-  "APPROVED_BMC",
-  "REVIEW_REJECTED_REVISION",
-] as const;
+const MANAGER_ACTIVE_REPORT_STATUSES = ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "ESTIMATION_APPROVED", "ESTIMATION_REJECTED_REVISION", "IN_PROGRESS", "PENDING_REVIEW", "APPROVED_BMC", "REVIEW_REJECTED_REVISION"] as const;
 
 export type ManagerDashboardRole = "BMC" | "BNM_MANAGER";
 
@@ -286,11 +230,7 @@ function getManagerPriorityStatuses(role: ManagerDashboardRole) {
     return ["APPROVED_BMC"] as const;
   }
 
-  return [
-    "PENDING_ESTIMATION",
-    "PENDING_CHECKLIST_REVIEW",
-    "PENDING_REVIEW",
-  ] as const;
+  return ["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW"] as const;
 }
 
 function normalizeManagerBranchNames(branchNames: string[]) {
@@ -325,13 +265,7 @@ function mapManagerReport(report: {
   };
 }
 
-export async function getManagerDashboardData({
-  role,
-  branchNames,
-}: {
-  role: ManagerDashboardRole;
-  branchNames: string[];
-}): Promise<ManagerDashboardData> {
+export async function getManagerDashboardData({ role, branchNames }: { role: ManagerDashboardRole; branchNames: string[] }): Promise<ManagerDashboardData> {
   const visibleBranches = normalizeManagerBranchNames(branchNames);
   const empty: ManagerDashboardData = {
     branchNames: visibleBranches,
@@ -365,18 +299,7 @@ export async function getManagerDashboardData({
   };
 
   try {
-    const [
-      totalReports,
-      activeReports,
-      pendingReports,
-      completedReports,
-      pendingPjum,
-      approvedPjumRows,
-      totalRealisasi,
-      priorityRows,
-      pendingPjumRows,
-      recentActivity,
-    ] = await Promise.all([
+    const [totalReports, activeReports, pendingReports, completedReports, pendingPjum, approvedPjumRows, totalRealisasi, priorityRows, pendingPjumRows, recentActivity] = await Promise.all([
       prisma.report.count({ where: reportBase }),
       prisma.report.count({
         where: {
@@ -394,10 +317,7 @@ export async function getManagerDashboardData({
       prisma.pjumExport.count({
         where: {
           branchName: { in: visibleBranches },
-          status:
-            role === "BMC"
-              ? { in: ["PENDING_APPROVAL", "REJECTED"] }
-              : "PENDING_APPROVAL",
+          status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
         },
       }),
       prisma.pjumExport.findMany({
@@ -442,10 +362,7 @@ export async function getManagerDashboardData({
       prisma.pjumExport.findMany({
         where: {
           branchName: { in: visibleBranches },
-          status:
-            role === "BMC"
-              ? { in: ["PENDING_APPROVAL", "REJECTED"] }
-              : "PENDING_APPROVAL",
+          status: role === "BMC" ? { in: ["PENDING_APPROVAL", "REJECTED"] } : "PENDING_APPROVAL",
         },
         orderBy: [{ createdAt: "asc" }, { id: "desc" }],
         take: 5,
@@ -462,9 +379,7 @@ export async function getManagerDashboardData({
       getBranchActivity(visibleBranches, 8),
     ]);
 
-    const pjumBmsNiks = Array.from(
-      new Set(pendingPjumRows.map((pjum) => pjum.bmsNIK)),
-    );
+    const pjumBmsNiks = Array.from(new Set(pendingPjumRows.map((pjum) => pjum.bmsNIK)));
     const bmsUsers =
       pjumBmsNiks.length > 0
         ? await prisma.user.findMany({
@@ -481,15 +396,9 @@ export async function getManagerDashboardData({
         activeReports,
         pendingReports,
         completedReports,
-        completionRate:
-          totalReports > 0
-            ? Math.round((completedReports / totalReports) * 100)
-            : 0,
+        completionRate: totalReports > 0 ? Math.round((completedReports / totalReports) * 100) : 0,
         pendingPjum,
-        approvedPjumReportCount: approvedPjumRows.reduce(
-          (sum, pjum) => sum + pjum.reportNumbers.length,
-          0,
-        ),
+        approvedPjumReportCount: approvedPjumRows.reduce((sum, pjum) => sum + pjum.reportNumbers.length, 0),
         totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
       },
       priorityReports: priorityRows.map(mapManagerReport),
@@ -506,11 +415,7 @@ export async function getManagerDashboardData({
       recentActivity,
     };
   } catch (error) {
-    logger.error(
-      { operation: "getManagerDashboardData", role, branchNames },
-      "Failed to fetch manager dashboard data",
-      error,
-    );
+    logger.error({ operation: "getManagerDashboardData", role, branchNames }, "Failed to fetch manager dashboard data", error);
     return empty;
   }
 }
@@ -535,12 +440,7 @@ export type ActivityItem = {
 
 // ── internal helper ───────────────────────────────────────────────────────────
 
-async function fetchActivityLogs(
-  where: NonNullable<
-    Parameters<typeof prisma.activityLog.findMany>[0]
-  >["where"],
-  limit: number,
-): Promise<ActivityItem[]> {
+async function fetchActivityLogs(where: NonNullable<Parameters<typeof prisma.activityLog.findMany>[0]>["where"], limit: number): Promise<ActivityItem[]> {
   const rows = await prisma.activityLog.findMany({
     where: {
       AND: [
@@ -576,9 +476,7 @@ async function fetchActivityLogs(
   });
   return rows.map((row) => {
     const { items, ...report } = row.report;
-    const reportItems = Array.isArray(items)
-      ? (items as unknown as ReportItemJson[])
-      : [];
+    const reportItems = Array.isArray(items) ? (items as unknown as ReportItemJson[]) : [];
 
     return {
       ...row,
@@ -594,10 +492,7 @@ async function fetchActivityLogs(
 /**
  * Fetch activity log for reports created by a specific BMS user.
  */
-export async function getBMSActivity(
-  userId: string,
-  limit = 5,
-): Promise<ActivityItem[]> {
+export async function getBMSActivity(userId: string, limit = 5): Promise<ActivityItem[]> {
   try {
     return await fetchActivityLogs({ report: { createdByNIK: userId } }, limit);
   } catch (error) {
@@ -609,21 +504,11 @@ export async function getBMSActivity(
 /**
  * Fetch activity log for all reports in the given branches.
  */
-export async function getBranchActivity(
-  branchNames: string[],
-  limit = 5,
-): Promise<ActivityItem[]> {
+export async function getBranchActivity(branchNames: string[], limit = 5): Promise<ActivityItem[]> {
   try {
-    return await fetchActivityLogs(
-      { report: { branchName: { in: branchNames } } },
-      limit,
-    );
+    return await fetchActivityLogs({ report: { branchName: { in: branchNames } } }, limit);
   } catch (error) {
-    logger.error(
-      { operation: "getBranchActivity", branchNames },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getBranchActivity", branchNames }, "Failed", error);
     return [];
   }
 }
@@ -641,10 +526,7 @@ export type PjumActivityItem = {
  * Fetch activity for PJUM exports in the given branches.
  * Returns both created and approved activities based on status/timestamps.
  */
-export async function getPjumActivity(
-  branchNames: string[],
-  limit = 5,
-): Promise<PjumActivityItem[]> {
+export async function getPjumActivity(branchNames: string[], limit = 5): Promise<PjumActivityItem[]> {
   try {
     const exports = await prisma.pjumExport.findMany({
       where: { branchName: { in: branchNames } },
@@ -699,15 +581,9 @@ export async function getPjumActivity(
     }
 
     // Sort combined activities and limit
-    return activities
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
+    return activities.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, limit);
   } catch (error) {
-    logger.error(
-      { operation: "getPjumActivity", branchNames },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getPjumActivity", branchNames }, "Failed", error);
     return [];
   }
 }
@@ -715,28 +591,12 @@ export async function getPjumActivity(
 /**
  * Fetch BMC's own approval/rejection actions (estimation & work completion).
  */
-export async function getBMCApprovalHistory(
-  actorNIK: string,
-  limit = 500,
-): Promise<ActivityItem[]> {
-  const BMC_ACTIONS = [
-    "ESTIMATION_APPROVED",
-    "ESTIMATION_REJECTED",
-    "ESTIMATION_REJECTED_REVISION",
-    "WORK_APPROVED",
-    "WORK_REJECTED_REVISION",
-  ];
+export async function getBMCApprovalHistory(actorNIK: string, limit = 500): Promise<ActivityItem[]> {
+  const BMC_ACTIONS = ["ESTIMATION_APPROVED", "ESTIMATION_REJECTED", "ESTIMATION_REJECTED_REVISION", "WORK_APPROVED", "WORK_REJECTED_REVISION"];
   try {
-    return await fetchActivityLogs(
-      { actorNIK, action: { in: BMC_ACTIONS as never[] } },
-      limit,
-    );
+    return await fetchActivityLogs({ actorNIK, action: { in: BMC_ACTIONS as never[] } }, limit);
   } catch (error) {
-    logger.error(
-      { operation: "getBMCApprovalHistory", actorNIK },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getBMCApprovalHistory", actorNIK }, "Failed", error);
     return [];
   }
 }
@@ -746,10 +606,7 @@ export async function getBMCApprovalHistory(
  */
 export async function getGlobalActivity(limit = 5): Promise<ActivityItem[]> {
   try {
-    return await fetchActivityLogs(
-      { report: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } },
-      limit,
-    );
+    return await fetchActivityLogs({ report: { NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } }, limit);
   } catch (error) {
     logger.error({ operation: "getGlobalActivity" }, "Failed", error);
     return [];
@@ -775,11 +632,7 @@ export async function getAdminVisibleOnlineUserCount(): Promise<number> {
       },
     });
   } catch (error) {
-    logger.error(
-      { operation: "getAdminVisibleOnlineUserCount" },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getAdminVisibleOnlineUserCount" }, "Failed", error);
     return 0;
   }
 }
@@ -899,9 +752,7 @@ const ADMIN_STATUS_LABELS: Record<string, string> = {
   PENDING_ESTIMATION: getReportStatusLabel("PENDING_ESTIMATION"),
   PENDING_CHECKLIST_REVIEW: getReportStatusLabel("PENDING_CHECKLIST_REVIEW"),
   ESTIMATION_APPROVED: getReportStatusLabel("ESTIMATION_APPROVED"),
-  ESTIMATION_REJECTED_REVISION: getReportStatusLabel(
-    "ESTIMATION_REJECTED_REVISION",
-  ),
+  ESTIMATION_REJECTED_REVISION: getReportStatusLabel("ESTIMATION_REJECTED_REVISION"),
   ESTIMATION_REJECTED: getReportStatusLabel("ESTIMATION_REJECTED"),
   IN_PROGRESS: getReportStatusLabel("IN_PROGRESS"),
   PENDING_REVIEW: getReportStatusLabel("PENDING_REVIEW"),
@@ -1106,16 +957,7 @@ const getAdminBranchHierarchyCached = unstable_cache(
       select: { branchNames: true },
     });
 
-    const optionNames = Array.from(
-      new Set(
-        users
-          .map((user) => user.branchNames[0])
-          .filter(
-            (name) =>
-              name && name.trim() !== "" && name !== EXCLUDED_ADMIN_BRANCH_NAME,
-          ),
-      ),
-    ).sort((a, b) => a.localeCompare(b, "id-ID"));
+    const optionNames = Array.from(new Set(users.map((user) => user.branchNames[0]).filter((name) => name && name.trim() !== "" && name !== EXCLUDED_ADMIN_BRANCH_NAME))).sort((a, b) => a.localeCompare(b, "id-ID"));
 
     const parentMap = new Map<string, string>();
     for (const user of users) {
@@ -1170,11 +1012,7 @@ export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
       },
     });
   } catch (error) {
-    logger.error(
-      { operation: "getAdminVisibleTodayActiveUserCount" },
-      "Failed",
-      error,
-    );
+    logger.error({ operation: "getAdminVisibleTodayActiveUserCount" }, "Failed", error);
     return 0;
   }
 }
@@ -1184,19 +1022,11 @@ export async function getAdminBranchOptions(): Promise<AdminBranchOption[]> {
   return hierarchy.options;
 }
 
-function resolveAdminParentBranch(
-  branchName: string,
-  hierarchy: AdminBranchHierarchy,
-): string {
+function resolveAdminParentBranch(branchName: string, hierarchy: AdminBranchHierarchy): string {
   return hierarchy.parentMap.get(branchName) ?? branchName;
 }
 
-async function getAdminStatusDistribution(
-  window: { start: Date; end?: Date },
-  slaDaysByStatus: Partial<Record<string, number>>,
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminStatusDatum[]> {
+async function getAdminStatusDistribution(window: { start: Date; end?: Date }, slaDaysByStatus: Partial<Record<string, number>>, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminStatusDatum[]> {
   const statusRows = await prisma.report.groupBy({
     by: ["status"],
     where: {
@@ -1214,17 +1044,14 @@ async function getAdminStatusDistribution(
     _count: { _all: true },
   });
 
-  const statusCountMap = new Map(
-    statusRows.map((r) => [r.status, r._count._all]),
-  );
+  const statusCountMap = new Map(statusRows.map((r) => [r.status, r._count._all]));
   const now = new Date();
   const slaEntries = Object.entries(slaDaysByStatus) as [string, number][];
   const overdueEntries = await Promise.all(
     slaEntries.map(async ([status, days]) => {
       const threshold = new Date(now);
       threshold.setDate(threshold.getDate() - days);
-      const createdBefore =
-        window.end && window.end < threshold ? window.end : threshold;
+      const createdBefore = window.end && window.end < threshold ? window.end : threshold;
 
       const count = await prisma.report.count({
         where: {
@@ -1258,11 +1085,7 @@ async function getAdminStatusDistribution(
   }));
 }
 
-async function getAdminPjumSummary(
-  window: { start: Date; end?: Date },
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminPjumSummary> {
+async function getAdminPjumSummary(window: { start: Date; end?: Date }, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminPjumSummary> {
   const baseWhere: Prisma.PjumExportWhereInput = {
     NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME },
     ...(branchScope ? { branchName: { in: branchScope } } : {}),
@@ -1298,13 +1121,7 @@ async function getAdminPjumSummary(
   };
 }
 
-async function getAdminKpiMetric(
-  window: { start: Date; end?: Date },
-  activeUsers: number,
-  pendingPjum: number,
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminKpiMetric> {
+async function getAdminKpiMetric(window: { start: Date; end?: Date }, activeUsers: number, pendingPjum: number, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminKpiMetric> {
   const baseWhere = {
     ...getReportBrandWhere(brand),
     ...(branchScope ? { branchName: { in: branchScope } } : {}),
@@ -1328,16 +1145,7 @@ async function getAdminKpiMetric(
     },
   };
 
-  const [
-    totalReports,
-    completedReports,
-    statusCounts,
-    pjumCompletedReports,
-    unpjumCompletedReports,
-    totalRealisasi,
-    avgRealisasi,
-    bmsWeeklyRows,
-  ] = await Promise.all([
+  const [totalReports, completedReports, statusCounts, pjumCompletedReports, unpjumCompletedReports, totalRealisasi, avgRealisasi, bmsWeeklyRows] = await Promise.all([
     prisma.report.count({ where: baseWhere }),
     prisma.report.count({ where: completedWhere }),
     prisma.report.groupBy({
@@ -1387,10 +1195,7 @@ async function getAdminKpiMetric(
     if (!row.finishedAt) continue;
 
     const key = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
-    bmsWeekTotals.set(
-      key,
-      (bmsWeekTotals.get(key) ?? 0) + Number(row.totalReal ?? 0),
-    );
+    bmsWeekTotals.set(key, (bmsWeekTotals.get(key) ?? 0) + Number(row.totalReal ?? 0));
   }
 
   let rejectedReports = 0;
@@ -1399,25 +1204,10 @@ async function getAdminKpiMetric(
   let revisionReports = 0;
 
   for (const row of statusCounts) {
-    if (row.status === "ESTIMATION_REJECTED")
-      rejectedReports += row._count._all;
-    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status))
-      inProgressReports += row._count._all;
-    if (
-      [
-        "PENDING_ESTIMATION",
-        "PENDING_CHECKLIST_REVIEW",
-        "PENDING_REVIEW",
-        "APPROVED_BMC",
-      ].includes(row.status)
-    )
-      pendingReviewReports += row._count._all;
-    if (
-      ["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(
-        row.status,
-      )
-    )
-      revisionReports += row._count._all;
+    if (row.status === "ESTIMATION_REJECTED") rejectedReports += row._count._all;
+    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
+    if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+    if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
   }
 
   return {
@@ -1428,29 +1218,19 @@ async function getAdminKpiMetric(
     inProgressReports,
     pendingReviewReports,
     revisionReports,
-    completionRate:
-      totalReports > 0
-        ? Math.round((completedReports / totalReports) * 100)
-        : 0,
+    completionRate: totalReports > 0 ? Math.round((completedReports / totalReports) * 100) : 0,
     totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
     avgRealisasi: Number(avgRealisasi._avg.totalReal ?? 0),
     avgBmsWeeklyRealisasi: averageMapValues(bmsWeekTotals),
     activeUsers,
     pjumCompletedReports,
     unpjumCompletedReports,
-    unpjumNotRequiredReports:
-      completedReports - pjumCompletedReports - unpjumCompletedReports,
+    unpjumNotRequiredReports: completedReports - pjumCompletedReports - unpjumCompletedReports,
     pendingPjum,
   };
 }
 
-async function getAdminBrandBreakdownKpi(
-  window: { start: Date; end?: Date },
-  activeUsers: number,
-  pendingPjum: number,
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminKpiMetric> {
+async function getAdminBrandBreakdownKpi(window: { start: Date; end?: Date }, activeUsers: number, pendingPjum: number, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminKpiMetric> {
   const baseWhere = {
     ...getReportBrandWhere(brand),
     ...(branchScope ? { branchName: { in: branchScope } } : {}),
@@ -1474,47 +1254,32 @@ async function getAdminBrandBreakdownKpi(
     },
   };
 
-  const [totalReports, completedReports, statusCounts, totalRealisasi] =
-    await Promise.all([
-      prisma.report.count({ where: baseWhere }),
-      prisma.report.count({ where: completedWhere }),
-      prisma.report.groupBy({
-        by: ["status"],
-        where: baseWhere,
-        _count: { _all: true },
-      }),
-      prisma.report.aggregate({
-        where: {
-          ...completedWhere,
-          pjumExportedAt: { not: null },
-          totalReal: { not: null },
-        },
-        _sum: { totalReal: true },
-      }),
-    ]);
+  const [totalReports, completedReports, statusCounts, totalRealisasi] = await Promise.all([
+    prisma.report.count({ where: baseWhere }),
+    prisma.report.count({ where: completedWhere }),
+    prisma.report.groupBy({
+      by: ["status"],
+      where: baseWhere,
+      _count: { _all: true },
+    }),
+    prisma.report.aggregate({
+      where: {
+        ...completedWhere,
+        pjumExportedAt: { not: null },
+        totalReal: { not: null },
+      },
+      _sum: { totalReal: true },
+    }),
+  ]);
 
   let inProgressReports = 0;
   let pendingReviewReports = 0;
   let revisionReports = 0;
 
   for (const row of statusCounts) {
-    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status))
-      inProgressReports += row._count._all;
-    if (
-      [
-        "PENDING_ESTIMATION",
-        "PENDING_CHECKLIST_REVIEW",
-        "PENDING_REVIEW",
-        "APPROVED_BMC",
-      ].includes(row.status)
-    )
-      pendingReviewReports += row._count._all;
-    if (
-      ["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(
-        row.status,
-      )
-    )
-      revisionReports += row._count._all;
+    if (["ESTIMATION_APPROVED", "IN_PROGRESS"].includes(row.status)) inProgressReports += row._count._all;
+    if (["PENDING_ESTIMATION", "PENDING_CHECKLIST_REVIEW", "PENDING_REVIEW", "APPROVED_BMC"].includes(row.status)) pendingReviewReports += row._count._all;
+    if (["ESTIMATION_REJECTED_REVISION", "REVIEW_REJECTED_REVISION"].includes(row.status)) revisionReports += row._count._all;
   }
 
   return {
@@ -1525,10 +1290,7 @@ async function getAdminBrandBreakdownKpi(
     inProgressReports: 0,
     pendingReviewReports: 0,
     revisionReports: 0,
-    completionRate:
-      totalReports > 0
-        ? Math.round((completedReports / totalReports) * 100)
-        : 0,
+    completionRate: totalReports > 0 ? Math.round((completedReports / totalReports) * 100) : 0,
     totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
     avgRealisasi: 0,
     avgBmsWeeklyRealisasi: 0,
@@ -1540,10 +1302,7 @@ async function getAdminBrandBreakdownKpi(
   };
 }
 
-function getBranchAccumulator(
-  map: Map<string, AdminBranchAccumulator>,
-  branchName: string,
-): AdminBranchAccumulator {
+function getBranchAccumulator(map: Map<string, AdminBranchAccumulator>, branchName: string): AdminBranchAccumulator {
   const current = map.get(branchName);
   if (current) return current;
 
@@ -1588,16 +1347,11 @@ async function countRequiredUnpjumReports(where: Prisma.ReportWhereInput) {
     },
   });
 
-  const othersCount = others.filter((report) =>
-    requiresPjum(report.totalReal, report.items),
-  ).length;
+  const othersCount = others.filter((report) => requiresPjum(report.totalReal, report.items)).length;
   return withTotalReal + othersCount;
 }
 
-async function getBrandOwnedBranchNames(
-  brand: StoreBrandFilter,
-  hierarchy: AdminBranchHierarchy,
-) {
+async function getBrandOwnedBranchNames(brand: StoreBrandFilter, hierarchy: AdminBranchHierarchy) {
   if (brand === "ALL") {
     return new Set(hierarchy.options.map((option) => option.name));
   }
@@ -1613,12 +1367,7 @@ async function getBrandOwnedBranchNames(
   );
 }
 
-async function getAdminBranchPerformance(
-  window: { start: Date; end?: Date },
-  hierarchy: AdminBranchHierarchy,
-  brand: StoreBrandFilter,
-  visibleBranchNames: Set<string>,
-): Promise<AdminBranchPerformanceDatum[]> {
+async function getAdminBranchPerformance(window: { start: Date; end?: Date }, hierarchy: AdminBranchHierarchy, brand: StoreBrandFilter, visibleBranchNames: Set<string>): Promise<AdminBranchPerformanceDatum[]> {
   const [totalRows, completedRows] = await Promise.all([
     prisma.report.groupBy({
       by: ["branchName"],
@@ -1682,29 +1431,15 @@ async function getAdminBranchPerformance(
       totalReports: branch.totalReports,
       completedReports: branch.completedReports,
       openReports: branch.totalReports - branch.completedReports,
-      completionRate:
-        branch.totalReports > 0
-          ? Math.round((branch.completedReports / branch.totalReports) * 100)
-          : 0,
+      completionRate: branch.totalReports > 0 ? Math.round((branch.completedReports / branch.totalReports) * 100) : 0,
       totalRealisasi: branch.totalRealisasi,
-      avgRealisasi:
-        branch.completedReports > 0
-          ? Math.round(branch.totalRealisasi / branch.completedReports)
-          : 0,
+      avgRealisasi: branch.completedReports > 0 ? Math.round(branch.totalRealisasi / branch.completedReports) : 0,
     }))
-    .sort(
-      (a, b) =>
-        b.openReports - a.openReports || b.totalReports - a.totalReports,
-    )
+    .sort((a, b) => b.openReports - a.openReports || b.totalReports - a.totalReports)
     .slice(0, 8);
 }
 
-async function getAdminBranchTrend(
-  period: AdminTrendPeriod,
-  hierarchy: AdminBranchHierarchy,
-  brand: StoreBrandFilter,
-  visibleBranchNames: Set<string>,
-): Promise<AdminTrendDatum[]> {
+async function getAdminBranchTrend(period: AdminTrendPeriod, hierarchy: AdminBranchHierarchy, brand: StoreBrandFilter, visibleBranchNames: Set<string>): Promise<AdminTrendDatum[]> {
   const trendWindow = getTrendWindow(period);
   const trendRows = await prisma.report.findMany({
     where: {
@@ -1753,10 +1488,7 @@ async function getAdminBranchTrend(
 
     if (row.finishedAt) {
       const bmsWeekKey = `${row.createdByNIK}:${getWeekKey(row.finishedAt)}`;
-      current.bmsWeekTotals.set(
-        bmsWeekKey,
-        (current.bmsWeekTotals.get(bmsWeekKey) ?? 0) + realisasi,
-      );
+      current.bmsWeekTotals.set(bmsWeekKey, (current.bmsWeekTotals.get(bmsWeekKey) ?? 0) + realisasi);
     }
   }
 
@@ -1765,8 +1497,7 @@ async function getAdminBranchTrend(
     branchName: row.branchName,
     completed: row.completed,
     realisasi: row.realisasi,
-    avgRealisasi:
-      row.completed > 0 ? Math.round(row.realisasi / row.completed) : 0,
+    avgRealisasi: row.completed > 0 ? Math.round(row.realisasi / row.completed) : 0,
     avgBmsWeeklyRealisasi: averageMapValues(row.bmsWeekTotals),
   }));
 }
@@ -1796,15 +1527,9 @@ function mapAdminAttentionReport(report: {
   };
 }
 
-async function getAdminStuckReports(
-  slaDaysByStatus: Partial<Record<string, number>>,
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminAttentionReport[]> {
+async function getAdminStuckReports(slaDaysByStatus: Partial<Record<string, number>>, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminAttentionReport[]> {
   const now = new Date();
-  const slaEntries = Object.entries(slaDaysByStatus).filter(
-    ([status, days]) => status !== "COMPLETED" && days! > 0,
-  ) as [string, number][];
+  const slaEntries = Object.entries(slaDaysByStatus).filter(([status, days]) => status !== "COMPLETED" && days! > 0) as [string, number][];
 
   const stuckReportsPromises = slaEntries.map(async ([status, days]) => {
     const threshold = new Date(now);
@@ -1855,63 +1580,33 @@ async function getAdminStuckReports(
  * ADMIN command-center data for the dashboard.
  * Combines operational backlog, branch performance, trend, PJUM, and activity data.
  */
-export async function getAdminCommandCenterData(
-  period: AdminTrendPeriod = "ytd",
-  brand: StoreBrandFilter = "ALL",
-  branchScope?: string[],
-): Promise<AdminCommandCenterData> {
+export async function getAdminCommandCenterData(period: AdminTrendPeriod = "ytd", brand: StoreBrandFilter = "ALL", branchScope?: string[]): Promise<AdminCommandCenterData> {
   const trendWindow = getTrendWindow(period);
   const empty = getEmptyAdminCommandCenterData();
 
   try {
     const slaDaysByStatus = await getReportSlaDays();
-    const [activeUsers, hierarchy, status, pjum, recentActivity] =
-      await Promise.all([
-        getAdminVisibleTodayActiveUserCount(),
-        getAdminBranchHierarchy(),
-        getAdminStatusDistribution(
-          trendWindow,
-          slaDaysByStatus,
-          brand,
-          branchScope,
-        ),
-        getAdminPjumSummary(trendWindow, brand, branchScope),
-        getGlobalActivity(8),
-      ]);
+    const [activeUsers, hierarchy, status, pjum, recentActivity] = await Promise.all([
+      getAdminVisibleTodayActiveUserCount(),
+      getAdminBranchHierarchy(),
+      getAdminStatusDistribution(trendWindow, slaDaysByStatus, brand, branchScope),
+      getAdminPjumSummary(trendWindow, brand, branchScope),
+      getGlobalActivity(8),
+    ]);
 
     let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
     if (branchScope) {
-      visibleBranchNames = new Set(
-        [...visibleBranchNames].filter((b) => branchScope.includes(b)),
-      );
+      visibleBranchNames = new Set([...visibleBranchNames].filter((b) => branchScope.includes(b)));
     }
 
     const [kpi, branches, trends, stuckReports] = await Promise.all([
-      getAdminKpiMetric(
-        trendWindow,
-        activeUsers,
-        pjum.pending,
-        brand,
-        branchScope,
-      ),
-      getAdminBranchPerformance(
-        trendWindow,
-        hierarchy,
-        brand,
-        visibleBranchNames,
-      ),
+      getAdminKpiMetric(trendWindow, activeUsers, pjum.pending, brand, branchScope),
+      getAdminBranchPerformance(trendWindow, hierarchy, brand, visibleBranchNames),
       getAdminBranchTrend(period, hierarchy, brand, visibleBranchNames),
       getAdminStuckReports(slaDaysByStatus, brand, branchScope),
     ]);
 
-    const [
-      slaPerformance,
-      totalStoreAlfamart,
-      totalStoreLawson,
-      totalBms,
-      totalBmc,
-      totalManager,
-    ] = await Promise.all([
+    const [slaPerformance, totalStoreAlfamart, totalStoreLawson, totalBms, totalBmc, totalManager] = await Promise.all([
       getAdminSlaPerformanceData(trendWindow, brand, branchScope),
       prisma.store.count({ where: { brand: "ALFAMART", isActive: true } }),
       prisma.store.count({ where: { brand: "LAWSON", isActive: true } }),
@@ -1922,25 +1617,10 @@ export async function getAdminCommandCenterData(
 
     let brandBreakdown = undefined;
     if (brand === "ALL") {
-      const [alfamartPjum, lawsonPjum] = await Promise.all([
-        getAdminPjumSummary(trendWindow, "ALFAMART", branchScope),
-        getAdminPjumSummary(trendWindow, "LAWSON", branchScope),
-      ]);
+      const [alfamartPjum, lawsonPjum] = await Promise.all([getAdminPjumSummary(trendWindow, "ALFAMART", branchScope), getAdminPjumSummary(trendWindow, "LAWSON", branchScope)]);
       const [alfamartKpi, lawsonKpi] = await Promise.all([
-        getAdminBrandBreakdownKpi(
-          trendWindow,
-          activeUsers,
-          alfamartPjum.pending,
-          "ALFAMART",
-          branchScope,
-        ),
-        getAdminBrandBreakdownKpi(
-          trendWindow,
-          activeUsers,
-          lawsonPjum.pending,
-          "LAWSON",
-          branchScope,
-        ),
+        getAdminBrandBreakdownKpi(trendWindow, activeUsers, alfamartPjum.pending, "ALFAMART", branchScope),
+        getAdminBrandBreakdownKpi(trendWindow, activeUsers, lawsonPjum.pending, "LAWSON", branchScope),
       ]);
 
       brandBreakdown = {
@@ -2010,29 +1690,12 @@ export type AdminRealisasiDetail = {
   byBMS: RealisasiBmsStat[];
 };
 
-const MONTH_LABELS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "Mei",
-  "Jun",
-  "Jul",
-  "Agu",
-  "Sep",
-  "Okt",
-  "Nov",
-  "Des",
-];
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
 
 /**
  * Returns detailed avg realisasi breakdown — per branch and per month (YTD).
  */
-export async function getAdminRealisasiDetail(
-  brand: StoreBrandFilter = "ALL",
-  branchScope?: string[],
-  period?: string,
-): Promise<AdminRealisasiDetail> {
+export async function getAdminRealisasiDetail(brand: StoreBrandFilter = "ALL", branchScope?: string[], period?: string): Promise<AdminRealisasiDetail> {
   let startDate = getYtdStart();
   let endDate: Date | undefined;
 
@@ -2074,13 +1737,13 @@ export async function getAdminRealisasiDetail(
         status: "COMPLETED",
         createdAt: { gte: startDate, ...(endDate ? { lte: endDate } : {}) },
       },
-      select: { 
-        branchName: true, 
-        totalReal: true, 
+      select: {
+        branchName: true,
+        totalReal: true,
         createdAt: true,
         createdBy: {
-          select: { name: true }
-        }
+          select: { name: true },
+        },
       },
     });
 
@@ -2121,10 +1784,7 @@ export async function getAdminRealisasiDetail(
           count: vals.length,
           validCount: validVals.length,
           total: totalSum,
-          avg:
-            validVals.length > 0
-              ? Math.round(totalSum / validVals.length)
-              : 0,
+          avg: validVals.length > 0 ? Math.round(totalSum / validVals.length) : 0,
           max: vals.length > 0 ? Math.max(...vals) : 0,
           min: vals.length > 0 ? Math.min(...vals) : 0,
         };
@@ -2134,9 +1794,7 @@ export async function getAdminRealisasiDetail(
     // Build ordered list from January to the current Jakarta month.
     const currentYear = getJakartaYear();
     const currentMonth = getJakartaMonth();
-    const buildMonthStats = (
-      source: Map<string, number[]>,
-    ): RealisasiMonthStat[] => {
+    const buildMonthStats = (source: Map<string, number[]>): RealisasiMonthStat[] => {
       const stats: RealisasiMonthStat[] = [];
       for (let month = 1; month <= currentMonth; month++) {
         const key = `${currentYear}-${String(month).padStart(2, "0")}`;
@@ -2146,12 +1804,7 @@ export async function getAdminRealisasiDetail(
           yearMonth: key,
           label: `${MONTH_LABELS[month - 1]} ${currentYear}`,
           count: vals.length,
-          avg:
-            validVals.length > 0
-              ? Math.round(
-                  validVals.reduce((s, v) => s + v, 0) / validVals.length,
-                )
-              : 0,
+          avg: validVals.length > 0 ? Math.round(validVals.reduce((s, v) => s + v, 0) / validVals.length) : 0,
         });
       }
       return stats;
@@ -2165,9 +1818,7 @@ export async function getAdminRealisasiDetail(
     }
 
     const allVals = rows.map((r) => Number(r.totalReal ?? 0));
-    const globalAvg = Math.round(
-      allVals.reduce((s, v) => s + v, 0) / allVals.length,
-    );
+    const globalAvg = Math.round(allVals.reduce((s, v) => s + v, 0) / allVals.length);
 
     const byBMS: RealisasiBmsStat[] = Array.from(bmsMap.entries())
       .map(([bmsName, vals]) => {
@@ -2209,11 +1860,7 @@ export type AdminSlaPerformanceData = {
   durasiPekerjaanBms: AdminSlaPerformanceDatum[];
 };
 
-export async function getAdminSlaPerformanceData(
-  window: { start: Date; end?: Date },
-  brand: StoreBrandFilter,
-  branchScope?: string[],
-): Promise<AdminSlaPerformanceData> {
+export async function getAdminSlaPerformanceData(window: { start: Date; end?: Date }, brand: StoreBrandFilter, branchScope?: string[]): Promise<AdminSlaPerformanceData> {
   const baseWhere = {
     ...getReportBrandWhere(brand),
     ...(branchScope ? { branchName: { in: branchScope } } : {}),
@@ -2275,18 +1922,15 @@ export async function getAdminSlaPerformanceData(
 
     for (const act of report.activities) {
       if (act.action === "SUBMITTED") submittedAt = act.createdAt;
-      if (act.action === "ESTIMATION_APPROVED")
-        estimasiApprovedAt = act.createdAt;
+      if (act.action === "ESTIMATION_APPROVED") estimasiApprovedAt = act.createdAt;
       if (act.action === "WORK_STARTED") workStartedAt = act.createdAt;
-      if (act.action === "COMPLETION_SUBMITTED")
-        completionSubmittedAt = act.createdAt;
+      if (act.action === "COMPLETION_SUBMITTED") completionSubmittedAt = act.createdAt;
       if (act.action === "WORK_APPROVED") appvBmcAt = act.createdAt;
       if (act.action === "FINAL_APPROVED_BNM") appvMgrAt = act.createdAt;
     }
 
     if (submittedAt && estimasiApprovedAt) {
-      const hrs =
-        (estimasiApprovedAt.getTime() - submittedAt.getTime()) / 3600000;
+      const hrs = (estimasiApprovedAt.getTime() - submittedAt.getTime()) / 3600000;
       if (!slaEstimasi.has(branch)) slaEstimasi.set(branch, []);
       slaEstimasi.get(branch)!.push(hrs);
     }
@@ -2298,8 +1942,7 @@ export async function getAdminSlaPerformanceData(
     }
 
     if (workStartedAt && completionSubmittedAt) {
-      const hrs =
-        (completionSubmittedAt.getTime() - workStartedAt.getTime()) / 3600000;
+      const hrs = (completionSubmittedAt.getTime() - workStartedAt.getTime()) / 3600000;
       if (!slaPekerjaan.has(branch)) slaPekerjaan.set(branch, []);
       slaPekerjaan.get(branch)!.push(hrs);
     }
@@ -2308,8 +1951,7 @@ export async function getAdminSlaPerformanceData(
   const formatSla = (map: Map<string, number[]>) => {
     return Array.from(map.entries())
       .map(([branchName, durations]) => {
-        const avgHours =
-          durations.reduce((a, b) => a + b, 0) / durations.length;
+        const avgHours = durations.reduce((a, b) => a + b, 0) / durations.length;
         const days = Math.floor(avgHours / 24);
         const hours = Math.round(avgHours % 24);
         return {
