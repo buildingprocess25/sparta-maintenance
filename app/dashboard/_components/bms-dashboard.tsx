@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Clock, FileText } from "lucide-react";
+import { BmsDashboardSkeleton } from "./bms-dashboard-skeleton";
 
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,7 @@ function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
       <div className="flex items-end justify-between">
         <h2 className="font-heading text-lg font-semibold tracking-tight">History Aktivitas</h2>
         <Button asChild variant="link" size="sm" className="h-auto p-0">
-          <Link href="/activity" className="text-xs font-semibold uppercase">
+          <Link prefetch={false} href="/activity" className="text-xs font-semibold uppercase">
             Lihat Semua
           </Link>
         </Button>
@@ -36,7 +38,7 @@ function BmsMobileActivityList({ activities }: { activities: ActivityItem[] }) {
   );
 }
 
-export async function BmsDashboard({ user }: { user: AuthUser }) {
+async function BmsDashboardContent({ user }: { user: AuthUser }) {
   const [stats, activities, coverage, balanceInfo, activeReportBlocker] = await Promise.all([
     getUserStats(user.NIK),
     getBMSActivity(user.NIK),
@@ -84,14 +86,7 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
   ];
 
   return (
-    <BmsMobilePage
-      navItem="dashboard"
-      userInitials={user.name
-        .split(" ")
-        .slice(0, 2)
-        .map((w: string) => w[0]?.toUpperCase() ?? "")
-        .join("")}
-    >
+    <>
       <BmsWelcomeCard name={user.name} balance={balanceInfo} />
 
       <BmsCreateReportButton
@@ -106,6 +101,23 @@ export async function BmsDashboard({ user }: { user: AuthUser }) {
 
       <BmsMobileDashboardStats items={statItems} />
       <BmsMobileActivityList activities={activities} />
+    </>
+  );
+}
+
+export function BmsDashboard({ user }: { user: AuthUser }) {
+  return (
+    <BmsMobilePage
+      navItem="dashboard"
+      userInitials={user.name
+        .split(" ")
+        .slice(0, 2)
+        .map((w: string) => w[0]?.toUpperCase() ?? "")
+        .join("")}
+    >
+      <Suspense fallback={<BmsDashboardSkeleton />}>
+        <BmsDashboardContent user={user} />
+      </Suspense>
     </BmsMobilePage>
   );
 }
