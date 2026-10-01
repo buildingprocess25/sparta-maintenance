@@ -1583,9 +1583,14 @@ async function getAdminStuckReports(slaDaysByStatus: Partial<Record<string, numb
  * ADMIN command-center data for the dashboard.
  * Combines operational backlog, branch performance, trend, PJUM, and activity data.
  */
-export async function getAdminCommandCenterData(period: AdminTrendPeriod = "ytd", brand: StoreBrandFilter = "ALL", branchScope?: string[]): Promise<AdminCommandCenterData> {
-  const trendWindow = getTrendWindow(period);
-  const empty = getEmptyAdminCommandCenterData();
+export const getAdminCommandCenterData = unstable_cache(
+    async (
+        period: AdminTrendPeriod = "ytd",
+        brand: StoreBrandFilter = "ALL",
+        branchScope?: string[],
+    ): Promise<AdminCommandCenterData> => {
+    const trendWindow = getTrendWindow(period);
+    const empty = getEmptyAdminCommandCenterData();
 
   try {
     const slaDaysByStatus = await getReportSlaDays();
@@ -1600,8 +1605,6 @@ export async function getAdminCommandCenterData(period: AdminTrendPeriod = "ytd"
     let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
     if (branchScope) {
       visibleBranchNames = new Set([...visibleBranchNames].filter((b) => branchScope.includes(b)));
-    }
-
     const [kpi, branches, trends, stuckReports] = await Promise.all([
       getAdminKpiMetric(trendWindow, activeUsers, pjum.pending, brand, branchScope),
       getAdminBranchPerformance(trendWindow, hierarchy, brand, visibleBranchNames),
@@ -1655,7 +1658,13 @@ export async function getAdminCommandCenterData(period: AdminTrendPeriod = "ytd"
     logger.error({ operation: "getAdminCommandCenterData" }, "Failed", error);
     return empty;
   }
+},
+["admin-command-center-data"],
+{
+    revalidate: 300,
+    tags: ["admin-dashboard"],
 }
+);
 
 // ─── Realisasi Detail (YTD) ────────────────────────────────────────────────────
 

@@ -60,6 +60,8 @@ services:
             sync: false
           - key: CLEANUP_PENDING_EXPIRY_DAYS
             value: "14"
+          - key: NOTIFICATION_RETENTION_DAYS
+            value: "7"
           - key: DRIVE_CDN_CLIENT_ID
             sync: false
           - key: DRIVE_CDN_CLIENT_SECRET
