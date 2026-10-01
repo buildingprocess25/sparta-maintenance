@@ -1828,11 +1828,12 @@ async function getAdminStuckReports(
  * ADMIN command-center data for the dashboard.
  * Combines operational backlog, branch performance, trend, PJUM, and activity data.
  */
-export async function getAdminCommandCenterData(
-    period: AdminTrendPeriod = "ytd",
-    brand: StoreBrandFilter = "ALL",
-    branchScope?: string[],
-): Promise<AdminCommandCenterData> {
+export const getAdminCommandCenterData = unstable_cache(
+    async (
+        period: AdminTrendPeriod = "ytd",
+        brand: StoreBrandFilter = "ALL",
+        branchScope?: string[],
+    ): Promise<AdminCommandCenterData> => {
     const trendWindow = getTrendWindow(period);
     const empty = getEmptyAdminCommandCenterData();
 
@@ -1895,7 +1896,13 @@ export async function getAdminCommandCenterData(
         );
         return empty;
     }
-}
+    },
+    ["admin-command-center-data"],
+    {
+        revalidate: 300,
+        tags: ["admin-dashboard"],
+    }
+);
 
 // ─── Realisasi Detail (YTD) ────────────────────────────────────────────────────
 
