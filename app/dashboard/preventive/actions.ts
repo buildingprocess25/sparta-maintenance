@@ -136,12 +136,13 @@ export type PreventiveKpiData = {
 };
 
 export type ProcessDurationItem = {
-    branchName: string;
+    label: string;
     durationSeconds: number;
     formattedDuration: string;
 };
 
 export type ProcessDurationData = {
+    viewMode: "BRANCH" | "BMS";
     estimasiToBmc: ProcessDurationItem[];
     bmcToManager: ProcessDurationItem[];
     bmsWork: ProcessDurationItem[];
@@ -869,16 +870,18 @@ export async function getAdminProcessDurationData(
         reportPredicates.push(Prisma.sql`r."branchName" IN (${Prisma.join(user.branchNames)})`);
     }
 
+    const isManager = user.role !== "ADMIN";
+
     // Raw SQL to compute durations
     const rows = await prisma.$queryRaw<{ 
-        branchName: string; 
+        label: string; 
         avg_estimasi_bmc: number | null; 
         avg_bmc_bnm: number | null; 
         avg_bms_work: number | null; 
     }[]>`
         WITH report_events AS (
             SELECT 
-                r."branchName",
+                ${isManager ? Prisma.sql`u."name"` : Prisma.sql`r."branchName"`} AS "label",
                 r."reportNumber",
                 MAX(a."createdAt") FILTER (WHERE a.action IN ('SUBMITTED', 'RESUBMITTED_ESTIMATION')) AS estimasi_submit_at,
                 MAX(a."createdAt") FILTER (WHERE a.action = 'ESTIMATION_APPROVED') AS bmc_estimasi_approve_at,
@@ -888,16 +891,17 @@ export async function getAdminProcessDurationData(
                 MAX(a."createdAt") FILTER (WHERE a.action = 'FINAL_APPROVED_BNM') AS bnm_approve_at
             FROM "Report" r
             JOIN "ActivityLog" a ON r."reportNumber" = a."reportNumber"
+            ${isManager ? Prisma.sql`JOIN "User" u ON r."createdByNIK" = u."NIK"` : Prisma.empty}
             WHERE ${Prisma.join(reportPredicates, " AND ")}
-            GROUP BY r."branchName", r."reportNumber"
+            GROUP BY ${isManager ? Prisma.sql`u."name"` : Prisma.sql`r."branchName"`}, r."reportNumber"
         )
         SELECT 
-            "branchName",
+            "label",
             AVG(EXTRACT(EPOCH FROM (bmc_estimasi_approve_at - estimasi_submit_at))) AS avg_estimasi_bmc,
             AVG(EXTRACT(EPOCH FROM (bnm_approve_at - bmc_work_approve_at))) AS avg_bmc_bnm,
             AVG(EXTRACT(EPOCH FROM (bms_complete_at - bms_start_at))) AS avg_bms_work
         FROM report_events
-        GROUP BY "branchName"
+        GROUP BY "label"
     `;
 
     // Map and format results
@@ -908,21 +912,21 @@ export async function getAdminProcessDurationData(
     for (const row of rows) {
         if (row.avg_estimasi_bmc != null) {
             estimasiToBmc.push({
-                branchName: row.branchName,
+                label: row.label || "Unknown",
                 durationSeconds: Number(row.avg_estimasi_bmc),
                 formattedDuration: formatDuration(Number(row.avg_estimasi_bmc))
             });
         }
         if (row.avg_bmc_bnm != null) {
             bmcToManager.push({
-                branchName: row.branchName,
+                label: row.label || "Unknown",
                 durationSeconds: Number(row.avg_bmc_bnm),
                 formattedDuration: formatDuration(Number(row.avg_bmc_bnm))
             });
         }
         if (row.avg_bms_work != null) {
             bmsWork.push({
-                branchName: row.branchName,
+                label: row.label || "Unknown",
                 durationSeconds: Number(row.avg_bms_work),
                 formattedDuration: formatDuration(Number(row.avg_bms_work))
             });
@@ -935,6 +939,7 @@ export async function getAdminProcessDurationData(
     bmsWork.sort((a, b) => b.durationSeconds - a.durationSeconds);
 
     return {
+        viewMode: isManager ? "BMS" : "BRANCH",
         estimasiToBmc: estimasiToBmc.slice(0, 5),
         bmcToManager: bmcToManager.slice(0, 5),
         bmsWork: bmsWork.slice(0, 5),

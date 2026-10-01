@@ -18,7 +18,7 @@ export function ProcessDurationWidget() {
         });
     }, [quarter]);
 
-    const renderCard = (title: string, subtitle: string, items: { branchName: string; formattedDuration: string }[] | undefined) => (
+    const renderCard = (title: string, subtitle: string, items: { label: string; formattedDuration: string }[] | undefined) => (
         <div className="rounded-xl border bg-card/50 p-0 flex flex-col h-full shadow-sm overflow-hidden">
             <div className="p-5 pb-4 border-b bg-card/40">
                 <h4 className="font-semibold text-sm mb-1">{title}</h4>
@@ -42,7 +42,7 @@ export function ProcessDurationWidget() {
                     <div className="divide-y divide-border/40">
                         {items.map((item, i) => (
                             <div 
-                                key={item.branchName} 
+                                key={item.label} 
                                 className="flex justify-between items-center px-5 py-3.5 hover:bg-muted/30 transition-colors group"
                             >
                                 <div className="flex items-center gap-3">
@@ -54,7 +54,7 @@ export function ProcessDurationWidget() {
                                     }`}>
                                         {i + 1}
                                     </div>
-                                    <span className="font-medium text-sm text-foreground/90">{item.branchName}</span>
+                                    <span className="font-medium text-sm text-foreground/90">{item.label}</span>
                                 </div>
                                 <div className={`flex items-center gap-2 px-2 py-1 rounded-md text-xs font-mono font-medium ${
                                     i === 0 ? 'bg-red-50 text-red-600 border border-red-100 dark:bg-red-950/20 dark:text-red-400 dark:border-red-900/30' : 
@@ -86,7 +86,11 @@ export function ProcessDurationWidget() {
                     <h3 className="text-lg font-semibold tracking-tight">Durasi Proses per Tahapan</h3>
                 </div>
                 <div className="flex items-center gap-4">
-                    <span className="text-xs text-muted-foreground">5 cabang dengan rata-rata durasi tertinggi (satuan: jam dan menit)</span>
+                    <span className="text-xs text-muted-foreground">
+                        {data?.viewMode === "BMS" 
+                            ? "5 teknisi dengan rata-rata durasi tertinggi (satuan: jam dan menit)" 
+                            : "5 cabang dengan rata-rata durasi tertinggi (satuan: jam dan menit)"}
+                    </span>
                     <Select value={quarter.toString()} onValueChange={(val) => setQuarter(val === "all" ? "all" : parseInt(val) as PreventiveQuarter)}>
                         <SelectTrigger className="w-[150px] h-9 text-xs">
                             <SelectValue placeholder="Semua Triwulan" />
