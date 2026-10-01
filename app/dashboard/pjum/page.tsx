@@ -1,11 +1,9 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
-import { getAdminBranchOptions } from "../queries";
-import { getAdminPjum, getDashboardPjumBmsUsers } from "./actions";
-import { AdminPjumTable } from "./_components/admin-pjum-table";
-import { CreatePjumDialog } from "./_components/create-pjum-dialog";
-import { ExportPjumDialog } from "./_components/export-pjum-dialog";
+import { Suspense } from "react";
+import { AdminPjumContent } from "./_components/admin-pjum-content";
+import { AdminPjumSkeleton } from "./_components/admin-pjum-skeleton";
 
 export const dynamic = "force-dynamic";
 
@@ -68,48 +66,21 @@ export default async function AdminPjumPage({
         ...(initialToDate ? { toDate: initialToDate } : {}),
     };
 
-    const [branchOptions, initialData, bmsUsers] = await Promise.all([
-        scopedBranches === null ? getAdminBranchOptions() : [],
-        getAdminPjum(null, 20, initialFilters),
-        user.role === "BMC" ? getDashboardPjumBmsUsers() : [],
-    ]);
-    const branches =
-        scopedBranches === null
-            ? branchOptions.map((branch) => branch.name)
-            : scopedBranches;
-
     return (
         <AdminDashboardShell
             user={user}
             title="PJUM"
             breadcrumbs={[{ label: "Dokumen PJUM" }]}
-            headerActions={
-                user.role === "BMC" ? (
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                        <CreatePjumDialog bmsUsers={bmsUsers} />
-                        <ExportPjumDialog
-                            branches={branches}
-                            showBranchFilter={false}
-                        />
-                    </div>
-                ) : (
-                    <ExportPjumDialog
-                        branches={branches}
-                        showBranchFilter={user.role === "ADMIN"}
-                    />
-                )
-            }
-            contentClassName="h-full"
+            contentClassName="h-full p-0 flex flex-col"
         >
-            <AdminPjumTable
-                initialData={initialData.pjums}
-                initialNextCursor={initialData.nextCursor}
-                initialTotalCount={initialData.totalCount}
-                initialSummary={initialData.summary}
-                initialFilters={initialFilters}
-                branches={branches}
-                areaNames={areaOptions}
-            />
+            <Suspense fallback={<AdminPjumSkeleton />}>
+                <AdminPjumContent 
+                    user={user}
+                    scopedBranches={scopedBranches}
+                    initialFilters={initialFilters}
+                    areaOptions={areaOptions}
+                />
+            </Suspense>
         </AdminDashboardShell>
     );
 }

@@ -1605,6 +1605,7 @@ export const getAdminCommandCenterData = unstable_cache(
     let visibleBranchNames = await getBrandOwnedBranchNames(brand, hierarchy);
     if (branchScope) {
       visibleBranchNames = new Set([...visibleBranchNames].filter((b) => branchScope.includes(b)));
+    }
     const [kpi, branches, trends, stuckReports] = await Promise.all([
       getAdminKpiMetric(trendWindow, activeUsers, pjum.pending, brand, branchScope),
       getAdminBranchPerformance(trendWindow, hierarchy, brand, visibleBranchNames),
@@ -1707,7 +1708,8 @@ const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "S
 /**
  * Returns detailed avg realisasi breakdown — per branch and per month (YTD).
  */
-export async function getAdminRealisasiDetail(brand: StoreBrandFilter = "ALL", branchScope?: string[], period?: string): Promise<AdminRealisasiDetail> {
+export const getAdminRealisasiDetail = unstable_cache(
+  async (brand: StoreBrandFilter = "ALL", branchScope?: string[], period?: string): Promise<AdminRealisasiDetail> => {
   let startDate = getYtdStart();
   let endDate: Date | undefined;
 
@@ -1858,7 +1860,13 @@ export async function getAdminRealisasiDetail(brand: StoreBrandFilter = "ALL", b
     logger.error({ operation: "getAdminRealisasiDetail" }, "Failed", error);
     return empty;
   }
+},
+["admin-realisasi-detail"],
+{
+  revalidate: 300,
+  tags: ["admin-dashboard", "realisasi"],
 }
+);
 
 export type AdminSlaPerformanceDatum = {
   branchName: string;
