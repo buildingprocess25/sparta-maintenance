@@ -21,5 +21,8 @@ import { getAdminRealisasiDetail } from "./queries";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 
 export async function fetchAdminRealisasiDetailAction(brand: StoreBrandFilter, period: string) {
-    return await getAdminRealisasiDetail(brand, undefined, period);
+    const user = await getAuthUser();
+    if (!user) throw new Error("Unauthorized");
+    const branchScope = user.role === "ADMIN" ? undefined : user.branchNames;
+    return await getAdminRealisasiDetail(brand, branchScope, period);
 }
