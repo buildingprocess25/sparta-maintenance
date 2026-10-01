@@ -999,7 +999,7 @@ export function revalidateBranchHierarchyCache() {
   revalidateTag("branch-hierarchy");
 }
 
-export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
+export async function getAdminVisibleTodayActiveUserCount(branchScope?: string[]): Promise<number> {
   try {
     const activeUserIds = await getTodayActiveUsers();
     if (activeUserIds.length === 0) return 0;
@@ -1008,7 +1008,10 @@ export async function getAdminVisibleTodayActiveUserCount(): Promise<number> {
       where: {
         NIK: { in: activeUserIds },
         deletedAt: null,
-        NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+        ...(branchScope && branchScope.length > 0
+          ? { branchNames: { hasSome: branchScope } }
+          : { NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } } }
+        ),
       },
     });
   } catch (error) {
@@ -1587,7 +1590,7 @@ export async function getAdminCommandCenterData(period: AdminTrendPeriod = "ytd"
   try {
     const slaDaysByStatus = await getReportSlaDays();
     const [activeUsers, hierarchy, status, pjum, recentActivity] = await Promise.all([
-      getAdminVisibleTodayActiveUserCount(),
+      getAdminVisibleTodayActiveUserCount(branchScope),
       getAdminBranchHierarchy(),
       getAdminStatusDistribution(trendWindow, slaDaysByStatus, brand, branchScope),
       getAdminPjumSummary(trendWindow, brand, branchScope),
