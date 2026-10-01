@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
+import { AdminDashboardSkeleton } from "./admin-dashboard-skeleton";
 import {
     Activity,
     ArrowUpRight,
@@ -41,6 +43,7 @@ import {
     type AdminKpiMetric,
     type AdminPjumSummary,
     type AdminStatusDatum,
+    type AdminTrendPeriod,
 } from "../../queries";
 import { AdminTrendChart } from "./admin-overview-charts";
 import { AdminDashboardShell } from "./admin-dashboard-shell";
@@ -93,13 +96,13 @@ export function DashboardHeader({ kpi, brand }: { kpi: AdminKpiMetric; brand: St
             </div>
             <div className="flex flex-wrap gap-2">
                 <Button asChild variant="outline">
-                    <Link href="/dashboard/activity">
+                    <Link prefetch={false} href="/dashboard/activity">
                         <Activity className="h-4 w-4" />
                         Aktivitas
                     </Link>
                 </Button>
                 <Button asChild>
-                    <Link href={withBrandHref("/dashboard/reports", brand)}>
+                    <Link prefetch={false} href={withBrandHref("/dashboard/reports", brand)}>
                         <FileText className="h-4 w-4" />
                         Semua Laporan
                     </Link>
@@ -298,7 +301,7 @@ function GroupedKpiCard({
                         <Icon className="h-4 w-4" />
                         {title}
                     </div>
-                    <Link
+                    <Link prefetch={false}
                         href={href}
                         className="mt-2 inline-flex items-center gap-2 text-3xl font-semibold tracking-tight text-foreground underline-offset-4 hover:text-primary hover:underline"
                     >
@@ -353,7 +356,7 @@ function KpiSubMetric({ row }: { row: GroupedKpiRow }) {
     if (!row.href) return content;
 
     return (
-        <Link href={row.href} className="rounded-md hover:bg-muted/40">
+        <Link prefetch={false} href={row.href} className="rounded-md hover:bg-muted/40">
             {content}
         </Link>
     );
@@ -490,7 +493,7 @@ export function StatusDistributionKpis({
                             return (
                                 <TableRow key={item.status}>
                                     <TableCell>
-                                        <Link
+                                        <Link prefetch={false}
                                             href={`/dashboard/reports?status=${item.status}`}
                                             className="inline-flex items-center gap-2 font-medium text-primary underline-offset-4 hover:underline"
                                         >
@@ -680,7 +683,7 @@ export function AdminRecentActivityCard({
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href="/dashboard/activity">
+                        <Link prefetch={false} href="/dashboard/activity">
                             Detail
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -723,7 +726,7 @@ export function AdminRecentActivityCard({
                                         </Badge>
                                     </TableCell>
                                     <TableCell>
-                                        <Link
+                                        <Link prefetch={false}
                                             href={`/dashboard/reports/${activity.reportNumber}`}
                                             className="font-mono text-xs font-medium text-primary hover:underline flex items-center gap-1 group"
                                         >
@@ -773,7 +776,7 @@ export function BranchPerformanceTable({
                         </CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href={withBrandHref("/dashboard/branches", brand)}>
+                        <Link prefetch={false} href={withBrandHref("/dashboard/branches", brand)}>
                             Detail
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -796,7 +799,7 @@ export function BranchPerformanceTable({
                         {branches.map((branch) => (
                             <TableRow key={branch.branchName}>
                                 <TableCell className="font-medium">
-                                    <Link
+                                    <Link prefetch={false}
                                         href={withBrandHref(`/dashboard/branches/${encodeURIComponent(branch.branchName)}`, brand)}
                                         className="text-primary hover:underline flex items-center gap-1 group"
                                     >
@@ -864,7 +867,7 @@ function AttentionTable({
                         <CardDescription>{description}</CardDescription>
                     </div>
                     <Button asChild variant="outline" size="sm">
-                        <Link href={viewHref}>
+                        <Link prefetch={false} href={viewHref}>
                             {viewLabel}
                             <ArrowUpRight className="h-4 w-4" />
                         </Link>
@@ -893,7 +896,7 @@ function AttentionTable({
                             reports.map((report) => (
                                 <TableRow key={report.reportNumber}>
                                     <TableCell>
-                                        <Link
+                                        <Link prefetch={false}
                                             href={`/dashboard/reports/${report.reportNumber}`}
                                             className="font-mono text-xs font-medium text-primary hover:underline flex items-center gap-1 group"
                                         >
@@ -933,40 +936,24 @@ function AttentionTable({
     );
 }
 
-export async function AdminNewDashboard({
-    user,
-    period,
-    brand,
-}: {
-    user: AuthUser;
-    period?: string;
-    brand?: StoreBrandFilter;
+async function AdminDashboardContent({ 
+    period, 
+    brand 
+}: { 
+    period: AdminTrendPeriod; 
+    brand: StoreBrandFilter 
 }) {
-    const selectedPeriod = normalizePeriod(period);
-    const selectedBrand = brand ?? "ALL";
-    const data = await getAdminCommandCenterData(selectedPeriod, selectedBrand);
+    const data = await getAdminCommandCenterData(period, brand);
 
     return (
-        <AdminDashboardShell
-            user={user}
-            title="Dashboard"
-            breadcrumbs={[{ label: "Dashboard" }]}
-            contentClassName="md:p-6"
-            headerActions={
-                <AdminTrendPeriodFilter
-                    initialPeriod={selectedPeriod}
-                    initialBrand={selectedBrand}
-                    showBrandFilter
-                />
-            }
-        >
-            <DashboardHeader kpi={data.kpi} brand={selectedBrand} />
+        <>
+            <DashboardHeader kpi={data.kpi} brand={brand} />
             <KpiGrid
                 kpi={data.kpi}
                 pjum={data.pjum}
                 breakdown={data.brandBreakdown}
-                isBrandFiltered={selectedBrand !== "ALL"}
-                brand={selectedBrand}
+                isBrandFiltered={brand !== "ALL"}
+                brand={brand}
             />
 
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
@@ -980,7 +967,10 @@ export async function AdminNewDashboard({
                             batas waktu operasional.
                         </p>
                     </div>
-                    <StatusDistributionKpis status={data.status} breakdown={data.brandBreakdown ? { alfamart: data.brandBreakdown.alfamart.kpi.activeReports, lawson: data.brandBreakdown.lawson.kpi.activeReports } : undefined} />
+                    <StatusDistributionKpis 
+                        status={data.status} 
+                        breakdown={data.brandBreakdown ? { alfamart: data.brandBreakdown.alfamart.kpi.activeReports, lawson: data.brandBreakdown.lawson.kpi.activeReports } : undefined} 
+                    />
                 </div>
                 <SlaStatusGuide />
             </section>
@@ -1005,17 +995,50 @@ export async function AdminNewDashboard({
                 </CardContent>
             </Card>
 
-            <BranchPerformanceTable branches={data.branches} brand={selectedBrand} />
+            <BranchPerformanceTable branches={data.branches} brand={brand} />
             <AttentionTable
                 reports={data.stuckReports}
                 title="Stuck Reports"
                 description="Laporan aktif yang tidak bergerak lebih dari 7 hari"
                 emptyMessage="Tidak ada laporan stuck lebih dari 7 hari."
                 icon={Clock3}
-                viewHref={withBrandHref("/dashboard/reports?scope=overdue", selectedBrand)}
+                viewHref={withBrandHref("/dashboard/reports?scope=overdue", brand)}
                 viewLabel="Buka SLA"
             />
             <AdminRecentActivityCard activities={data.recentActivity} />
+        </>
+    );
+}
+
+export function AdminNewDashboard({
+    user,
+    period,
+    brand,
+}: {
+    user: AuthUser;
+    period?: string;
+    brand?: StoreBrandFilter;
+}) {
+    const selectedPeriod = normalizePeriod(period);
+    const selectedBrand = brand ?? "ALL";
+
+    return (
+        <AdminDashboardShell
+            user={user}
+            title="Dashboard"
+            breadcrumbs={[{ label: "Dashboard" }]}
+            contentClassName="md:p-6"
+            headerActions={
+                <AdminTrendPeriodFilter
+                    initialPeriod={selectedPeriod}
+                    initialBrand={selectedBrand}
+                    showBrandFilter
+                />
+            }
+        >
+            <Suspense fallback={<AdminDashboardSkeleton />}>
+                <AdminDashboardContent period={selectedPeriod as AdminTrendPeriod} brand={selectedBrand} />
+            </Suspense>
         </AdminDashboardShell>
     );
 }
