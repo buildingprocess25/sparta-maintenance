@@ -628,9 +628,11 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         const state = itemStates.get(item.itemId);
         if (!state) continue;
 
+        const resolvedItemName = item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId;
+
         const afterPhotos = await uploadPhotos(
           state.afterPhotos,
-          `Gagal mengunggah foto sesudah untuk item ${item.itemName}`,
+          `Gagal mengunggah foto sesudah untuk item ${resolvedItemName}`,
           () => ({
             kind: "COMPLETION_RESULT",
             reportNumber,
@@ -641,7 +643,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
 
         const receiptPhotos = await uploadPhotos(
           state.receiptPhotos,
-          `Gagal mengunggah nota realisasi untuk item ${item.itemName}`,
+          `Gagal mengunggah nota realisasi untuk item ${resolvedItemName}`,
           () => ({
             kind: "COMPLETION_RECEIPT",
             reportNumber,
