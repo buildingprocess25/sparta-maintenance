@@ -55,10 +55,20 @@ export default async function AdminBranchesPage({ searchParams }: Props) {
             contentClassName="h-full flex flex-col min-h-0 p-0"
         >
             <Tabs defaultValue={activeTab} className="flex-1 flex flex-col min-h-0">
-                <div className="px-6 pt-6 pb-2 border-b">
-                    <TabsList>
-                        <TabsTrigger value="ringkasan">Ringkasan Operasional</TabsTrigger>
-                        <TabsTrigger value="sla">SLA Proses</TabsTrigger>
+                <div className="px-6 pt-4 border-b">
+                    <TabsList className="bg-transparent border-none h-auto w-full justify-start rounded-none p-0 flex gap-4">
+                        <TabsTrigger 
+                            value="ringkasan" 
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-2 py-2 font-medium text-sm text-muted-foreground data-[state=active]:text-foreground"
+                        >
+                            Ringkasan Operasional
+                        </TabsTrigger>
+                        <TabsTrigger 
+                            value="sla" 
+                            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:shadow-none data-[state=active]:bg-transparent px-2 py-2 font-medium text-sm text-muted-foreground data-[state=active]:text-foreground"
+                        >
+                            SLA Proses
+                        </TabsTrigger>
                     </TabsList>
                 </div>
                 

@@ -4,19 +4,20 @@ import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { getAdminProcessDurationData, type ProcessDurationData, type PreventiveQuarter } from "../../preventive/actions";
-import { getJakartaYear, getJakartaCurrentQuarter } from "@/lib/time";
+import { getAdminProcessDurationData, type ProcessDurationData } from "../../preventive/actions";
+import { getJakartaYear } from "@/lib/time";
 
 export function ProcessDurationWidget() {
-    const [quarter, setQuarter] = useState<PreventiveQuarter | "all">(getJakartaCurrentQuarter());
+    const [period, setPeriod] = useState<string>("ytd");
     const [data, setData] = useState<ProcessDurationData | null>(null);
     const [isPending, startTransition] = useTransition();
+    const currentYear = getJakartaYear();
 
     useEffect(() => {
         startTransition(() => {
-            getAdminProcessDurationData(getJakartaYear(), quarter).then(setData);
+            getAdminProcessDurationData(period).then(setData);
         });
-    }, [quarter]);
+    }, [period]);
 
     const renderCard = (title: string, subtitle: string, items: { label: string; formattedDuration: string }[] | undefined) => (
         <div className="rounded-xl border bg-card/50 p-0 flex flex-col h-full shadow-sm overflow-hidden">
@@ -82,8 +83,11 @@ export function ProcessDurationWidget() {
     return (
         <div className="mt-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-1">
                     <h3 className="text-lg font-semibold tracking-tight">Durasi Proses per Tahapan</h3>
+                    <p className="text-sm font-semibold text-muted-foreground">
+                        *Data dihitung berdasarkan semua status laporan (In progress, ditolak, selesai).
+                    </p>
                 </div>
                 <div className="flex items-center gap-4">
                     <span className="text-xs text-muted-foreground">
@@ -91,16 +95,24 @@ export function ProcessDurationWidget() {
                             ? "5 teknisi dengan rata-rata durasi tertinggi (satuan: jam dan menit)" 
                             : "5 cabang dengan rata-rata durasi tertinggi (satuan: jam dan menit)"}
                     </span>
-                    <Select value={quarter.toString()} onValueChange={(val) => setQuarter(val === "all" ? "all" : parseInt(val) as PreventiveQuarter)}>
-                        <SelectTrigger className="w-[150px] h-9 text-xs">
-                            <SelectValue placeholder="Semua Triwulan" />
+                    <Select value={period} onValueChange={setPeriod}>
+                        <SelectTrigger className="w-[180px] h-9 text-xs">
+                            <SelectValue placeholder="Tahun Berjalan (YTD)" />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">Semua Triwulan</SelectItem>
-                            <SelectItem value="1">Triwulan 1</SelectItem>
-                            <SelectItem value="2">Triwulan 2</SelectItem>
-                            <SelectItem value="3">Triwulan 3</SelectItem>
-                            <SelectItem value="4">Triwulan 4</SelectItem>
+                            <SelectItem value="ytd">Tahun Berjalan (YTD)</SelectItem>
+                            <SelectItem value={`01-${currentYear}`}>Januari {currentYear}</SelectItem>
+                            <SelectItem value={`02-${currentYear}`}>Februari {currentYear}</SelectItem>
+                            <SelectItem value={`03-${currentYear}`}>Maret {currentYear}</SelectItem>
+                            <SelectItem value={`04-${currentYear}`}>April {currentYear}</SelectItem>
+                            <SelectItem value={`05-${currentYear}`}>Mei {currentYear}</SelectItem>
+                            <SelectItem value={`06-${currentYear}`}>Juni {currentYear}</SelectItem>
+                            <SelectItem value={`07-${currentYear}`}>Juli {currentYear}</SelectItem>
+                            <SelectItem value={`08-${currentYear}`}>Agustus {currentYear}</SelectItem>
+                            <SelectItem value={`09-${currentYear}`}>September {currentYear}</SelectItem>
+                            <SelectItem value={`10-${currentYear}`}>Oktober {currentYear}</SelectItem>
+                            <SelectItem value={`11-${currentYear}`}>November {currentYear}</SelectItem>
+                            <SelectItem value={`12-${currentYear}`}>Desember {currentYear}</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

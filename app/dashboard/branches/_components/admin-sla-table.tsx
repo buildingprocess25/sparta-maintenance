@@ -82,6 +82,9 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
                         <h2 className="text-sm font-semibold">SLA Proses SPARTA</h2>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">Rata-rata durasi proses per tahapan dikelompokkan per BMS.</p>
+                    <p className="mt-1 text-[11px] font-medium text-amber-600/90 dark:text-amber-500/90 bg-amber-50 dark:bg-amber-500/10 inline-block px-2 py-0.5 rounded">
+                        *Hanya menghitung durasi dari laporan yang statusnya sudah selesai (COMPLETED).
+                    </p>
                 </div>
                 <Button 
                     variant="outline" 

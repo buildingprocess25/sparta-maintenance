@@ -21,6 +21,7 @@ import {
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { type StoreBrandFilter, getStoreBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
+import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -840,29 +841,22 @@ function formatDuration(seconds: number): string {
 }
 
 export async function getAdminProcessDurationData(
-    year: number,
-    quarter: PreventiveQuarter | "all"
+    period: string
 ): Promise<ProcessDurationData> {
     const user = await getAuthUser();
     if (!user || (user.role !== "ADMIN" && user.role !== "BMC" && user.role !== "BNM_MANAGER")) {
         throw new Error("Unauthorized");
     }
 
-    let qStart: Date, qEnd: Date;
-    if (quarter === "all") {
-        const win = getJakartaYearWindow(year);
-        qStart = win.start;
-        qEnd = win.endExclusive;
-    } else {
-        const win = getJakartaQuarterWindow(year, quarter);
-        qStart = win.start;
-        qEnd = win.endExclusive;
-    }
+    const { start: qStart, end: qEnd } = getActivityPeriodWindow(period);
 
     const reportPredicates: Prisma.Sql[] = [
         Prisma.sql`r."createdAt" >= ${qStart}`,
-        Prisma.sql`r."createdAt" < ${qEnd}`,
     ];
+
+    if (qEnd) {
+        reportPredicates.push(Prisma.sql`r."createdAt" < ${qEnd}`);
+    }
 
     if (user.role === "ADMIN") {
         reportPredicates.push(Prisma.sql`r."branchName" <> ${EXCLUDED_ADMIN_BRANCH_NAME}`);
