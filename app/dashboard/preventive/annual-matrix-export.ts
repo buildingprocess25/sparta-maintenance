@@ -291,6 +291,7 @@ export async function getPreventiveMatrixExportData(
         if (brand === null) throw new Error("Invalid brand filter");
 
         const where: Prisma.StoreWhereInput = {
+            isActive: true,
             ...getStoreBranchScope({
                 role: user.role,
                 branchNames: user.branchNames,
