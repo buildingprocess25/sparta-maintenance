@@ -24,6 +24,11 @@ function formatDuration(seconds: number | null): string {
     return `${h}:${m}:${s}`;
 }
 
+function formatDurationExport(seconds: number | null): string | number {
+    if (seconds === null || seconds < 0) return "-";
+    return seconds / 86400; // Convert seconds to fraction of a day for Excel
+}
+
 export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
     const [expandedBranches, setExpandedBranches] = useState<Set<string>>(new Set());
 
@@ -42,13 +47,13 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
                 "Nama Cabang": branch.branchName,
                 "Nama BMS": "[RATA-RATA CABANG]",
                 "JUMLAH LAPORAN SELESAI": branch.reportCount,
-                "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(branch.estimasiToAppvBMC),
-                "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(branch.estimasiToRevisiBMC),
-                "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(branch.appvBMCToWorkStart),
-                "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDuration(branch.workStartToRealisasi),
-                "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDuration(branch.realisasiToRevisiBMC),
-                "REALISASI DIAJUKAN - APPV BMC": formatDuration(branch.realisasiToAppvBMC),
-                "APPV BMC - APPV MGR": formatDuration(branch.appvBMCToAppvMGR),
+                "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDurationExport(branch.estimasiToAppvBMC),
+                "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDurationExport(branch.estimasiToRevisiBMC),
+                "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDurationExport(branch.appvBMCToWorkStart),
+                "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDurationExport(branch.workStartToRealisasi),
+                "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDurationExport(branch.realisasiToRevisiBMC),
+                "REALISASI DIAJUKAN - APPV BMC": formatDurationExport(branch.realisasiToAppvBMC),
+                "APPV BMC - APPV MGR": formatDurationExport(branch.appvBMCToAppvMGR),
             });
 
             branch.bmsList.forEach((bms) => {
@@ -56,18 +61,31 @@ export function AdminSLATable({ data }: { data: SLADurationBranch[] }) {
                     "Nama Cabang": branch.branchName,
                     "Nama BMS": bms.bmsName,
                     "JUMLAH LAPORAN SELESAI": bms.reportCount,
-                    "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDuration(bms.estimasiToAppvBMC),
-                    "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDuration(bms.estimasiToRevisiBMC),
-                    "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDuration(bms.appvBMCToWorkStart),
-                    "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDuration(bms.workStartToRealisasi),
-                    "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDuration(bms.realisasiToRevisiBMC),
-                    "REALISASI DIAJUKAN - APPV BMC": formatDuration(bms.realisasiToAppvBMC),
-                    "APPV BMC - APPV MGR": formatDuration(bms.appvBMCToAppvMGR),
+                    "PENGAJUAN ESTIMASI - APPV ESTIMASI BMC": formatDurationExport(bms.estimasiToAppvBMC),
+                    "PENGAJUAN ESTIMASI - REVISI ESTIMASI BMC": formatDurationExport(bms.estimasiToRevisiBMC),
+                    "APPV ESTIMASI BMC - MULAI DIKERJAKAN BMS": formatDurationExport(bms.appvBMCToWorkStart),
+                    "PEKERJAAN DIMULAI - REALISASI DIAJUKAN": formatDurationExport(bms.workStartToRealisasi),
+                    "REALISASI DIAJUKAN - REVISI PEKERJAAN OLEH BMC": formatDurationExport(bms.realisasiToRevisiBMC),
+                    "REALISASI DIAJUKAN - APPV BMC": formatDurationExport(bms.realisasiToAppvBMC),
+                    "APPV BMC - APPV MGR": formatDurationExport(bms.appvBMCToAppvMGR),
                 });
             });
         });
 
         const worksheet = XLSX.utils.json_to_sheet(rows);
+        
+        // Format duration columns (column index 3 onwards) to [h]:mm:ss
+        const range = XLSX.utils.decode_range(worksheet["!ref"] || "A1");
+        for (let R = 1; R <= range.e.r; ++R) {
+            for (let C = 3; C <= range.e.c; ++C) {
+                const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+                const cell = worksheet[cellAddress];
+                if (cell && cell.t === "n") {
+                    cell.z = "[h]:mm:ss";
+                }
+            }
+        }
+
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "SLA Proses");
         XLSX.writeFile(workbook, "SLA_Proses_SPARTA.xlsx");
