@@ -10,7 +10,6 @@ import Link from "next/link";
 import { Activity, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AdminDashboardShell } from "./admin-dashboard-shell";
 import { AdminTrendPeriodFilter } from "./admin-trend-filter";
 import { KpiGrid } from "./kpi-cards";
 import { LeaderboardList, type LeaderboardItem } from "./leaderboard-list";
@@ -138,20 +137,7 @@ export function AdminDashboardV2({
   ];
 
   return (
-    <AdminDashboardShell
-      user={user}
-      title="Dashboard"
-      breadcrumbs={[{ label: "Dashboard" }]}
-      contentClassName="md:p-6 space-y-6 pb-12"
-      headerActions={
-        <AdminTrendPeriodFilter
-          initialPeriod={selectedPeriod}
-          initialBrand={selectedBrand}
-          showBrandFilter
-          showPeriodFilter={false}
-        />
-      }
-    >
+    <>
       <DashboardHeader kpi={data.kpi} brand={selectedBrand} period={selectedPeriod} />
 
       {/* Row 1: KPI Cards */}
@@ -258,6 +244,6 @@ export function AdminDashboardV2({
           </CardContent>
         </Card>
       </div>
-    </AdminDashboardShell>
+    </>
   );
 }

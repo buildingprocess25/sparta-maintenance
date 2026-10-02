@@ -4,6 +4,8 @@ import { BmcDashboard } from "./_components/bmc-dashboard";
 import { BnmDashboard } from "./_components/bnm-dashboard";
 import { AdminDashboardContent } from "./_components/admin/admin-dashboard-content";
 import { AdminDashboardSkeleton } from "./_components/admin/admin-dashboard-skeleton";
+import { AdminDashboardShell } from "./_components/admin/admin-dashboard-shell";
+import { AdminTrendPeriodFilter } from "./_components/admin/admin-trend-filter";
 import { Suspense } from "react";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 
@@ -32,9 +34,24 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
             return <BnmDashboard user={user} period={period} brand={brand} />;
         case "ADMIN":
             return (
-                <Suspense fallback={<AdminDashboardSkeleton />}>
-                    <AdminDashboardContent user={user} period={period} brand={brand} />
-                </Suspense>
+                <AdminDashboardShell
+                    user={user}
+                    title="Dashboard"
+                    breadcrumbs={[{ label: "Dashboard" }]}
+                    contentClassName="md:p-6 space-y-6 pb-12"
+                    headerActions={
+                        <AdminTrendPeriodFilter
+                            initialPeriod={period || "ytd"}
+                            initialBrand={brand}
+                            showBrandFilter
+                            showPeriodFilter={false}
+                        />
+                    }
+                >
+                    <Suspense fallback={<AdminDashboardSkeleton />}>
+                        <AdminDashboardContent user={user} period={period} brand={brand} />
+                    </Suspense>
+                </AdminDashboardShell>
             );
         default:
             return <BmsDashboard user={user} />;
