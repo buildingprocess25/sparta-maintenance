@@ -10,7 +10,7 @@ export type BucketReport = {
     createdAt: string; // ISO string — enables client-side month filtering
 };
 
-export const BUCKET_KEYS = ['0-7 Hari', '8-14 Hari', '15-21 Hari', '22-28 Hari', '>28 Hari'] as const;
+const BUCKET_KEYS = ['0-7 Hari', '8-14 Hari', '15-21 Hari', '22-28 Hari', '>28 Hari'] as const;
 export type BucketKey = typeof BUCKET_KEYS[number];
 
 export type HangingDataRow = {

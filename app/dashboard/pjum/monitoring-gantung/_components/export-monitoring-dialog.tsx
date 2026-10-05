@@ -32,11 +32,12 @@ import {
     getMonitoringGantungData,
     HangingDataRow,
     BucketReport,
-    BUCKET_KEYS,
     type MonitoringGantungResult,
 } from "../actions";
 
 // ─── Shared Constants & Helpers ────────────────────────────────────────────
+
+export const BUCKET_KEYS = ['0-7 Hari', '8-14 Hari', '15-21 Hari', '22-28 Hari', '>28 Hari'] as const;
 
 export const MONTH_OPTIONS = [
     { value: "0", label: "Jan" },
