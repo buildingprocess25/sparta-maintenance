@@ -84,6 +84,11 @@ const data = {
             title: "Monitoring",
             items: [
                 {
+                    title: "Laporan Gantung",
+                    url: "/dashboard/pjum/monitoring-gantung",
+                    icon: IconFileDescription,
+                },
+                {
                     title: "Performa Cabang",
                     url: "/dashboard/branches",
                     icon: IconBuildingCommunity,
@@ -180,7 +185,11 @@ export function AppSidebar({
                 )
             );
         }
-        return pathname.startsWith(url);
+        if (url === "/dashboard/pjum" && pathname.startsWith("/dashboard/pjum/monitoring-gantung")) {
+            return false;
+        }
+        
+        return pathname === url || pathname.startsWith(`${url}/`);
     };
 
     const shouldShowItem = (title: string) => {
