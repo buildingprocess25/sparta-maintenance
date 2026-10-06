@@ -216,9 +216,7 @@ export async function fetchReportExportRows(
 
         const CHUNK_SIZE = 5000;
         let skip = 0;
-        
-        type ReportWithRelations = Awaited<ReturnType<typeof prisma.report.findMany>>[number];
-        const reports: ReportWithRelations[] = [];
+        const rows: ReportExportRow[] = [];
 
         while (true) {
             const chunk = await prisma.report.findMany({
@@ -256,60 +254,58 @@ export async function fetchReportExportRows(
             }
 
             for (const r of chunk) {
-                reports.push(r as ReportWithRelations);
+                const actionTimes = new Map<string, Date>();
+                for (const activity of r.activities) {
+                    if (!actionTimes.has(activity.action)) {
+                        actionTimes.set(activity.action, activity.createdAt);
+                    }
+                }
+
+                rows.push({
+                    reportNumber: r.reportNumber,
+                    isPreventive: isRecordedPreventiveReport({ status: r.status, items: r.items }),
+                    brand: r.store?.brand ?? null,
+                    createdAt: r.createdAt,
+                    branchName: r.branchName,
+                    storeCode: r.storeCode,
+                    storeName: r.storeName,
+                    bmsNIK: r.createdByNIK,
+                    bmsName: r.createdBy.name,
+                    status: r.status,
+                    totalEstimation: Number(r.totalEstimation),
+                    totalReal: r.totalReal !== null ? Number(r.totalReal) : null,
+                    finishedAt: r.finishedAt,
+                    pjumExportedAt: r.pjumExportedAt,
+                    submittedAt: actionTimes.get("SUBMITTED") ?? null,
+                    resubmittedEstimationAt:
+                        actionTimes.get("RESUBMITTED_ESTIMATION") ?? null,
+                    estimationApprovedAt:
+                        actionTimes.get("ESTIMATION_APPROVED") ?? null,
+                    estimationRejectedRevisionAt:
+                        actionTimes.get("ESTIMATION_REJECTED_REVISION") ?? null,
+                    estimationRejectedAt:
+                        actionTimes.get("ESTIMATION_REJECTED") ?? null,
+                    workStartedAt: actionTimes.get("WORK_STARTED") ?? null,
+                    completionSubmittedAt:
+                        actionTimes.get("COMPLETION_SUBMITTED") ?? null,
+                    resubmittedWorkAt:
+                        actionTimes.get("RESUBMITTED_WORK") ?? null,
+                    workApprovedAt:
+                        actionTimes.get("WORK_APPROVED") ??
+                        actionTimes.get("ESTIMATION_APPROVED") ??
+                        null,
+                    workRejectedRevisionAt:
+                        actionTimes.get("WORK_REJECTED_REVISION") ?? null,
+                    finalApprovedBnmAt:
+                        actionTimes.get("FINAL_APPROVED_BNM") ?? null,
+                    finalRejectedRevisionBnmAt:
+                        actionTimes.get("FINAL_REJECTED_REVISION_BNM") ?? null,
+                });
             }
             skip += CHUNK_SIZE;
         }
 
-        return reports.map((r) => {
-            const actionTimes = new Map<string, Date>();
-            for (const activity of r.activities) {
-                if (!actionTimes.has(activity.action)) {
-                    actionTimes.set(activity.action, activity.createdAt);
-                }
-            }
-
-            return {
-                reportNumber: r.reportNumber,
-                isPreventive: isRecordedPreventiveReport({ status: r.status, items: r.items }),
-                brand: r.store?.brand ?? null,
-                createdAt: r.createdAt,
-                branchName: r.branchName,
-                storeCode: r.storeCode,
-                storeName: r.storeName,
-                bmsNIK: r.createdByNIK,
-                bmsName: r.createdBy.name,
-                status: r.status,
-                totalEstimation: Number(r.totalEstimation),
-                totalReal: r.totalReal !== null ? Number(r.totalReal) : null,
-                finishedAt: r.finishedAt,
-                pjumExportedAt: r.pjumExportedAt,
-                submittedAt: actionTimes.get("SUBMITTED") ?? null,
-                resubmittedEstimationAt:
-                    actionTimes.get("RESUBMITTED_ESTIMATION") ?? null,
-                estimationApprovedAt:
-                    actionTimes.get("ESTIMATION_APPROVED") ?? null,
-                estimationRejectedRevisionAt:
-                    actionTimes.get("ESTIMATION_REJECTED_REVISION") ?? null,
-                estimationRejectedAt:
-                    actionTimes.get("ESTIMATION_REJECTED") ?? null,
-                workStartedAt: actionTimes.get("WORK_STARTED") ?? null,
-                completionSubmittedAt:
-                    actionTimes.get("COMPLETION_SUBMITTED") ?? null,
-                resubmittedWorkAt:
-                    actionTimes.get("RESUBMITTED_WORK") ?? null,
-                workApprovedAt:
-                    actionTimes.get("WORK_APPROVED") ??
-                    actionTimes.get("ESTIMATION_APPROVED") ??
-                    null,
-                workRejectedRevisionAt:
-                    actionTimes.get("WORK_REJECTED_REVISION") ?? null,
-                finalApprovedBnmAt:
-                    actionTimes.get("FINAL_APPROVED_BNM") ?? null,
-                finalRejectedRevisionBnmAt:
-                    actionTimes.get("FINAL_REJECTED_REVISION_BNM") ?? null,
-            };
-        });
+        return rows;
     } catch (error) {
         logger.error(
             {
