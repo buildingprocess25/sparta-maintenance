@@ -455,6 +455,7 @@ export async function approvePjumAndTransitionBmsBalance(
                 pjumExportedAt: true,
                 pjumHangingAt: true,
                 pjumExpiredAt: true,
+                balancePeriodId: true,
             },
         });
 
@@ -522,6 +523,24 @@ export async function approvePjumAndTransitionBmsBalance(
             });
         }
 
+        const forwardReportNumbers = reports
+            .filter(
+                (r) =>
+                    period &&
+                    r.balancePeriodId === period.id &&
+                    !classification.carryReportNumbers.includes(r.reportNumber) &&
+                    !classification.expireReportNumbers.includes(r.reportNumber) &&
+                    !pjumExport.reportNumbers.includes(r.reportNumber)
+            )
+            .map((r) => r.reportNumber);
+
+        if (forwardReportNumbers.length > 0) {
+            await tx.report.updateMany({
+                where: { reportNumber: { in: forwardReportNumbers } },
+                data: { balancePeriodId: nextPeriod.id },
+            });
+        }
+
         return {
             period: nextPeriod,
             carriedReportNumbers: classification.carryReportNumbers,
@@ -557,7 +576,8 @@ export function hasBmsRepairItems(items: unknown): boolean {
         (item) =>
             item &&
             typeof item === "object" &&
-            (item as Record<string, unknown>).condition === "RUSAK" &&
+            ((item as Record<string, unknown>).condition === "RUSAK" ||
+             (item as Record<string, unknown>).preventiveCondition === "NOT_OK") &&
             (item as Record<string, unknown>).handler === "BMS",
     );
 }
