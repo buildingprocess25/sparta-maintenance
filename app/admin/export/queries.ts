@@ -214,33 +214,52 @@ export async function fetchReportExportRows(
     try {
         const where = buildReportWhere(filter);
 
-        const reports = await prisma.report.findMany({
-            where,
-            orderBy: { createdAt: "asc" },
-            select: {
-                reportNumber: true,
-                createdAt: true,
-                branchName: true,
-                storeCode: true,
-                store: { select: { brand: true } },
-                storeName: true,
-                createdByNIK: true,
-                createdBy: { select: { name: true } },
-                status: true,
-                items: true,
-                totalEstimation: true,
-                totalReal: true,
-                finishedAt: true,
-                pjumExportedAt: true,
-                activities: {
-                    orderBy: { createdAt: "asc" },
-                    select: {
-                        action: true,
-                        createdAt: true,
+        const CHUNK_SIZE = 5000;
+        let skip = 0;
+        
+        type ReportWithRelations = Awaited<ReturnType<typeof prisma.report.findMany>>[number];
+        const reports: ReportWithRelations[] = [];
+
+        while (true) {
+            const chunk = await prisma.report.findMany({
+                where,
+                orderBy: { createdAt: "asc" },
+                skip,
+                take: CHUNK_SIZE,
+                select: {
+                    reportNumber: true,
+                    createdAt: true,
+                    branchName: true,
+                    storeCode: true,
+                    store: { select: { brand: true } },
+                    storeName: true,
+                    createdByNIK: true,
+                    createdBy: { select: { name: true } },
+                    status: true,
+                    items: true,
+                    totalEstimation: true,
+                    totalReal: true,
+                    finishedAt: true,
+                    pjumExportedAt: true,
+                    activities: {
+                        orderBy: { createdAt: "asc" },
+                        select: {
+                            action: true,
+                            createdAt: true,
+                        },
                     },
                 },
-            },
-        });
+            });
+
+            if (chunk.length === 0) {
+                break;
+            }
+
+            for (const r of chunk) {
+                reports.push(r as ReportWithRelations);
+            }
+            skip += CHUNK_SIZE;
+        }
 
         return reports.map((r) => {
             const actionTimes = new Map<string, Date>();
