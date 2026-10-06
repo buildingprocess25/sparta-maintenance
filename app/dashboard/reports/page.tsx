@@ -7,6 +7,7 @@ import { isReportStatusKey } from "@/lib/report-status";
 import { Suspense } from "react";
 import { AdminReportsContent } from "./_components/admin-reports-content";
 import { AdminReportsSkeleton } from "./_components/admin-reports-skeleton";
+import { fetchAllBranchNames } from "@/app/admin/export/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -68,6 +69,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
 
     const params = await searchParams;
     const isAdmin = user.role === "ADMIN";
+    // Ambil semua cabang untuk dropdown filter ekspor (hanya ADMIN butuh daftar lengkap)
+    const allBranchesForExport = isAdmin ? await fetchAllBranchNames() : [];
     const initialBrand = isAdmin
         ? normalizeStoreBrandFilter(params.brand)
         : "ALL";
@@ -103,7 +106,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
             breadcrumbs={[{ label: "Laporan Maintenance" }]}
             headerActions={
                 <ExportReportsDialog
-                    branches={scopedBranches === null ? [] : scopedBranches}
+                    branches={isAdmin ? allBranchesForExport : (scopedBranches ?? [])}
                     showBranchFilter={isAdmin}
                     showBrandFilter={isAdmin}
                 />
