@@ -15,6 +15,7 @@ import {
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 import { StoreBrandFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
+import { isRecordedPreventiveReport } from "@/lib/report-preventive";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -226,6 +227,7 @@ export async function fetchReportExportRows(
                 createdByNIK: true,
                 createdBy: { select: { name: true } },
                 status: true,
+                items: true,
                 totalEstimation: true,
                 totalReal: true,
                 finishedAt: true,
@@ -240,22 +242,6 @@ export async function fetchReportExportRows(
             },
         });
 
-        const reportNumbers = reports.map((r) => r.reportNumber);
-        
-        let preventiveSet = new Set<string>();
-        if (reportNumbers.length > 0) {
-            const preventiveReports = await prisma.$queryRaw<{ reportNumber: string }[]>`
-                SELECT r."reportNumber"
-                FROM "Report" r
-                WHERE r."reportNumber" IN (${Prisma.join(reportNumbers)})
-                  AND ${completePreventiveEvidenceSql({
-                      statusColumn: Prisma.sql`r."status"`,
-                      itemsColumn: Prisma.sql`r."items"`,
-                  })}
-            `;
-            preventiveSet = new Set(preventiveReports.map(r => r.reportNumber));
-        }
-
         return reports.map((r) => {
             const actionTimes = new Map<string, Date>();
             for (const activity of r.activities) {
@@ -266,7 +252,7 @@ export async function fetchReportExportRows(
 
             return {
                 reportNumber: r.reportNumber,
-                isPreventive: preventiveSet.has(r.reportNumber),
+                isPreventive: isRecordedPreventiveReport({ status: r.status, items: r.items }),
                 brand: r.store?.brand ?? null,
                 createdAt: r.createdAt,
                 branchName: r.branchName,
@@ -293,7 +279,10 @@ export async function fetchReportExportRows(
                     actionTimes.get("COMPLETION_SUBMITTED") ?? null,
                 resubmittedWorkAt:
                     actionTimes.get("RESUBMITTED_WORK") ?? null,
-                workApprovedAt: actionTimes.get("WORK_APPROVED") ?? null,
+                workApprovedAt:
+                    actionTimes.get("WORK_APPROVED") ??
+                    actionTimes.get("ESTIMATION_APPROVED") ??
+                    null,
                 workRejectedRevisionAt:
                     actionTimes.get("WORK_REJECTED_REVISION") ?? null,
                 finalApprovedBnmAt:
