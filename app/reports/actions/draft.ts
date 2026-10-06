@@ -82,6 +82,35 @@ export async function saveServerDraft(data: DraftData) {
         await validateCSRF(headersList);
 
         let draftReportNumber = parsed.data.draftReportNumber;
+        
+        if (draftReportNumber) {
+            const existingDraft = await prisma.report.findFirst({
+                where: {
+                    reportNumber: draftReportNumber,
+                    createdByNIK: user.NIK,
+                    status: "DRAFT",
+                },
+                select: { storeCode: true },
+            });
+
+            if (
+                existingDraft &&
+                existingDraft.storeCode &&
+                parsed.data.storeCode &&
+                existingDraft.storeCode !== parsed.data.storeCode
+            ) {
+                // Toko berubah. Hapus draft lama agar reportNumber di-generate ulang dengan prefix toko baru.
+                await prisma.report.deleteMany({
+                    where: {
+                        reportNumber: draftReportNumber,
+                        createdByNIK: user.NIK,
+                        status: "DRAFT",
+                    },
+                });
+                draftReportNumber = undefined;
+            }
+        }
+
         if (!draftReportNumber) {
             if (!parsed.data.storeCode) {
                 return { error: "Pilih toko sebelum menyimpan draft" };
