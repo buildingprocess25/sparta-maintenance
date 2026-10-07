@@ -1,12 +1,7 @@
 | Task | Status | Notes |
 |---|---|---|
-| Task 1: Prisma Schema & Migration for BmsStoreAssignment | Done | Model added to schema.prisma, tests passing, migration guide ready for prisma migrate dev |
-| Task 2: Data Import Script from Master Excel | Done | Script & unit tests passing, npm run import:bms-assignments configured (script not executed per instructions) |
-| Task 3: Form Protection & Backend Guard for BMS Report Creation | Done | getAssignedStoresForBms implemented, server guard added to submit.ts, tests passing |
-| Task 4: Store Management Integration in Admin/BMC Dashboard | Done | bmsNIK filter, assignStoreToBms, BMS Coverage column & dropdown added, tests passing |
-| Task 5: Quarterly Preventive KPI Engine & BMS Mobile Coverage Alignment | Done | getBmsPreventiveCoverage updated to query BmsStoreAssignment, tests passing |
-| Task 6: Multi-Role KPI Monitoring UI in /dashboard/bms-performance & Dashboard Widgets | Done | Performance page, widgets, dialog rincian toko, sidebar access untuk ADMIN |
-| Task 7: Full System Verification, Typecheck, and Final Task Note | Done | Unit tests passing (15/15), clean production build |
-| Task 8: Dropdown Filter BMS (Ascending) di Toolbar Manajemen Toko | Done | Dropdown BMS select, query param ?bms=, getBmsOptionsByBranch ASC |
-| Task 9: Perbaikan Tampilan Modal Popup Detail Toko (BmsCoverageDetailDialog) | Done | Lebarkan dialog (max-w-5xl), hilangkan double scrollbar |
-| Task 10: Verifikasi Sistem, Type Check, dan Dokumentasi Task Note | Done | Unit tests (20/20 pass), npm run build:memory clean (exit code 0), task note created |
+| Task 1: Sembunyikan Performa BMS dari Sidebar Admin | Done | Kembalikan rule `title !== "Performa BMS"` untuk role ADMIN di app-sidebar |
+| Task 2: Server Action Agregasi Data Hirarki Coverage BMS per Cabang | Done | Agregasi data BmsStoreAssignment & preventive per Cabang -> BMS -> Toko |
+| Task 3: Komponen Tampilan Hirarki 3-Level (BmsCoverageHierarchyTable) | Done | Expandable tree table (Cabang -> BMS -> Toko) dengan auto-expand BMC |
+| Task 4: Integrasi Tab "Coverage BMS" sebagai Default Tab di Checklist Preventif | Done | Tab baru paling pertama di /dashboard/preventive, default active |
+| Task 5: Full Verification, Clean Build, dan Dokumentasi Task Note | Done | Unit tests, npm run build:memory clean (exit code 0), task note |

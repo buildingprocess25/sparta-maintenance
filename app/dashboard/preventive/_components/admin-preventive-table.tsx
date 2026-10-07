@@ -19,8 +19,11 @@ import {
     Loader2,
     Search,
     Store,
+    Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { BmsCoverageHierarchyTable } from "./bms-coverage-hierarchy-table";
+import type { BranchCoverageHierarchy } from "../coverage-hierarchy-action";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -234,6 +237,8 @@ export function AdminPreventiveTable({
     showBranchControls = true,
     showBrandFilter = false,
     actions,
+    initialCoverageHierarchy,
+    isBmc = false,
     initialYear,
     initialQuarter,
     initialBrand: initialBrandProp,
@@ -241,6 +246,8 @@ export function AdminPreventiveTable({
     initialBranchSort,
 }: {
     initialData: AdminPreventiveResult;
+    initialCoverageHierarchy?: BranchCoverageHierarchy[];
+    isBmc?: boolean;
     branches: string[];
     availableYears: number[];
     defaultBranch: string;
@@ -254,7 +261,15 @@ export function AdminPreventiveTable({
     initialBranchSort?: "asc" | "desc";
 }) {
     const currentYear = getJakartaYear();
-    const [activeTab, setActiveTab] = useState(initialTab ?? "quarter");
+    const [activeTab, setActiveTab] = useState(initialTab ?? "coverage-bms");
+    const [coverageHierarchyData, setCoverageHierarchyData] = useState<BranchCoverageHierarchy[]>(
+        initialCoverageHierarchy || [],
+    );
+    useEffect(() => {
+        if (initialCoverageHierarchy) {
+            setCoverageHierarchyData(initialCoverageHierarchy);
+        }
+    }, [initialCoverageHierarchy]);
     const [branchSort, setBranchSort] = useState<"asc" | "desc">(initialBranchSort ?? "asc");
     const [data, setData] = useState<PreventiveRow[]>(initialData.rows);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -309,7 +324,7 @@ export function AdminPreventiveTable({
                 resolvedBrand && resolvedBrand !== "ALL"
                     ? params.set("brand", resolvedBrand)
                     : params.delete("brand");
-                resolvedTab !== "quarter"
+                resolvedTab !== "coverage-bms"
                     ? params.set("tab", resolvedTab)
                     : params.delete("tab");
 
@@ -718,6 +733,13 @@ export function AdminPreventiveTable({
                                 variant="line"
                                 className="h-8 w-max justify-start rounded-none p-0"
                             >
+                                <TabsTrigger value="coverage-bms" className="h-8 flex-none px-3 text-xs">
+                                    <Users data-icon="inline-start" />
+                                    Coverage BMS
+                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+                                        {coverageHierarchyData.length}
+                                    </Badge>
+                                </TabsTrigger>
                                 <TabsTrigger value="quarter" className="h-8 flex-none px-3 text-xs">
                                     <ClipboardCheck data-icon="inline-start" />
                                     Sudah Checklist
@@ -767,6 +789,16 @@ export function AdminPreventiveTable({
                 </div>
 
                 <div className="p-4 lg:p-6">
+                    <TabsContent value="coverage-bms" className="mt-0">
+                        <BmsCoverageHierarchyTable
+                            initialHierarchy={coverageHierarchyData}
+                            defaultBranch={branchName}
+                            isBmc={isBmc}
+                            quarter={quarter}
+                            year={year}
+                        />
+                    </TabsContent>
+
                     <TabsContent value="quarter" className="mt-0">
                         <div className="overflow-hidden rounded-lg border bg-background">
                             <Table>

@@ -23,6 +23,8 @@
     "import:stores": "tsx scripts/import-stores.ts",
     "import:bms-assignments": "tsx scripts/import-bms-store-assignments.ts",
     "import:bms-assignments:dry-run": "tsx scripts/import-bms-store-assignments.ts --dry-run",
+    "assign:vian": "tsx scripts/assign-single-bms-stores.ts",
+    "assign:vian:dry-run": "tsx scripts/assign-single-bms-stores.ts --dry-run",
     "sync:stores": "tsx scripts/sync-stores-from-sheet.ts",
     "sync:store-enrichment": "tsx scripts/sync-store-enrichment-from-sheet.ts",
     "prune:stores": "tsx scripts/prune-stores-by-branch.ts",

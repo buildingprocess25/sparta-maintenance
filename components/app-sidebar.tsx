@@ -196,7 +196,7 @@ export function AppSidebar({
         if (!authUser) return true;
 
         if (authUser.role === "ADMIN") {
-            return true;
+            return title !== "Performa BMS";
         }
 
         if (authUser.role === "BMC" || authUser.role === "BNM_MANAGER") {

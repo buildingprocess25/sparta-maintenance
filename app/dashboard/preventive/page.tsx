@@ -3,6 +3,7 @@ import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { getAdminPreventive, getPreventiveBranchOptions, getReportYears } from "./actions";
 import { getPreventiveCompletionForTab } from "./preventive-dashboard";
+import { getBmsCoverageHierarchy } from "./coverage-hierarchy-action";
 import { AdminPreventiveTable } from "./_components/admin-preventive-table";
 import { ExportPreventiveDialog } from "./_components/export-preventive-dialog";
 import { getJakartaYear } from "@/lib/time";
@@ -23,7 +24,14 @@ type Props = {
 };
 
 const VALID_QUARTERS = new Set(["1", "2", "3", "4"]);
-const VALID_TABS = new Set(["quarter", "pending", "matrix", "branches", "history"]);
+const VALID_TABS = new Set([
+    "coverage-bms",
+    "quarter",
+    "pending",
+    "matrix",
+    "branches",
+    "history",
+]);
 
 function normalizeQuarter(value?: string): PreventiveQuarter | undefined {
     if (value && VALID_QUARTERS.has(value)) {
@@ -54,10 +62,10 @@ export default async function AdminPreventivePage({ searchParams }: Props) {
     const initialQuarter = normalizeQuarter(params.quarter);
     const initialBrand = isAdmin ? normalizeStoreBrandFilter(params.brand) : "ALL";
     const initialTab =
-        params.tab && VALID_TABS.has(params.tab) ? params.tab : "quarter";
+        params.tab && VALID_TABS.has(params.tab) ? params.tab : "coverage-bms";
     const initialSort: "asc" | "desc" = params.sort === "desc" ? "desc" : "asc";
 
-    const [branchOptions, years, initialData] = await Promise.all([
+    const [branchOptions, years, initialData, initialCoverageHierarchy] = await Promise.all([
         isAdmin ? getPreventiveBranchOptions() : Promise.resolve([]),
         getReportYears(),
         getAdminPreventive(null, 20, {
@@ -66,6 +74,12 @@ export default async function AdminPreventivePage({ searchParams }: Props) {
             brand: initialBrand !== "ALL" ? initialBrand : undefined,
             completion: getPreventiveCompletionForTab(initialTab),
             ...(initialQuarter ? { quarter: initialQuarter } : {}),
+        }),
+        getBmsCoverageHierarchy({
+            year: initialYear,
+            quarter: initialQuarter,
+            branchName: isAdmin ? initialBranch : user.branchNames[0],
+            brand: initialBrand,
         }),
     ]);
     const branches = isAdmin ? branchOptions : user.branchNames;
@@ -86,11 +100,13 @@ export default async function AdminPreventivePage({ searchParams }: Props) {
         >
             <AdminPreventiveTable
                 initialData={initialData}
+                initialCoverageHierarchy={initialCoverageHierarchy}
                 branches={branches}
                 availableYears={years}
                 defaultBranch={initialBranch}
                 showBranchControls={isAdmin}
                 showBrandFilter={isAdmin}
+                isBmc={user.role === "BMC"}
                 initialYear={initialYear}
                 initialQuarter={initialQuarter}
                 initialBrand={initialBrand}
