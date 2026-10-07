@@ -1615,8 +1615,8 @@ export const getAdminCommandCenterData = unstable_cache(
 
     const [slaPerformance, totalStoreAlfamart, totalStoreLawson, totalBms, totalBmc, totalManager] = await Promise.all([
       getAdminSlaPerformanceData(trendWindow, brand, branchScope),
-      prisma.store.count({ where: { brand: "ALFAMART", isActive: true } }),
-      prisma.store.count({ where: { brand: "LAWSON", isActive: true } }),
+      prisma.store.count({ where: { brand: "ALFAMART", isActive: true, NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } }),
+      prisma.store.count({ where: { brand: "LAWSON", isActive: true, NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } }),
       prisma.user.count({ where: { role: "BMS", deletedAt: null } }),
       prisma.user.count({ where: { role: "BMC", deletedAt: null } }),
       prisma.user.count({ where: { role: "BNM_MANAGER", deletedAt: null } }),
