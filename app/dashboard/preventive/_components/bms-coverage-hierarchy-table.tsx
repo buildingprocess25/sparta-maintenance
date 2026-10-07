@@ -126,75 +126,8 @@ export function BmsCoverageHierarchyTable({
             .filter(Boolean) as BranchCoverageHierarchy[];
     }, [initialHierarchy, search]);
 
-    // Summary global
-    const globalSummary = useMemo(() => {
-        let totalStores = 0;
-        let completedStores = 0;
-        let totalBms = 0;
-
-        for (const b of initialHierarchy) {
-            totalStores += b.totalStores;
-            completedStores += b.completedStores;
-            totalBms += b.bmsCount;
-        }
-
-        const pendingStores = Math.max(0, totalStores - completedStores);
-        const rate =
-            totalStores > 0
-                ? Math.round((completedStores / totalStores) * 1000) / 10
-                : 0;
-
-        return {
-            totalBranches: initialHierarchy.length,
-            totalBms,
-            totalStores,
-            completedStores,
-            pendingStores,
-            rate,
-        };
-    }, [initialHierarchy]);
-
     return (
-        <div className="space-y-4 p-4 lg:p-6">
-            {/* KPI Cards Summary Global */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                <div className="rounded-lg border bg-card p-3 shadow-sm">
-                    <p className="text-xs text-muted-foreground font-medium">Total Cabang</p>
-                    <p className="text-xl font-bold mt-1 text-slate-800 dark:text-slate-100">
-                        {globalSummary.totalBranches}
-                    </p>
-                </div>
-                <div className="rounded-lg border bg-card p-3 shadow-sm">
-                    <p className="text-xs text-muted-foreground font-medium">BMS Terlibat</p>
-                    <p className="text-xl font-bold mt-1 text-slate-800 dark:text-slate-100">
-                        {globalSummary.totalBms}
-                    </p>
-                </div>
-                <div className="rounded-lg border bg-card p-3 shadow-sm">
-                    <p className="text-xs text-muted-foreground font-medium">Target Toko</p>
-                    <p className="text-xl font-bold mt-1 text-slate-800 dark:text-slate-100">
-                        {globalSummary.totalStores}
-                    </p>
-                </div>
-                <div className="rounded-lg border bg-card p-3 shadow-sm">
-                    <p className="text-xs text-muted-foreground font-medium">Sudah Checklist</p>
-                    <p className="text-xl font-bold mt-1 text-emerald-600">
-                        {globalSummary.completedStores}
-                    </p>
-                </div>
-                <div className="rounded-lg border bg-card p-3 shadow-sm col-span-2 md:col-span-1">
-                    <p className="text-xs text-muted-foreground font-medium">Coverage Nasional</p>
-                    <div className="flex items-baseline gap-2 mt-1">
-                        <span className="text-xl font-bold text-primary">
-                            {globalSummary.rate}%
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            ({globalSummary.pendingStores} pending)
-                        </span>
-                    </div>
-                </div>
-            </div>
-
+        <div className="space-y-4">
             {/* Toolbar Filter & Quick Search */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
                 <div className="relative flex-1 max-w-md">
