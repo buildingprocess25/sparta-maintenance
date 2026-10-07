@@ -33,7 +33,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { getAdminStores, AdminStoreFilters } from "../actions";
+import { getAdminStores, AdminStoreFilters, getBmsOptionsByBranch } from "../actions";
 import { AdminStoreFormDialog } from "@/app/admin/database/_components/store-form-dialog";
 import { adminDeleteStore } from "@/app/admin/database/actions";
 import { ImportStoresDialog } from "./import-stores-dialog";
@@ -131,6 +131,7 @@ export function AdminStoresTable({
     areaNames,
     allBrands,
     areaNamesByBranch,
+    bmsOptions = [],
     canManage = true,
     userRole,
     initialSearch,
@@ -138,6 +139,7 @@ export function AdminStoresTable({
     initialAreaName,
     initialBrand,
     initialOwnershipType,
+    initialBmsNIK,
 }: {
     initialData: StoreItem[];
     initialNextCursor: string | null;
@@ -146,6 +148,7 @@ export function AdminStoresTable({
     areaNames: string[];
     allBrands?: string[];
     areaNamesByBranch?: Record<string, string[]>;
+    bmsOptions?: Array<{ NIK: string; name: string }>;
     canManage?: boolean;
     userRole?: string;
     initialSearch?: string;
@@ -153,6 +156,7 @@ export function AdminStoresTable({
     initialAreaName?: string;
     initialBrand?: string;
     initialOwnershipType?: StoreItem["ownershipType"] | "all";
+    initialBmsNIK?: string;
 }) {
     const [stores, setStores] = useState<StoreItem[]>(initialData);
     const [nextCursor, setNextCursor] = useState<string | null>(
@@ -168,6 +172,10 @@ export function AdminStoresTable({
     const [areaName, setAreaName] = useState(initialAreaName ?? "all");
     const [brand, setBrand] = useState(initialBrand ?? "all");
     const [ownershipType, setOwnershipType] = useState(initialOwnershipType ?? "all");
+    const [bmsNIK, setBmsNIK] = useState(initialBmsNIK ?? "all");
+    const [availableBms, setAvailableBms] = useState<Array<{ NIK: string; name: string }>>(
+        [...(bmsOptions ?? [])].sort((a, b) => a.name.localeCompare(b.name, "id")),
+    );
 
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -180,6 +188,25 @@ export function AdminStoresTable({
         ),
     );
 
+    // Update opsi BMS saat cabang berubah (diurutkan ASC by name)
+    useEffect(() => {
+        let isMounted = true;
+        const branchParam = branchName !== "all" ? branchName : undefined;
+        getBmsOptionsByBranch(branchParam).then((opts) => {
+            if (isMounted) {
+                const sorted = [...opts].sort((a, b) => a.name.localeCompare(b.name, "id"));
+                setAvailableBms(sorted);
+                if (bmsNIK !== "all" && !opts.some((o) => o.NIK === bmsNIK)) {
+                    setBmsNIK("all");
+                    pushFilterToUrl({ bmsNIK: "all" });
+                }
+            }
+        });
+        return () => {
+            isMounted = false;
+        };
+    }, [branchName]);
+
     const pushFilterToUrl = useCallback(
         (overrides: {
             search?: string;
@@ -187,6 +214,7 @@ export function AdminStoresTable({
             areaName?: string;
             brand?: string;
             ownershipType?: StoreItem["ownershipType"] | "all";
+            bmsNIK?: string;
         }) => {
             const resolvedSearch = overrides.search ?? search;
             const resolvedBranch = overrides.branchName ?? branchName;
@@ -194,6 +222,7 @@ export function AdminStoresTable({
             const resolvedBrand = overrides.brand ?? brand;
             const resolvedOwnershipType =
                 overrides.ownershipType ?? ownershipType;
+            const resolvedBmsNIK = overrides.bmsNIK ?? bmsNIK;
 
             if (urlDebounceRef.current) clearTimeout(urlDebounceRef.current);
             urlDebounceRef.current = setTimeout(() => {
@@ -224,13 +253,18 @@ export function AdminStoresTable({
                 } else {
                     params.delete("type");
                 }
+                if (resolvedBmsNIK && resolvedBmsNIK !== "all") {
+                    params.set("bms", resolvedBmsNIK);
+                } else {
+                    params.delete("bms");
+                }
 
                 router.replace(`/dashboard/stores?${params.toString()}`, {
                     scroll: false,
                 });
             }, 300);
         },
-        [search, branchName, areaName, brand, ownershipType, searchParams, router],
+        [search, branchName, areaName, brand, ownershipType, bmsNIK, searchParams, router],
     );
 
     const observerTarget = useRef<HTMLDivElement>(null);
@@ -244,6 +278,7 @@ export function AdminStoresTable({
                 areaName: areaName === "all" ? undefined : areaName,
                 brand: brand === "all" ? undefined : brand,
                 ownershipType: ownershipType === "all" ? undefined : ownershipType,
+                bmsNIK: bmsNIK === "all" ? undefined : bmsNIK,
             };
 
             try {
@@ -276,7 +311,7 @@ export function AdminStoresTable({
                 setIsFetchingNextPage(false);
             }
         },
-        [search, branchName, areaName, brand, ownershipType],
+        [search, branchName, areaName, brand, ownershipType, bmsNIK],
     );
 
     // Debounced reload on filter change
@@ -286,7 +321,7 @@ export function AdminStoresTable({
         return () => {
             if (timeoutRef.current) clearTimeout(timeoutRef.current);
         };
-    }, [search, branchName, areaName, brand, ownershipType, loadData]);
+    }, [search, branchName, areaName, brand, ownershipType, bmsNIK, loadData]);
 
     // Infinite scroll
     useEffect(() => {
@@ -386,6 +421,33 @@ export function AdminStoresTable({
                         </SelectContent>
                     </Select>
                 ) : null}
+
+                {/* BMS Filter */}
+                <Select
+                    value={bmsNIK}
+                    onValueChange={(val) => {
+                        setBmsNIK(val);
+                        pushFilterToUrl({ bmsNIK: val });
+                    }}
+                >
+                    <SelectTrigger className="flex-[0.8] min-w-[140px] bg-white h-8 text-xs">
+                        <SelectValue placeholder="Semua BMS" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                        <SelectItem value="all" className="text-xs">
+                            Semua BMS
+                        </SelectItem>
+                        {availableBms.map((bms) => (
+                            <SelectItem
+                                key={bms.NIK}
+                                value={bms.NIK}
+                                className="text-xs"
+                            >
+                                {bms.name} ({bms.NIK})
+                            </SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
 
                 <Select
                     value={brand}
@@ -497,6 +559,9 @@ export function AdminStoresTable({
                                 <TableHead className="min-w-[140px]">
                                     Cabang
                                 </TableHead>
+                                <TableHead className="min-w-[160px]">
+                                    BMS Coverage
+                                </TableHead>
                                 <TableHead className="w-[80px]">
                                     Status
                                 </TableHead>
@@ -511,7 +576,7 @@ export function AdminStoresTable({
                             {isLoading && !isFetchingNextPage ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={canManage ? 7 : 6}
+                                        colSpan={canManage ? 8 : 7}
                                         className="h-32 text-center"
                                     >
                                         <Loader2 className="w-5 h-5 animate-spin mx-auto text-muted-foreground" />
@@ -520,7 +585,7 @@ export function AdminStoresTable({
                             ) : stores.length === 0 ? (
                                 <TableRow>
                                     <TableCell
-                                        colSpan={canManage ? 7 : 6}
+                                        colSpan={canManage ? 8 : 7}
                                         className="h-32 text-center text-muted-foreground"
                                     >
                                         Tidak ada toko yang ditemukan
@@ -546,6 +611,20 @@ export function AdminStoresTable({
                                                     {store.areaName}
                                                 </div>
                                             ) : null}
+                                        </TableCell>
+                                        <TableCell>
+                                            {(store as any).storeAssignments?.[0]?.bms ? (
+                                                <Badge
+                                                    variant="outline"
+                                                    className="text-[10px] px-1.5 py-0 font-medium bg-blue-50 text-blue-700 border-blue-200"
+                                                >
+                                                    {(store as any).storeAssignments[0].bms.name} ({(store as any).storeAssignments[0].bmsNIK})
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-[11px] text-muted-foreground italic">
+                                                    Belum Ditugaskan
+                                                </span>
+                                            )}
                                         </TableCell>
                                         <TableCell>
                                             <Badge
@@ -580,7 +659,10 @@ export function AdminStoresTable({
                                                                 allBranchNames={branches}
                                                                 allBrands={allBrands}
                                                                 areaNamesByBranch={areaNamesByBranch}
-                                                                editStore={store}
+                                                                editStore={{
+                                                                    ...store,
+                                                                    bmsNIK: (store as any).storeAssignments?.[0]?.bmsNIK || null,
+                                                                }}
                                                                 trigger={
                                                                     <Button
                                                                         size="icon"
