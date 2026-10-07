@@ -736,9 +736,6 @@ export function AdminPreventiveTable({
                                 <TabsTrigger value="coverage-bms" className="h-8 flex-none px-3 text-xs">
                                     <Users data-icon="inline-start" />
                                     Coverage BMS
-                                    <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
-                                        {coverageHierarchyData.length}
-                                    </Badge>
                                 </TabsTrigger>
                                 <TabsTrigger value="quarter" className="h-8 flex-none px-3 text-xs">
                                     <ClipboardCheck data-icon="inline-start" />
