@@ -55,9 +55,6 @@ export function BmsCoverageHierarchyTable({
     // Set BMS yang di-expand
     const [expandedBms, setExpandedBms] = useState<Set<string>>(new Set());
 
-    // Filter toko lokal per BMS
-    const [storeSearchByBms, setStoreSearchByBms] = useState<Record<string, string>>({});
-
     const toggleBranch = (branchName: string) => {
         setExpandedBranches((prev) => {
             const next = new Set(prev);
@@ -129,35 +126,14 @@ export function BmsCoverageHierarchyTable({
     return (
         <div className="space-y-4">
             {/* Toolbar Filter & Quick Search */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="relative flex-1 max-w-md">
-                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-                    <Input
-                        placeholder="Cari cabang, nama BMS, NIK, atau nama/kode toko..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="h-9 pl-9 text-xs"
-                    />
-                </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-9 text-xs"
-                        onClick={() => {
-                            if (expandedBranches.size === initialHierarchy.length) {
-                                setExpandedBranches(new Set());
-                                setExpandedBms(new Set());
-                            } else {
-                                setExpandedBranches(new Set(initialHierarchy.map((b) => b.branchName)));
-                            }
-                        }}
-                    >
-                        {expandedBranches.size === initialHierarchy.length
-                            ? "Ciutkan Semua Cabang"
-                            : "Bentangkan Semua Cabang"}
-                    </Button>
-                </div>
+            <div className="relative max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+                <Input
+                    placeholder="Cari cabang, nama BMS, NIK, atau nama/kode toko..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="h-9 pl-9 text-xs"
+                />
             </div>
 
             {/* Hierarchical Table */}
@@ -180,16 +156,13 @@ export function BmsCoverageHierarchyTable({
                             <TableHead className="w-[200px] font-semibold text-slate-700 dark:text-slate-300">
                                 Pencapaian Coverage
                             </TableHead>
-                            <TableHead className="w-[80px] text-center font-semibold text-slate-700 dark:text-slate-300">
-                                Aksi
-                            </TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {filteredHierarchy.length === 0 ? (
                             <TableRow>
                                 <TableCell
-                                    colSpan={6}
+                                    colSpan={5}
                                     className="h-32 text-center text-muted-foreground"
                                 >
                                     Tidak ada data coverage BMS yang cocok dengan kriteria filter
@@ -257,19 +230,6 @@ export function BmsCoverageHierarchyTable({
                                                     </div>
                                                 </div>
                                             </TableCell>
-                                            <TableCell className="text-center">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    className="h-7 text-xs px-2"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        toggleBranch(branch.branchName);
-                                                    }}
-                                                >
-                                                    {isBranchExpanded ? "Tutup" : "Lihat"}
-                                                </Button>
-                                            </TableCell>
                                         </TableRow>
 
                                         {/* LEVEL 2: Daftar BMS di dalam Cabang */}
@@ -277,20 +237,6 @@ export function BmsCoverageHierarchyTable({
                                             branch.bmsList.map((bms) => {
                                                 const isBmsExpanded =
                                                     expandedBms.has(bms.nik) || !!search.trim();
-                                                const bmsStoreFilter =
-                                                    storeSearchByBms[bms.nik]?.toLowerCase() || "";
-
-                                                const displayedStores = bmsStoreFilter
-                                                    ? bms.stores.filter(
-                                                          (s) =>
-                                                              s.storeName
-                                                                  .toLowerCase()
-                                                                  .includes(bmsStoreFilter) ||
-                                                              s.storeCode
-                                                                  .toLowerCase()
-                                                                  .includes(bmsStoreFilter),
-                                                      )
-                                                    : bms.stores;
 
                                                 return (
                                                     <div key={bms.nik} className="contents">
@@ -340,52 +286,25 @@ export function BmsCoverageHierarchyTable({
                                                                     Pencapaian: {bms.kpiRate}%
                                                                 </Badge>
                                                             </TableCell>
-                                                            <TableCell className="text-center">
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="sm"
-                                                                    className="h-6 text-[11px] px-2"
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        toggleBms(bms.nik);
-                                                                    }}
-                                                                >
-                                                                    {isBmsExpanded
-                                                                        ? "Tutup Toko"
-                                                                        : `Toko (${bms.totalStores})`}
-                                                                </Button>
-                                                            </TableCell>
                                                         </TableRow>
 
                                                         {/* LEVEL 3: Rincian Toko Coverage di bawah BMS */}
                                                         {isBmsExpanded && (
                                                             <TableRow className="bg-slate-50/40 dark:bg-slate-900/40 hover:bg-slate-50/40">
-                                                                <TableCell colSpan={6} className="p-3 pl-12 pr-6">
+                                                                <TableCell colSpan={5} className="p-3 pl-12 pr-6">
                                                                     <div className="bg-background rounded-lg border p-3 shadow-sm space-y-2">
-                                                                        <div className="flex items-center justify-between gap-2 border-b pb-2">
+                                                                        <div className="border-b pb-2">
                                                                             <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                                                                                 Daftar Toko Coverage {bms.name} ({bms.stores.length} Toko)
                                                                             </span>
-                                                                            <div className="w-56 relative">
-                                                                                <Search className="w-3 h-3 absolute left-2 top-2 text-muted-foreground" />
-                                                                                <Input
-                                                                                    placeholder="Filter toko..."
-                                                                                    value={storeSearchByBms[bms.nik] || ""}
-                                                                                    onChange={(e) =>
-                                                                                        setStoreSearchByBms((prev) => ({
-                                                                                            ...prev,
-                                                                                            [bms.nik]: e.target.value,
-                                                                                        }))
-                                                                                    }
-                                                                                    className="h-7 pl-7 text-[11px]"
-                                                                                    onClick={(e) => e.stopPropagation()}
-                                                                                />
-                                                                            </div>
                                                                         </div>
 
-                                                                        <div className="max-h-[300px] overflow-y-auto rounded border">
-                                                                            <Table className="text-xs">
-                                                                                <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0">
+                                                                        <div className="rounded border overflow-hidden">
+                                                                            <Table
+                                                                                className="text-xs"
+                                                                                containerClassName="max-h-[300px] overflow-y-auto"
+                                                                            >
+                                                                                <TableHeader className="bg-slate-50 dark:bg-slate-900 sticky top-0 z-10">
                                                                                     <TableRow>
                                                                                         <TableHead className="w-[110px]">Kode Toko</TableHead>
                                                                                         <TableHead>Nama Toko</TableHead>
@@ -394,17 +313,17 @@ export function BmsCoverageHierarchyTable({
                                                                                     </TableRow>
                                                                                 </TableHeader>
                                                                                 <TableBody>
-                                                                                    {displayedStores.length === 0 ? (
+                                                                                    {bms.stores.length === 0 ? (
                                                                                         <TableRow>
                                                                                             <TableCell
                                                                                                 colSpan={4}
                                                                                                 className="h-16 text-center text-muted-foreground text-xs"
                                                                                             >
-                                                                                                Tidak ada toko yang cocok
+                                                                                                Belum ada toko yang ditugaskan
                                                                                             </TableCell>
                                                                                         </TableRow>
                                                                                     ) : (
-                                                                                        displayedStores.map((s) => (
+                                                                                        bms.stores.map((s) => (
                                                                                             <TableRow key={s.storeCode} className="hover:bg-slate-50/70">
                                                                                                 <TableCell className="font-mono font-medium">
                                                                                                     {s.storeCode}

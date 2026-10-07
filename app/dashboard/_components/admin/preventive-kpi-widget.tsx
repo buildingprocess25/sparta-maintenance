@@ -14,6 +14,7 @@ export function PreventiveKpiWidget() {
     const [data, setData] = useState<PreventiveKpiData | null>(null);
     const [availableBranches, setAvailableBranches] = useState<string[]>([]);
     const [branchSort, setBranchSort] = useState<"asc" | "desc">("asc");
+    const [bmsSort, setBmsSort] = useState<"desc" | "asc">("desc");
     const [isPending, startTransition] = useTransition();
 
     useEffect(() => {
@@ -36,19 +37,45 @@ export function PreventiveKpiWidget() {
         { name: "Belum", value: 100 - data.capaianNasional, color: "#f43f5e" } // rose-500
     ] : [];
 
-    const displayedBranchItems = (() => {
-        if (!data?.allBranchItems?.length) return data?.listItems ?? [];
-        const items = [...data.allBranchItems].sort((a, b) =>
-            branchSort === "asc"
-                ? a.percentage - b.percentage
-                : b.percentage - a.percentage
-        );
-        return items.slice(0, 5);
+    const isBmsView = data?.viewMode === "BMS";
+
+    const displayedItems = (() => {
+        if (!data) return [];
+        if (isBmsView) {
+            const items = [...(data.allBmsItems ?? data.listItems)];
+            items.sort((a, b) =>
+                bmsSort === "desc"
+                    ? b.percentage - a.percentage
+                    : a.percentage - b.percentage,
+            );
+            return items.slice(0, 5);
+        }
+
+        if (branchName === "all" && data.allBranchItems?.length) {
+            const items = [...data.allBranchItems].sort((a, b) =>
+                branchSort === "asc"
+                    ? a.percentage - b.percentage
+                    : b.percentage - a.percentage,
+            );
+            return items.slice(0, 5);
+        }
+
+        return data.listItems;
     })();
 
-    const branchListTitle = branchSort === "asc"
-        ? "5 Cabang Preventif Terendah"
-        : "5 Cabang Preventif Tertinggi";
+    const listTitle = (() => {
+        if (isBmsView) {
+            return bmsSort === "desc"
+                ? "BMS Preventif Terbaik"
+                : "BMS Preventif Terburuk";
+        }
+        if (branchName === "all") {
+            return branchSort === "asc"
+                ? "5 Cabang Preventif Terendah"
+                : "5 Cabang Preventif Tertinggi";
+        }
+        return data?.listTitle ?? "Memuat...";
+    })();
 
     return (
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
@@ -87,7 +114,10 @@ export function PreventiveKpiWidget() {
                         </SelectContent>
                     </Select>
 
-                    <Link href="/dashboard/preventive" className="text-xs text-primary hover:underline flex items-center ml-2">
+                    <Link
+                        href={`/dashboard/preventive?tab=coverage-bms${branchName !== "all" ? `&branch=${encodeURIComponent(branchName)}` : ""}${quarter !== "all" ? `&quarter=${quarter}` : ""}`}
+                        className="text-xs text-primary hover:underline flex items-center ml-2"
+                    >
                         Detail Preventif <ArrowUpRight className="h-3 w-3 ml-0.5" />
                     </Link>
                 </div>
@@ -167,12 +197,19 @@ export function PreventiveKpiWidget() {
                 <div>
                     <div className="flex justify-between items-center mb-4">
                         <div className="text-sm font-medium">
-                            {branchName === "all"
-                                ? branchListTitle
-                                : (data ? data.listTitle : "Memuat...")}
+                            {listTitle}
                         </div>
                         <div className="flex items-center gap-2">
-                            {branchName === "all" && (
+                            {isBmsView ? (
+                                <button
+                                    onClick={() => setBmsSort(prev => prev === "desc" ? "asc" : "desc")}
+                                    className="flex items-center gap-1 text-xs text-primary hover:underline"
+                                    title={bmsSort === "desc" ? "Tampilkan terburuk" : "Tampilkan terbaik"}
+                                >
+                                    <ArrowDownUp className="h-3 w-3" />
+                                    {bmsSort === "desc" ? "Terbaik" : "Terburuk"}
+                                </button>
+                            ) : branchName === "all" ? (
                                 <button
                                     onClick={() => setBranchSort(prev => prev === "asc" ? "desc" : "asc")}
                                     className="flex items-center gap-1 text-xs text-primary hover:underline"
@@ -181,24 +218,30 @@ export function PreventiveKpiWidget() {
                                     <ArrowDownUp className="h-3 w-3" />
                                     {branchSort === "asc" ? "Terendah" : "Tertinggi"}
                                 </button>
-                            )}
-                            {branchName === "all" && (
-                                <Link
-                                    href={`/dashboard/preventive?tab=branches&sort=${branchSort}`}
-                                    className="text-xs text-primary hover:underline flex items-center"
-                                >
-                                    Lihat semua <ArrowUpRight className="h-3 w-3 ml-0.5" />
-                                </Link>
-                            )}
+                            ) : null}
+                            <Link
+                                href={`/dashboard/preventive?tab=coverage-bms${branchName !== "all" ? `&branch=${encodeURIComponent(branchName)}` : ""}${quarter !== "all" ? `&quarter=${quarter}` : ""}`}
+                                className="text-xs text-primary hover:underline flex items-center"
+                            >
+                                Lihat semua <ArrowUpRight className="h-3 w-3 ml-0.5" />
+                            </Link>
                         </div>
                     </div>
 
                     <div className="space-y-4">
-                        {data ? displayedBranchItems.map((item, i) => {
+                        {data ? displayedItems.map((item, i) => {
                             let barColor = "bg-rose-500";
                             let textColor = "text-rose-600 dark:text-rose-400";
                             
-                            if (branchName !== "all" && quarter !== "all") {
+                            if (isBmsView) {
+                                if (item.percentage >= 80) {
+                                    barColor = "bg-emerald-500";
+                                    textColor = "text-emerald-600 dark:text-emerald-400";
+                                } else if (item.percentage >= 50) {
+                                    barColor = "bg-amber-500";
+                                    textColor = "text-amber-600 dark:text-amber-400";
+                                }
+                            } else if (branchName !== "all" && quarter !== "all") {
                                 // For Monthly pacing, Target per month is ~33%
                                 if (item.percentage >= 30) {
                                     barColor = "bg-emerald-500";
@@ -223,7 +266,7 @@ export function PreventiveKpiWidget() {
                                 <div key={item.label} className="group flex flex-col gap-2 p-2.5 -mx-2.5 rounded-lg hover:bg-muted/40 transition-colors">
                                     <div className="flex justify-between items-center text-sm">
                                         <div className="flex items-center gap-3">
-                                            {branchName === "all" && (
+                                            {(isBmsView || branchName === "all") && (
                                                 <span className="w-5 text-center text-xs font-semibold text-muted-foreground">
                                                     {i + 1}
                                                 </span>

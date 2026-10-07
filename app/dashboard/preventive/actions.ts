@@ -134,6 +134,8 @@ export type PreventiveKpiData = {
     listItems: PreventiveKpiListItem[];
     branchNames: string[];
     allBranchItems: PreventiveKpiListItem[];
+    allBmsItems?: PreventiveKpiListItem[];
+    viewMode?: "BRANCH" | "BMS" | "MONTHLY";
 };
 
 export type ProcessDurationItem = {
@@ -751,11 +753,65 @@ export async function getAdminPreventiveKpiData(
     const totalStoresCount = allStores.length;
     const capaianNasional = calculateRate(totalCompleted, totalStoresCount);
     
+    const isManager = user.role === "BMC" || user.role === "BNM_MANAGER";
     let listTitle = "";
     let listItems: PreventiveKpiListItem[] = [];
     let allBranchItemsForReturn: PreventiveKpiListItem[] = [];
+    let allBmsItemsForReturn: PreventiveKpiListItem[] = [];
+    let viewMode: "BRANCH" | "BMS" | "MONTHLY" = "BRANCH";
     
-    if (!branchName || branchName === "all") {
+    if (isManager) {
+        viewMode = "BMS";
+        const assignments = await prisma.bmsStoreAssignment.findMany({
+            where: {
+                isActive: true,
+                store: {
+                    isActive: true,
+                    branchName: { in: user.branchNames },
+                },
+            },
+            select: {
+                storeCode: true,
+                bmsNIK: true,
+                bms: {
+                    select: {
+                        NIK: true,
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        const bmsGroupMap = new Map<string, { label: string; total: number; completed: number }>();
+        for (const a of assignments) {
+            const bmsName = a.bms?.name || a.bmsNIK;
+            const current = bmsGroupMap.get(a.bmsNIK) || {
+                label: bmsName,
+                total: 0,
+                completed: 0,
+            };
+            current.total++;
+            if (completedStores.has(a.storeCode)) {
+                current.completed++;
+            }
+            bmsGroupMap.set(a.bmsNIK, current);
+        }
+
+        const allBmsItems = Array.from(bmsGroupMap.values())
+            .filter((item) => item.total > 0)
+            .map((item) => ({
+                label: item.label,
+                completed: item.completed,
+                total: item.total,
+                percentage: calculateRate(item.completed, item.total),
+            }))
+            .sort((a, b) => b.percentage - a.percentage);
+
+        listTitle = "BMS Preventif Terbaik";
+        allBmsItemsForReturn = allBmsItems;
+        listItems = allBmsItems.slice(0, 5);
+    } else if (!branchName || branchName === "all") {
+        viewMode = "BRANCH";
         listTitle = "5 Cabang Preventif Terendah";
         const groupMap = new Map<string, { total: number; completed: number }>();
         for (const store of allStores) {
@@ -777,6 +833,7 @@ export async function getAdminPreventiveKpiData(
         allBranchItemsForReturn = allBranches;
         listItems = allBranches.slice(0, 5);
     } else {
+        viewMode = "MONTHLY";
         if (quarter === "all") {
             listTitle = "Tren Penyelesaian per Triwulan";
             const quartersData = [
@@ -829,6 +886,8 @@ export async function getAdminPreventiveKpiData(
         listItems,
         branchNames: Array.from(new Set(allStores.map(s => s.branchName))).sort(),
         allBranchItems: allBranchItemsForReturn,
+        allBmsItems: allBmsItemsForReturn,
+        viewMode,
     };
 }
 

@@ -6,7 +6,7 @@ import { ExportStoresDialog } from "./_components/export-stores-dialog";
 import { fetchAllBranchNames } from "@/app/admin/export/queries";
 import { getAllBrands } from "@/app/admin/database/queries";
 import { getStoreAreaNamesByBranches } from "@/app/bmc/database/queries";
-import { getAdminStores, getBmsOptionsByBranch } from "./actions";
+import { getAdminStores } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,6 @@ type Props = {
         area?: string;
         brand?: string;
         type?: string;
-        bms?: string;
     }>;
 };
 
@@ -43,9 +42,8 @@ export default async function AdminStoresPage({ searchParams }: Props) {
     const initialAreaName = params.area?.trim() || "all";
     const initialBrand = params.brand?.trim() || "all";
     const initialOwnershipType = normalizeOwnershipFilter(params.type);
-    const initialBmsNIK = params.bms?.trim() || "all";
 
-    const [branches, allBrands, bmsOptions] = await Promise.all([
+    const [branches, allBrands] = await Promise.all([
         user.role === "ADMIN"
             ? fetchAllBranchNames()
             : Promise.resolve(
@@ -54,9 +52,6 @@ export default async function AdminStoresPage({ searchParams }: Props) {
                       .filter((branchName) => branchName.length > 0),
               ),
         getAllBrands(),
-        getBmsOptionsByBranch(
-            initialBranchName !== "all" ? initialBranchName : undefined,
-        ),
     ]);
 
     const areaNamesByBranch = await getStoreAreaNamesByBranches(branches);
@@ -68,7 +63,6 @@ export default async function AdminStoresPage({ searchParams }: Props) {
         brand: initialBrand !== "all" ? initialBrand : undefined,
         ownershipType:
             initialOwnershipType !== "all" ? initialOwnershipType : undefined,
-        bmsNIK: initialBmsNIK !== "all" ? initialBmsNIK : undefined,
     });
 
     return (
@@ -87,7 +81,6 @@ export default async function AdminStoresPage({ searchParams }: Props) {
                 areaNames={user.areaNames}
                 allBrands={allBrands}
                 areaNamesByBranch={areaNamesByBranch}
-                bmsOptions={bmsOptions}
                 canManage
                 userRole={user.role}
                 initialSearch={initialSearch}
@@ -95,7 +88,6 @@ export default async function AdminStoresPage({ searchParams }: Props) {
                 initialAreaName={initialAreaName}
                 initialBrand={initialBrand}
                 initialOwnershipType={initialOwnershipType}
-                initialBmsNIK={initialBmsNIK}
             />
         </AdminDashboardShell>
     );
