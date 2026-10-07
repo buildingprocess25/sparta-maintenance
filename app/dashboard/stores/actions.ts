@@ -19,6 +19,7 @@ export type AdminStoreFilters = {
     areaName?: string;
     brand?: string;
     ownershipType?: StoreOwnershipType;
+    bmsNIK?: string;
 };
 
 // ─── List (cursor-based infinite scroll) ─────────────────────────────────────
@@ -87,6 +88,21 @@ export async function getAdminStores(
             where.ownershipType = filters.ownershipType;
         }
 
+        if (filters.bmsNIK && filters.bmsNIK !== "all") {
+            if (filters.bmsNIK === "__UNASSIGNED__") {
+                where.storeAssignments = {
+                    none: { isActive: true },
+                };
+            } else {
+                where.storeAssignments = {
+                    some: {
+                        bmsNIK: filters.bmsNIK,
+                        isActive: true,
+                    },
+                };
+            }
+        }
+
         const totalCount = await prisma.store.count({ where });
 
         const stores = await prisma.store.findMany({
@@ -103,6 +119,13 @@ export async function getAdminStores(
                 brand: true,
                 ownershipType: true,
                 isActive: true,
+                storeAssignments: {
+                    where: { isActive: true },
+                    select: {
+                        bmsNIK: true,
+                        bms: { select: { NIK: true, name: true } },
+                    },
+                },
             },
         });
 
@@ -395,4 +418,68 @@ export async function adminImportStoresWithBranch(formData: FormData) {
             errors: [...result.errors, "Gagal melakukan import"],
         };
     }
+}
+
+export async function assignStoreToBms(
+    storeCode: string,
+    bmsNIK: string | null,
+    notes?: string,
+) {
+    const user = await getAuthUser();
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
+
+    return await prisma.$transaction(async (tx) => {
+        // Nonaktifkan penugasan aktif saat ini jika ada
+        await tx.bmsStoreAssignment.updateMany({
+            where: { storeCode, isActive: true },
+            data: {
+                isActive: false,
+                unassignedAt: new Date(),
+                unassignedByNIK: user.NIK,
+                notes: notes || "Mutasi penugasan oleh Admin/BMC",
+            },
+        });
+
+        // Jika bmsNIK dipilih, buat penugasan aktif baru
+        if (bmsNIK && bmsNIK.trim().length > 0 && bmsNIK !== "__UNASSIGNED__") {
+            await tx.bmsStoreAssignment.create({
+                data: {
+                    storeCode,
+                    bmsNIK: bmsNIK.trim(),
+                    isActive: true,
+                    assignedByNIK: user.NIK,
+                    notes: notes || "Penugasan toko oleh Admin/BMC",
+                },
+            });
+        }
+
+        revalidatePath("/dashboard/stores");
+        return { success: true };
+    });
+}
+
+export async function getBmsOptionsByBranch(branchName?: string) {
+    const user = await getAuthUser();
+    if (!user || (user.role !== "ADMIN" && user.role !== "BMC")) {
+        throw new Error("Unauthorized");
+    }
+
+    const where: Prisma.UserWhereInput = {
+        role: "BMS",
+        deletedAt: null,
+    };
+
+    if (branchName && branchName !== "all") {
+        where.branchNames = { has: branchName };
+    } else if (user.role === "BMC") {
+        where.branchNames = { hasSome: user.branchNames };
+    }
+
+    return await prisma.user.findMany({
+        where,
+        select: { NIK: true, name: true, branchNames: true },
+        orderBy: { name: "asc" },
+    });
 }

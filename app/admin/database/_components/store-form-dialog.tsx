@@ -24,6 +24,7 @@ import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Plus, Pencil, X } from "lucide-react";
 import { toast } from "sonner";
 import { adminCreateStore, adminUpdateStore } from "../actions";
+import { assignStoreToBms, getBmsOptionsByBranch } from "@/app/dashboard/stores/actions";
 import {
     STORE_OWNERSHIP_OPTIONS,
     type StoreOwnershipFormValue,
@@ -39,6 +40,7 @@ type StoreRow = {
     areaName?: string | null;
     brand?: string | null;
     ownershipType?: "REGULAR" | "FRANCHISE" | "UNKNOWN";
+    bmsNIK?: string | null;
 };
 
 type Props = {
@@ -72,6 +74,8 @@ export function AdminStoreFormDialog({
         useState<StoreOwnershipFormValue>(
             getStoreOwnershipFormValue(editStore?.ownershipType),
         );
+    const [bmsNIK, setBmsNIK] = useState(editStore?.bmsNIK ?? "");
+    const [bmsOptions, setBmsOptions] = useState<Array<{ NIK: string; name: string }>>([]);
 
     const areaOptions = areaNamesByBranch[branch] || [];
     const isAffected = areaOptions.length > 0;
@@ -79,6 +83,16 @@ export function AdminStoreFormDialog({
 
     const isCodeValid = /^[A-Za-z0-9]{4}$/.test(code);
     const codeError = code && !isCodeValid && !isEdit ? "Kode toko harus tepat 4 karakter huruf atau angka" : null;
+
+    useEffect(() => {
+        if (open) {
+            getBmsOptionsByBranch(branch)
+                .then((res) => {
+                    setBmsOptions(res.map((u) => ({ NIK: u.NIK, name: u.name })));
+                })
+                .catch(() => setBmsOptions([]));
+        }
+    }, [open, branch]);
 
     useEffect(() => {
         if (open && isEdit && editStore) {
@@ -89,6 +103,7 @@ export function AdminStoreFormDialog({
             setAreaName(editStore.areaName ?? "");
             setBrand(editStore.brand || "ALFAMART");
             setOwnershipType(getStoreOwnershipFormValue(editStore.ownershipType));
+            setBmsNIK(editStore.bmsNIK ?? "");
         }
     }, [open, isEdit, editStore, allBranchNames]);
 
@@ -156,6 +171,12 @@ export function AdminStoreFormDialog({
                     },
                 );
                 return;
+            }
+
+            try {
+                await assignStoreToBms(code.trim().toUpperCase(), bmsNIK || null);
+            } catch (assignError) {
+                console.error("Gagal menyimpan penugasan BMS:", assignError);
             }
 
             toast.success(
@@ -340,6 +361,33 @@ export function AdminStoreFormDialog({
                                 </Select>
                             </div>
                         ) : null}
+
+                        {/* BMS Penanggung Jawab */}
+                        <div className="space-y-2">
+                            <Label htmlFor="admin-store-bms">
+                                BMS Penanggung Jawab
+                            </Label>
+                            <Select
+                                value={bmsNIK || "__UNASSIGNED__"}
+                                onValueChange={(val) =>
+                                    setBmsNIK(val === "__UNASSIGNED__" ? "" : val)
+                                }
+                            >
+                                <SelectTrigger id="admin-store-bms">
+                                    <SelectValue placeholder="Pilih BMS penanggung jawab" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="__UNASSIGNED__">
+                                        Belum Ditugaskan / VACANT
+                                    </SelectItem>
+                                    {bmsOptions.map((bms) => (
+                                        <SelectItem key={bms.NIK} value={bms.NIK}>
+                                            {bms.name} ({bms.NIK})
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
                         {/* Status */}
                         <div className="space-y-2">

@@ -141,6 +141,7 @@ model User {
   notificationsReceived Notification[]     @relation("ReceivedNotifications")
   notificationsSent     Notification[]     @relation("SentNotifications")
   pushSubscriptions     PushSubscription[]
+  assignedStores        BmsStoreAssignment[] @relation("BmsAssignments")
 
   @@index([deletedAt])
   @@index([spartaUserId])
@@ -165,13 +166,33 @@ model Store {
   longitude     Decimal?           @db.Decimal(9, 6)
   isActive      Boolean            @default(true)
 
-  reports Report[]
-  ahoTickets MasterAhoTicket[]
+  reports          Report[]
+  ahoTickets       MasterAhoTicket[]
+  storeAssignments BmsStoreAssignment[] @relation("StoreAssignments")
 
   @@index([branchName])
   @@index([areaName])
   @@index([branchName, code])
   @@index([branchName, areaName])
+}
+
+model BmsStoreAssignment {
+  id              String    @id @default(uuid())
+  bmsNIK          String
+  storeCode       String
+  isActive        Boolean   @default(true)
+  assignedAt      DateTime  @default(now()) @db.Timestamptz(3)
+  assignedByNIK   String?
+  unassignedAt    DateTime? @db.Timestamptz(3)
+  unassignedByNIK String?
+  notes           String?
+
+  bms   User  @relation("BmsAssignments", fields: [bmsNIK], references: [NIK])
+  store Store @relation("StoreAssignments", fields: [storeCode], references: [code])
+
+  @@index([storeCode, isActive])
+  @@index([bmsNIK, isActive])
+  @@index([bmsNIK, storeCode])
 }
 
 model MasterAhoTicket {

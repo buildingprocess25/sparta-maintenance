@@ -20,7 +20,7 @@ import { ButtonGroup } from "@/components/ui/button-group";
 import Link from "next/link";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
-import { loginAction, type LoginState, devQuickLoginAction } from "./action";
+import { loginAction, type LoginState, devQuickLoginAction, devLoginByNikAction } from "./action";
 
 const initialState: LoginState = {
     errors: {},
@@ -67,6 +67,7 @@ export function LoginForm({
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [isLocalhost, setIsLocalhost] = useState(false);
+    const [devTargetNik, setDevTargetNik] = useState("");
 
     const [state, formAction, isPending] = useActionState(
         loginAction,
@@ -144,6 +145,46 @@ export function LoginForm({
                                                         {role}
                                                     </Button>
                                                 ))}
+                                            </div>
+                                            <div className="pt-2 space-y-1.5 border-t border-dashed">
+                                                <label className="text-xs text-muted-foreground font-normal">
+                                                    Atau Login via NIK / Nama User (Dev Impersonate):
+                                                </label>
+                                                <div className="flex gap-1.5">
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ketik NIK atau Nama BMS..."
+                                                        className="flex-1 px-2.5 py-1 text-xs border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                                                        value={devTargetNik}
+                                                        onChange={(e) => setDevTargetNik(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === "Enter" && devTargetNik.trim()) {
+                                                                e.preventDefault();
+                                                                startQuickLogin(async () => {
+                                                                    const res = await devLoginByNikAction(devTargetNik);
+                                                                    if (res?.error) alert(res.error);
+                                                                });
+                                                            }
+                                                        }}
+                                                    />
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-xs h-7 px-2.5"
+                                                        onClick={() => {
+                                                            if (devTargetNik.trim()) {
+                                                                startQuickLogin(async () => {
+                                                                    const res = await devLoginByNikAction(devTargetNik);
+                                                                    if (res?.error) alert(res.error);
+                                                                });
+                                                            }
+                                                        }}
+                                                        disabled={isQuickLoginPending || isPending || !devTargetNik.trim()}
+                                                    >
+                                                        Masuk
+                                                    </Button>
+                                                </div>
                                             </div>
                                             <div className="relative my-4">
                                                 <div className="absolute inset-0 flex items-center">

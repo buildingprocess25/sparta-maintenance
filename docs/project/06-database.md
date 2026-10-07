@@ -32,6 +32,7 @@ Runtime Prisma memakai adapter `@prisma/adapter-pg` dan pool `pg`. Konfigurasi p
 | `Notification` | Notifikasi in-app untuk report, PJUM, dan intervensi. |
 | `PushSubscription` | Subscription Web Push per user dan device. |
 | `PjumExport` | Dokumen PJUM, status approval, daftar laporan, branch, area, periode, dan PDF. |
+| `BmsStoreAssignment` | Penugasan wilayah coverage toko ke BMS, status aktif, tracking riwayat penugasan, dan mutasi. |
 | `AppSetting` | Setting sistem berbasis key-value, seperti maintenance mode dan policy. |
 | `GoogleDriveFolderCache` | Cache folder Google Drive agar pembuatan folder tidak berulang. |
 

@@ -184,7 +184,7 @@ export async function devQuickLoginAction(role: string): Promise<void> {
         throw new Error("Quick login is not allowed in production");
     }
 
-    const user = await prisma.user.findFirst({
+    let user = await prisma.user.findFirst({
         where: { 
             role: role as any, 
             deletedAt: null,
@@ -199,7 +199,54 @@ export async function devQuickLoginAction(role: string): Promise<void> {
     });
 
     if (!user) {
+        user = await prisma.user.findFirst({
+            where: {
+                role: role as any,
+                deletedAt: null,
+            },
+            select: {
+                NIK: true,
+                role: true,
+            },
+        });
+    }
+
+    if (!user) {
         throw new Error(`No active user found with role ${role}`);
+    }
+
+    await createSession(user.NIK, user.role, false);
+    redirect("/dashboard");
+}
+
+export async function devLoginByNikAction(nikOrName: string): Promise<{ error?: string }> {
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("Dev login is not allowed in production");
+    }
+
+    const keyword = nikOrName.trim();
+    if (!keyword) {
+        return { error: "Masukkan NIK atau Nama user" };
+    }
+
+    const user = await prisma.user.findFirst({
+        where: {
+            deletedAt: null,
+            OR: [
+                { NIK: keyword },
+                { NIK: keyword.padStart(8, "0") },
+                { name: { contains: keyword, mode: "insensitive" } },
+            ],
+        },
+        select: {
+            NIK: true,
+            role: true,
+            name: true,
+        },
+    });
+
+    if (!user) {
+        return { error: `User dengan NIK/Nama '${keyword}' tidak ditemukan di database` };
     }
 
     await createSession(user.NIK, user.role, false);

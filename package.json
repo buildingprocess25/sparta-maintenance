@@ -21,6 +21,8 @@
     "cleanup-photos-v2": "tsx scripts/cleanup-approved-pjum-photos.ts",
     "cleanup-photos-v2:execute": "tsx scripts/cleanup-approved-pjum-photos.ts --execute",
     "import:stores": "tsx scripts/import-stores.ts",
+    "import:bms-assignments": "tsx scripts/import-bms-store-assignments.ts",
+    "import:bms-assignments:dry-run": "tsx scripts/import-bms-store-assignments.ts --dry-run",
     "sync:stores": "tsx scripts/sync-stores-from-sheet.ts",
     "sync:store-enrichment": "tsx scripts/sync-store-enrichment-from-sheet.ts",
     "prune:stores": "tsx scripts/prune-stores-by-branch.ts",

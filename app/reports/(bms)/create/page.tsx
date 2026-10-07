@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/authorization";
 import {
   getDraft,
   getDraftByReportNumber,
-  getStoresByBranch,
+  getAssignedStoresForBms,
 } from "@/app/reports/actions";
 import { calculateBmsBalance, getBmsActiveReportBlocker } from "@/lib/balance";
 import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
@@ -22,7 +22,7 @@ export default async function CreateReportPage({ searchParams }: { searchParams:
   const forceServerDraftRestore = autoRestoreOnMount && !!draft;
 
   const [stores, materialNames, balanceInfo, activeReportBlocker, existingDraft] = await Promise.all([
-    getStoresByBranch(user.branchNames[0] || ""),
+    getAssignedStoresForBms(user.NIK),
     loadMaterialNames(),
     calculateBmsBalance(user.NIK),
     getBmsActiveReportBlocker(user.NIK),

@@ -63,6 +63,72 @@ export async function getStoresByBranch(branchName: string) {
     }));
 }
 
+export async function getAssignedStoresForBms(bmsNIK: string) {
+    const user = await requireAuth();
+
+    if (user.role !== "ADMIN" && user.NIK !== bmsNIK) {
+        throw new Error("Anda hanya dapat mengakses toko coverage Anda sendiri");
+    }
+
+    const stores = await prisma.store.findMany({
+        where: {
+            isActive: true,
+            OR: [
+                // 1. Toko yang secara spesifik di-assign aktif ke BMS ini
+                {
+                    storeAssignments: {
+                        some: {
+                            bmsNIK,
+                            isActive: true,
+                        },
+                    },
+                },
+                // 2. Fallback: Toko di cabang BMS ini yang BELUM memiliki BMS penanggung jawab aktif (unassigned / vacant)
+                {
+                    branchName: { in: user.branchNames },
+                    storeAssignments: {
+                        none: {
+                            isActive: true,
+                        },
+                    },
+                },
+            ],
+        },
+        orderBy: { name: "asc" },
+        select: {
+            code: true,
+            name: true,
+            brand: true,
+        },
+    });
+
+    const year = getJakartaYear();
+    const quarter = getJakartaCurrentQuarter();
+    const { start, endExclusive } = getJakartaQuarterWindow(year, quarter);
+
+    const storeCodes = stores.map((s) => s.code);
+    const reportsThisQuarter = storeCodes.length > 0 ? await prisma.report.findMany({
+        where: {
+            storeCode: { in: storeCodes },
+            status: { not: "DRAFT" },
+            createdAt: { gte: start, lt: endExclusive },
+        },
+        select: { storeCode: true, status: true, items: true },
+    }) : [];
+
+    const storesWithPreventive = new Set<string>();
+    for (const report of reportsThisQuarter) {
+        if (report.storeCode && isRecordedPreventiveReport(report)) {
+            storesWithPreventive.add(report.storeCode);
+        }
+    }
+
+    return stores.map((store) => ({
+        ...store,
+        hasPreventiveChecklist: storesWithPreventive.has(store.code),
+    }));
+}
+
 export async function getMyReports(filters: ReportFilters = {}) {
     const user = await requireRole("BMS");
 

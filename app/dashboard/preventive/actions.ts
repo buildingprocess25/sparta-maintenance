@@ -634,9 +634,9 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
             rr."reportNumber",
             rr."createdAt" as "doneAt"
         FROM "Store" s
+        JOIN "BmsStoreAssignment" bsa ON s.code = bsa."storeCode" AND bsa."bmsNIK" = ${user.NIK} AND bsa."isActive" = true
         LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
         WHERE s."isActive" = true
-          AND s."branchName" IN (${Prisma.join(user.branchNames)})
         ORDER BY s.code ASC;
     `;
 

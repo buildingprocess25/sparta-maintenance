@@ -17,6 +17,8 @@ import {
     getJakartaYear,
     getJakartaYearWindow,
 } from "@/lib/time";
+import { isRecordedPreventiveReport } from "@/lib/report-preventive";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { requiresPjum, resolveReportTotalRealisasi } from "@/lib/realisasi";
 
 const ACTIVE_REPORT_STATUSES = [
@@ -40,6 +42,9 @@ export type BmsPerformancePeriod = (typeof PERIOD_OPTIONS)[number];
 
 export type BmsPerformanceFilters = {
     period?: string;
+    branchName?: string;
+    quarter?: 1 | 2 | 3 | 4;
+    year?: number;
 };
 
 export type BmsPerformanceRow = {
@@ -59,6 +64,17 @@ export type BmsPerformanceRow = {
     lastActivityAt: Date | null;
     lastSeenAt: Date | null;
     isActiveToday: boolean;
+    targetCoverageStores: number;
+    completedPreventiveStores: number;
+    pendingPreventiveStores: number;
+    preventiveKpiRate: number;
+    coverageStores?: Array<{
+        storeCode: string;
+        storeName: string;
+        isCompleted: boolean;
+        doneAt?: string;
+        reportNumber?: string;
+    }>;
 };
 
 export type BmsPerformanceTrendDatum = {
@@ -233,7 +249,7 @@ function emptyData(
 
 async function requireBmsPerformanceViewer(): Promise<AuthUser> {
     const user = await getAuthUser();
-    if (!user || !["BMC", "BNM_MANAGER"].includes(user.role)) {
+    if (!user || !["ADMIN", "BMC", "BNM_MANAGER"].includes(user.role)) {
         throw new Error("Unauthorized");
     }
 
@@ -370,7 +386,23 @@ export async function getBmsPerformanceData(
     filters: BmsPerformanceFilters = {},
 ): Promise<BmsPerformanceData> {
     const user = await requireBmsPerformanceViewer();
-    const branchNames = normalizeBranchNames(user.branchNames);
+    let branchNames = normalizeBranchNames(user.branchNames);
+
+    if (user.role === "ADMIN") {
+        if (filters.branchName && filters.branchName !== "all") {
+            branchNames = [filters.branchName];
+        } else {
+            const allBranches = await prisma.store.findMany({
+                where: { branchName: { not: EXCLUDED_ADMIN_BRANCH_NAME } },
+                select: { branchName: true },
+                distinct: ["branchName"],
+            });
+            branchNames = allBranches.map((b) => b.branchName).sort();
+        }
+    } else if (filters.branchName && filters.branchName !== "all" && branchNames.includes(filters.branchName)) {
+        branchNames = [filters.branchName];
+    }
+
     const window = getPeriodWindow(filters);
     const weekKeys = getWeekKeysInWindow(window);
     const weekCount = weekKeys.length;
@@ -408,7 +440,18 @@ export async function getBmsPerformanceData(
             window,
         });
 
-        const [reports, presenceRows] = await Promise.all([
+        const currentYear = filters.year || getJakartaYear();
+        const currentQuarter = (
+            filters.quarter && filters.quarter >= 1 && filters.quarter <= 4
+                ? filters.quarter
+                : getJakartaCurrentQuarter()
+        ) as 1 | 2 | 3 | 4;
+        const { start: qStart, endExclusive: qEnd } = getJakartaQuarterWindow(
+            currentYear,
+            currentQuarter,
+        );
+
+        const [reports, presenceRows, assignments] = await Promise.all([
             prisma.report.findMany({
                 where: reportWhere,
                 select: {
@@ -430,7 +473,49 @@ export async function getBmsPerformanceData(
                 where: { userId: { in: bmsNiks } },
                 select: { userId: true, lastSeen: true },
             }),
+            prisma.bmsStoreAssignment.findMany({
+                where: {
+                    bmsNIK: { in: bmsNiks },
+                    isActive: true,
+                },
+                include: {
+                    store: {
+                        select: { code: true, name: true, branchName: true },
+                    },
+                },
+            }),
         ]);
+
+        const assignedStoreCodes = assignments.map((a) => a.storeCode);
+        const preventiveReports = assignedStoreCodes.length > 0 ? await prisma.report.findMany({
+            where: {
+                storeCode: { in: assignedStoreCodes },
+                createdAt: { gte: qStart, lt: qEnd },
+                status: { not: "DRAFT" },
+            },
+            select: {
+                storeCode: true,
+                reportNumber: true,
+                createdAt: true,
+                status: true,
+                items: true,
+            },
+        }) : [];
+
+        const storePreventiveMap = new Map<string, { reportNumber: string; doneAt: string }>();
+        for (const pr of preventiveReports) {
+            if (pr.storeCode && isRecordedPreventiveReport(pr)) {
+                if (
+                    !storePreventiveMap.has(pr.storeCode) ||
+                    new Date(pr.createdAt) > new Date(storePreventiveMap.get(pr.storeCode)!.doneAt)
+                ) {
+                    storePreventiveMap.set(pr.storeCode, {
+                        reportNumber: pr.reportNumber,
+                        doneAt: pr.createdAt.toISOString(),
+                    });
+                }
+            }
+        }
 
         const rowMap = new Map<string, BmsPerformanceRow>();
         const weeklyTotals = new Map<string, number>(
@@ -443,6 +528,26 @@ export async function getBmsPerformanceData(
 
         for (const bms of bmsUsers) {
             const lastSeenAt = presenceMap.get(bms.NIK) ?? null;
+            const bmsAssignments = assignments.filter((a) => a.bmsNIK === bms.NIK);
+            const targetCoverageStores = bmsAssignments.length;
+            let completedPreventiveStores = 0;
+            const coverageStores = bmsAssignments.map((a) => {
+                const prev = storePreventiveMap.get(a.storeCode);
+                const isCompleted = !!prev;
+                if (isCompleted) completedPreventiveStores++;
+                return {
+                    storeCode: a.storeCode,
+                    storeName: a.store.name,
+                    isCompleted,
+                    doneAt: prev?.doneAt,
+                    reportNumber: prev?.reportNumber,
+                };
+            });
+            const pendingPreventiveStores = Math.max(0, targetCoverageStores - completedPreventiveStores);
+            const preventiveKpiRate = targetCoverageStores > 0
+                ? Math.round((completedPreventiveStores / targetCoverageStores) * 1000) / 10
+                : 0;
+
             rowMap.set(bms.NIK, {
                 nik: bms.NIK,
                 name: bms.name,
@@ -460,6 +565,11 @@ export async function getBmsPerformanceData(
                 lastActivityAt: null,
                 lastSeenAt,
                 isActiveToday: lastSeenAt ? lastSeenAt >= todayStart : false,
+                targetCoverageStores,
+                completedPreventiveStores,
+                pendingPreventiveStores,
+                preventiveKpiRate,
+                coverageStores,
             });
         }
 
@@ -660,5 +770,77 @@ export async function getScopedBmsProfile(nik: string) {
             email: true,
             branchNames: true,
         },
+    });
+}
+
+export async function getBmsCoverageStoresDetail(
+    bmsNIK: string,
+    quarter?: number,
+    year?: number,
+) {
+    await requireBmsPerformanceViewer();
+
+    const currentYear = year || getJakartaYear();
+    const currentQuarter = (
+        quarter && quarter >= 1 && quarter <= 4
+            ? quarter
+            : getJakartaCurrentQuarter()
+    ) as 1 | 2 | 3 | 4;
+    const { start: qStart, endExclusive: qEnd } = getJakartaQuarterWindow(
+        currentYear,
+        currentQuarter,
+    );
+
+    const assignments = await prisma.bmsStoreAssignment.findMany({
+        where: { bmsNIK, isActive: true },
+        include: {
+            store: {
+                select: { code: true, name: true, branchName: true },
+            },
+        },
+        orderBy: { store: { name: "asc" } },
+    });
+
+    const storeCodes = assignments.map((a) => a.storeCode);
+    const preventiveReports = storeCodes.length > 0 ? await prisma.report.findMany({
+        where: {
+            storeCode: { in: storeCodes },
+            createdAt: { gte: qStart, lt: qEnd },
+            status: { not: "DRAFT" },
+        },
+        select: {
+            storeCode: true,
+            reportNumber: true,
+            createdAt: true,
+            status: true,
+            items: true,
+        },
+    }) : [];
+
+    const storePreventiveMap = new Map<string, { reportNumber: string; doneAt: string }>();
+    for (const pr of preventiveReports) {
+        if (pr.storeCode && isRecordedPreventiveReport(pr)) {
+            if (
+                !storePreventiveMap.has(pr.storeCode) ||
+                new Date(pr.createdAt) > new Date(storePreventiveMap.get(pr.storeCode)!.doneAt)
+            ) {
+                storePreventiveMap.set(pr.storeCode, {
+                    reportNumber: pr.reportNumber,
+                    doneAt: pr.createdAt.toISOString(),
+                });
+            }
+        }
+    }
+
+    return assignments.map((a) => {
+        const prev = storePreventiveMap.get(a.storeCode);
+        return {
+            storeCode: a.storeCode,
+            storeName: a.store.name,
+            branchName: a.store.branchName,
+            isCompleted: !!prev,
+            doneAt: prev?.doneAt,
+            reportNumber: prev?.reportNumber,
+        };
     });
 }

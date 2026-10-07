@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/authorization";
-import { getStoresByBranch } from "@/app/reports/actions";
+import { getAssignedStoresForBms } from "@/app/reports/actions";
 import prisma from "@/lib/prisma";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
@@ -48,7 +48,7 @@ export default async function RevisiReportPage({
     }
 
     const [stores, materialNames] = await Promise.all([
-        getStoresByBranch(user.branchNames[0] || ""),
+        getAssignedStoresForBms(user.NIK),
         loadMaterialNames(),
     ]);
 

@@ -23,6 +23,7 @@ export { reviewCompletion } from "./actions/review-completion";
 export { approveFinal } from "./actions/approve-final";
 export {
     getStoresByBranch,
+    getAssignedStoresForBms,
     getMyReports,
     getLastCategoryIDate,
     getApprovalReports,

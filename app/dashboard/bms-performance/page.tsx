@@ -42,6 +42,7 @@ import { cn, formatDashboardCurrency } from "@/lib/utils";
 import { formatJakartaDateTime } from "@/lib/time";
 import { BmsPerformanceChart } from "./_components/bms-performance-chart";
 import { BmsPerformancePeriodFilter } from "./_components/bms-performance-period-filter";
+import { BmsCoverageDetailDialog } from "./_components/bms-coverage-detail-dialog";
 import {
     getBmsPerformanceData,
     type BmsAttentionItem,
@@ -356,7 +357,7 @@ function BmsPerformanceTable({
             <CardHeader>
                 <CardTitle>Daftar BMS</CardTitle>
                 <CardDescription>
-                    Klik NIK BMS untuk membuka detail.
+                    Klik NIK BMS untuk membuka detail performa, atau klik Rincian Toko untuk melihat pencapaian coverage preventif kuartalan.
                 </CardDescription>
             </CardHeader>
             <CardContent>
@@ -364,6 +365,21 @@ function BmsPerformanceTable({
                     <TableHeader>
                         <TableRow>
                             <TableHead className="min-w-[180px]">BMS</TableHead>
+                            <TableHead className="text-center min-w-[100px]">
+                                Target Coverage
+                            </TableHead>
+                            <TableHead className="text-center min-w-[90px]">
+                                Preventif Selesai
+                            </TableHead>
+                            <TableHead className="text-center min-w-[80px]">
+                                Pending
+                            </TableHead>
+                            <TableHead className="text-center min-w-[100px]">
+                                KPI Preventif
+                            </TableHead>
+                            <TableHead className="text-center min-w-[110px]">
+                                Rincian Toko
+                            </TableHead>
                             <TableHead className="text-right">
                                 Laporan Aktif
                             </TableHead>
@@ -394,7 +410,7 @@ function BmsPerformanceTable({
                         {rows.length === 0 ? (
                             <TableRow>
                                 <TableCell
-                                    colSpan={9}
+                                    colSpan={14}
                                     className="h-24 text-center text-muted-foreground"
                                 >
                                     Belum ada BMS pada cabang scope Anda.
@@ -414,6 +430,37 @@ function BmsPerformanceTable({
                                         <div className="text-muted-foreground">
                                             {row.name}
                                         </div>
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono font-semibold">
+                                        {formatNumber(row.targetCoverageStores ?? 0)}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono font-semibold text-emerald-700">
+                                        {formatNumber(row.completedPreventiveStores ?? 0)}
+                                    </TableCell>
+                                    <TableCell className="text-center font-mono font-semibold text-amber-700">
+                                        {formatNumber(row.pendingPreventiveStores ?? 0)}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <Badge
+                                            variant="outline"
+                                            className={
+                                                (row.preventiveKpiRate ?? 0) >= 100
+                                                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                                                    : (row.preventiveKpiRate ?? 0) >= 50
+                                                      ? "border-blue-200 bg-sky-50 text-sky-700"
+                                                      : "border-amber-200 bg-amber-50 text-amber-700"
+                                            }
+                                        >
+                                            {row.preventiveKpiRate ?? 0}%
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                        <BmsCoverageDetailDialog
+                                            bmsName={row.name}
+                                            bmsNIK={row.nik}
+                                            stores={row.coverageStores || []}
+                                            kpiRate={row.preventiveKpiRate ?? 0}
+                                        />
                                     </TableCell>
                                     <TableCell className="text-right font-mono font-semibold">
                                         {formatNumber(row.activeReports)}
@@ -493,7 +540,7 @@ type Props = {
 export default async function BmsPerformancePage({ searchParams }: Props) {
     const user = await getAuthUser();
     if (!user) redirect("/login");
-    if (!["BMC", "BNM_MANAGER"].includes(user.role)) redirect("/dashboard");
+    if (!["ADMIN", "BMC", "BNM_MANAGER"].includes(user.role)) redirect("/dashboard");
 
     const params = (await searchParams) ?? {};
     const filters: BmsPerformanceFilterValues = {
