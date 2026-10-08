@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, Fragment } from "react";
 import Link from "next/link";
 import {
     Table,
@@ -174,7 +174,7 @@ export function BmsCoverageHierarchyTable({
                                     expandedBranches.has(branch.branchName) || !!search.trim();
 
                                 return (
-                                    <div key={branch.branchName} className="contents">
+                                    <Fragment key={branch.branchName}>
                                         {/* LEVEL 1: Baris Cabang */}
                                         <TableRow
                                             className="bg-slate-50/70 hover:bg-slate-100/90 dark:bg-slate-900/60 dark:hover:bg-slate-800/60 cursor-pointer border-b transition-colors font-medium"
@@ -239,7 +239,7 @@ export function BmsCoverageHierarchyTable({
                                                     expandedBms.has(bms.nik) || !!search.trim();
 
                                                 return (
-                                                    <div key={bms.nik} className="contents">
+                                                    <Fragment key={bms.nik}>
                                                         <TableRow
                                                             className="bg-white/80 dark:bg-slate-950/80 hover:bg-slate-50 dark:hover:bg-slate-900/50 cursor-pointer border-b"
                                                             onClick={() => toggleBms(bms.nik)}
@@ -374,10 +374,10 @@ export function BmsCoverageHierarchyTable({
                                                                 </TableCell>
                                                             </TableRow>
                                                         )}
-                                                    </div>
+                                                    </Fragment>
                                                 );
                                             })}
-                                    </div>
+                                    </Fragment>
                                 );
                             })
                         )}
