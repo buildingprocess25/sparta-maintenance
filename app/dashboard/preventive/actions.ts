@@ -760,14 +760,21 @@ export async function getAdminPreventiveKpiData(
     let allBmsItemsForReturn: PreventiveKpiListItem[] = [];
     let viewMode: "BRANCH" | "BMS" | "MONTHLY" = "BRANCH";
     
-    if (isManager) {
+    const showBmsView = isManager || (branchName && branchName !== "all");
+
+    if (showBmsView) {
         viewMode = "BMS";
+        
+        const branchFilter = (branchName && branchName !== "all")
+            ? branchName
+            : { in: user.branchNames };
+
         const assignments = await prisma.bmsStoreAssignment.findMany({
             where: {
                 isActive: true,
                 store: {
                     isActive: true,
-                    branchName: { in: user.branchNames },
+                    branchName: branchFilter,
                 },
             },
             select: {

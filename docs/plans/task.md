@@ -1,5 +1,5 @@
 | Task | Status | Notes |
 |---|---|---|
-| Task 1: Update Server Action getAdminPreventiveKpiData | Done | Tambah agregasi per BMS cabang via BmsStoreAssignment untuk role BMC & BNM |
-| Task 2: Update PreventiveKpiWidget UI | Done | Tambah state & toggle sort BMS Terbaik ↔ Terburuk |
-| Task 3: Verifikasi TypeScript & Build | Done | tsc --noEmit check lolos dengan exit code 0 |
+| Task 1: Update Server Action getAdminPreventiveKpiData for branch filter | Done | BMS view aktif jika branchName diset ke cabang spesifik |
+| Task 2: Build & Empirical Verification | Done | npx tsc --noEmit lolos dengan exit code 0 |
+| Task 3: Task Note & Documentation | Done | Task note dibuat di docs/agent-notes/2026-10-08-1105-admin-preventive-bms-ranking.md |
