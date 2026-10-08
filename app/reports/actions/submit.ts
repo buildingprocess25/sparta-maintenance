@@ -21,6 +21,7 @@ import { getLastCategoryIDate } from "./queries";
 import { validateEstimationLimit, getBmsActivePeriod, hasBmsRepairItems, createNewBmsPeriod, getBmsActiveReportBlocker } from "@/lib/balance";
 import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
 import { isSameJakartaQuarter } from "@/lib/time";
+import { isBranchWideBmsCoverage } from "@/lib/bms-coverage-config";
 
 /**
  * Parse ISO string dari client menjadi Date.
@@ -58,47 +59,48 @@ export async function submitReport(data: DraftData) {
         };
     }
 
-    // ── Coverage Guard: BMS hanya boleh membuat laporan untuk toko coveragenya atau toko unassigned di cabangnya ──
+    // ── Coverage Guard: BMS hanya boleh membuat laporan untuk toko di cabangnya / coveragenya ──
     if (data.storeCode) {
-        const isAssignedToThisBms = await prisma.bmsStoreAssignment.findFirst({
-            where: {
-                bmsNIK: user.NIK,
-                storeCode: data.storeCode,
-                isActive: true,
-            },
+        const store = await prisma.store.findUnique({
+            where: { code: data.storeCode },
+            select: { branchName: true },
         });
 
-        if (!isAssignedToThisBms) {
-            // Cek apakah toko ini memiliki assignment aktif ke BMS lain
-            const assignedToOtherBms = await prisma.bmsStoreAssignment.findFirst({
+        if (!store || !user.branchNames.includes(store.branchName)) {
+            return {
+                error: "Toko di luar cabang Anda",
+                detail: `Toko ${data.storeCode} berada di luar cabang operasional Anda.`,
+            };
+        }
+
+        const branchWideMode = isBranchWideBmsCoverage();
+        if (!branchWideMode) {
+            const isAssignedToThisBms = await prisma.bmsStoreAssignment.findFirst({
                 where: {
+                    bmsNIK: user.NIK,
                     storeCode: data.storeCode,
                     isActive: true,
                 },
-                include: {
-                    bms: { select: { name: true, NIK: true } },
-                },
             });
 
-            if (assignedToOtherBms) {
-                return {
-                    error: "Toko di luar wilayah coverage Anda",
-                    detail: `Toko ${data.storeCode} merupakan coverage milik BMS ${assignedToOtherBms.bms.name} (${assignedToOtherBms.bmsNIK}). Anda tidak dapat membuat laporan untuk toko ini.`,
-                };
-            }
+            if (!isAssignedToThisBms) {
+                // Cek apakah toko ini memiliki assignment aktif ke BMS lain
+                const assignedToOtherBms = await prisma.bmsStoreAssignment.findFirst({
+                    where: {
+                        storeCode: data.storeCode,
+                        isActive: true,
+                    },
+                    include: {
+                        bms: { select: { name: true, NIK: true } },
+                    },
+                });
 
-            // Jika toko belum di-assign ke siapapun (unassigned/vacant/skipped),
-            // pastikan toko tersebut berada di scope cabang BMS ini
-            const store = await prisma.store.findUnique({
-                where: { code: data.storeCode },
-                select: { branchName: true },
-            });
-
-            if (!store || !user.branchNames.includes(store.branchName)) {
-                return {
-                    error: "Toko di luar cabang Anda",
-                    detail: `Toko ${data.storeCode} berada di luar cabang operasional Anda.`,
-                };
+                if (assignedToOtherBms) {
+                    return {
+                        error: "Toko di luar wilayah coverage Anda",
+                        detail: `Toko ${data.storeCode} merupakan coverage milik BMS ${assignedToOtherBms.bms.name} (${assignedToOtherBms.bmsNIK}). Anda tidak dapat membuat laporan untuk toko ini.`,
+                    };
+                }
             }
         }
     }

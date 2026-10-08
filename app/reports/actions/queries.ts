@@ -14,6 +14,7 @@ import {
     getJakartaQuarterWindow,
     getJakartaYear,
 } from "@/lib/time";
+import { isBranchWideBmsCoverage } from "@/lib/bms-coverage-config";
 
 export async function getStoresByBranch(branchName: string) {
     const user = await requireAuth();
@@ -70,30 +71,39 @@ export async function getAssignedStoresForBms(bmsNIK: string) {
         throw new Error("Anda hanya dapat mengakses toko coverage Anda sendiri");
     }
 
+    const branchWideMode = isBranchWideBmsCoverage();
+
+    const storeWhere: Prisma.StoreWhereInput = branchWideMode
+        ? {
+              isActive: true,
+              branchName: { in: user.branchNames },
+          }
+        : {
+              isActive: true,
+              OR: [
+                  // 1. Toko yang secara spesifik di-assign aktif ke BMS ini
+                  {
+                      storeAssignments: {
+                          some: {
+                              bmsNIK,
+                              isActive: true,
+                          },
+                      },
+                  },
+                  // 2. Fallback: Toko di cabang BMS ini yang BELUM memiliki BMS penanggung jawab aktif (unassigned / vacant)
+                  {
+                      branchName: { in: user.branchNames },
+                      storeAssignments: {
+                          none: {
+                              isActive: true,
+                          },
+                      },
+                  },
+              ],
+          };
+
     const stores = await prisma.store.findMany({
-        where: {
-            isActive: true,
-            OR: [
-                // 1. Toko yang secara spesifik di-assign aktif ke BMS ini
-                {
-                    storeAssignments: {
-                        some: {
-                            bmsNIK,
-                            isActive: true,
-                        },
-                    },
-                },
-                // 2. Fallback: Toko di cabang BMS ini yang BELUM memiliki BMS penanggung jawab aktif (unassigned / vacant)
-                {
-                    branchName: { in: user.branchNames },
-                    storeAssignments: {
-                        none: {
-                            isActive: true,
-                        },
-                    },
-                },
-            ],
-        },
+        where: storeWhere,
         orderBy: { name: "asc" },
         select: {
             code: true,

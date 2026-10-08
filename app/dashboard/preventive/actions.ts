@@ -22,6 +22,7 @@ import {
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { type StoreBrandFilter, getStoreBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
 import { getActivityPeriodWindow } from "@/lib/admin-activity-period";
+import { isBranchWideBmsCoverage } from "@/lib/bms-coverage-config";
 
 export type PreventiveQuarter = 1 | 2 | 3 | 4;
 export type PreventiveQuarterKey = "q1" | "q2" | "q3" | "q4";
@@ -612,35 +613,67 @@ export async function getBmsPreventiveCoverage(user: { NIK: string; branchNames:
         })
     ];
 
-    const rawRows = await prisma.$queryRaw<any[]>`
-        WITH QuarterReports AS (
+    const branchWideMode = isBranchWideBmsCoverage();
+
+    const rawRows = branchWideMode
+        ? await prisma.$queryRaw<any[]>`
+            WITH QuarterReports AS (
+                SELECT 
+                    r."storeCode",
+                    r."reportNumber",
+                    r."createdAt"
+                FROM "Report" r
+                WHERE ${Prisma.join(reportPredicates, " AND ")}
+            ),
+            RankedReports AS (
+                SELECT 
+                    "storeCode",
+                    "reportNumber",
+                    "createdAt",
+                    ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "createdAt" DESC) as rn
+                FROM QuarterReports
+            )
             SELECT 
-                r."storeCode",
-                r."reportNumber",
-                r."createdAt"
-            FROM "Report" r
-            WHERE ${Prisma.join(reportPredicates, " AND ")}
-        ),
-        RankedReports AS (
+                s.code as "storeCode",
+                s.name as "storeName",
+                s.brand,
+                rr."reportNumber",
+                rr."createdAt" as "doneAt"
+            FROM "Store" s
+            LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
+            WHERE s."isActive" = true
+              AND s."branchName" IN (${Prisma.join(user.branchNames)})
+            ORDER BY s.code ASC;
+        `
+        : await prisma.$queryRaw<any[]>`
+            WITH QuarterReports AS (
+                SELECT 
+                    r."storeCode",
+                    r."reportNumber",
+                    r."createdAt"
+                FROM "Report" r
+                WHERE ${Prisma.join(reportPredicates, " AND ")}
+            ),
+            RankedReports AS (
+                SELECT 
+                    "storeCode",
+                    "reportNumber",
+                    "createdAt",
+                    ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "createdAt" DESC) as rn
+                FROM QuarterReports
+            )
             SELECT 
-                "storeCode",
-                "reportNumber",
-                "createdAt",
-                ROW_NUMBER() OVER(PARTITION BY "storeCode" ORDER BY "createdAt" DESC) as rn
-            FROM QuarterReports
-        )
-        SELECT 
-            s.code as "storeCode",
-            s.name as "storeName",
-            s.brand,
-            rr."reportNumber",
-            rr."createdAt" as "doneAt"
-        FROM "Store" s
-        JOIN "BmsStoreAssignment" bsa ON s.code = bsa."storeCode" AND bsa."bmsNIK" = ${user.NIK} AND bsa."isActive" = true
-        LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
-        WHERE s."isActive" = true
-        ORDER BY s.code ASC;
-    `;
+                s.code as "storeCode",
+                s.name as "storeName",
+                s.brand,
+                rr."reportNumber",
+                rr."createdAt" as "doneAt"
+            FROM "Store" s
+            JOIN "BmsStoreAssignment" bsa ON s.code = bsa."storeCode" AND bsa."bmsNIK" = ${user.NIK} AND bsa."isActive" = true
+            LEFT JOIN RankedReports rr ON s.code = rr."storeCode" AND rr.rn = 1
+            WHERE s."isActive" = true
+            ORDER BY s.code ASC;
+        `;
 
     const completed: BmsStoreCoverage[] = [];
     const pending: BmsStoreCoverage[] = [];
