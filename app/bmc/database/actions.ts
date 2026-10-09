@@ -428,16 +428,32 @@ export async function updateStore(
             payload.ownershipType,
         );
 
-        await prisma.store.update({
-            where: { code },
-            data: {
-                name: payload.name,
-                branchName: existing.branchName,
-                areaName: normalizedAreaName,
-                isActive: payload.isActive ?? true,
-                brand,
-                ownershipType,
-            },
+        const newIsActive = payload.isActive ?? true;
+
+        await prisma.$transaction(async (tx) => {
+            await tx.store.update({
+                where: { code },
+                data: {
+                    name: payload.name,
+                    branchName: existing.branchName,
+                    areaName: normalizedAreaName,
+                    isActive: newIsActive,
+                    brand,
+                    ownershipType,
+                },
+            });
+
+            if (newIsActive === false) {
+                await tx.bmsStoreAssignment.updateMany({
+                    where: { storeCode: code, isActive: true },
+                    data: {
+                        isActive: false,
+                        unassignedAt: new Date(),
+                        unassignedByNIK: user.NIK,
+                        notes: "Toko dinonaktifkan oleh BMC",
+                    },
+                });
+            }
         });
 
         revalidatePath("/bmc/database");

@@ -506,16 +506,32 @@ export async function adminUpdateStore(
             payload.ownershipType,
         );
 
-        await prisma.store.update({
-            where: { code },
-            data: {
-                name: payload.name,
-                branchName,
-                isActive: payload.isActive ?? true,
-                areaName: payload.areaName,
-                brand,
-                ownershipType,
-            },
+        const newIsActive = payload.isActive ?? true;
+
+        await prisma.$transaction(async (tx) => {
+            await tx.store.update({
+                where: { code },
+                data: {
+                    name: payload.name,
+                    branchName,
+                    isActive: newIsActive,
+                    areaName: payload.areaName,
+                    brand,
+                    ownershipType,
+                },
+            });
+
+            if (newIsActive === false) {
+                await tx.bmsStoreAssignment.updateMany({
+                    where: { storeCode: code, isActive: true },
+                    data: {
+                        isActive: false,
+                        unassignedAt: new Date(),
+                        unassignedByNIK: admin.NIK,
+                        notes: "Toko dinonaktifkan oleh Admin",
+                    },
+                });
+            }
         });
 
         revalidateMasterDataPaths();

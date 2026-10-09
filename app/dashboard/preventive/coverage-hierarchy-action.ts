@@ -58,6 +58,7 @@ export async function getBmsCoverageHierarchy(params?: {
         where: {
             isActive: true,
             store: {
+                isActive: true,
                 branchName: {
                     not: EXCLUDED_ADMIN_BRANCH_NAME,
                     ...(branchFilter && branchFilter !== "all"

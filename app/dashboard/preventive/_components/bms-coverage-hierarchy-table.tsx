@@ -22,6 +22,13 @@ import {
     Store,
     ExternalLink,
 } from "lucide-react";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import type { BranchCoverageHierarchy } from "../coverage-hierarchy-action";
 
 type Props = {
@@ -40,6 +47,7 @@ export function BmsCoverageHierarchyTable({
     year,
 }: Props) {
     const [search, setSearch] = useState("");
+    const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
 
     // Set cabang yang di-expand
     const [expandedBranches, setExpandedBranches] = useState<Set<string>>(() => {
@@ -81,59 +89,94 @@ export function BmsCoverageHierarchyTable({
 
     const filteredHierarchy = useMemo(() => {
         const query = search.trim().toLowerCase();
-        if (!query) return initialHierarchy;
 
-        return initialHierarchy
-            .map((branch) => {
-                const branchMatch = branch.branchName.toLowerCase().includes(query);
+        let baseHierarchy = initialHierarchy;
+        if (query) {
+            baseHierarchy = initialHierarchy
+                .map((branch) => {
+                    const branchMatch = branch.branchName.toLowerCase().includes(query);
 
-                const matchedBmsList = branch.bmsList
-                    .map((bms) => {
-                        const bmsMatch =
-                            bms.name.toLowerCase().includes(query) ||
-                            bms.nik.toLowerCase().includes(query);
+                    const matchedBmsList = branch.bmsList
+                        .map((bms) => {
+                            const bmsMatch =
+                                bms.name.toLowerCase().includes(query) ||
+                                bms.nik.toLowerCase().includes(query);
 
-                        const matchedStores = bms.stores.filter(
-                            (s) =>
-                                s.storeName.toLowerCase().includes(query) ||
-                                s.storeCode.toLowerCase().includes(query),
-                        );
+                            const matchedStores = bms.stores.filter(
+                                (s) =>
+                                    s.storeName.toLowerCase().includes(query) ||
+                                    s.storeCode.toLowerCase().includes(query),
+                            );
 
-                        if (bmsMatch || branchMatch || matchedStores.length > 0) {
-                            return {
-                                ...bms,
-                                stores:
-                                    matchedStores.length > 0 && !bmsMatch && !branchMatch
-                                        ? matchedStores
-                                        : bms.stores,
-                            };
-                        }
-                        return null;
-                    })
-                    .filter(Boolean) as typeof branch.bmsList;
+                            if (bmsMatch || branchMatch || matchedStores.length > 0) {
+                                return {
+                                    ...bms,
+                                    stores:
+                                        matchedStores.length > 0 && !bmsMatch && !branchMatch
+                                            ? matchedStores
+                                            : bms.stores,
+                                };
+                            }
+                            return null;
+                        })
+                        .filter(Boolean) as typeof branch.bmsList;
 
-                if (branchMatch || matchedBmsList.length > 0) {
-                    return {
-                        ...branch,
-                        bmsList: matchedBmsList,
-                    };
-                }
-                return null;
-            })
-            .filter(Boolean) as BranchCoverageHierarchy[];
-    }, [initialHierarchy, search]);
+                    if (branchMatch || matchedBmsList.length > 0) {
+                        return {
+                            ...branch,
+                            bmsList: matchedBmsList,
+                        };
+                    }
+                    return null;
+                })
+                .filter(Boolean) as BranchCoverageHierarchy[];
+        }
+
+        if (sortOrder === "none") {
+            return baseHierarchy;
+        }
+
+        return baseHierarchy.map((branch) => {
+            const sortedBmsList = [...branch.bmsList].sort((a, b) =>
+                sortOrder === "asc" ? a.kpiRate - b.kpiRate : b.kpiRate - a.kpiRate,
+            );
+            return {
+                ...branch,
+                bmsList: sortedBmsList,
+            };
+        }).sort((a, b) =>
+            sortOrder === "asc"
+                ? a.coverageRate - b.coverageRate
+                : b.coverageRate - a.coverageRate,
+        );
+    }, [initialHierarchy, search, sortOrder]);
 
     return (
         <div className="space-y-4">
             {/* Toolbar Filter & Quick Search */}
-            <div className="relative max-w-md">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-                <Input
-                    placeholder="Cari cabang, nama BMS, NIK, atau nama/kode toko..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-9 pl-9 text-xs"
-                />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className="relative max-w-md flex-1">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+                    <Input
+                        placeholder="Cari cabang, nama BMS, NIK, atau nama/kode toko..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        className="h-9 pl-9 text-xs"
+                    />
+                </div>
+                <Select
+                    value={sortOrder}
+                    onValueChange={(v) => setSortOrder(v as "none" | "asc" | "desc")}
+                >
+                    <SelectTrigger className="w-[180px] h-9 text-xs">
+                        <SelectValue placeholder="Urutkan Coverage..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="none">Default (Nama)</SelectItem>
+                        <SelectItem value="asc">Terendah Dulu</SelectItem>
+                        <SelectItem value="desc">Tertinggi Dulu</SelectItem>
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Hierarchical Table */}
