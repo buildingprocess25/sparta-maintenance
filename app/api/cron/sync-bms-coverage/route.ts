@@ -29,11 +29,23 @@ export async function POST(request: NextRequest) {
 
     try {
         const result = await syncBmsCoverageFromSheet();
+        const summary = {
+            totalSheetsProcessed: result.totalSheetsProcessed,
+            totalRowsParsed: result.totalRowsParsed,
+            created: result.created,
+            deactivated: result.deactivated,
+            unchanged: result.unchanged,
+            skippedMissingStoresCount: result.skippedMissingStores.length,
+            skippedInvalidNiks: result.skippedInvalidNiks,
+            resolvedByName: result.resolvedByName,
+            resolvedByFuzzy: result.resolvedByFuzzy,
+        };
+
         logger.info(
-            { operation: "cron.syncBmsCoverage", summary: result },
+            { operation: "cron.syncBmsCoverage", summary },
             "BMS Coverage Sync Cron Job Completed Successfully",
         );
-        return NextResponse.json({ ok: true, ...result });
+        return NextResponse.json({ ok: true, summary });
     } catch (error) {
         logger.error(
             { operation: "cron.syncBmsCoverage" },
