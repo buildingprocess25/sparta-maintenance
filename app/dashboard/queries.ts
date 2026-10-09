@@ -1617,9 +1617,30 @@ export const getAdminCommandCenterData = unstable_cache(
       getAdminSlaPerformanceData(trendWindow, brand, branchScope),
       prisma.store.count({ where: { brand: "ALFAMART", isActive: true, NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } }),
       prisma.store.count({ where: { brand: "LAWSON", isActive: true, NOT: { branchName: EXCLUDED_ADMIN_BRANCH_NAME } } }),
-      prisma.user.count({ where: { role: "BMS", deletedAt: null } }),
-      prisma.user.count({ where: { role: "BMC", deletedAt: null } }),
-      prisma.user.count({ where: { role: "BNM_MANAGER", deletedAt: null } }),
+      prisma.user.count({
+        where: {
+          role: "BMS",
+          deletedAt: null,
+          branchNames: { isEmpty: false },
+          NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: "BMC",
+          deletedAt: null,
+          branchNames: { isEmpty: false },
+          NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          role: "BNM_MANAGER",
+          deletedAt: null,
+          branchNames: { isEmpty: false },
+          NOT: { branchNames: { has: EXCLUDED_ADMIN_BRANCH_NAME } },
+        },
+      }),
     ]);
 
     let brandBreakdown = undefined;
