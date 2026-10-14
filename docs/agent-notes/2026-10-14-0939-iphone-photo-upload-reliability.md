@@ -22,6 +22,8 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `app/reports/[reportNumber]/completion/use-completion-work-form.ts`, `app/reports/[reportNumber]/start/start-work-client.tsx`: toast error submit kini memuat penyebab asli lewat `describePhotoUploadFailure`.
 - `lib/photo-upload/materialize-photo.ts`: baca foto lokal ke memori sebelum upload, fallback ke blob URL preview.
 - `lib/photo-upload/eager-upload-registry.ts`: registry status upload eager per foto + store localStorage.
+- `lib/hooks/use-eager-photo-uploads.ts`, `components/photo-upload-status.tsx`: hook registry + overlay status per foto (spinner/centang/Ulangi).
+- Kedua PhotoStrip (Penyelesaian dan Mulai Pekerjaan) merender `PhotoUploadStatusOverlay`.
 
 ## Decisions
 
@@ -36,6 +38,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `npx tsx lib/hooks/use-photo-upload.spec.ts` — pass.
 - `npx tsx lib/photo-upload/materialize-photo.spec.ts` — pass.
 - `npx tsx lib/photo-upload/eager-upload-registry.spec.ts` — pass.
+- `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts` — pass.
 - `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
 
 ## Remaining Work and Risks

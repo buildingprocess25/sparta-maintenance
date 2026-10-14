@@ -27,6 +27,7 @@ import {
 import { toast } from "sonner";
 
 import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
+import { PhotoUploadStatusOverlay } from "@/components/photo-upload-status";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
@@ -154,6 +155,7 @@ function PhotoStrip({
           >
             <ZoomIn className="size-5" />
           </button>
+          <PhotoUploadStatusOverlay photoId={photo.id} />
           <button
             type="button"
             onClick={() => onRemove(photo.id)}

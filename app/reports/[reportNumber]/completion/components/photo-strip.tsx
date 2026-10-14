@@ -1,5 +1,6 @@
 import { Trash2, ZoomIn } from "lucide-react";
 
+import { PhotoUploadStatusOverlay } from "@/components/photo-upload-status";
 import type { LocalPhoto } from "../types";
 
 export function PhotoStrip({
@@ -43,6 +44,7 @@ export function PhotoStrip({
                     >
                         <ZoomIn className="size-5" />
                     </button>
+                    <PhotoUploadStatusOverlay photoId={photo.id} />
                     {onRemove && (
                         <button
                             type="button"
