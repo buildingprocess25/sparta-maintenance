@@ -25,6 +25,7 @@ import {
   type PhotoUploadFailure,
   type PhotoUploadOutcome,
 } from "@/lib/photo-upload/upload-failure";
+import { materializePhotoFile } from "@/lib/photo-upload/materialize-photo";
 import {
   realisasiNetTotal,
   type CompletionDraftData,
@@ -526,17 +527,12 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         photo: LocalPhoto,
         context: PhotoUploadContext,
       ): Promise<PhotoUploadOutcome> => {
-        const file = await autosave.getPhotoFile(photo.id);
-        if (!file) {
-          return {
-            ok: false,
-            failure: {
-              kind: "local-file",
-              detail: "foto tidak ditemukan di penyimpanan HP",
-            },
-          };
-        }
-        return uploadPhoto(file, context);
+        const materialized = await materializePhotoFile({
+          loadStored: () => autosave.getPhotoFile(photo.id),
+          fallbackUrl: photo.previewUrl,
+        });
+        if (!materialized.ok) return materialized;
+        return uploadPhoto(materialized.file, context);
       };
 
       const uploadPhotos = async (

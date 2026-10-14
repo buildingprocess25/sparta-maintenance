@@ -33,3 +33,5 @@ assert.match(completionHook, /kind:\s*"COMPLETION_RESULT"/);
 assert.match(completionHook, /kind:\s*"COMPLETION_RECEIPT"/);
 assert.match(completionHook, /kind:\s*"COMPLETION_ADDITIONAL"/);
 assert.match(completionHook, /kind:\s*"START_SELFIE"/);
+assert.match(completionHook, /materializePhotoFile\(\{/);
+assert.match(startWorkClient, /materializePhotoFile\(\{/);

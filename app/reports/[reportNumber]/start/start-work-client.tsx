@@ -50,6 +50,7 @@ import {
   type PhotoUploadFailure,
   type PhotoUploadOutcome,
 } from "@/lib/photo-upload/upload-failure";
+import { materializePhotoFile } from "@/lib/photo-upload/materialize-photo";
 import { cn } from "@/lib/utils";
 import type { MaterialEstimationJson } from "@/types/report";
 import type { ReportForStartWork } from "./queries";
@@ -386,10 +387,17 @@ export function StartWorkClient({
         toast.dismiss(loadingId);
         toast.error(title, { description: describePhotoUploadFailure(failure) });
       };
-      const uploadLocalPhoto = (
+      const uploadLocalPhoto = async (
         photo: StartWorkLocalPhoto,
         context: PhotoUploadContext,
-      ): Promise<PhotoUploadOutcome> => uploadPhoto(photo.file, context);
+      ): Promise<PhotoUploadOutcome> => {
+        const materialized = await materializePhotoFile({
+          loadStored: async () => photo.file,
+          fallbackUrl: photo.previewUrl,
+        });
+        if (!materialized.ok) return materialized;
+        return uploadPhoto(materialized.file, context);
+      };
 
       const selfiePhotosToUpload = skipPhotos ? [] : selfiePhotos;
       const receiptPhotosToUpload = skipPhotos ? [] : receiptPhotos;
