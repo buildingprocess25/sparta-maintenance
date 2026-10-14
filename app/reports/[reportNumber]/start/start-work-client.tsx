@@ -27,7 +27,10 @@ import {
 import { toast } from "sonner";
 
 import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
-import { PhotoUploadStatusOverlay } from "@/components/photo-upload-status";
+import {
+  PhotoUploadStatusOverlay,
+  PhotoUploadStatusProvider,
+} from "@/components/photo-upload-status";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
@@ -44,7 +47,7 @@ import {
 import { getStartWorkEvidenceError } from "@/lib/start-work-evidence";
 import { genPhotoId } from "@/lib/upload-photo";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
-import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
+import { useEagerPhotoUploads } from "@/lib/hooks/use-eager-photo-uploads";
 import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
 import {
   describePhotoUploadFailure,
@@ -177,10 +180,10 @@ export function StartWorkClient({
 }: StartWorkClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { uploadPhoto } = usePhotoUpload();
   const autosave = useStartWorkAutosave();
   const isHeaderVisible = useBmsMobileHeaderVisibility();
   const reportNumber = report.reportNumber;
+  const eager = useEagerPhotoUploads(reportNumber);
 
   const [isRestoringDraft, setIsRestoringDraft] = useState(true);
   const [selfiePhotos, setSelfiePhotos] = useState<StartWorkLocalPhoto[]>([]);
@@ -220,7 +223,7 @@ export function StartWorkClient({
 
   useEffect(() => {
     autosave
-      .restoreDraft(reportNumber)
+      .restoreDraft(reportNumber, (id) => eager.registry.getUploaded(id)?.url)
       .then((draft) => {
         if (!draft) return;
         setSelfiePhotos(draft.selfiePhotos);
@@ -236,7 +239,7 @@ export function StartWorkClient({
         setSkipPhotos(draft.skipPhotos);
       })
       .finally(() => setIsRestoringDraft(false));
-  }, [autosave, reportNumber]);
+  }, [autosave, eager.registry, reportNumber]);
 
   useEffect(() => {
     if (isRestoringDraft) return;
@@ -279,6 +282,7 @@ export function StartWorkClient({
       setCameraTarget(null);
 
       if (typeof target === "object" && target.type === "store") {
+        // Not uploaded eagerly: the Drive folder depends on the store name/city.
         handleAddMaterialStorePhoto(target.storeId, file);
         return;
       }
@@ -290,6 +294,7 @@ export function StartWorkClient({
       );
       if (target === "selfie") {
         setSelfiePhotos((prev) => [...prev, photo]);
+        eager.startUpload(photo.id, file, { kind: "START_SELFIE", reportNumber });
         return;
       }
 
@@ -300,31 +305,35 @@ export function StartWorkClient({
         }
         return next;
       });
+      eager.startUpload(photo.id, file, { kind: "START_RECEIPT", reportNumber });
     },
-    [autosave, cameraTarget, handleAddMaterialStorePhoto, reportNumber],
+    [autosave, cameraTarget, eager, handleAddMaterialStorePhoto, reportNumber],
   );
 
   const handleRemoveSelfiePhoto = useCallback(
     (id: string) => {
+      eager.registry.forget(id);
       void autosave.removePhoto(id);
       setSelfiePhotos((prev) => prev.filter((photo) => photo.id !== id));
     },
-    [autosave],
+    [autosave, eager.registry],
   );
 
   const handleRemoveReceiptPhoto = useCallback(
     (id: string) => {
+      eager.registry.forget(id);
       void autosave.removePhoto(id);
       setReceiptPhotos((prev) => {
         const next = prev.filter((photo) => photo.id !== id);
         return next;
       });
     },
-    [autosave],
+    [autosave, eager.registry],
   );
 
   const handleRemoveStorePhoto = useCallback(
     (storeId: string, photoId: string) => {
+      eager.registry.forget(photoId);
       void autosave.removePhoto(photoId);
       setMaterialStores((prev) =>
         prev.map((s) =>
@@ -334,7 +343,7 @@ export function StartWorkClient({
         ),
       );
     },
-    [autosave],
+    [autosave, eager.registry],
   );
 
   const handleAddStore = useCallback(() => {
@@ -389,17 +398,19 @@ export function StartWorkClient({
         toast.dismiss(loadingId);
         toast.error(title, { description: describePhotoUploadFailure(failure) });
       };
-      const uploadLocalPhoto = async (
+      const uploadLocalPhoto = (
         photo: StartWorkLocalPhoto,
         context: PhotoUploadContext,
-      ): Promise<PhotoUploadOutcome> => {
-        const materialized = await materializePhotoFile({
-          loadStored: async () => photo.file,
-          fallbackUrl: photo.previewUrl,
-        });
-        if (!materialized.ok) return materialized;
-        return uploadPhoto(materialized.file, context);
-      };
+      ): Promise<PhotoUploadOutcome> =>
+        eager.registry.ensureUploaded(
+          photo.id,
+          () =>
+            materializePhotoFile({
+              loadStored: async () => photo.file ?? null,
+              fallbackUrl: photo.previewUrl,
+            }),
+          context,
+        );
 
       const selfiePhotosToUpload = skipPhotos ? [] : selfiePhotos;
       const receiptPhotosToUpload = skipPhotos ? [] : receiptPhotos;
@@ -495,6 +506,7 @@ export function StartWorkClient({
         description: `Status laporan menjadi ${getReportStatusLabel("IN_PROGRESS")}.`,
       });
       await autosave.clearDraft(reportNumber);
+      eager.registry.clear();
       router.push(`/reports/${reportNumber}`);
     });
   }, [
@@ -506,10 +518,11 @@ export function StartWorkClient({
     router,
     selfiePhotos,
     skipPhotos,
-    uploadPhoto,
+    eager.registry,
   ]);
 
   return (
+    <PhotoUploadStatusProvider value={eager.statusValue}>
     <div className="min-h-svh bg-background text-foreground">
       <BmsMobileHeader
         title="Mulai Pekerjaan"
@@ -848,6 +861,7 @@ export function StartWorkClient({
         message="Memuat draft mulai pekerjaan..."
       />
     </div>
+    </PhotoUploadStatusProvider>
   );
 }
 

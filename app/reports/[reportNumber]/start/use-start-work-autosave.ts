@@ -10,7 +10,8 @@ const LS_KEY_PREFIX = "sparta-start-work-draft-";
 export type StartWorkLocalPhoto = {
     id: string;
     previewUrl: string;
-    file: File;
+    /** Missing when the photo was restored from its uploaded URL only. */
+    file?: File;
     fileId?: string;
 };
 
@@ -116,16 +117,22 @@ function genPhotoId(reportNumber: string, type: string): string {
     return `${reportNumber}-${type}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
-async function restorePhotos(ids: string[]): Promise<StartWorkLocalPhoto[]> {
+async function restorePhotos(
+    ids: string[],
+    getUploadedUrl?: (photoId: string) => string | undefined,
+): Promise<StartWorkLocalPhoto[]> {
     const photos: StartWorkLocalPhoto[] = [];
     for (const id of ids) {
-        const file = await idbGet(id);
-        if (!file) continue;
-        photos.push({
-            id,
-            file,
-            previewUrl: URL.createObjectURL(file),
+        const file = await idbGet(id).catch((error) => {
+            console.warn("Gagal membaca foto draft:", error);
+            return null;
         });
+        if (file) {
+            photos.push({ id, file, previewUrl: URL.createObjectURL(file) });
+            continue;
+        }
+        const uploadedUrl = getUploadedUrl?.(id);
+        if (uploadedUrl) photos.push({ id, previewUrl: uploadedUrl });
     }
     return photos;
 }
@@ -140,7 +147,13 @@ export function useStartWorkAutosave() {
             type: string,
         ): Promise<StartWorkLocalPhoto> => {
             const id = genPhotoId(reportNumber, type);
-            await idbPut(id, file);
+            try {
+                await idbPut(id, file);
+            } catch (error) {
+                // iOS Safari can lose its IndexedDB connection; keep the photo in
+                // memory so the eager upload / submit can still use it.
+                console.warn("Gagal menyimpan foto ke penyimpanan lokal:", error);
+            }
             return {
                 id,
                 file,
@@ -174,6 +187,7 @@ export function useStartWorkAutosave() {
     const restoreDraft = useCallback(
         async (
             reportNumber: string,
+            getUploadedUrl?: (photoId: string) => string | undefined,
         ): Promise<RestoredStartWorkDraft | null> => {
             const raw = localStorage.getItem(`${LS_KEY_PREFIX}${reportNumber}`);
             if (!raw) return null;
@@ -188,15 +202,15 @@ export function useStartWorkAutosave() {
             if (draft.version !== 2) return null;
 
             const [selfiePhotos, receiptPhotos] = await Promise.all([
-                restorePhotos(draft.selfiePhotoIds),
-                restorePhotos(draft.receiptPhotoIds),
+                restorePhotos(draft.selfiePhotoIds, getUploadedUrl),
+                restorePhotos(draft.receiptPhotoIds, getUploadedUrl),
             ]);
 
             const materialStores: RestoredStartWorkMaterialStore[] = [];
             for (const store of draft.materialStores ?? []) {
                 materialStores.push({
                     ...store,
-                    photos: await restorePhotos(store.photoIds || []),
+                    photos: await restorePhotos(store.photoIds || [], getUploadedUrl),
                 });
             }
 

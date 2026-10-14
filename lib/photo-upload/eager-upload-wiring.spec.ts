@@ -31,4 +31,17 @@ assert.doesNotMatch(completionHook, /usePhotoUpload\(/);
 assert.match(completionAutosave, /getUploadedUrl\?\.\(id\)/);
 assert.match(completionClient, /<PhotoUploadStatusProvider value=\{photoUploadStatus\}>/);
 
+const startAutosave = read("app/reports/[reportNumber]/start/use-start-work-autosave.ts");
+
+assert.match(startWorkClient, /useEagerPhotoUploads\(reportNumber\)/);
+assert.match(startWorkClient, /kind: "START_SELFIE", reportNumber \}\)/);
+assert.match(startWorkClient, /kind: "START_RECEIPT", reportNumber \}\)/);
+assert.match(startWorkClient, /eager\.registry\.ensureUploaded\(/);
+assert.match(startWorkClient, /eager\.registry\.forget\(/);
+assert.match(startWorkClient, /eager\.registry\.clear\(\)/);
+assert.match(startWorkClient, /<PhotoUploadStatusProvider value=\{eager\.statusValue\}>/);
+assert.doesNotMatch(startWorkClient, /usePhotoUpload\(/);
+assert.match(startAutosave, /file\?: File;/);
+assert.match(startAutosave, /getUploadedUrl\?\.\(id\)/);
+
 console.log("eager upload wiring assertions passed");
