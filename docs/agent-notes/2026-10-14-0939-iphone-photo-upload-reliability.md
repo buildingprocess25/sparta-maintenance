@@ -21,11 +21,13 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `lib/hooks/use-photo-upload.ts`: memakai `uploadPhotoRequest` dan mengembalikan outcome bertipe.
 - `app/reports/[reportNumber]/completion/use-completion-work-form.ts`, `app/reports/[reportNumber]/start/start-work-client.tsx`: toast error submit kini memuat penyebab asli lewat `describePhotoUploadFailure`.
 - `lib/photo-upload/materialize-photo.ts`: baca foto lokal ke memori sebelum upload, fallback ke blob URL preview.
+- `lib/photo-upload/eager-upload-registry.ts`: registry status upload eager per foto + store localStorage.
 
 ## Decisions
 
 - Retry untuk error jaringan dan HTTP 408/429/500/502/504; 503 tidak di-retry karena dipakai mode maintenance.
 - Materialisasi dilakukan sebelum upload agar Blob IndexedDB yang tidak terbaca di WebKit muncul sebagai error "local-file" yang jelas, dan agar foto yang belum reload bisa diambil dari blob URL preview.
+- Status upload eager disimpan di key localStorage terpisah (`sparta-eager-uploads-<reportNumber>`) agar versi draft lama tidak perlu dimigrasi.
 
 ## Verification
 
@@ -33,6 +35,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `npx tsx lib/photo-upload/upload-photo-request.spec.ts` — pass.
 - `npx tsx lib/hooks/use-photo-upload.spec.ts` — pass.
 - `npx tsx lib/photo-upload/materialize-photo.spec.ts` — pass.
+- `npx tsx lib/photo-upload/eager-upload-registry.spec.ts` — pass.
 - `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
 
 ## Remaining Work and Risks
