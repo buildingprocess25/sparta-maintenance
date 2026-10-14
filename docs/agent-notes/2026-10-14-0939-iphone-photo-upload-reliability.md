@@ -26,6 +26,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - Kedua PhotoStrip (Penyelesaian dan Mulai Pekerjaan) merender `PhotoUploadStatusOverlay`.
 - Alur Penyelesaian (`use-completion-work-form.ts`, `hooks/use-completion-autosave.ts`, `completion-client.tsx`): upload eager saat capture (hasil, dokumentasi tambahan, selfie/nota revisi); submit memakai `ensureUploaded`; `addPhoto` toleran IndexedDB gagal; restore memakai URL ter-upload sebagai cadangan.
 - Alur Mulai Pekerjaan (`start-work-client.tsx`, `use-start-work-autosave.ts`): upload eager selfie/nota; foto toko material tetap di-upload saat submit; `file` di `StartWorkLocalPhoto` opsional; `addPhoto` toleran IndexedDB gagal.
+- `lib/photo-upload/compress-photo.ts`: kompresi foto galeri tanpa web worker; dipakai di Mulai Pekerjaan (foto toko material) dan galeri revisi Penyelesaian (sebelumnya tidak dikompres).
 - `lib/hooks/use-photo-upload.ts` dihapus (tidak ada caller lagi; hook `app/reports/(bms)/create/hooks/use-photo-upload.ts` berbeda dan tidak diubah).
 
 ## Decisions
@@ -42,7 +43,8 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `npx tsx lib/photo-upload/materialize-photo.spec.ts` — pass.
 - `npx tsx lib/photo-upload/eager-upload-registry.spec.ts` — pass.
 - `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts` — pass (termasuk assertion wiring Penyelesaian).
-- Uji manual browser untuk alur Penyelesaian dan Mulai Pekerjaan (plan Task 6 Step 7, Task 7 Step 7) belum dijalankan agent: butuh login BMS dan akan mengunggah foto sungguhan ke Drive.
+- `npx tsx lib/photo-upload/compress-photo.spec.ts` — pass.
+- Uji manual browser untuk alur Penyelesaian, Mulai Pekerjaan, dan kompresi galeri (plan Task 6–8 Step 7) belum dijalankan agent: butuh login BMS dan akan mengunggah foto sungguhan ke Drive.
 - `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
 
 ## Remaining Work and Risks

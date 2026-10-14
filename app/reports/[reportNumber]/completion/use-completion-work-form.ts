@@ -26,6 +26,7 @@ import {
   type PhotoUploadOutcome,
 } from "@/lib/photo-upload/upload-failure";
 import { materializePhotoFile } from "@/lib/photo-upload/materialize-photo";
+import { compressGalleryPhoto } from "@/lib/photo-upload/compress-photo";
 import {
   realisasiNetTotal,
   type CompletionDraftData,
@@ -356,13 +357,20 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
 
   const handleAddStartWorkMaterialStorePhoto = useCallback(
     (storeId: string, file: File) => {
-      void autosave.addPhoto(reportNumber, file, "startStore").then((photo) => {
+      void (async () => {
+        let photoFile = file;
+        try {
+          photoFile = await compressGalleryPhoto(file);
+        } catch (error) {
+          console.warn("Gagal mengompres foto toko material:", error);
+        }
+        const photo = await autosave.addPhoto(reportNumber, photoFile, "startStore");
         setStartWorkMaterialStores((prev) =>
           prev.map((s) =>
             s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
           ),
         );
-      });
+      })();
     },
     [autosave, reportNumber],
   );

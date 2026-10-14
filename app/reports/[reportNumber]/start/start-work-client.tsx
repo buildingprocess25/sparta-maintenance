@@ -10,7 +10,6 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import imageCompression from "browser-image-compression";
 import {
   Camera,
   ImagePlus,
@@ -55,6 +54,7 @@ import {
   type PhotoUploadOutcome,
 } from "@/lib/photo-upload/upload-failure";
 import { materializePhotoFile } from "@/lib/photo-upload/materialize-photo";
+import { compressGalleryPhoto } from "@/lib/photo-upload/compress-photo";
 import { cn } from "@/lib/utils";
 import type { MaterialEstimationJson } from "@/types/report";
 import type { ReportForStartWork } from "./queries";
@@ -80,12 +80,6 @@ type StartWorkClientProps = {
   userName: string;
 };
 
-const MATERIAL_STORE_COMPRESSION_OPTIONS = {
-  maxSizeMB: 0.07,
-  maxWidthOrHeight: 1280,
-  useWebWorker: true,
-} as const;
-
 function genId() {
   return genPhotoId();
 }
@@ -107,16 +101,6 @@ function getTotalEstimation(report: StartWorkReport) {
     (sum, estimation) => sum + (estimation.totalPrice ?? 0),
     0,
   );
-}
-
-async function compressMaterialStorePhoto(file: File): Promise<File> {
-  const compressed = (await imageCompression(
-    file,
-    MATERIAL_STORE_COMPRESSION_OPTIONS,
-  )) as Blob;
-  return new File([compressed], file.name || "photo.jpg", {
-    type: compressed.type || file.type || "image/jpeg",
-  });
 }
 
 function PhotoStrip({
@@ -249,27 +233,18 @@ export function StartWorkClient({
   const handleAddMaterialStorePhoto = useCallback(
     (storeId: string, file: File) => {
       void (async () => {
+        let photoFile = file;
         try {
-          const compressedFile = await compressMaterialStorePhoto(file);
-          const photo = await autosave.addPhoto(
-            reportNumber,
-            compressedFile,
-            "store",
-          );
-          setMaterialStores((prev) =>
-            prev.map((s) =>
-              s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
-            ),
-          );
+          photoFile = await compressGalleryPhoto(file);
         } catch (error) {
           console.warn("Gagal mengompres foto toko material:", error);
-          const photo = await autosave.addPhoto(reportNumber, file, "store");
-          setMaterialStores((prev) =>
-            prev.map((s) =>
-              s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
-            ),
-          );
         }
+        const photo = await autosave.addPhoto(reportNumber, photoFile, "store");
+        setMaterialStores((prev) =>
+          prev.map((s) =>
+            s.id === storeId ? { ...s, photos: [...s.photos, photo] } : s,
+          ),
+        );
       })();
     },
     [autosave, reportNumber],
