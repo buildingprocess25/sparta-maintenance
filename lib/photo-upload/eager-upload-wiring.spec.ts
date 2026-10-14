@@ -17,4 +17,18 @@ assert.match(statusUi, /from "@\/components\/ui\/button"/);
 assert.match(completionStrip, /<PhotoUploadStatusOverlay photoId=\{photo\.id\} \/>/);
 assert.match(startWorkClient, /<PhotoUploadStatusOverlay photoId=\{photo\.id\} \/>/);
 
+const completionHook = read("app/reports/[reportNumber]/completion/use-completion-work-form.ts");
+const completionAutosave = read("app/reports/[reportNumber]/completion/hooks/use-completion-autosave.ts");
+const completionClient = read("app/reports/[reportNumber]/completion/completion-client.tsx");
+
+assert.match(completionHook, /useEagerPhotoUploads\(reportNumber\)/);
+assert.match(completionHook, /kind: "COMPLETION_RESULT", reportNumber, itemId/);
+assert.match(completionHook, /kind: "COMPLETION_ADDITIONAL", reportNumber/);
+assert.match(completionHook, /eager\.registry\.ensureUploaded\(/);
+assert.match(completionHook, /eager\.registry\.forget\(/);
+assert.match(completionHook, /eager\.registry\.clear\(\)/);
+assert.doesNotMatch(completionHook, /usePhotoUpload\(/);
+assert.match(completionAutosave, /getUploadedUrl\?\.\(id\)/);
+assert.match(completionClient, /<PhotoUploadStatusProvider value=\{photoUploadStatus\}>/);
+
 console.log("eager upload wiring assertions passed");

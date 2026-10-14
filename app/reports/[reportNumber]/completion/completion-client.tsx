@@ -10,6 +10,7 @@ import { CameraModal } from "@/components/ui/camera-modal";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Textarea } from "@/components/ui/textarea";
 import { BmsBalanceCard } from "@/components/bms-balance-card";
+import { PhotoUploadStatusProvider } from "@/components/photo-upload-status";
 import {
   getReportStatusBadgeClass,
   getReportStatusLabel,
@@ -89,6 +90,7 @@ export function CompletionClient({
     isOverBudget,
     unexpectedCostNotes,
     setUnexpectedCostNotes,
+    photoUploadStatus,
   } = useCompletionWorkForm(
     report,
     bmsBalanceInfo.availableBalance + 
@@ -125,6 +127,7 @@ export function CompletionClient({
   };
 
   return (
+    <PhotoUploadStatusProvider value={photoUploadStatus}>
     <div className="min-h-svh min-w-0 max-w-full overflow-x-clip bg-background text-foreground">
       <BmsMobileHeader
         title="Kirim Penyelesaian"
@@ -392,5 +395,6 @@ export function CompletionClient({
         message="Memuat draft penyelesaian..."
       />
     </div>
+    </PhotoUploadStatusProvider>
   );
 }

@@ -123,8 +123,15 @@ export interface UseCompletionAutosave {
     getPhotoFile: (photoId: string) => Promise<File | null>;
     /** Debounced save of all serializable form state to localStorage. */
     triggerSave: (reportNumber: string, data: CompletionDraftData) => void;
-    /** Load a previously saved draft. Recreates LocalPhotos from IDB. Returns null if no draft. */
-    restoreDraft: (reportNumber: string) => Promise<RestoredDraft | null>;
+    /**
+     * Load a previously saved draft. Recreates LocalPhotos from IDB. When a
+     * photo is missing from IDB but was already uploaded, `getUploadedUrl`
+     * supplies its remote URL as the preview. Returns null if no draft.
+     */
+    restoreDraft: (
+        reportNumber: string,
+        getUploadedUrl?: (photoId: string) => string | undefined,
+    ) => Promise<RestoredDraft | null>;
     /** Delete the draft from localStorage and all its photos from IDB. */
     clearDraft: (reportNumber: string) => Promise<void>;
 }
@@ -139,7 +146,13 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             type: string,
         ): Promise<LocalPhoto> => {
             const id = genPhotoId(reportNumber, type);
-            await idbPut(id, file);
+            try {
+                await idbPut(id, file);
+            } catch (error) {
+                // iOS Safari can lose its IndexedDB connection; keep the photo in
+                // memory so the eager upload / submit can still use it.
+                console.warn("Gagal menyimpan foto ke penyimpanan lokal:", error);
+            }
             const previewUrl = URL.createObjectURL(file);
             return { id, previewUrl };
         },
@@ -175,7 +188,10 @@ export function useCompletionAutosave(): UseCompletionAutosave {
     );
 
     const restoreDraft = useCallback(
-        async (reportNumber: string): Promise<RestoredDraft | null> => {
+        async (
+            reportNumber: string,
+            getUploadedUrl?: (photoId: string) => string | undefined,
+        ): Promise<RestoredDraft | null> => {
             const raw = localStorage.getItem(`${LS_KEY_PREFIX}${reportNumber}`);
             if (!raw) return null;
 
@@ -189,103 +205,55 @@ export function useCompletionAutosave(): UseCompletionAutosave {
             // Validate version
             if (draft.version !== 3) return null;
 
-            // Restore selfie photos from IDB
-            const selfiePhotos: LocalPhoto[] = [];
-            for (const id of draft.selfiePhotoIds) {
-                const remotePhoto = restorePhotoFromId(id);
-                if (remotePhoto) {
-                    selfiePhotos.push(remotePhoto);
-                    continue;
-                }
-
-                const file = await idbGet(id);
-                if (file)
-                    selfiePhotos.push({
-                        id,
-                        previewUrl: URL.createObjectURL(file),
-                    });
-            }
-
-            // Restore item states
             const itemStates = new Map<string, CompletionItemState>();
             for (const [itemId, saved] of Object.entries(draft.itemStates)) {
-                const afterPhotos: LocalPhoto[] = [];
-                for (const id of saved.afterPhotoIds) {
-                    const remotePhoto = restorePhotoFromId(id);
-                    if (remotePhoto) {
-                        afterPhotos.push(remotePhoto);
-                        continue;
-                    }
-
-                    const file = await idbGet(id);
-                    if (file)
-                        afterPhotos.push({
-                            id,
-                            previewUrl: URL.createObjectURL(file),
-                        });
-                }
-                const receiptPhotos: LocalPhoto[] = [];
-                for (const id of saved.receiptPhotoIds) {
-                    const remotePhoto = restorePhotoFromId(id);
-                    if (remotePhoto) {
-                        receiptPhotos.push(remotePhoto);
-                        continue;
-                    }
-
-                    const file = await idbGet(id);
-                    if (file)
-                        receiptPhotos.push({
-                            id,
-                            previewUrl: URL.createObjectURL(file),
-                        });
-                }
                 itemStates.set(itemId, {
-                    afterPhotos,
+                    afterPhotos: await restorePhotosFromIds(
+                        saved.afterPhotoIds,
+                        getUploadedUrl,
+                    ),
                     realisasiEntries: saved.realisasiEntries,
                     discountAmount: saved.discountAmount ?? 0,
                     materialStores: saved.materialStores,
-                    receiptPhotos,
+                    receiptPhotos: await restorePhotosFromIds(
+                        saved.receiptPhotoIds,
+                        getUploadedUrl,
+                    ),
                     notes: saved.notes,
                 });
-            }
-
-            const additionalDocumentationPhotos: LocalPhoto[] = [];
-            for (const id of draft.additionalDocumentationPhotoIds ?? []) {
-                const remotePhoto = restorePhotoFromId(id);
-                if (remotePhoto) {
-                    additionalDocumentationPhotos.push(remotePhoto);
-                    continue;
-                }
-
-                const file = await idbGet(id);
-                if (file) {
-                    additionalDocumentationPhotos.push({
-                        id,
-                        previewUrl: URL.createObjectURL(file),
-                    });
-                }
             }
 
             const startWorkMaterialStores: StartWorkMaterialStoreEntry[] = [];
             for (const store of draft.startWorkMaterialStores ?? []) {
                 startWorkMaterialStores.push({
                     ...store,
-                    photos: await restorePhotosFromIds(store.photoIds || []),
+                    photos: await restorePhotosFromIds(
+                        store.photoIds || [],
+                        getUploadedUrl,
+                    ),
                 });
             }
 
             return {
                 globalNotes: draft.globalNotes,
-                selfiePhotos,
+                selfiePhotos: await restorePhotosFromIds(
+                    draft.selfiePhotoIds,
+                    getUploadedUrl,
+                ),
                 startWorkSelfiePhotos: await restorePhotosFromIds(
                     draft.startWorkSelfiePhotoIds ?? [],
+                    getUploadedUrl,
                 ),
                 startWorkReceiptPhotos: await restorePhotosFromIds(
                     draft.startWorkReceiptPhotoIds ?? [],
+                    getUploadedUrl,
                 ),
                 startWorkMaterialStores,
                 startWorkSkipPhotos: draft.startWorkSkipPhotos ?? false,
-                additionalDocumentationPhotos,
+                additionalDocumentationPhotos: await restorePhotosFromIds(
+                    draft.additionalDocumentationPhotoIds ?? [],
+                    getUploadedUrl,
+                ),
                 additionalDocumentationNote:
                     draft.additionalDocumentationNote?.trim() || "",
                 itemStates,
@@ -322,22 +290,31 @@ export function useCompletionAutosave(): UseCompletionAutosave {
     );
 }
 
-async function restorePhotosFromIds(ids: string[]): Promise<LocalPhoto[]> {
+async function restoreLocalPhoto(
+    id: string,
+    getUploadedUrl?: (photoId: string) => string | undefined,
+): Promise<LocalPhoto | null> {
+    const remotePhoto = restorePhotoFromId(id);
+    if (remotePhoto) return remotePhoto;
+
+    const file = await idbGet(id).catch((error) => {
+        console.warn("Gagal membaca foto draft:", error);
+        return null;
+    });
+    if (file) return { id, previewUrl: URL.createObjectURL(file) };
+
+    const uploadedUrl = getUploadedUrl?.(id);
+    return uploadedUrl ? { id, previewUrl: uploadedUrl } : null;
+}
+
+async function restorePhotosFromIds(
+    ids: string[],
+    getUploadedUrl?: (photoId: string) => string | undefined,
+): Promise<LocalPhoto[]> {
     const photos: LocalPhoto[] = [];
     for (const id of ids) {
-        const remotePhoto = restorePhotoFromId(id);
-        if (remotePhoto) {
-            photos.push(remotePhoto);
-            continue;
-        }
-
-        const file = await idbGet(id);
-        if (file) {
-            photos.push({
-                id,
-                previewUrl: URL.createObjectURL(file),
-            });
-        }
+        const photo = await restoreLocalPhoto(id, getUploadedUrl);
+        if (photo) photos.push(photo);
     }
     return photos;
 }

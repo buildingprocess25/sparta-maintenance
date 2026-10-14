@@ -18,7 +18,7 @@ import {
 } from "@/app/reports/actions/submit-completion-work";
 import { getCompletionEvidenceErrors } from "@/lib/completion-evidence";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
-import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
+import { useEagerPhotoUploads } from "@/lib/hooks/use-eager-photo-uploads";
 import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
 import {
   describePhotoUploadFailure,
@@ -56,9 +56,9 @@ type CameraTarget =
 export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudget: number) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const { uploadPhoto } = usePhotoUpload();
   const autosave = useCompletionAutosave();
   const reportNumber = report.reportNumber;
+  const eager = useEagerPhotoUploads(reportNumber);
   const totalEstimation = getTotalEstimation(report);
   const shouldReviseStartWork = report.status === "REVIEW_REJECTED_REVISION";
   const isZeroCost = totalEstimation === 0;
@@ -175,7 +175,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     let mounted = true;
 
     autosave
-      .restoreDraft(reportNumber)
+      .restoreDraft(reportNumber, (id) => eager.registry.getUploaded(id)?.url)
       .then((draft) => {
         if (!mounted || !draft) return;
 
@@ -251,7 +251,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     return () => {
       mounted = false;
     };
-  }, [autosave, report, reportNumber]);
+  }, [autosave, eager.registry, report, reportNumber]);
 
   useEffect(() => {
     if (isRestoringDraft) return;
@@ -275,30 +275,26 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
   const handlePhotoCaptured = useCallback(
     async (file: File) => {
       if (!cameraTarget) return;
+      const target = cameraTarget;
       setCameraTarget(null);
 
-      if (cameraTarget.target === "additional") {
+      if (target.target === "additional") {
         const photo = await autosave.addPhoto(
           reportNumber,
           file,
           `additional-doc-${Date.now()}`,
         );
         setAdditionalDocumentationPhotos((prev) => [...prev, photo]);
+        eager.startUpload(photo.id, file, { kind: "COMPLETION_ADDITIONAL", reportNumber });
         return;
       }
 
-      if (
-        cameraTarget.target === "startSelfie" ||
-        cameraTarget.target === "startReceipt"
-      ) {
-        const photo = await autosave.addPhoto(
-          reportNumber,
-          file,
-          cameraTarget.target,
-        );
+      if (target.target === "startSelfie" || target.target === "startReceipt") {
+        const photo = await autosave.addPhoto(reportNumber, file, target.target);
 
-        if (cameraTarget.target === "startSelfie") {
+        if (target.target === "startSelfie") {
           setStartWorkSelfiePhotos((prev) => [...prev, photo]);
+          eager.startUpload(photo.id, file, { kind: "START_SELFIE", reportNumber });
           return;
         }
 
@@ -308,11 +304,14 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
             ? prev
             : [{ id: genId(), name: "", city: "", photos: [] }],
         );
+        eager.startUpload(photo.id, file, { kind: "START_RECEIPT", reportNumber });
         return;
       }
 
-      if (cameraTarget.target === "startStore") {
-        const storeId = cameraTarget.storeId;
+      if (target.target === "startStore") {
+        // Not uploaded eagerly: the Drive folder depends on the store name/city,
+        // which the user may still change. Uploaded on submit instead.
+        const storeId = target.storeId;
         const photo = await autosave.addPhoto(reportNumber, file, "startStore");
         setStartWorkMaterialStores((prev) =>
           prev.map((s) =>
@@ -322,9 +321,9 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         return;
       }
 
-      if (cameraTarget.target !== "item") return;
+      if (target.target !== "item") return;
 
-      const itemId = cameraTarget.itemId;
+      const itemId = target.itemId;
       const photo = await autosave.addPhoto(
         reportNumber,
         file,
@@ -341,16 +340,18 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         });
         return next;
       });
+      eager.startUpload(photo.id, file, { kind: "COMPLETION_RESULT", reportNumber, itemId });
     },
-    [autosave, cameraTarget, reportNumber],
+    [autosave, cameraTarget, eager, reportNumber],
   );
 
   const handleRemovePhoto = useCallback(
     (id: string, updater: () => void) => {
+      eager.registry.forget(id);
       void autosave.removePhoto(id);
       updater();
     },
-    [autosave],
+    [autosave, eager.registry],
   );
 
   const handleAddStartWorkMaterialStorePhoto = useCallback(
@@ -368,6 +369,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
 
   const handleRemoveStartWorkStorePhoto = useCallback(
     (storeId: string, photoId: string) => {
+      eager.registry.forget(photoId);
       void autosave.removePhoto(photoId);
       setStartWorkMaterialStores((prev) =>
         prev.map((s) =>
@@ -380,7 +382,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         ),
       );
     },
-    [autosave],
+    [autosave, eager.registry],
   );
 
   const handleAddStartWorkStore = useCallback(() => {
@@ -523,17 +525,19 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         });
       };
 
-      const uploadLocalPhoto = async (
+      const uploadLocalPhoto = (
         photo: LocalPhoto,
         context: PhotoUploadContext,
-      ): Promise<PhotoUploadOutcome> => {
-        const materialized = await materializePhotoFile({
-          loadStored: () => autosave.getPhotoFile(photo.id),
-          fallbackUrl: photo.previewUrl,
-        });
-        if (!materialized.ok) return materialized;
-        return uploadPhoto(materialized.file, context);
-      };
+      ): Promise<PhotoUploadOutcome> =>
+        eager.registry.ensureUploaded(
+          photo.id,
+          () =>
+            materializePhotoFile({
+              loadStored: () => autosave.getPhotoFile(photo.id),
+              fallbackUrl: photo.previewUrl,
+            }),
+          context,
+        );
 
       const uploadPhotos = async (
         photos: LocalPhoto[],
@@ -727,6 +731,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
       }
 
       await autosave.clearDraft(reportNumber);
+      eager.registry.clear();
       toast.success("Hasil pekerjaan berhasil dikirim", {
         id: loadingId,
         description: "Menunggu review BMC.",
@@ -748,7 +753,7 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     startWorkReceiptPhotos,
     startWorkSelfiePhotos,
     startWorkSkipPhotos,
-    uploadPhoto,
+    eager.registry,
     unexpectedCostNotes,
     validationErrors.length,
   ]);
@@ -797,5 +802,6 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
     isOverBudget,
     unexpectedCostNotes,
     setUnexpectedCostNotes,
+    photoUploadStatus: eager.statusValue,
   };
 }

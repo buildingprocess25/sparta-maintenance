@@ -24,6 +24,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `lib/photo-upload/eager-upload-registry.ts`: registry status upload eager per foto + store localStorage.
 - `lib/hooks/use-eager-photo-uploads.ts`, `components/photo-upload-status.tsx`: hook registry + overlay status per foto (spinner/centang/Ulangi).
 - Kedua PhotoStrip (Penyelesaian dan Mulai Pekerjaan) merender `PhotoUploadStatusOverlay`.
+- Alur Penyelesaian (`use-completion-work-form.ts`, `hooks/use-completion-autosave.ts`, `completion-client.tsx`): upload eager saat capture (hasil, dokumentasi tambahan, selfie/nota revisi); submit memakai `ensureUploaded`; `addPhoto` toleran IndexedDB gagal; restore memakai URL ter-upload sebagai cadangan.
 
 ## Decisions
 
@@ -38,7 +39,8 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `npx tsx lib/hooks/use-photo-upload.spec.ts` — pass.
 - `npx tsx lib/photo-upload/materialize-photo.spec.ts` — pass.
 - `npx tsx lib/photo-upload/eager-upload-registry.spec.ts` — pass.
-- `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts` — pass.
+- `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts` — pass (termasuk assertion wiring Penyelesaian).
+- Uji manual browser untuk alur Penyelesaian (plan Task 6 Step 7) belum dijalankan agent: butuh login BMS dan akan mengunggah foto sungguhan ke Drive.
 - `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
 
 ## Remaining Work and Risks

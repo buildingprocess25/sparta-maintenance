@@ -22,7 +22,6 @@ assert.match(
 );
 assert.doesNotMatch(uploadRequest, /branchName/);
 assert.match(sharedHook, /uploadPhotoRequest\(file, context\)/);
-assert.match(completionHook, /describePhotoUploadFailure\(/);
 assert.match(startWorkClient, /describePhotoUploadFailure\(/);
 assert.match(checklistHook, /kind:\s*"CHECKLIST"/);
 assert.match(checklistHook, /reportNumber/);
