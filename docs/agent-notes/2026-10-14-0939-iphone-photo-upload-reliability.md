@@ -1,0 +1,34 @@
+# iPhone photo upload reliability
+
+## Scope
+
+Usulan 1–4 untuk keluhan upload foto BMS pengguna iPhone di alur Mulai
+Pekerjaan dan Penyelesaian: penyebab error asli di toast, retry otomatis,
+materialisasi file IndexedDB sebelum upload, dan upload eager saat foto
+diambil dengan IndexedDB sebagai antrean cadangan. Di luar scope: bug
+camera-modal, race di form create, pembersihan file Drive yatim.
+
+## Context and Sources
+
+- Plan: `docs/superpowers/plans/2026-10-14-iphone-photo-upload-reliability.md`
+- Screenshot user: toast "Gagal mengunggah foto sesudah untuk item ..." saat submit Penyelesaian.
+- `app/reports/[reportNumber]/completion/use-completion-work-form.ts`, `lib/hooks/use-photo-upload.ts`, `app/api/photos/upload/handler.ts`.
+
+## Changed Files
+
+- `lib/photo-upload/upload-failure.ts`: tipe outcome/failure, aturan retry, teks error.
+- `lib/photo-upload/upload-photo-request.ts`: request upload dengan retry + backoff.
+
+## Decisions
+
+- Retry untuk error jaringan dan HTTP 408/429/500/502/504; 503 tidak di-retry karena dipakai mode maintenance.
+
+## Verification
+
+- `npx tsx lib/photo-upload/upload-failure.spec.ts` — pass.
+- `npx tsx lib/photo-upload/upload-photo-request.spec.ts` — pass.
+- `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
+
+## Remaining Work and Risks
+
+- Task 2–9 di plan belum dikerjakan.
