@@ -38,6 +38,24 @@ Draft BMS memakai hybrid persistence:
 - Submit selalu memakai payload form terbaru sebagai sumber final, sehingga payload submit menang atas autosave draft yang lebih lama.
 - Status `DRAFT` tidak dihitung untuk PJUM, realisasi, approval, export final, atau dashboard keuangan.
 
+### Upload Foto Mulai Pekerjaan dan Penyelesaian
+
+- Foto selfie, nota, foto sesudah, dan dokumentasi tambahan di-upload ke Drive
+  CDN segera setelah diambil. Thumbnail menampilkan status: spinner (sedang
+  upload), centang (sudah ter-upload), atau tombol "Ulangi" (gagal).
+- Foto toko material tetap di-upload saat submit karena folder Drive-nya
+  bergantung pada nama dan kota toko yang bisa diubah setelah foto diambil.
+- Semua foto tetap disimpan di IndexedDB sebagai cadangan. Saat submit, foto
+  yang belum ter-upload dibaca ulang ke memori lalu di-upload; foto yang sudah
+  ter-upload tidak dikirim ulang.
+- Status foto yang sudah ter-upload disimpan di localStorage key
+  `sparta-eager-uploads-<reportNumber>` dan dihapus setelah submit sukses.
+- Upload otomatis di-retry untuk error jaringan dan HTTP 408/429/500/502/504.
+  Pesan error menampilkan penyebab asli (koneksi, sesi habis, status laporan,
+  file lokal tidak terbaca, atau pesan server).
+- Foto dari galeri dikompres (maks. 1280 px, target 70 KB) tanpa web worker.
+- Foto Drive yang sudah ter-upload lalu dihapus user belum dibersihkan otomatis.
+
 ## Approval
 
 | Tahap | Actor | Target Status |

@@ -27,6 +27,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - Alur Penyelesaian (`use-completion-work-form.ts`, `hooks/use-completion-autosave.ts`, `completion-client.tsx`): upload eager saat capture (hasil, dokumentasi tambahan, selfie/nota revisi); submit memakai `ensureUploaded`; `addPhoto` toleran IndexedDB gagal; restore memakai URL ter-upload sebagai cadangan.
 - Alur Mulai Pekerjaan (`start-work-client.tsx`, `use-start-work-autosave.ts`): upload eager selfie/nota; foto toko material tetap di-upload saat submit; `file` di `StartWorkLocalPhoto` opsional; `addPhoto` toleran IndexedDB gagal.
 - `lib/photo-upload/compress-photo.ts`: kompresi foto galeri tanpa web worker; dipakai di Mulai Pekerjaan (foto toko material) dan galeri revisi Penyelesaian (sebelumnya tidak dikompres).
+- `docs/project/04-workflows.md`, `docs/project/09-testing-and-verification.md`: dokumentasi perilaku upload foto baru dan command spec.
 - `lib/hooks/use-photo-upload.ts` dihapus (tidak ada caller lagi; hook `app/reports/(bms)/create/hooks/use-photo-upload.ts` berbeda dan tidak diubah).
 
 ## Decisions
@@ -45,8 +46,19 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 - `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts` — pass (termasuk assertion wiring Penyelesaian).
 - `npx tsx lib/photo-upload/compress-photo.spec.ts` — pass.
 - Uji manual browser untuk alur Penyelesaian, Mulai Pekerjaan, dan kompresi galeri (plan Task 6–8 Step 7) belum dijalankan agent: butuh login BMS dan akan mengunggah foto sungguhan ke Drive.
-- `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
+- `npx tsx app/api/photos/upload/route.spec.ts` — pass (kontrak server tidak berubah).
+- `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis); bersih untuk semua file proyek.
+- `npx eslint` pada 20 file yang diubah: 0 error; 1 warning lama (`storeGalleryInputRef` tidak dipakai di `start-work-client.tsx`, sudah ada sebelum perubahan). `npm run lint` seluruh proyek masih melaporkan 97 error lama di file lain.
+- `npm run build:memory` — sukses. Build pertama gagal karena file generate lama `.next/dev/types/validator.ts` merujuk route `app/api/fix-pdf` yang tidak ada di repo; folder `.next/dev/types` (di-ignore git, dibuat ulang oleh `next dev`) dihapus, lalu build sukses tanpa warning.
 
 ## Remaining Work and Risks
 
-- Task 2–9 di plan belum dikerjakan.
+- Verifikasi di iPhone sungguhan belum dilakukan oleh agent. Checklist untuk tim:
+  1. Safari iOS, laporan IN_PROGRESS: ambil 5+ foto sesudah → semua bercentang.
+  2. Ambil foto, kunci layar 30 detik, buka lagi → foto bercentang atau "Ulangi" berfungsi.
+  3. Mode pesawat, ambil foto → "Ulangi" muncul; matikan mode pesawat, kirim → sukses tanpa foto ulang.
+  4. Tutup tab di tengah pengisian, buka lagi → foto bercentang tetap ada dan tidak di-upload ulang saat kirim.
+  5. Kalau masih gagal, screenshot toast sekarang memuat penyebab asli — gunakan itu untuk diagnosis lanjutan.
+- Uji manual browser desktop (plan Task 6–8 Step 7) juga belum dijalankan.
+- File Drive yatim (foto ter-upload lalu dihapus / laporan tidak jadi dikirim) belum dibersihkan.
+- Bug camera-modal (shutter diam saat video belum siap / errorMessage tidak di-reset) dan race di form create masih di luar scope.

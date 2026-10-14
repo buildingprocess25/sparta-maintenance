@@ -14,6 +14,8 @@ Gunakan verifikasi paling kecil yang relevan dengan perubahan.
 | Template notifikasi | `npx tsx lib/notifications/templates.spec.ts` |
 | Realisasi helper | `npx tsx lib/realisasi.spec.ts` |
 | Time helper | `npx tsx lib/time.spec.ts` |
+| Upload foto (logika) | `npx tsx lib/photo-upload/upload-failure.spec.ts`, `npx tsx lib/photo-upload/upload-photo-request.spec.ts`, `npx tsx lib/photo-upload/materialize-photo.spec.ts`, `npx tsx lib/photo-upload/eager-upload-registry.spec.ts` |
+| Upload foto (wiring) | `npx tsx lib/photo-upload/eager-upload-wiring.spec.ts`, `npx tsx lib/photo-upload/compress-photo.spec.ts`, `npx tsx lib/hooks/use-photo-upload.spec.ts` |
 | Build production | `npm run build` |
 
 ## Verifikasi UI
