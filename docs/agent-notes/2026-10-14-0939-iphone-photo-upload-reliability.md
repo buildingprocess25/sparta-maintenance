@@ -18,6 +18,8 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 
 - `lib/photo-upload/upload-failure.ts`: tipe outcome/failure, aturan retry, teks error.
 - `lib/photo-upload/upload-photo-request.ts`: request upload dengan retry + backoff.
+- `lib/hooks/use-photo-upload.ts`: memakai `uploadPhotoRequest` dan mengembalikan outcome bertipe.
+- `app/reports/[reportNumber]/completion/use-completion-work-form.ts`, `app/reports/[reportNumber]/start/start-work-client.tsx`: toast error submit kini memuat penyebab asli lewat `describePhotoUploadFailure`.
 
 ## Decisions
 
@@ -27,6 +29,7 @@ camera-modal, race di form create, pembersihan file Drive yatim.
 
 - `npx tsx lib/photo-upload/upload-failure.spec.ts` — pass.
 - `npx tsx lib/photo-upload/upload-photo-request.spec.ts` — pass.
+- `npx tsx lib/hooks/use-photo-upload.spec.ts` — pass.
 - `npx tsc --noEmit` butuh `NODE_OPTIONS=--max-old-space-size=6144` (default heap habis). Satu error yang sudah ada sebelumnya di `.next/dev/types/validator.ts` (route `app/api/fix-pdf` yang sudah dihapus, file generate lama) — bukan dari perubahan ini.
 
 ## Remaining Work and Risks

@@ -44,6 +44,12 @@ import { getStartWorkEvidenceError } from "@/lib/start-work-evidence";
 import { genPhotoId } from "@/lib/upload-photo";
 import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
+import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
+import {
+  describePhotoUploadFailure,
+  type PhotoUploadFailure,
+  type PhotoUploadOutcome,
+} from "@/lib/photo-upload/upload-failure";
 import { cn } from "@/lib/utils";
 import type { MaterialEstimationJson } from "@/types/report";
 import type { ReportForStartWork } from "./queries";
@@ -376,18 +382,26 @@ export function StartWorkClient({
       const loadingId = toast.loading(
         "Mengunggah foto dan memulai pekerjaan...",
       );
+      const failUpload = (title: string, failure: PhotoUploadFailure) => {
+        toast.dismiss(loadingId);
+        toast.error(title, { description: describePhotoUploadFailure(failure) });
+      };
+      const uploadLocalPhoto = (
+        photo: StartWorkLocalPhoto,
+        context: PhotoUploadContext,
+      ): Promise<PhotoUploadOutcome> => uploadPhoto(photo.file, context);
+
       const selfiePhotosToUpload = skipPhotos ? [] : selfiePhotos;
       const receiptPhotosToUpload = skipPhotos ? [] : receiptPhotos;
       const uploadedSelfieUrls: string[] = [];
       const uploadedSelfieFileIds: string[] = [];
       for (const photo of selfiePhotosToUpload) {
-        const result = await uploadPhoto(photo.file, {
+        const result = await uploadLocalPhoto(photo, {
           kind: "START_SELFIE",
           reportNumber,
         });
-        if (!result) {
-          toast.dismiss(loadingId);
-          toast.error("Gagal mengunggah foto selfie");
+        if (!result.ok) {
+          failUpload("Gagal mengunggah foto selfie", result.failure);
           return;
         }
         uploadedSelfieUrls.push(result.url);
@@ -397,20 +411,19 @@ export function StartWorkClient({
       const uploadedReceiptUrls: string[] = [];
       const uploadedReceiptFileIds: string[] = [];
       for (const photo of receiptPhotosToUpload) {
-        const result = await uploadPhoto(photo.file, {
+        const result = await uploadLocalPhoto(photo, {
           kind: "START_RECEIPT",
           reportNumber,
         });
-        if (!result) {
-          toast.dismiss(loadingId);
-          toast.error("Gagal mengunggah foto nota");
+        if (!result.ok) {
+          failUpload("Gagal mengunggah foto nota", result.failure);
           return;
         }
         uploadedReceiptUrls.push(result.url);
         uploadedReceiptFileIds.push(result.fileId);
       }
 
-      let allStorePhotosUploadFailed = false;
+      const storeUploadFailures: PhotoUploadFailure[] = [];
       const uploadedStoreFileIds: string[] = [];
       const finalizedStores = skipPhotos
         ? []
@@ -421,7 +434,7 @@ export function StartWorkClient({
                 (candidate) => candidate.id === store.id,
               );
               for (const photo of store.photos) {
-                const result = await uploadPhoto(photo.file, {
+                const result = await uploadLocalPhoto(photo, {
                   kind: "START_MATERIAL_STORE",
                   reportNumber,
                   entryId: store.id,
@@ -429,12 +442,12 @@ export function StartWorkClient({
                   name: store.name,
                   city: store.city,
                 });
-                if (!result) {
-                  allStorePhotosUploadFailed = true;
+                if (!result.ok) {
+                  storeUploadFailures.push(result.failure);
                   continue;
                 }
                 urls.push(result.url);
-                if (result.fileId) uploadedStoreFileIds.push(result.fileId);
+                uploadedStoreFileIds.push(result.fileId);
               }
               return {
                 name: store.name.trim(),
@@ -444,9 +457,8 @@ export function StartWorkClient({
             }),
           );
 
-      if (allStorePhotosUploadFailed) {
-        toast.dismiss(loadingId);
-        toast.error("Gagal mengunggah foto toko material");
+      if (storeUploadFailures.length > 0) {
+        failUpload("Gagal mengunggah foto toko material", storeUploadFailures[0]);
         return;
       }
 

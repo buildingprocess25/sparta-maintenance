@@ -21,6 +21,11 @@ import { useHistoryBackClose } from "@/lib/hooks/use-history-back-close";
 import { usePhotoUpload } from "@/lib/hooks/use-photo-upload";
 import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
 import {
+  describePhotoUploadFailure,
+  type PhotoUploadFailure,
+  type PhotoUploadOutcome,
+} from "@/lib/photo-upload/upload-failure";
+import {
   realisasiNetTotal,
   type CompletionDraftData,
   type CompletionItemState,
@@ -510,6 +515,30 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
         "Mengunggah foto dan mengirim hasil pekerjaan...",
       );
 
+      const failUpload = (errorMessage: string, failure: PhotoUploadFailure) => {
+        toast.error(errorMessage, {
+          id: loadingId,
+          description: describePhotoUploadFailure(failure),
+        });
+      };
+
+      const uploadLocalPhoto = async (
+        photo: LocalPhoto,
+        context: PhotoUploadContext,
+      ): Promise<PhotoUploadOutcome> => {
+        const file = await autosave.getPhotoFile(photo.id);
+        if (!file) {
+          return {
+            ok: false,
+            failure: {
+              kind: "local-file",
+              detail: "foto tidak ditemukan di penyimpanan HP",
+            },
+          };
+        }
+        return uploadPhoto(file, context);
+      };
+
       const uploadPhotos = async (
         photos: LocalPhoto[],
         errorMessage: string,
@@ -524,15 +553,9 @@ export function useCompletionWorkForm(report: CompletionReport, maxAvailableBudg
             continue;
           }
 
-          const file = await autosave.getPhotoFile(photo.id);
-          if (!file) {
-            toast.error(errorMessage, { id: loadingId });
-            return null;
-          }
-
-          const result = await uploadPhoto(file, getContext(photo, index));
-          if (!result) {
-            toast.error(errorMessage, { id: loadingId });
+          const result = await uploadLocalPhoto(photo, getContext(photo, index));
+          if (!result.ok) {
+            failUpload(errorMessage, result.failure);
             return null;
           }
 

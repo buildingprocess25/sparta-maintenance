@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const sharedHook = readFileSync("lib/hooks/use-photo-upload.ts", "utf8");
+const uploadRequest = readFileSync("lib/photo-upload/upload-photo-request.ts", "utf8");
 const checklistHook = readFileSync(
   "app/reports/(bms)/create/hooks/use-photo-upload.ts",
   "utf8",
@@ -16,10 +17,13 @@ const completionHook = readFileSync(
 );
 
 assert.match(
-  sharedHook,
+  uploadRequest,
   /formData\.append\("context", JSON\.stringify\(context\)\)/,
 );
-assert.doesNotMatch(sharedHook, /branchName/);
+assert.doesNotMatch(uploadRequest, /branchName/);
+assert.match(sharedHook, /uploadPhotoRequest\(file, context\)/);
+assert.match(completionHook, /describePhotoUploadFailure\(/);
+assert.match(startWorkClient, /describePhotoUploadFailure\(/);
 assert.match(checklistHook, /kind:\s*"CHECKLIST"/);
 assert.match(checklistHook, /reportNumber/);
 assert.match(startWorkClient, /kind:\s*"START_SELFIE"/);

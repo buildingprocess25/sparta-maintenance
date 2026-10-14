@@ -2,17 +2,12 @@
 
 import { useState } from "react";
 import type { PhotoUploadContext } from "@/lib/google-drive/photo-upload-context";
-
-export type PhotoUploadResult = {
-    url: string;
-    fileId: string;
-};
+import type { PhotoUploadOutcome } from "@/lib/photo-upload/upload-failure";
+import { uploadPhotoRequest } from "@/lib/photo-upload/upload-photo-request";
 
 /**
  * React hook for uploading photos to Google Drive CDN.
- * Replaces `compressAndUploadToUT` in all photo upload flows.
- *
- * @returns uploadPhoto function and isUploading state
+ * Returns a typed outcome so callers can show the real failure cause.
  */
 export function usePhotoUpload() {
     const [isUploading, setIsUploading] = useState(false);
@@ -20,49 +15,14 @@ export function usePhotoUpload() {
     const uploadPhoto = async (
         file: File,
         context: PhotoUploadContext,
-    ): Promise<PhotoUploadResult | null> => {
+    ): Promise<PhotoUploadOutcome> => {
         setIsUploading(true);
-
         try {
-            const formData = new FormData();
-            formData.append("file", file);
-            formData.append("context", JSON.stringify(context));
-
-            const response = await fetch("/api/photos/upload", {
-                method: "POST",
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                const errorMessage =
-                    errorData.error || `HTTP ${response.status}`;
-
-                console.error(
-                    "[usePhotoUpload] Upload failed:",
-                    errorMessage,
-                );
-
-                return null;
+            const outcome = await uploadPhotoRequest(file, context);
+            if (!outcome.ok) {
+                console.error("[usePhotoUpload] Upload failed:", outcome.failure);
             }
-
-            const data = await response.json();
-
-            if (!data.url || !data.fileId) {
-                console.error(
-                    "[usePhotoUpload] Invalid response format:",
-                    data,
-                );
-                return null;
-            }
-
-            return {
-                url: data.url,
-                fileId: data.fileId,
-            };
-        } catch (error) {
-            console.error("[usePhotoUpload] Upload error:", error);
-            return null;
+            return outcome;
         } finally {
             setIsUploading(false);
         }
