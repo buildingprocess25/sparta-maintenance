@@ -259,6 +259,7 @@ export const unitOptions = [
     "m²",
     "m³",
     "Meter",
+    "Pack",
     "Pail",
     "Pcs",
     "Roll",
