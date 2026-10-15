@@ -17,6 +17,8 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - `lib/bnm-review-entered-at.ts`: lookup waktu masuk Review BNM dari `ApprovalLog`.
 - `lib/balance.ts`: `getBmsActiveReportBlocker` mengecek blokir tenggat BNM lebih dulu.
 - `app/reports/_components/bms-create-report-button.tsx`, `app/reports/(bms)/create/page.tsx`: judul toast/alert dinamis.
+- `app/dashboard/settings/_components/settings-workbench.tsx`, `lib/app-settings.ts`: teks bantuan dan komentar semantik SLA `APPROVED_BMC`.
+- `docs/project/04-workflows.md`, `CLAUDE.md`: aturan Review BNM dan blokir.
 
 ## Decisions
 

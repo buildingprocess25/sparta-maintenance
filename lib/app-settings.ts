@@ -30,6 +30,9 @@ export const SETTING_KEYS = {
     AHO_LAST_PRINT_DATE: "aho_last_print_date",
 } as const;
 
+// APPROVED_BMC berbeda dari status lain: dihitung dalam hari kalender Jakarta
+// dengan cut-off 23:59 WIB (lihat lib/bnm-review-deadline.ts), dan melewati
+// batas ini memblokir BMS membuat laporan baru. Status lain dihitung rolling.
 export const DEFAULT_REPORT_SLA_DAYS: Partial<Record<ReportStatusKey, number>> =
     {
         PENDING_ESTIMATION: 1,

@@ -306,6 +306,7 @@ Session is JWT-based, stored in httpOnly cookie, valid for 8 hours.
 
 - Preventive Category I items can only be filled once per quarter (server-side validation)
 - Zero-cost REKANAN reports can skip BMS work phase (go directly to APPROVED_BMC)
+- BMS can create new reports while a report is in APPROVED_BMC (Review BNM); if BNM misses the 23:59 WIB calendar-day deadline (`lib/bnm-review-deadline.ts`), that BMS is blocked from creating reports until BNM acts
 - Start work requires selfie, receipt, and material store (unless total estimation is zero)
 - Completion captures actual costs in `totalReal` and item-level realization
 - PJUM (weekly accountability document) requires BMC creation and BNM approval

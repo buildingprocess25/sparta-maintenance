@@ -409,7 +409,7 @@ function getSlaHelper(status: ReportStatusKey) {
         case "PENDING_REVIEW":
             return "Batas waktu BMC meninjau hasil pekerjaan BMS.";
         case "APPROVED_BMC":
-            return "Batas waktu BNM melakukan approval final.";
+            return "Batas waktu BNM melakukan approval final, dihitung hari kalender dengan cut-off 23:59 WIB (1 hari = laporan masuk Rabu, batas Kamis 23:59). Jika terlewat, BMS pemilik laporan tidak bisa membuat laporan baru.";
         case "REVIEW_REJECTED_REVISION":
             return "Batas waktu BMS memperbaiki pekerjaan yang diminta revisi.";
         default:

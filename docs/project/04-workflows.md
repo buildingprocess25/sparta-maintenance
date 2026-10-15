@@ -67,6 +67,28 @@ Draft BMS memakai hybrid persistence:
 | Approve pekerjaan | BMC | `APPROVED_BMC` |
 | Final approval | BNM_MANAGER | `COMPLETED` |
 
+## Review BNM dan Blokir Pembuatan Laporan
+
+- BMS boleh membuat laporan baru begitu laporan sebelumnya masuk Review BNM
+  (`APPROVED_BMC`). Status lain yang belum final (estimasi, pekerjaan, review
+  BMC, revisi) tetap memblokir pembuatan laporan baru.
+- Tenggat BNM dihitung dalam hari kalender Jakarta dengan cut-off 23:59 WIB:
+  batas = akhir hari ke-(N + 1) sejak hari laporan masuk Review BNM, dengan N =
+  setting `report_sla_approved_bmc_days` (default 1). Contoh: BMC approve Rabu
+  10:00, BNM punya waktu sampai Kamis 23:59 WIB. Akhir pekan dan hari libur
+  tidak diperhitungkan.
+- Jika tenggat terlewat, BMS pemilik laporan tidak bisa membuat laporan baru
+  (apa pun status laporan lainnya) sampai BNM menyetujui atau mengembalikan
+  laporan tersebut. Tidak ada override admin. Pengecekan dihitung saat dibaca
+  (`getBmsActiveReportBlocker` di `lib/balance.ts`), tanpa cron.
+- Waktu masuk Review BNM = `ApprovalLog` terakhir berstatus `APPROVED_BMC`
+  (fallback `updatedAt`). Laporan yang dikembalikan lalu disetujui BMC lagi
+  memulai hitungan dari awal.
+- Kartu "Laporan Menunggu Final BNM" di dashboard BNM memberi label "Lewat 24
+  jam" (amber) dan "Lewat batas" (merah), lengkap dengan tooltip dampaknya.
+- Saldo operasional BMS tidak berubah: realisasi laporan Review BNM tetap
+  menahan saldo sampai laporan `COMPLETED`.
+
 ## Review Gate
 
 Saat status `PENDING_REVIEW` atau `APPROVED_BMC`, reviewer wajib membuka fitur bandingkan nota dan foto item pekerjaan sebelum tombol approval bisa digunakan jika ada item pekerjaan BMS.
