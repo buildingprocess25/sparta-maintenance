@@ -42,6 +42,11 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - ESLint pada file yang diubah: hanya 2 error `no-explicit-any` lama (`manager-dashboard.tsx`, `queries.ts`) yang sudah ada sebelum perubahan; lint seluruh repo punya banyak error lama lain.
 - Uji manual di dev server TIDAK dijalankan (butuh mengubah `ApprovalLog` di database bersama).
 
+## Test Data
+
+- Skrip `scripts/seed-bnm-review-test-reports.ts` sudah dijalankan `--apply` terhadap DB dev (AHO8-2610-003 aman, AHO8-2610-004 lewat batas). Hapus dengan `npx tsx scripts/seed-bnm-review-test-reports.ts --cleanup`.
+- Laporan AHO8-2610-004 (lewat batas) memblokir BMS uji 12345678 membuat laporan baru sampai BNM memprosesnya atau data dibersihkan.
+
 ## Remaining Work and Risks
 
 - Nilai setting `report_sla_approved_bmc_days` yang sudah tersimpan di DB kini bermakna hari kalender (bukan rolling); cek nilainya di halaman Settings.
