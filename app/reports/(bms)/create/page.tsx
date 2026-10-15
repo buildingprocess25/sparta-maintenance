@@ -8,7 +8,10 @@ import {
   getAssignedStoresForBms,
 } from "@/app/reports/actions";
 import { calculateBmsBalance, getBmsActiveReportBlocker } from "@/lib/balance";
-import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
+import {
+  formatBmsActiveReportBlockerMessage,
+  formatBmsActiveReportBlockerTitle,
+} from "@/lib/bms-active-report-blocker";
 import { loadMaterialNames } from "@/lib/material-master.server";
 import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -50,7 +53,7 @@ export default async function CreateReportPage({ searchParams }: { searchParams:
       >
         <Alert className="border-amber-200 bg-amber-50 text-amber-900">
           <AlertTriangle className="h-4 w-4 text-amber-700" />
-          <AlertTitle>Laporan aktif belum selesai</AlertTitle>
+          <AlertTitle>{formatBmsActiveReportBlockerTitle(activeReportBlocker)}</AlertTitle>
           <AlertDescription>
             {formatBmsActiveReportBlockerMessage(activeReportBlocker)}
           </AlertDescription>
@@ -58,7 +61,7 @@ export default async function CreateReportPage({ searchParams }: { searchParams:
         <Button asChild>
           <Link href={`/reports/${activeReportBlocker.reportNumber}`}>
             <Eye data-icon="inline-start" />
-            Lihat laporan aktif
+            Lihat laporan terkait
           </Link>
         </Button>
       </BmsMobilePage>

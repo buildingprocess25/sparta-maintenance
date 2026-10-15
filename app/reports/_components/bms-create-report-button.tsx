@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import {
     formatBmsActiveReportBlockerMessage,
+    formatBmsActiveReportBlockerTitle,
     type BmsActiveReportBlockerSummary,
 } from "@/lib/bms-active-report-blocker";
 import { cn } from "@/lib/utils";
@@ -50,7 +51,7 @@ export function BmsCreateReportButton({
                 className,
             )}
             onClick={() => {
-                toast.warning("Laporan aktif belum selesai", {
+                toast.warning(formatBmsActiveReportBlockerTitle(blocker), {
                     description: formatBmsActiveReportBlockerMessage(blocker),
                     action: {
                         label: "Lihat",

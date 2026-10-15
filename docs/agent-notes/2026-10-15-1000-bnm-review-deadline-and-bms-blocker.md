@@ -13,6 +13,10 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 
 - `lib/bnm-review-deadline.ts`: helper murni tenggat, state, label, pencari laporan lewat tenggat.
 - `lib/bnm-review-deadline.spec.ts`: spec helper tenggat.
+- `lib/bms-active-report-blocker.ts` / `.spec.ts`: `APPROVED_BMC` keluar dari daftar blokir; tipe `kind`; judul dan pesan baru.
+- `lib/bnm-review-entered-at.ts`: lookup waktu masuk Review BNM dari `ApprovalLog`.
+- `lib/balance.ts`: `getBmsActiveReportBlocker` mengecek blokir tenggat BNM lebih dulu.
+- `app/reports/_components/bms-create-report-button.tsx`, `app/reports/(bms)/create/page.tsx`: judul toast/alert dinamis.
 
 ## Decisions
 
@@ -22,7 +26,10 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 
 ## Verification
 
-- `npx tsx lib/bnm-review-deadline.spec.ts`: OK.
+- `npx tsx lib/bnm-review-deadline.spec.ts` dan `lib/bms-active-report-blocker.spec.ts`: OK.
+- `NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit`: bersih (tanpa heap besar, tsc kehabisan memori).
+- ESLint file yang diubah: bersih.
+- Uji manual di dev server TIDAK dijalankan (butuh mengubah `ApprovalLog` di database bersama).
 
 ## Remaining Work and Risks
 

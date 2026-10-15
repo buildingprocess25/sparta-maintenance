@@ -15,16 +15,22 @@
 
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { getBmsInitialBalance } from "@/lib/app-settings";
+import { getBmsInitialBalance, getReportSlaDays } from "@/lib/app-settings";
 import type { ReportStatusKey } from "@/lib/report-status";
 import { requiresPjum } from "@/lib/realisasi";
 import { classifyPjumApprovalReports } from "@/lib/pjum-hanging";
 import { isActivePjumHangingReport } from "@/lib/pjum-hanging";
 import { summarizeBmsBalanceAmounts } from "@/lib/bms-balance-calculation";
 import {
+    BMS_ACTIVE_REPORT_BLOCKER_CUTOVER,
     buildBmsActiveReportBlockerWhere,
     type BmsActiveReportBlockerSummary,
 } from "@/lib/bms-active-report-blocker";
+import {
+    BNM_REVIEW_DEFAULT_SLA_DAYS,
+    findOverdueBnmReport,
+} from "@/lib/bnm-review-deadline";
+import { getApprovedBmcEnteredAtMap } from "@/lib/bnm-review-entered-at";
 
 export type BmsHangingReportSummary = {
     reportNumber: string;
@@ -155,10 +161,72 @@ export async function getBmsActivePeriod(bmsNIK: string) {
     return period;
 }
 
+/**
+ * Blokir karena laporan BMS ini menggantung di Review BNM melewati batas
+ * waktu. Berlaku apa pun status laporan BMS lainnya; lepas otomatis saat BNM
+ * menyetujui atau mengembalikan laporan (status bukan APPROVED_BMC lagi).
+ */
+async function getBnmReviewOverdueBlocker(
+    bmsNIK: string,
+    excludeReportNumber?: string,
+): Promise<BmsActiveReportBlockerSummary | null> {
+    const candidates = await prisma.report.findMany({
+        where: {
+            createdByNIK: bmsNIK,
+            status: "APPROVED_BMC",
+            createdAt: { gte: BMS_ACTIVE_REPORT_BLOCKER_CUTOVER },
+            ...(excludeReportNumber
+                ? { reportNumber: { not: excludeReportNumber } }
+                : {}),
+        },
+        select: {
+            reportNumber: true,
+            storeName: true,
+            storeCode: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+        },
+    });
+    if (candidates.length === 0) return null;
+
+    const [enteredAtMap, slaDaysByStatus] = await Promise.all([
+        getApprovedBmcEnteredAtMap(candidates),
+        getReportSlaDays(),
+    ]);
+    const slaDays =
+        slaDaysByStatus.APPROVED_BMC ?? BNM_REVIEW_DEFAULT_SLA_DAYS;
+    const overdue = findOverdueBnmReport(
+        candidates.map((report) => ({
+            ...report,
+            enteredAt: enteredAtMap.get(report.reportNumber) ?? report.updatedAt,
+        })),
+        slaDays,
+    );
+    if (!overdue) return null;
+
+    return {
+        kind: "BNM_REVIEW_OVERDUE",
+        reportNumber: overdue.reportNumber,
+        storeName: overdue.storeName,
+        storeCode: overdue.storeCode,
+        status: overdue.status,
+        createdAt: overdue.createdAt,
+        updatedAt: overdue.updatedAt,
+        bnmDeadlineAt: overdue.deadlineAt,
+    };
+}
+
 export async function getBmsActiveReportBlocker(
     bmsNIK: string,
     options: { excludeReportNumber?: string } = {},
 ): Promise<BmsActiveReportBlockerSummary | null> {
+    const overdueBlocker = await getBnmReviewOverdueBlocker(
+        bmsNIK,
+        options.excludeReportNumber,
+    );
+    if (overdueBlocker) return overdueBlocker;
+
     const period = await getBmsActivePeriod(bmsNIK);
     const report = await prisma.report.findFirst({
         where: buildBmsActiveReportBlockerWhere({
@@ -177,7 +245,7 @@ export async function getBmsActiveReportBlocker(
         },
     });
 
-    return report;
+    return report ? { ...report, kind: "ACTIVE_REPORT" } : null;
 }
 
 /**
