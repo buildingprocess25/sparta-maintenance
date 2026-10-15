@@ -276,7 +276,9 @@ function mapManagerReport(
     ownerName: report.createdBy.name,
     totalEstimation: Number(report.totalEstimation ?? 0),
     totalReal: report.totalReal === null ? null : Number(report.totalReal),
-    ageDays: calculateAgeDays(lastActivityAt),
+    // Untuk laporan Review BNM, umur dihitung dari waktu masuk Review BNM
+    // (bukan aktivitas terakhir) agar konsisten dengan label tenggat.
+    ageDays: calculateAgeDays(bnmReview?.enteredAt ?? lastActivityAt),
     bnmReview,
   };
 }

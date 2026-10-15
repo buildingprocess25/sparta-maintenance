@@ -188,7 +188,17 @@ function PriorityReportsTable({
                                 </TableRow>
                             ) : (
                                 reports.map((report) => (
-                                    <TableRow key={report.reportNumber}>
+                                    <TableRow
+                                        key={report.reportNumber}
+                                        className={cn(
+                                            report.bnmReview?.state ===
+                                                "OVERDUE" &&
+                                                "bg-red-50 hover:bg-red-100/70 dark:bg-red-950/30 dark:hover:bg-red-950/40",
+                                            report.bnmReview?.state ===
+                                                "WARNING" &&
+                                                "bg-amber-50 hover:bg-amber-100/70 dark:bg-amber-950/30 dark:hover:bg-amber-950/40",
+                                        )}
+                                    >
                                         <TableCell>
                                             <Link
                                                 prefetch={false}

@@ -21,7 +21,9 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - `docs/project/04-workflows.md`, `CLAUDE.md`: aturan Review BNM dan blokir.
 - `app/dashboard/queries.ts`: `ManagerDashboardReport.bnmReview` (state, enteredAt, deadlineAt) untuk role BNM.
 - `app/dashboard/_components/bnm-review-badge.tsx`: badge dua tingkat + tooltip info (client).
-- `app/dashboard/_components/manager-dashboard.tsx`: badge di kolom Umur, kolom dilebarkan.
+- `app/dashboard/_components/manager-dashboard.tsx`: badge di kolom Umur, kolom dilebarkan; baris diberi warna amber (lewat 24 jam) / merah (lewat batas).
+- `app/dashboard/queries.ts`: `ageDays` laporan Review BNM dihitung dari waktu masuk Review BNM, bukan aktivitas terakhir.
+- `scripts/seed-bnm-review-test-reports.ts`: skrip data uji (dry-run default, `--apply`, `--cleanup`) untuk 2 laporan Review BNM (aman dan lewat batas); data ditandai `[TEST-BNM-REVIEW]` di ApprovalLog.notes.
 
 ## Decisions
 
