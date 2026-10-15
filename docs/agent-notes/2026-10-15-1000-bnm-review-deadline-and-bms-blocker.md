@@ -34,8 +34,13 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - `npx tsx lib/bnm-review-deadline.spec.ts` dan `lib/bms-active-report-blocker.spec.ts`: OK.
 - `NODE_OPTIONS=--max-old-space-size=6144 npx tsc --noEmit`: bersih (tanpa heap besar, tsc kehabisan memori).
 - ESLint file yang diubah: bersih.
+- `npm run build:memory`: sukses.
+- ESLint pada file yang diubah: hanya 2 error `no-explicit-any` lama (`manager-dashboard.tsx`, `queries.ts`) yang sudah ada sebelum perubahan; lint seluruh repo punya banyak error lama lain.
 - Uji manual di dev server TIDAK dijalankan (butuh mengubah `ApprovalLog` di database bersama).
 
 ## Remaining Work and Risks
 
-- Indikator SLA admin masih rolling (di luar cakupan).
+- Nilai setting `report_sla_approved_bmc_days` yang sudah tersimpan di DB kini bermakna hari kalender (bukan rolling); cek nilainya di halaman Settings.
+- Indikator SLA admin dan tabel `review_bnm` masih rolling / tanpa label (di luar cakupan).
+- Notifikasi pengingat berbasis waktu (24 jam / lewat tenggat) ditunda: butuh migrasi enum `NotificationType` dan scheduler cron eksternal.
+- Skenario end-to-end manual (BMS buat laporan saat Review BNM, label BNM, blokir setelah lewat tenggat, lepas saat BNM memproses) belum diuji di aplikasi berjalan.
