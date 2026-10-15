@@ -48,7 +48,7 @@ assert.equal(
         reportNumber: "AH01-2609-002",
         status: ReportStatus.PENDING_REVIEW,
     }),
-    "Anda bisa membuat laporan baru setelah laporan AH01-2609-002 disetujui BMC dan masuk tahap Review BNM. Status saat ini: Review BMC.",
+    "Anda bisa membuat laporan baru setelah laporan AH01-2609-002 disetujui BMC. Status saat ini: Review BMC.",
 );
 
 assert.equal(

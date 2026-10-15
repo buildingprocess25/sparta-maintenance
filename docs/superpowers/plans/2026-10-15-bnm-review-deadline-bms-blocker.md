@@ -291,7 +291,7 @@ assert.equal(
         reportNumber: "AH01-2609-002",
         status: ReportStatus.PENDING_REVIEW,
     }),
-    "Anda bisa membuat laporan baru setelah laporan AH01-2609-002 disetujui BMC dan masuk tahap Review BNM. Status saat ini: Review BMC.",
+    "Anda bisa membuat laporan baru setelah laporan AH01-2609-002 disetujui BMC. Status saat ini: Review BMC.",
 );
 
 assert.equal(
@@ -394,7 +394,7 @@ export function formatBmsActiveReportBlockerMessage(
         return `Laporan ${report.reportNumber} belum disetujui BNM dan melewati batas waktu review${deadline}. Hubungi BNM untuk memprosesnya.`;
     }
 
-    return `Anda bisa membuat laporan baru setelah laporan ${report.reportNumber} disetujui BMC dan masuk tahap Review BNM. Status saat ini: ${getReportStatusLabel(report.status)}.`;
+    return `Anda bisa membuat laporan baru setelah laporan ${report.reportNumber} disetujui BMC. Status saat ini: ${getReportStatusLabel(report.status)}.`;
 }
 ```
 
@@ -616,7 +616,7 @@ Expected: tidak ada error tipe/lint; kedua spec PASS.
 Run: `npm run dev` (port 3001). Dengan akun BMS uji:
 1. Laporan berstatus Review BNM, masuk < tenggat → tombol "Buat Laporan" aktif, `/reports/create` terbuka.
 2. Ubah `ApprovalLog.createdAt` laporan itu (Prisma Studio: `npm run db:studio`) ke ≥ 3 hari lalu → tombol berwarna amber, toast berjudul "Laporan baru diblokir" dengan pesan tenggat; `/reports/create` menampilkan alert yang sama; submit langsung via server action ditolak dengan pesan yang sama.
-3. Laporan berstatus `IN_PROGRESS` → pesan "…disetujui BMC dan masuk tahap Review BNM…".
+3. Laporan berstatus `IN_PROGRESS` → pesan "…disetujui BMC. Status saat ini: …".
 Kembalikan data uji setelah selesai.
 
 - [ ] **Step 7: Perbarui catatan agen lalu commit**

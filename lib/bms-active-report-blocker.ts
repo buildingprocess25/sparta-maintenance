@@ -82,5 +82,5 @@ export function formatBmsActiveReportBlockerMessage(
         return `Laporan ${report.reportNumber} belum disetujui BNM dan melewati batas waktu review${deadline}. Hubungi BNM untuk memprosesnya.`;
     }
 
-    return `Anda bisa membuat laporan baru setelah laporan ${report.reportNumber} disetujui BMC dan masuk tahap Review BNM. Status saat ini: ${getReportStatusLabel(report.status)}.`;
+    return `Anda bisa membuat laporan baru setelah laporan ${report.reportNumber} disetujui BMC. Status saat ini: ${getReportStatusLabel(report.status)}.`;
 }

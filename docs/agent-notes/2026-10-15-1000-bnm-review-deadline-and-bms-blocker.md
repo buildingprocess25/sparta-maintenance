@@ -29,6 +29,8 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - Waktu masuk Review BNM = `ApprovalLog` terakhir berstatus `APPROVED_BMC` (tanpa kolom baru), fallback `updatedAt`.
 - Notifikasi pengingat ditunda.
 
+- Pesan blokir biasa dipersingkat atas permintaan pengguna: "...disetujui BMC. Status saat ini: ..." (tanpa "masuk tahap Review BNM").
+
 ## Verification
 
 - `npx tsx lib/bnm-review-deadline.spec.ts` dan `lib/bms-active-report-blocker.spec.ts`: OK.
