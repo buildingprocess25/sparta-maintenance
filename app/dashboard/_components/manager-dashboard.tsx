@@ -58,6 +58,7 @@ import {
     getActivityActionLabel,
 } from "../activity/activity-format";
 import { formatJakartaDate } from "@/lib/time";
+import { BnmReviewBadge } from "./bnm-review-badge";
 
 function formatNumber(value: number): string {
     return value.toLocaleString("id-ID");
@@ -167,7 +168,7 @@ function PriorityReportsTable({
                                 <TableHead className="min-w-[130px]">
                                     Status
                                 </TableHead>
-                                <TableHead className="w-[110px]">
+                                <TableHead className="min-w-[140px]">
                                     Umur
                                 </TableHead>
                                 <TableHead className="min-w-[160px] text-right">
@@ -217,7 +218,20 @@ function PriorityReportsTable({
                                             />
                                         </TableCell>
                                         <TableCell>
-                                            {report.ageDays} hari
+                                            <div>{report.ageDays} hari</div>
+                                            {report.bnmReview &&
+                                            report.bnmReview.state !==
+                                                "ON_TIME" ? (
+                                                <BnmReviewBadge
+                                                    state={
+                                                        report.bnmReview.state
+                                                    }
+                                                    deadlineAt={
+                                                        report.bnmReview
+                                                            .deadlineAt
+                                                    }
+                                                />
+                                            ) : null}
                                         </TableCell>
                                         <TableCell className="align-middle">
                                             <div className="grid grid-cols-[50px_minmax(0,1fr)] gap-x-2 gap-y-0.5">

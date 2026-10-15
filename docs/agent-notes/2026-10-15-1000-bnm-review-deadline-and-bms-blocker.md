@@ -19,6 +19,9 @@ BMS boleh membuat laporan baru saat laporan sebelumnya berstatus `APPROVED_BMC` 
 - `app/reports/_components/bms-create-report-button.tsx`, `app/reports/(bms)/create/page.tsx`: judul toast/alert dinamis.
 - `app/dashboard/settings/_components/settings-workbench.tsx`, `lib/app-settings.ts`: teks bantuan dan komentar semantik SLA `APPROVED_BMC`.
 - `docs/project/04-workflows.md`, `CLAUDE.md`: aturan Review BNM dan blokir.
+- `app/dashboard/queries.ts`: `ManagerDashboardReport.bnmReview` (state, enteredAt, deadlineAt) untuk role BNM.
+- `app/dashboard/_components/bnm-review-badge.tsx`: badge dua tingkat + tooltip info (client).
+- `app/dashboard/_components/manager-dashboard.tsx`: badge di kolom Umur, kolom dilebarkan.
 
 ## Decisions
 

@@ -8,6 +8,13 @@ import { isChecklistOnlyReport } from "@/lib/report-utils";
 import { getOnlineUsers, getTodayActiveUsers } from "@/lib/presence";
 import { ARCHIVED_PREVENTIVE_STATUS, getReportStatusLabel, OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 import { getReportSlaDays } from "@/lib/app-settings";
+import {
+  BNM_REVIEW_DEFAULT_SLA_DAYS,
+  getBnmReviewDeadline,
+  getBnmReviewState,
+  type BnmReviewState,
+} from "@/lib/bnm-review-deadline";
+import { getApprovedBmcEnteredAtMap } from "@/lib/bnm-review-entered-at";
 import { requiresPjum } from "@/lib/realisasi";
 import type { ReportItemJson } from "@/types/report";
 import { StoreBrandFilter, buildPjumBrandWhere, getReportBrandWhere, getVisibleBrandBranchNames, getStoreBrandWhere } from "@/lib/store-brand-filter";
@@ -195,6 +202,11 @@ export type ManagerDashboardReport = {
   totalEstimation: number;
   totalReal: number | null;
   ageDays: number;
+  bnmReview: {
+    state: BnmReviewState;
+    enteredAt: Date;
+    deadlineAt: Date;
+  } | null;
 };
 
 export type ManagerDashboardPjum = {
@@ -237,17 +249,20 @@ function normalizeManagerBranchNames(branchNames: string[]) {
   return branchNames.filter((branchName) => branchName.trim() !== "");
 }
 
-function mapManagerReport(report: {
-  reportNumber: string;
-  storeName: string;
-  branchName: string;
-  status: string;
-  createdAt: Date;
-  totalEstimation: unknown;
-  totalReal: unknown | null;
-  createdBy: { name: string };
-  activities: { createdAt: Date }[];
-}): ManagerDashboardReport {
+function mapManagerReport(
+  report: {
+    reportNumber: string;
+    storeName: string;
+    branchName: string;
+    status: string;
+    createdAt: Date;
+    totalEstimation: unknown;
+    totalReal: unknown | null;
+    createdBy: { name: string };
+    activities: { createdAt: Date }[];
+  },
+  bnmReview: ManagerDashboardReport["bnmReview"] = null,
+): ManagerDashboardReport {
   const lastActivityAt = report.activities[0]?.createdAt ?? report.createdAt;
 
   return {
@@ -262,7 +277,35 @@ function mapManagerReport(report: {
     totalEstimation: Number(report.totalEstimation ?? 0),
     totalReal: report.totalReal === null ? null : Number(report.totalReal),
     ageDays: calculateAgeDays(lastActivityAt),
+    bnmReview,
   };
+}
+
+async function getBnmReviewInfoMap(
+  rows: { reportNumber: string; updatedAt: Date }[],
+): Promise<Map<string, NonNullable<ManagerDashboardReport["bnmReview"]>>> {
+  if (rows.length === 0) return new Map();
+
+  const [enteredAtMap, slaDaysByStatus] = await Promise.all([
+    getApprovedBmcEnteredAtMap(rows),
+    getReportSlaDays(),
+  ]);
+  const slaDays = slaDaysByStatus.APPROVED_BMC ?? BNM_REVIEW_DEFAULT_SLA_DAYS;
+  const now = new Date();
+
+  return new Map(
+    rows.map((row) => {
+      const enteredAt = enteredAtMap.get(row.reportNumber) ?? row.updatedAt;
+      return [
+        row.reportNumber,
+        {
+          state: getBnmReviewState({ enteredAt, slaDays, now }),
+          enteredAt,
+          deadlineAt: getBnmReviewDeadline(enteredAt, slaDays),
+        },
+      ] as const;
+    }),
+  );
 }
 
 export async function getManagerDashboardData({ role, branchNames }: { role: ManagerDashboardRole; branchNames: string[] }): Promise<ManagerDashboardData> {
@@ -349,6 +392,7 @@ export async function getManagerDashboardData({ role, branchNames }: { role: Man
           branchName: true,
           status: true,
           createdAt: true,
+          updatedAt: true,
           totalEstimation: true,
           totalReal: true,
           createdBy: { select: { name: true } },
@@ -388,6 +432,10 @@ export async function getManagerDashboardData({ role, branchNames }: { role: Man
           })
         : [];
     const bmsNameMap = new Map(bmsUsers.map((user) => [user.NIK, user.name]));
+    const bnmReviewByReport =
+      role === "BNM_MANAGER"
+        ? await getBnmReviewInfoMap(priorityRows)
+        : new Map<string, NonNullable<ManagerDashboardReport["bnmReview"]>>();
 
     return {
       branchNames: visibleBranches,
@@ -401,7 +449,9 @@ export async function getManagerDashboardData({ role, branchNames }: { role: Man
         approvedPjumReportCount: approvedPjumRows.reduce((sum, pjum) => sum + pjum.reportNumbers.length, 0),
         totalRealisasi: Number(totalRealisasi._sum.totalReal ?? 0),
       },
-      priorityReports: priorityRows.map(mapManagerReport),
+      priorityReports: priorityRows.map((row) =>
+        mapManagerReport(row, bnmReviewByReport.get(row.reportNumber) ?? null),
+      ),
       pendingPjums: pendingPjumRows.map((pjum) => ({
         id: pjum.id,
         weekNumber: pjum.weekNumber,
