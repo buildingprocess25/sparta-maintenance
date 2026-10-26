@@ -9,10 +9,18 @@ export type ChecklistItemData = {
     photoKey?: string;
     notes?: string;
     ahoTicketNumber?: string;
+    signageMaterial?: string;
+    signageCondition?: SignageConditionJson;
 };
 
 import { getJakartaMonthWindow, getJakartaYearWindow } from "@/lib/time";
 import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
+import {
+    getSignageConfig,
+    isSignageDamaged,
+    type SignageConditionJson,
+} from "@/lib/signage";
+import { findAhoTicketConflict } from "@/lib/aho-ticket-groups";
 
 export type BmsEstimationData = {
     itemName: string;
@@ -163,9 +171,77 @@ function buildDraftDataSchema(
             photoKey: z.string().max(500).optional(),
             notes: z.string().max(2000).optional(),
             ahoTicketNumber: z.string().trim().max(100).optional(),
+            signageMaterial: z.string().trim().max(50).optional(),
+            signageCondition: z
+                .enum(["BAIK", "KOTOR", "PUDAR", "RUSAK"])
+                .optional(),
         })
         .superRefine((item, ctx) => {
+            const signage = getSignageConfig(item.itemId);
+
+            if (!signage && (item.signageMaterial || item.signageCondition)) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["signageCondition"],
+                    message: "Data signage hanya untuk item signage",
+                });
+            }
+            if (
+                signage &&
+                item.signageMaterial &&
+                !signage.materials.includes(item.signageMaterial)
+            ) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["signageMaterial"],
+                    message: "Material signage tidak dikenal",
+                });
+            }
+
             if (!options.requireDamagedDetails) return;
+
+            if (signage) {
+                if (
+                    item.preventiveCondition === "TIDAK_ADA" &&
+                    !signage.allowNotAvailable
+                ) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["preventiveCondition"],
+                        message: `${item.itemName} tidak boleh Tidak Ada`,
+                    });
+                }
+                if (
+                    item.preventiveCondition === "OK" ||
+                    item.preventiveCondition === "NOT_OK"
+                ) {
+                    const isNotOk = item.preventiveCondition === "NOT_OK";
+                    if (!item.signageMaterial) {
+                        ctx.addIssue({
+                            code: "custom",
+                            path: ["signageMaterial"],
+                            message: `Material ${item.itemName} wajib dipilih`,
+                        });
+                    }
+                    if (
+                        !item.signageCondition ||
+                        isSignageDamaged(item.signageCondition) !== isNotOk
+                    ) {
+                        ctx.addIssue({
+                            code: "custom",
+                            path: ["signageCondition"],
+                            message: `Kondisi ${item.itemName} tidak sesuai`,
+                        });
+                    }
+                    if (isNotOk && item.handler !== "REKANAN") {
+                        ctx.addIssue({
+                            code: "custom",
+                            path: ["handler"],
+                            message: `${item.itemName} Pudar/Rusak wajib ditangani Rekanan`,
+                        });
+                    }
+                }
+            }
 
             const isDamaged =
                 item.condition === "RUSAK" ||
@@ -215,6 +291,37 @@ function buildDraftDataSchema(
                 }
                 itemIds.add(item.itemId);
             });
+
+            if (options.requireDamagedDetails) {
+                const conflict = findAhoTicketConflict(
+                    data.checklistItems
+                        .filter(
+                            (item) =>
+                                item.condition === "RUSAK" ||
+                                item.preventiveCondition === "NOT_OK",
+                        )
+                        .map((item) => ({
+                            itemId: item.itemId,
+                            ahoTicketNumber: item.ahoTicketNumber,
+                        })),
+                );
+                if (conflict) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: [
+                            "checklistItems",
+                            data.checklistItems.findIndex(
+                                (item) => item.itemId === conflict.itemId,
+                            ),
+                            "ahoTicketNumber",
+                        ],
+                        message:
+                            conflict.reason === "group_ticket_mismatch"
+                                ? "Item signage wajib memakai satu nomor tiket AHO yang sama"
+                                : `Nomor tiket AHO ${conflict.ticket} sudah dipakai item lain`,
+                    });
+                }
+            }
 
             for (const itemId of Object.keys(data.bmsEstimations)) {
                 if (!allowedItemIds.has(itemId)) {

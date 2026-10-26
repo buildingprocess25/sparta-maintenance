@@ -107,4 +107,30 @@ assert.deepEqual(
     ],
 );
 
+assert.deepEqual(
+    buildItemsJson({
+        checklistItems: [
+            {
+                itemId: "I12",
+                itemName: "Kondisi Fisik List Plank",
+                categoryName: "I. Preventif Equipment Toko",
+                preventiveCondition: "OK",
+                signageMaterial: "Embos",
+                signageCondition: "KOTOR",
+                photoUrl: "https://example.com/i12.jpg",
+            },
+        ],
+        bmsEstimations: {},
+    }),
+    [
+        {
+            itemId: "I12",
+            preventiveCondition: "OK",
+            signageMaterial: "Embos",
+            signageCondition: "KOTOR",
+            photoUrl: "https://example.com/i12.jpg",
+        },
+    ],
+);
+
 console.log("report-json-helpers tests passed");

@@ -39,7 +39,9 @@ export async function submitReport(data: DraftData) {
   if (!parsed.success) {
     return {
       error: "Data laporan tidak valid",
-      detail: "Periksa kembali data laporan yang diisi.",
+      detail:
+        parsed.error.issues[0]?.message ??
+        "Periksa kembali data laporan yang diisi.",
     };
   }
   data = parsed.data;
@@ -151,6 +153,27 @@ export async function submitReport(data: DraftData) {
                 error: "Data laporan tidak lengkap",
                 detail: `Item checklist ${missingItem} tidak ditemukan dalam laporan`,
             };
+        }
+
+        // Laporan preventif triwulan wajib membawa seluruh item kategori I,
+        // termasuk item yang tidak ikut syarat "lengkap" historis (I11–I13).
+        const hasPreventiveItems = checklistItems.some((item) =>
+            preventiveItemIds.has(item.itemId),
+        );
+        if (hasPreventiveItems) {
+            const missingPreventiveItem = [...preventiveItemIds].find(
+                (id) =>
+                    !checklistItems.some(
+                        (item) =>
+                            item.itemId === id && item.preventiveCondition,
+                    ),
+            );
+            if (missingPreventiveItem) {
+                return {
+                    error: "Data laporan tidak lengkap",
+                    detail: `Item preventif ${missingPreventiveItem} wajib diisi`,
+                };
+            }
         }
     }
 

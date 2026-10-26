@@ -54,6 +54,8 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
                     photoKey: item.photoKey,
                     notes: isDamaged ? item.notes : undefined,
                     ahoTicketNumber: isDamaged ? item.ahoTicketNumber?.trim() : undefined,
+                    signageMaterial: item.signageMaterial,
+                    signageCondition: item.signageCondition,
                 };
             }),
     );

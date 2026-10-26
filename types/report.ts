@@ -31,6 +31,8 @@ export interface ReportItemJson {
     images?: string[]; // New standard for multiple images
     notes?: string | null;
     ahoTicketNumber?: string | null;
+    signageMaterial?: string | null; // Item signage (I11–I13): material
+    signageCondition?: "BAIK" | "KOTOR" | "PUDAR" | "RUSAK" | null; // Item signage: kondisi asli
 
     // === Completion data (filled by BMS during penyelesaian pekerjaan) ===
     afterImages?: string[]; // Foto setelah perbaikan

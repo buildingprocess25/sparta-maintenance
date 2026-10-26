@@ -77,7 +77,9 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
         if (!parsed.success) {
             return {
                 error: "Data laporan tidak valid",
-                detail: "Periksa kembali data laporan yang diisi.",
+                detail:
+                    parsed.error.issues[0]?.message ??
+                    "Periksa kembali data laporan yang diisi.",
             };
         }
         data = parsed.data;
