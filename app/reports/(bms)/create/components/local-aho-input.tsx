@@ -70,6 +70,11 @@ export function LocalAhoInput({
         }
     }, [smartPrefix, manualInput]);
 
+    const trimmedManualInput = manualInput.trim();
+    const isManualTicketTaken =
+        selectedTickets.has(trimmedManualInput) &&
+        trimmedManualInput !== localValue;
+
     const handleSelect = (val: string) => {
         setLocalValue(val);
         onCommit(val);
@@ -79,8 +84,8 @@ export function LocalAhoInput({
 
     const handleManualSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (manualInput.trim()) {
-            handleSelect(manualInput.trim());
+        if (trimmedManualInput && !isManualTicketTaken) {
+            handleSelect(trimmedManualInput);
         }
     };
 
@@ -172,11 +177,19 @@ export function LocalAhoInput({
                             type="submit" 
                             size="sm" 
                             className="h-8 px-3" 
-                            disabled={!/^[A-Z0-9]{4}-P-[A-Z]\d{2}-\d+$/i.test(manualInput.trim())}
+                            disabled={
+                                isManualTicketTaken ||
+                                !/^[A-Z0-9]{4}-P-[A-Z]\d{2}-\d+$/i.test(trimmedManualInput)
+                            }
                         >
                             Pakai
                         </Button>
                     </form>
+                    {isManualTicketTaken ? (
+                        <p className="text-[11px] text-destructive">
+                            Nomor tiket ini sudah dipakai item lain.
+                        </p>
+                    ) : null}
                 </PopoverContent>
             </Popover>
         </div>

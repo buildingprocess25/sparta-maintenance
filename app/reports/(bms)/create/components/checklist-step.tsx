@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  Camera,
-  CheckCircle2,
   ChevronDown,
   ClipboardCheck,
   InfoIcon,
@@ -21,15 +19,20 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
-import { resolvePhotoUrl } from "@/lib/storage/photo-url";
-import { LocalNotesTextarea } from "./local-notes-textarea";
-import { LocalAhoInput } from "./local-aho-input";
+import { getLockedAhoTickets } from "@/lib/aho-ticket-groups";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import {
   type ChecklistItem,
   type ChecklistCondition,
   type ChecklistCategory,
 } from "@/lib/checklist-data";
+import {
+  toAhoTicketHolders,
+  type SignageChange,
+} from "../hooks/signage-checklist";
+import { ChecklistPhotoField } from "./checklist-photo-field";
+import { ChecklistDamageFields } from "./checklist-damage-fields";
+import { SignageChecklistItem } from "./signage-checklist-item";
 
 interface ChecklistStepProps {
   storeCode?: string;
@@ -44,6 +47,11 @@ interface ChecklistStepProps {
   onNotesChange: (itemId: string, itemName: string, value: string) => void;
   onAhoTicketNumberChange: (itemId: string, itemName: string, value: string) => void;
   onHandlerChange: (itemId: string, itemName: string, value: string) => void;
+  onSignageChange: (
+    itemId: string,
+    itemName: string,
+    change: SignageChange,
+  ) => void;
   onOpenCamera: (itemId: string) => void;
   onPreviewPhoto: (photo: File | string) => void;
   onRemovePhoto: (itemId: string) => void;
@@ -72,6 +80,7 @@ export function ChecklistStep({
   onNotesChange,
   onAhoTicketNumberChange,
   onHandlerChange,
+  onSignageChange,
   onOpenCamera,
   onPreviewPhoto,
   onRemovePhoto,
@@ -110,15 +119,10 @@ export function ChecklistStep({
     totalItems > 0 ? Math.round((evaluatedCount / totalItems) * 100) : 0;
   const hasSearch = searchQuery.trim().length > 0;
 
-  const selectedAhoTickets = useMemo(() => {
-    const tickets = new Set<string>();
-    for (const item of checklist.values()) {
-      if (item.ahoTicketNumber) {
-        tickets.add(item.ahoTicketNumber);
-      }
-    }
-    return tickets;
-  }, [checklist]);
+  const ahoTicketHolders = useMemo(
+    () => toAhoTicketHolders(checklist),
+    [checklist],
+  );
 
   const isHeaderVisible = useBmsMobileHeaderVisibility();
 
@@ -286,6 +290,28 @@ export function ChecklistStep({
                     <div className="flex flex-col gap-3">
                       {category.items.map((item) => {
                         const itemData = checklist.get(item.id);
+
+                        if (item.signage) {
+                          return (
+                            <SignageChecklistItem
+                              key={item.id}
+                              item={{ ...item, signage: item.signage }}
+                              itemData={itemData}
+                              storeCode={storeCode}
+                              lockedAhoTickets={getLockedAhoTickets(
+                                item.id,
+                                ahoTicketHolders,
+                              )}
+                              onSignageChange={onSignageChange}
+                              onNotesChange={onNotesChange}
+                              onAhoTicketNumberChange={onAhoTicketNumberChange}
+                              onOpenCamera={onOpenCamera}
+                              onPreviewPhoto={onPreviewPhoto}
+                              onRemovePhoto={onRemovePhoto}
+                            />
+                          );
+                        }
+
                         const condition = itemData?.condition;
                         const handler = itemData?.handler;
 
@@ -293,9 +319,6 @@ export function ChecklistStep({
                         const isBroken = condition === "rusak";
                         const isUnavailable = condition === "tidak_ada";
                         const needsPhotoEvidence = isGood || isBroken;
-
-                        const hasPhoto =
-                          !!itemData?.photo || !!itemData?.photoUrl;
 
                         return (
                           <Card
@@ -436,91 +459,33 @@ export function ChecklistStep({
                                       </div>
                                     ) : null}
 
-                                    <div className="flex flex-col gap-2" data-tour="bms-checklist-photo">
-                                      <p className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase">
-                                        Foto Bukti{" "}
-                                        <span className="text-destructive">
-                                          *
-                                        </span>
-                                      </p>
-                                      {!hasPhoto ? (
-                                        <Button
-                                          type="button"
-                                          variant="outline"
-                                          className="h-12 border-dashed"
-                                          onClick={() => onOpenCamera(item.id)}
-                                        >
-                                          <Camera
-                                            data-icon="inline-start"
-                                            className="mr-2 h-4 w-4"
-                                          />
-                                          Upload Image
-                                        </Button>
-                                      ) : (
-                                        <PhotoThumbnail
-                                          photo={itemData?.photo}
-                                          photoUrl={itemData?.photoUrl}
-                                          onPreview={onPreviewPhoto}
-                                          onRemove={() =>
-                                            onRemovePhoto(item.id)
-                                          }
-                                        />
-                                      )}
-                                    </div>
+                                    <ChecklistPhotoField
+                                      itemId={item.id}
+                                      photo={itemData?.photo}
+                                      photoUrl={itemData?.photoUrl}
+                                      onOpenCamera={onOpenCamera}
+                                      onPreviewPhoto={onPreviewPhoto}
+                                      onRemovePhoto={onRemovePhoto}
+                                    />
 
                                     {isBroken ? (
-                                      <div className="flex flex-col gap-2">
-                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-notes">
-                                          <Label
-                                            htmlFor={`${item.id}-note`}
-                                            className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
-                                          >
-                                            Catatan{" "}
-                                            <span className="text-destructive">
-                                              *
-                                            </span>
-                                          </Label>
-                                          <LocalNotesTextarea
-                                            required={true}
-                                            initialValue={itemData?.notes || ""}
-                                            onCommit={(val) =>
-                                              onNotesChange(
-                                                item.id,
-                                                item.name,
-                                                val,
-                                              )
-                                            }
-                                          />
-                                        </div>
-                                        <div className="flex flex-col gap-2" data-tour="bms-checklist-aho">
-                                          <Label
-                                            htmlFor={`${item.id}-aho`}
-                                            className="text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase"
-                                          >
-                                            No Tiket AHO{" "}
-                                            <span className="text-destructive">
-                                              *
-                                            </span>
-                                          </Label>
-                                          <LocalAhoInput
-                                            id={`${item.id}-aho`}
-                                            storeCode={storeCode}
-                                            initialValue={
-                                              checklist.get(item.id)
-                                                ?.ahoTicketNumber || ""
-                                            }
-                                            selectedTickets={selectedAhoTickets}
-                                            onCommit={(val) =>
-                                              onAhoTicketNumberChange(
-                                                item.id,
-                                                item.name,
-                                                val,
-                                              )
-                                            }
-                                            required
-                                          />
-                                        </div>
-                                      </div>
+                                      <ChecklistDamageFields
+                                        itemId={item.id}
+                                        itemName={item.name}
+                                        storeCode={storeCode}
+                                        notes={itemData?.notes}
+                                        ahoTicketNumber={
+                                          itemData?.ahoTicketNumber
+                                        }
+                                        lockedAhoTickets={getLockedAhoTickets(
+                                          item.id,
+                                          ahoTicketHolders,
+                                        )}
+                                        onNotesChange={onNotesChange}
+                                        onAhoTicketNumberChange={
+                                          onAhoTicketNumberChange
+                                        }
+                                      />
                                     ) : null}
                                   </div>
                                 ) : null}
@@ -553,61 +518,5 @@ export function ChecklistStep({
         ) : null}
       </div>
     </>
-  );
-}
-
-/* ─── Photo Thumbnail (internal) ─── */
-function PhotoThumbnail({
-  photo,
-  photoUrl,
-  onPreview,
-  onRemove,
-}: {
-  photo?: File;
-  photoUrl?: string;
-  onPreview: (photo: File | string) => void;
-  onRemove: () => void;
-}) {
-  const displayPhotoUrl = photoUrl ? resolvePhotoUrl(photoUrl) : undefined;
-  const localPhotoUrl = useMemo(
-    () => (!displayPhotoUrl && photo ? URL.createObjectURL(photo) : ""),
-    [displayPhotoUrl, photo],
-  );
-  const previewSrc = displayPhotoUrl || localPhotoUrl;
-
-  if (!previewSrc) return null;
-
-  return (
-    <div className="space-y-2">
-      <div
-        className="relative group cursor-pointer overflow-hidden rounded-lg border-2 border-primary/20 bg-muted"
-        onClick={() => onPreview(displayPhotoUrl ?? photo ?? previewSrc)}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={previewSrc}
-          alt="Preview"
-          className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200"
-        />
-      </div>
-      <div className="flex items-center justify-between p-2 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-2 overflow-hidden">
-          <CheckCircle2 className="size-4 text-primary shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-medium truncate">
-              {photo?.name ?? "Foto tersimpan"}
-            </p>
-          </div>
-        </div>
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          className="text-destructive hover:text-destructive hover:bg-destructive/10 shrink-0"
-          onClick={onRemove}
-        >
-          <X />
-        </Button>
-      </div>
-    </div>
   );
 }

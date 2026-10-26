@@ -68,6 +68,7 @@ export default function CreateReportForm({
     handleStoreChange,
     toggleCategory,
     updateChecklistItem,
+    updateSignageItem,
     validateStep1,
     openCategories,
     devAutofill,
@@ -370,6 +371,7 @@ export default function CreateReportForm({
             onNotesChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "notes", value)}
             onAhoTicketNumberChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "ahoTicketNumber", value)}
             onHandlerChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "handler", value)}
+            onSignageChange={updateSignageItem}
             onOpenCamera={handleOpenCamera}
             onPreviewPhoto={handlePreviewPhoto}
             onRemovePhoto={removePhoto}
