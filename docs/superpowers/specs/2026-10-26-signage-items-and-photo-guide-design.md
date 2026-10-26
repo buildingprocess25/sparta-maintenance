@@ -125,7 +125,7 @@ sudah ada.
    dengan item lain).
 
 `use-checklist.ts` mendapat updater khusus signage yang mengisi `condition` dan
-`handler` dari `signageCondition` (fungsi murni `deriveSignageState`, dites).
+`handler` dari `signageCondition` (fungsi murni `applySignageSelection` di `hooks/signage-checklist.ts`, dites).
 Validasi `validateStep1` yang sudah ada tetap berlaku karena memakai
 `condition`; ditambah pengecekan "material wajib dipilih" untuk item signage.
 
@@ -150,7 +150,7 @@ Aturan baru:
 - Ketik manual mengikuti aturan yang sama: tombol "Pakai" disabled dengan
   keterangan jika nomor sudah dipakai di luar grup item tersebut.
 
-Implementasi: fungsi murni `getLockedAhoTickets(itemId, checklist)` di `lib/`
+Implementasi: fungsi murni `getLockedAhoTickets(itemId, holders)` di `lib/aho-ticket-groups.ts`
 menghitung set tiket terkunci untuk satu item dengan mengabaikan item lain di
 grup yang sama. `ChecklistStep` meneruskan hasilnya ke `LocalAhoInput` per item
 (menggantikan `selectedAhoTickets` global). `LocalAhoInput` memakai set itu juga
@@ -205,38 +205,43 @@ UI dan validasi submit. Seluruh konsumen (cooldown `getLastCategoryIDate`, KPI
 BMS, coverage, matriks tahunan, export admin, workbench detail, dashboard
 reports) otomatis memakai aturan baru tanpa diubah.
 
-### Label Kondisi Terpusat
+### Label Kondisi Signage
 
-Helper baru `describeItemCondition(item)` di `lib/checklist-condition.ts`:
+Label kondisi item non-signage berbeda-beda per tempat ("Tidak Ada" vs "Tidak
+ada", "OK" vs "Baik" di export foto), jadi label lama **tidak** disatukan. Yang
+ditambahkan adalah helper khusus signage di `lib/signage.ts`:
 
 ```ts
-type ItemConditionDescription = {
-    label: string;           // "Baik", "Rusak", "OK", "Not OK", "Tidak Ada", "Kotor", "Pudar", "-"
-    detail?: string;         // material signage, mis. "Acrylic"
-    tone: "baik" | "rusak" | "tidak_ada";
+type SignageConditionDescription = {
+    label: string;      // "Baik" | "Kotor" | "Pudar" | "Rusak"
+    material?: string;  // mis. "Acrylic"
+    text: string;       // "Rusak · Acrylic"
+    isDamaged: boolean; // true untuk Pudar/Rusak
 };
+describeSignageCondition(item): SignageConditionDescription | null;
 ```
 
-- Item non-signage: hasil identik dengan label sekarang.
-- Item signage: label dari `signageCondition` (Baik/Kotor/Pudar/Rusak), detail
-  material, tone `baik` untuk Baik/Kotor dan `rusak` untuk Pudar/Rusak. Tampilan
-  gabungan: **"Rusak · Acrylic"**.
-- Kotor memakai warna OK (hijau); hanya teks yang berbeda.
+Setiap tempat yang menampilkan kondisi memanggil helper ini lebih dulu. Jika
+hasilnya `null` (item bukan signage, atau signage Tidak Ada), label lama dipakai
+apa adanya. Warna/badge tetap mengikuti `preventiveCondition`, jadi Kotor tampil
+hijau (OK) dan Pudar/Rusak tampil sebagai Not OK.
 
-Mengganti implementasi label lokal di:
+Tempat yang diubah:
 
-- `lib/pdf/generate-report-pdf.ts` (`conditionLabel`, `conditionStyle`, tile galeri)
-- `lib/pdf/generate-revision-pdf.ts`
-- `lib/pdf/checklist-photo-gallery.ts`
-- `app/dashboard/reports/[reportNumber]/_lib/detail-data.ts`
-- `app/dashboard/reports/[reportNumber]/_components/` (`shared-ui.tsx`,
-  `documentation-tab.tsx`, `photo-dialog.tsx`, `work-cost-tab.tsx`)
-- `app/reports/[reportNumber]/report-detail-view.tsx`
-- `app/reports/(bms)/create/components/review-step.tsx`
-- `scripts/export-preventive-photos.ts`
+- `lib/pdf/generate-report-pdf.ts` — kolom kondisi tabel checklist (teks
+  lengkap) dan badge tile foto (label saja; warna dari `isDamaged`).
+- `lib/pdf/checklist-photo-gallery.ts` dan `lib/pdf/report-pdf-full-builder.ts`
+  — meneruskan `signageCondition`/`signageMaterial` ke tile.
+- `app/dashboard/reports/[reportNumber]/_lib/detail-data.ts` — `getConditionMeta`
+  (dipakai oleh `shared-ui.tsx`, `documentation-tab.tsx`, `photo-dialog.tsx`,
+  `work-cost-tab.tsx` tanpa perubahan di komponen-komponen itu).
+- `app/reports/[reportNumber]/report-detail-view.tsx` — teks kondisi signage di
+  bawah nama item.
+- `app/reports/(bms)/create/components/review-step.tsx` — ringkasan item rusak.
+- `scripts/export-preventive-photos.ts` — label kondisi per kuartal.
 
-Field signage yang perlu dibawa ke data PDF/detail ikut ditambahkan pada tipe
-perantara (mis. tile galeri, `ReportPdfData`).
+`lib/pdf/generate-revision-pdf.ts` tidak diubah: PDF revisi hanya memuat item
+handler BMS, sedangkan signage Pudar/Rusak selalu REKANAN.
 
 ---
 
@@ -323,11 +328,11 @@ Menyimpan `Set<string>` item yang sudah melihat contoh (state halaman saja).
 Belum ada test suite UI. Logika murni dipisah dan dites dengan pola `.spec.ts`
 yang ada:
 
-- `deriveSignageState` — pemetaan kondisi signage ke `condition`/`handler`.
+- `applySignageSelection` — pemetaan kondisi signage ke `condition`/`handler`.
 - `getLockedAhoTickets` — aturan grup tiket signage vs non-signage.
 - Skema zod — material/kondisi tidak valid, handler bukan REKANAN, tiket signage
   berbeda, tiket bentrok dengan non-signage, field signage pada item lain.
-- `describeItemCondition` — item non-signage tidak berubah, label signage.
+- `describeSignageCondition`, `toSignageJsonFields`, `fromSignageJsonFields`.
 - `report-preventive.spec.ts` — laporan dengan I1–I10 saja tetap lengkap.
 - `draft-data.spec.ts` — round-trip field signage.
 
