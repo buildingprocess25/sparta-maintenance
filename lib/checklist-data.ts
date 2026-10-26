@@ -1,5 +1,13 @@
 // Data checklist berdasarkan FCKT BnM Menu Ceklist
+// Data checklist berdasarkan FCKT BnM Menu Ceklist
 export type ChecklistCondition = "baik" | "rusak" | "tidak_ada" | "";
+export type SignageCondition = "baik" | "kotor" | "pudar" | "rusak";
+export type AhoTicketGroup = "signage";
+
+export interface SignageConfig {
+    materials: readonly string[];
+    allowNotAvailable?: boolean;
+}
 
 export interface ChecklistItem {
     id: string;
@@ -12,15 +20,27 @@ export interface ChecklistItem {
     handler?: "BMS" | "Rekanan" | "";
     notes?: string;
     ahoTicketNumber?: string;
+    /** Item signage: material terpilih, atau "TIDAK_ADA". */
+    signageMaterial?: string;
+    /** Item signage: kondisi asli sebelum diturunkan ke `condition`. */
+    signageCondition?: SignageCondition | "";
 }
+
+export interface ChecklistCatalogItem {
+    id: string;
+    name: string;
+    desc?: string;
+    /** Item dengan alur Material → Kondisi (Baik/Kotor/Pudar/Rusak). */
+    signage?: SignageConfig;
+    /** Item dalam grup yang sama berbagi satu nomor tiket AHO. */
+    ahoTicketGroup?: AhoTicketGroup;
+}
+
 export interface ChecklistCategory {
     id: string;
     title: string;
     isPreventive?: boolean; // true = Category I (OK/Not OK + foto wajib jika OK)
-    items: Omit<
-        ChecklistItem,
-        "condition" | "photo" | "handler" | "photoUrl" | "notes"
-    >[];
+    items: ChecklistCatalogItem[];
 }
 
 export const checklistCategories: ChecklistCategory[] = [
@@ -241,6 +261,27 @@ export const checklistCategories: ChecklistCategory[] = [
                 id: "I10",
                 name: "Lift Barang",
                 desc: "Pembersihan unit dari sampah/kotoran (posisi keranjang barang wajib di bawah dan power listrik posisi OFF); memastikan kelengkapan rambu-rambu/petunjuk terpasang serta terlihat; memastikan rangka keranjang dan tiang tidak korosi/karat dan tidak bengkok/melengkung; memastikan pintu keranjang dan pintu utama berfungsi baik dan berpengaman; memastikan kawat seling tidak korosi/karat dan tidak putus (dilumasi grease/gemuk pelumas); memastikan roller/roda pembatas dalam kondisi & fungsi baik; memastikan tombol On/Off, motor listrik/electric hoist, sensor/limit switch, serta instalasi kabel dalam kondisi dan fungsi yang baik (tes fungsi unit naik/turun)",
+            },
+            {
+                id: "I11",
+                name: "Kondisi Fisik Shop Sign",
+                signage: { materials: ["Embos", "Acrylic"] },
+                ahoTicketGroup: "signage",
+            },
+            {
+                id: "I12",
+                name: "Kondisi Fisik List Plank",
+                signage: { materials: ["Embos", "Acrylic", "ACP/Alucopan"] },
+                ahoTicketGroup: "signage",
+            },
+            {
+                id: "I13",
+                name: "Kondisi Fisik Pole Sign",
+                signage: {
+                    materials: ["Acrylic", "Vynil"],
+                    allowNotAvailable: true,
+                },
+                ahoTicketGroup: "signage",
             },
         ],
     },
