@@ -7,7 +7,11 @@ import { getAuthUser, requireRole } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import * as XLSX from "xlsx";
+import {
+    ahoImportPayloadSchema,
+    normalizeAhoStatus,
+    type AhoImportRow,
+} from "@/lib/aho-import/import-payload";
 import { SETTING_KEYS, updateAppSetting } from "@/lib/app-settings";
 
 export type AdminAhoTicketFilters = {
@@ -93,153 +97,12 @@ export async function getAdminAhoTickets(
     }
 }
 
-// ─── Import tiket AHO dari XLSX (Format B — IRIS Alfamart) ───────────────────
+// ─── Import tiket AHO (hasil parse XLSX di browser) ──────────────────────────
+// File XLSX IRIS dibaca di browser oleh lib/aho-import/parse-aho-xlsx.ts karena
+// ukurannya melewati batas string V8 bila dibaca utuh dengan SheetJS. Server
+// hanya menerima baris ringkas, lalu memvalidasi dan memfilter ulang.
 
 const MAX_IMPORT_ERRORS = 50;
-
-type ParsedRow = {
-    storeCode: string;
-    problemNo: string;
-    status: string;
-    branchCode: string;
-    branchName: string;
-};
-
-type ParseFormatBResult = {
-    rows: ParsedRow[];
-    printDate: Date | null;
-    error?: string;
-};
-
-function parseFormatBXlsx(buffer: ArrayBuffer): ParseFormatBResult {
-    // raw:true agar xlsx tidak memformat semua sel — jauh lebih cepat untuk 191k baris
-    const wb = XLSX.read(buffer, { type: "array", raw: true });
-    const sheetName = wb.SheetNames[0];
-    if (!sheetName) return { rows: [], printDate: null, error: "File XLSX kosong (tidak ada sheet)" };
-
-    const ws = wb.Sheets[sheetName];
-    const ref = ws["!ref"];
-    if (!ref) return { rows: [], printDate: null, error: "File XLSX tidak memiliki data" };
-
-    // Decode range dari sheet reference (misal "A1:T191181")
-    const range = XLSX.utils.decode_range(ref);
-    const R_MIN = range.s.r; // baris pertama (0-indexed)
-    const R_MAX = range.e.r; // baris terakhir
-    const C_MAX = range.e.c; // kolom terakhir
-
-    // ── Helper: baca sel secara langsung (tanpa sheet_to_json) ──
-    // Ini menghindari konversi semua 3.8 juta sel; hanya baca yang kita butuhkan.
-    const cellStr = (r: number, c: number): string => {
-        const cell = ws[XLSX.utils.encode_cell({ r, c })];
-        if (!cell) return "";
-        // Untuk sel teks gunakan .v (raw value); untuk semua tipe konversi ke string
-        return String(cell.v ?? "").trim();
-    };
-
-    // ── Ekstraksi Tanggal Cetak dari baris-baris awal ──
-    let printDate: Date | null = null;
-    for (let r = R_MIN; r <= Math.min(R_MIN + 20, R_MAX); r++) {
-        const firstCell = cellStr(r, 0).toLowerCase();
-        if (firstCell === "tanggal cetak") {
-            const rawVal = cellStr(r, 1).replace(/^:\s*/, "");
-            // Format dari IRIS: "12-Aug-2026 - 10:50:12" atau "12 Aug 2026 - 10:50:12"
-            const normalized = rawVal.replace(" - ", " ");
-            // IRIS Alfamart selalu menggunakan timezone WIB (UTC+7).
-            // Tanpa suffix timezone, new Date() menginterpretasikan waktu sebagai UTC
-            // sehingga tampilan di browser menjadi +7 jam (salah). Tambahkan +07:00 agar benar.
-            const parsed = new Date(normalized + " +07:00");
-            if (!isNaN(parsed.getTime())) printDate = parsed;
-            break;
-        }
-    }
-
-
-    // ── Temukan baris header secara dinamis ──
-    const TARGET_COLS: Record<string, string[]> = {
-        storeCode:  ["kode toko"],
-        problemNo:  ["no. problem", "no problem"],
-        status:     ["status"],
-        branchCode: ["kode cabang existing"],
-        branchName: ["cabang existing", "nama cabang existing"],
-    };
-
-    let headerRowIndex = -1;
-    const colIndexMap: Record<string, number> = {};
-
-    for (let r = R_MIN; r <= Math.min(R_MIN + 50, R_MAX); r++) {
-        let foundProblemNo = false;
-        let foundStoreCode = false;
-        const cellsInRow: string[] = [];
-        for (let c = 0; c <= C_MAX; c++) {
-            cellsInRow.push(cellStr(r, c).toLowerCase());
-        }
-        for (let c = 0; c <= C_MAX; c++) {
-            const txt = cellsInRow[c];
-            if (TARGET_COLS.problemNo.includes(txt)) foundProblemNo = true;
-            if (TARGET_COLS.storeCode.includes(txt)) foundStoreCode = true;
-        }
-        if (foundProblemNo && foundStoreCode) {
-            headerRowIndex = r;
-            for (const [field, aliases] of Object.entries(TARGET_COLS)) {
-                for (let c = 0; c <= C_MAX; c++) {
-                    if (aliases.includes(cellsInRow[c])) {
-                        colIndexMap[field] = c;
-                        break;
-                    }
-                }
-            }
-            break;
-        }
-    }
-
-    if (headerRowIndex === -1) {
-        return {
-            rows: [],
-            printDate,
-            error: "Format file tidak dikenali. Pastikan file adalah laporan AHO dari sistem IRIS Alfamart.",
-        };
-    }
-
-    // Validasi kolom wajib
-    const requiredFields = ["storeCode", "problemNo", "status"] as const;
-    const missingFields = requiredFields.filter((f) => colIndexMap[f] === undefined);
-    if (missingFields.length > 0) {
-        return {
-            rows: [],
-            printDate,
-            error: `Kolom wajib tidak ditemukan: ${missingFields.join(", ")}. Pastikan menggunakan file AHO dari IRIS.`,
-        };
-    }
-
-    // ── Parse baris data: hanya baca 5 kolom yang dibutuhkan, skip baris kosong ──
-    // Dengan akses sel langsung (bukan sheet_to_json), kita menghindari konversi
-    // semua ~3.8 juta sel — hanya kolom storeCode, problemNo, status, branchCode, branchName.
-    const rows: ParsedRow[] = [];
-    const cStoreCode  = colIndexMap.storeCode;
-    const cProblemNo  = colIndexMap.problemNo;
-    const cStatus     = colIndexMap.status;
-    const cBranchCode = colIndexMap.branchCode;
-    const cBranchName = colIndexMap.branchName;
-
-    for (let r = headerRowIndex + 1; r <= R_MAX; r++) {
-        const storeCode = cellStr(r, cStoreCode).toUpperCase();
-        const problemNo = cellStr(r, cProblemNo);
-        const statusRaw = cellStr(r, cStatus);
-
-        if (!storeCode || !problemNo || !statusRaw) continue;
-
-        const branchCode = cBranchCode !== undefined ? cellStr(r, cBranchCode) : "";
-        let branchName   = cBranchName !== undefined ? cellStr(r, cBranchName) : "";
-
-        if (branchName.toUpperCase().startsWith("DC ")) {
-            branchName = branchName.substring(3).trim();
-        }
-
-        rows.push({ storeCode, problemNo, status: statusRaw, branchCode, branchName });
-    }
-
-    return { rows, printDate };
-}
 
 /**
  * Batch UPSERT ke MasterAhoTicket menggunakan PostgreSQL ON CONFLICT.
@@ -304,7 +167,7 @@ async function upsertAhoTickets(
     return { created: totalCreated, updated: totalUpdated };
 }
 
-export async function adminImportAhoTickets(formData: FormData) {
+export async function adminImportAhoTickets(input: unknown) {
     const startTime = Date.now();
     const result = {
         success: false,
@@ -333,29 +196,30 @@ export async function adminImportAhoTickets(formData: FormData) {
             return { ...result, errors: ["Request tidak valid"] };
         }
 
-        const file = formData.get("file") as File | null;
-        if (!file || !(file instanceof File)) {
-            return { ...result, errors: ["File tidak ditemukan"] };
-        }
-        if (!file.name.endsWith(".xlsx")) {
-            return { ...result, errors: ["Hanya menerima file .xlsx"] };
+        const parsed = ahoImportPayloadSchema.safeParse(input);
+        if (!parsed.success) {
+            logger.warn(
+                {
+                    operation: "adminImportAhoTickets",
+                    userId: admin.NIK,
+                    issues: parsed.error.issues.slice(0, 5),
+                },
+                "Invalid AHO import payload",
+            );
+            return { ...result, errors: ["Data import tidak valid. Muat ulang halaman lalu coba lagi."] };
         }
 
-        const buffer = await file.arrayBuffer();
-        const { rows: allRows, printDate, error } = parseFormatBXlsx(buffer);
-        if (error) return { ...result, errors: [error] };
-
+        const payload = parsed.data;
+        const printDate = payload.printDate ? new Date(payload.printDate) : null;
         result.printDate = printDate;
-        result.total = allRows.length;
+        result.total = payload.totalRows;
+        result.skipped = payload.skippedNonActive;
 
-        // ── Filter: hanya New dan Progress ──
-        const VALID_STATUSES = ["New", "Progress"];
-        const activeRows: ParsedRow[] = [];
-
-        for (const row of allRows) {
-            const status =
-                row.status.charAt(0).toUpperCase() + row.status.slice(1).toLowerCase();
-            if (VALID_STATUSES.includes(status)) {
+        // ── Filter ulang: hanya New dan Progress (jangan percaya client) ──
+        const activeRows: AhoImportRow[] = [];
+        for (const row of payload.rows) {
+            const status = normalizeAhoStatus(row.status);
+            if (status) {
                 activeRows.push({ ...row, status });
             } else {
                 result.skipped++;

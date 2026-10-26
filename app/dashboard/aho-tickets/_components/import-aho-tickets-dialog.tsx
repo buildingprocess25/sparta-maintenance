@@ -21,12 +21,16 @@ import {
     X,
 } from "lucide-react";
 import { toast } from "sonner";
-import * as XLSX from "xlsx";
+import { parseAhoXlsx, type ParseAhoXlsxResult } from "@/lib/aho-import/parse-aho-xlsx";
 import { adminImportAhoTickets } from "../actions";
 
 type ImportResult = Awaited<ReturnType<typeof adminImportAhoTickets>>;
+type ImportPhase = "reading" | "syncing";
 
-
+// Porsi progress bar untuk tahap baca file di browser; sisanya tahap sinkronisasi server.
+const READ_PHASE_PROGRESS = 60;
+const READ_FAILED_MESSAGE =
+    "File gagal dibaca. Pastikan file adalah laporan AHO .xlsx dari sistem IRIS Alfamart.";
 
 export function ImportAhoTicketsDialog() {
     const [open, setOpen] = useState(false);
@@ -35,6 +39,7 @@ export function ImportAhoTicketsDialog() {
     const [result, setResult] = useState<ImportResult | null>(null);
     const [isTimeout, setIsTimeout] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [phase, setPhase] = useState<ImportPhase>("reading");
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const resetState = useCallback(() => {
@@ -42,6 +47,7 @@ export function ImportAhoTicketsDialog() {
         setResult(null);
         setIsTimeout(false);
         setProgress(0);
+        setPhase("reading");
     }, []);
 
     function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -71,28 +77,63 @@ export function ImportAhoTicketsDialog() {
         setResult(null);
     }
 
+    function showLocalFailure(message: string) {
+        setResult({
+            success: false,
+            created: 0,
+            updated: 0,
+            deleted: 0,
+            skipped: 0,
+            total: 0,
+            printDate: null,
+            errors: [message],
+            duplicates: [],
+        });
+        toast.error("Import tiket AHO gagal", { description: message });
+    }
+
     function handleImport() {
         if (!selectedFile) return;
+        const file = selectedFile;
 
         setProgress(0);
-        const progressInterval = setInterval(() => {
-            setProgress((prev) => {
-                if (prev >= 98) return 98;
-                const remaining = 98 - prev;
-                const step =
-                    prev < 80
-                        ? Math.max(2, remaining * 0.2)
-                        : Math.max(0.4, remaining * 0.08);
-                return Math.min(98, prev + step);
-            });
-        }, 250);
+        setPhase("reading");
 
         startTransition(async () => {
+            // ── Tahap 1: baca XLSX di browser (0–60%, progress nyata) ──
+            let parsed: ParseAhoXlsxResult;
             try {
-                const formData = new FormData();
-                formData.append("file", selectedFile);
+                const data = new Uint8Array(await file.arrayBuffer());
+                parsed = await parseAhoXlsx(data, {
+                    onProgress: (fraction) => setProgress(fraction * READ_PHASE_PROGRESS),
+                });
+            } catch (error) {
+                console.error("Failed to read AHO xlsx", error);
+                parsed = { ok: false, error: READ_FAILED_MESSAGE };
+            }
 
-                const importResult = await adminImportAhoTickets(formData);
+            if (!parsed.ok) {
+                showLocalFailure(parsed.error);
+                setProgress(100);
+                return;
+            }
+
+            // ── Tahap 2: kirim baris ringkas ke server (60–98%, estimasi) ──
+            setPhase("syncing");
+            const progressInterval = setInterval(() => {
+                setProgress((prev) => {
+                    if (prev >= 98) return 98;
+                    const remaining = 98 - prev;
+                    const step =
+                        prev < 80
+                            ? Math.max(2, remaining * 0.2)
+                            : Math.max(0.4, remaining * 0.08);
+                    return Math.min(98, prev + step);
+                });
+            }, 250);
+
+            try {
+                const importResult = await adminImportAhoTickets(parsed.payload);
                 setResult(importResult);
 
                 if (importResult.success && importResult.errors.length === 0) {
@@ -109,6 +150,7 @@ export function ImportAhoTicketsDialog() {
                     });
                 }
             } catch {
+                // Request ke server terputus (mis. timeout proxy) — server mungkin masih memproses.
                 setIsTimeout(true);
             } finally {
                 clearInterval(progressInterval);
@@ -211,7 +253,7 @@ export function ImportAhoTicketsDialog() {
                         <div className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">
-                                    Mensinkronisasi data...
+                                    {phase === "reading" ? "Membaca file..." : "Mensinkronisasi data..."}
                                 </span>
                                 <span className="font-medium">
                                     {Math.round(progress)}%
