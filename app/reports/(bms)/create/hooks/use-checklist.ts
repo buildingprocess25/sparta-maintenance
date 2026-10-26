@@ -12,7 +12,14 @@ import {
     type ChecklistItem,
     type ChecklistCondition,
 } from "@/lib/checklist-data";
+import { getSignageConfig } from "@/lib/signage";
 import type { StoreOption } from "../components/types";
+import {
+    applySignageSelection,
+    fillGroupAhoTicket,
+    propagateGroupAhoTicket,
+    type SignageChange,
+} from "./signage-checklist";
 
 export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initialStoreCode?: string) {
     const [checklist, setChecklist] = useState<Map<string, ChecklistItem>>(
@@ -116,7 +123,26 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                 }
 
                 next.set(itemId, updated);
-                return next;
+                return field === "ahoTicketNumber"
+                    ? propagateGroupAhoTicket(next, itemId)
+                    : next;
+            });
+        },
+        [],
+    );
+
+    const updateSignageItem = useCallback(
+        (itemId: string, itemName: string, change: SignageChange) => {
+            setChecklist((prev) => {
+                const existing = prev.get(itemId) || {
+                    id: itemId,
+                    name: itemName,
+                    condition: "" as ChecklistCondition,
+                    handler: "",
+                };
+                const next = new Map(prev);
+                next.set(itemId, applySignageSelection(existing, change));
+                return fillGroupAhoTicket(next, itemId);
             });
         },
         [],
@@ -154,6 +180,19 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                 const cat = activeCategories.find((c) =>
                     c.items.some((i) => i.id === item.id),
                 );
+
+                if (
+                    item.condition &&
+                    item.condition !== "tidak_ada" &&
+                    getSignageConfig(item.id) &&
+                    !item.signageMaterial
+                ) {
+                    toast.error(`Item "${item.name}" wajib pilih material`);
+                    if (cat && !openCategories.has(cat.id))
+                        toggleCategory(cat.id);
+                    scrollToItem(item.id);
+                    return false;
+                }
 
                 if (
                     item.condition === "baik" &&
@@ -218,6 +257,18 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                         toast.error(
                             `Item "${item.name}" di kategori "${cat.title}" wajib diisi`,
                         );
+                        if (!openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
+
+                    if (
+                        checkedItem.condition !== "tidak_ada" &&
+                        getSignageConfig(item.id) &&
+                        !checkedItem.signageMaterial
+                    ) {
+                        toast.error(`Item "${item.name}" wajib pilih material`);
                         if (!openCategories.has(cat.id))
                             toggleCategory(cat.id);
                         scrollToItem(item.id);
@@ -346,6 +397,13 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                         ahoTicketNumber: isBroken
                             ? `AHO-${Math.floor(100000 + Math.random() * 900000)}`
                             : undefined,
+                        ...(getSignageConfig(item.id)
+                            ? {
+                                  signageMaterial:
+                                      getSignageConfig(item.id)!.materials[0],
+                                  signageCondition: "baik" as const,
+                              }
+                            : {}),
                     });
                 }
             }
@@ -369,6 +427,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
         handleStoreChange,
         toggleCategory,
         updateChecklistItem,
+        updateSignageItem,
         validateStep1,
         devAutofill,
         hasPreventiveItemsInChecklist,
