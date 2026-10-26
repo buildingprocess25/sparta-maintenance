@@ -1,7 +1,7 @@
 import "server-only";
 
 import { Prisma } from "@prisma/client";
-import { PREVENTIVE_ITEM_IDS } from "@/lib/report-preventive";
+import { PREVENTIVE_REQUIRED_ITEM_IDS } from "@/lib/report-preventive";
 
 export function completePreventiveEvidenceSql(input: {
     statusColumn: Prisma.Sql;
@@ -18,8 +18,8 @@ export function completePreventiveEvidenceSql(input: {
                     ELSE '[]'::jsonb
                 END
             ) AS item
-            WHERE item->>'itemId' IN (${Prisma.join(PREVENTIVE_ITEM_IDS)})
+            WHERE item->>'itemId' IN (${Prisma.join([...PREVENTIVE_REQUIRED_ITEM_IDS])})
               AND item->>'preventiveCondition' IN ('OK', 'NOT_OK', 'TIDAK_ADA')
-        ) = ${PREVENTIVE_ITEM_IDS.length}
+        ) = ${PREVENTIVE_REQUIRED_ITEM_IDS.length}
     `;
 }

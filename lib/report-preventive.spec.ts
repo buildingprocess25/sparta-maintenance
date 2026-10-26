@@ -1,11 +1,28 @@
 import assert from "node:assert/strict";
 import {
     PREVENTIVE_ITEM_IDS,
+    PREVENTIVE_REQUIRED_ITEM_IDS,
     hasCompletePreventiveEvidence,
     isRecordedPreventiveReport,
 } from "./report-preventive";
 
-const completeItems = PREVENTIVE_ITEM_IDS.map((itemId, index) => ({
+assert.deepEqual(PREVENTIVE_REQUIRED_ITEM_IDS, [
+    "I1",
+    "I2",
+    "I3",
+    "I4",
+    "I5",
+    "I6",
+    "I7",
+    "I8",
+    "I9",
+    "I10",
+]);
+assert.equal(PREVENTIVE_ITEM_IDS.includes("I11"), true);
+assert.equal(PREVENTIVE_ITEM_IDS.includes("I13"), true);
+
+// Laporan lama (sebelum I11–I13 ada) tetap dihitung lengkap.
+const completeItems = PREVENTIVE_REQUIRED_ITEM_IDS.map((itemId, index) => ({
     itemId,
     preventiveCondition:
         index % 3 === 0 ? "OK" : index % 3 === 1 ? "NOT_OK" : "TIDAK_ADA",
@@ -17,7 +34,7 @@ assert.equal(
     hasCompletePreventiveEvidence([
         ...completeItems.slice(0, -1),
         {
-            itemId: PREVENTIVE_ITEM_IDS.at(-1),
+            itemId: PREVENTIVE_REQUIRED_ITEM_IDS.at(-1),
             preventiveCondition: null,
         },
         { itemId: "I999", preventiveCondition: "OK" },
