@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
+import { describeSignageCondition } from "@/lib/signage";
 import {
     CHECKLIST_PHOTO_COLS,
     flattenChecklistPhotoTiles,
@@ -1490,10 +1491,11 @@ function buildReportDocument(
                                         ...cStyle,
                                     },
                                 },
-                                conditionLabel(
-                                    item.condition,
-                                    item.preventiveCondition,
-                                ),
+                                describeSignageCondition(item)?.text ??
+                                    conditionLabel(
+                                        item.condition,
+                                        item.preventiveCondition,
+                                    ),
                             ),
                         ),
                         // Sub Row (only shown if there are issues AND handler/notes exist)
@@ -2716,6 +2718,8 @@ export type ChecklistItemWithPhotos = {
     photoUrls: string[]; // normalized before-photo URLs
     condition?: string | null;
     preventiveCondition?: string | null;
+    signageCondition?: string | null;
+    signageMaterial?: string | null;
 };
 
 // Dimensi halaman A4: 595pt lebar, 842pt tinggi.
@@ -2736,9 +2740,16 @@ function truncatePdfText(value: string, maxLength: number): string {
 }
 
 function renderDocPhotoTile(tile: ChecklistPhotoTile) {
-    const label = conditionLabel(tile.condition ?? null, tile.preventiveCondition ?? null);
-    const isRusak = label === "Rusak" || label === "Not OK";
-    const isBaik = label === "Baik" || label === "OK";
+    const signage = describeSignageCondition(tile);
+    const label =
+        signage?.label ??
+        conditionLabel(tile.condition ?? null, tile.preventiveCondition ?? null);
+    const isRusak = signage
+        ? signage.isDamaged
+        : label === "Rusak" || label === "Not OK";
+    const isBaik = signage
+        ? !signage.isDamaged
+        : label === "Baik" || label === "OK";
     const badgeTextStyle = isRusak
         ? docPhotoPageStyles.photoBadgeTextRusak
         : isBaik

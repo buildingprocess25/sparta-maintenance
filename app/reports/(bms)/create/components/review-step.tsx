@@ -10,6 +10,7 @@ import {
   type ChecklistItem,
   REPORT_CHECKLIST_ITEMS,
 } from "@/lib/checklist-data";
+import { describeSignageCondition } from "@/lib/signage";
 import { getAfterSubmitSteps } from "./review-step-copy";
 import type { StoreOption } from "./types";
 import type { BmsItemGroup } from "./types";
@@ -27,6 +28,14 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
   BMS: "BMS",
   Rekanan: "Rekanan",
 };
+
+function formatBrokenItemDetail(item: ChecklistItem): string {
+  const handler = CHECKLIST_ASSIGNEE_LABELS[item.handler || ""] ?? "";
+  const signage = describeSignageCondition(item);
+  return signage
+    ? `Handler: ${handler} · ${signage.text}`
+    : `Handler: ${handler}`;
+}
 
 const getBrandLogo = (brand: string | null | undefined, storeName: string) => {
   const lowerName = storeName.toLowerCase();
@@ -241,7 +250,7 @@ export function ReviewStep({
                         </p>
                       </div>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Handler: {CHECKLIST_ASSIGNEE_LABELS[item.handler || ""]}
+                        {formatBrokenItemDetail(item)}
                       </p>
                     </div>
                     <AlertTriangle className="size-5 shrink-0 text-destructive" />

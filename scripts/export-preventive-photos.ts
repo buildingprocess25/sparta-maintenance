@@ -10,6 +10,7 @@
 import fs from "fs";
 import { createRequire } from "node:module";
 import path from "path";
+import { describeSignageCondition } from "../lib/signage";
 import * as XLSX from "xlsx";
 import prisma from "../lib/prisma";
 import { checklistCategories } from "../lib/checklist-data";
@@ -182,7 +183,21 @@ function getConditionLabel(item: unknown): string | null {
     const record = item as {
         condition?: unknown;
         preventiveCondition?: unknown;
+        signageCondition?: unknown;
+        signageMaterial?: unknown;
     };
+
+    const signage = describeSignageCondition({
+        signageCondition:
+            typeof record.signageCondition === "string"
+                ? record.signageCondition
+                : null,
+        signageMaterial:
+            typeof record.signageMaterial === "string"
+                ? record.signageMaterial
+                : null,
+    });
+    if (signage) return signage.label;
 
     const value =
         typeof record.preventiveCondition === "string" &&

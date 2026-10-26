@@ -35,6 +35,7 @@ import { cn } from "@/lib/utils";
 import { UNEXPECTED_COST_REASON_TITLE } from "@/lib/unexpected-cost";
 import type { ReportData, Viewer, ActivityEntry } from "./_components/types";
 import type { RealisasiItemJson } from "@/types/report";
+import { describeSignageCondition } from "@/lib/signage";
 
 export type { ReportData };
 
@@ -474,6 +475,7 @@ function ChecklistPanel({
                   condition === "RUSAK" || preventive === "NOT_OK";
                 const photos =
                   ri?.images || (ri?.photoUrl ? [ri.photoUrl] : []);
+                const signageDescription = describeSignageCondition(ri ?? {});
 
                 return (
                   <div
@@ -496,6 +498,11 @@ function ChecklistPanel({
                           {ci.name}
                         </span>
                       </div>
+                      {signageDescription ? (
+                        <p className="text-xs text-muted-foreground mt-1 ml-[38px]">
+                          {signageDescription.text}
+                        </p>
+                      ) : null}
 
                       {(ri?.notes || ri?.ahoTicketNumber) && (
                         <div className="text-xs text-muted-foreground mt-1 ml-[38px] flex flex-col gap-1.5">

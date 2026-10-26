@@ -16,6 +16,7 @@ import {
     compareChecklistItemsById,
     resolveChecklistItemMeta,
 } from "@/lib/checklist-data";
+import { describeSignageCondition } from "@/lib/signage";
 
 export type ConditionTone = "good" | "bad" | "neutral" | "unknown";
 
@@ -495,6 +496,10 @@ function getConditionMeta(item: ReportItemJson): {
     label: string;
     tone: ConditionTone;
 } {
+    const signage = describeSignageCondition(item);
+    if (signage) {
+        return { label: signage.text, tone: signage.isDamaged ? "bad" : "good" };
+    }
     if (item.preventiveCondition === "OK") {
         return { label: "OK", tone: "good" };
     }

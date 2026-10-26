@@ -86,6 +86,8 @@ function extractChecklistPhotos(items: ReportItemJson[]): ChecklistItemWithPhoto
                 photoUrls,
                 condition: item.condition,
                 preventiveCondition: item.preventiveCondition,
+                signageCondition: item.signageCondition,
+                signageMaterial: item.signageMaterial,
             };
         })
         .filter((item) => item.photoUrls.length > 0)

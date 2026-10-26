@@ -10,6 +10,8 @@ export type ChecklistPhotoTile = {
     photoIndex: number;
     condition?: string | null;
     preventiveCondition?: string | null;
+    signageCondition?: string | null;
+    signageMaterial?: string | null;
 };
 
 export const CHECKLIST_PHOTO_COLS = 5;
@@ -30,6 +32,8 @@ export function flattenChecklistPhotoTiles(
             photoIndex: index + 1,
             condition: item.condition,
             preventiveCondition: item.preventiveCondition,
+            signageCondition: item.signageCondition,
+            signageMaterial: item.signageMaterial,
         })),
     );
 }
