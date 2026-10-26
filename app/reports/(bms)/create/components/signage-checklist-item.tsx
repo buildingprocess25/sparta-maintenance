@@ -1,5 +1,7 @@
 "use client";
 
+import { Check, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -24,6 +26,28 @@ const OPTION_CLASS =
   "relative flex h-10 cursor-pointer items-center justify-center gap-0 rounded-lg text-center text-sm leading-none font-semibold transition-colors";
 const SECTION_LABEL_CLASS =
   "text-xs font-bold tracking-[0.12em] text-muted-foreground uppercase";
+
+// "ACP/Alucopan" cukup panjang untuk kolom ketiga di layar HP; beri titik
+// patah setelah "/" agar tidak keluar dari kotak.
+function renderMaterialLabel(value: string) {
+  if (value === SIGNAGE_NOT_AVAILABLE) return "Tidak Ada";
+  const [head, ...rest] = value.split("/");
+  if (rest.length === 0) return value;
+  return (
+    <>
+      {head}/<wbr />
+      {rest.join("/")}
+    </>
+  );
+}
+
+function showLockedHandlerInfo(itemId: string) {
+  toast.info("Handler ditentukan otomatis", {
+    id: `signage-handler-${itemId}`,
+    description:
+      "Signage dengan kondisi Pudar atau Rusak selalu ditangani Rekanan dan tidak dapat diganti.",
+  });
+}
 
 export function SignageChecklistItem({
   item,
@@ -105,6 +129,7 @@ export function SignageChecklistItem({
                       htmlFor={`${item.id}-material-${value}`}
                       className={cn(
                         OPTION_CLASS,
+                        materialOptions.length > 2 && "text-xs",
                         isSelected
                           ? value === SIGNAGE_NOT_AVAILABLE
                             ? "bg-neutral-400 text-foreground shadow-sm dark:bg-neutral-700 dark:text-white"
@@ -117,8 +142,8 @@ export function SignageChecklistItem({
                         value={value}
                         className="pointer-events-none absolute opacity-0"
                       />
-                      <span className="leading-none">
-                        {value === SIGNAGE_NOT_AVAILABLE ? "Tidak Ada" : value}
+                      <span className="min-w-0 leading-tight break-words">
+                        {renderMaterialLabel(value)}
                       </span>
                     </Label>
                   );
@@ -139,7 +164,7 @@ export function SignageChecklistItem({
                       value: value as SignageCondition,
                     })
                   }
-                  className="grid grid-cols-2 gap-1 rounded-xl bg-muted"
+                  className="grid grid-cols-2 gap-2"
                 >
                   {SIGNAGE_CONDITIONS.map((value) => (
                     <Label
@@ -158,9 +183,9 @@ export function SignageChecklistItem({
                         OPTION_CLASS,
                         condition === value
                           ? isSignageDamaged(value)
-                            ? "bg-destructive text-white shadow-sm"
-                            : "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground",
+                            ? "bg-destructive text-white shadow-sm ring-1 ring-destructive"
+                            : "bg-primary text-primary-foreground shadow-sm ring-1 ring-primary"
+                          : "bg-muted/60 text-muted-foreground ring-1 ring-border hover:bg-muted",
                       )}
                     >
                       <RadioGroupItem
@@ -183,8 +208,42 @@ export function SignageChecklistItem({
               {isDamaged ? (
                 <div className="flex flex-col gap-2">
                   <p className={SECTION_LABEL_CLASS}>akan dihandle</p>
-                  <p className="flex h-10 items-center justify-center rounded-xl bg-muted text-sm font-semibold">
-                    Ditangani Rekanan
+                  <div
+                    role="radiogroup"
+                    aria-label="Handler"
+                    className="grid grid-cols-2 gap-1 rounded-xl bg-muted"
+                  >
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={false}
+                      aria-disabled="true"
+                      onClick={() => showLockedHandlerInfo(item.id)}
+                      className={cn(
+                        OPTION_CLASS,
+                        "gap-1.5 cursor-not-allowed text-muted-foreground/50",
+                      )}
+                    >
+                      <Lock className="size-3.5" />
+                      BMS
+                    </button>
+                    <button
+                      type="button"
+                      role="radio"
+                      aria-checked={true}
+                      onClick={() => showLockedHandlerInfo(item.id)}
+                      className={cn(
+                        OPTION_CLASS,
+                        "gap-1.5 bg-primary text-primary-foreground shadow-sm",
+                      )}
+                    >
+                      <Check className="size-4" />
+                      Rekanan
+                    </button>
+                  </div>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Lock className="size-3 shrink-0" />
+                    Ditetapkan otomatis oleh sistem untuk kondisi Pudar/Rusak.
                   </p>
                 </div>
               ) : null}
