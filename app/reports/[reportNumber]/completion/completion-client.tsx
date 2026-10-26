@@ -7,6 +7,9 @@ import { BmsMobileHeader } from "@/components/bms-mobile/bms-mobile-header";
 import { useBmsMobileHeaderVisibility } from "@/components/bms-mobile/use-bms-mobile-header-visibility";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
+import { PhotoGuideDialog } from "@/components/photo-guide/photo-guide-dialog";
+import { usePhotoGuideGate } from "@/components/photo-guide/use-photo-guide-gate";
+import { getPhotoGuideForItem } from "@/lib/photo-guides";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 import { Textarea } from "@/components/ui/textarea";
 import { BmsBalanceCard } from "@/components/bms-balance-card";
@@ -98,6 +101,8 @@ export function CompletionClient({
         ? report.totalReal 
         : report.totalEstimation),
   );
+
+  const photoGuideGate = usePhotoGuideGate();
 
   const onSubmitClick = () => {
     if (validationErrors.length > 0) {
@@ -250,10 +255,17 @@ export function CompletionClient({
                 state={state}
                 isComplete={isCompletionItemComplete(state)}
                 onOpenCamera={() =>
-                  setCameraTarget({
-                    target: "item",
-                    itemId: item.itemId,
-                  })
+                  photoGuideGate.requestCamera(item.itemId, () =>
+                    setCameraTarget({
+                      target: "item",
+                      itemId: item.itemId,
+                    }),
+                  )
+                }
+                onShowPhotoGuide={
+                  getPhotoGuideForItem(item.itemId)
+                    ? () => photoGuideGate.showGuide(item.itemId)
+                    : undefined
                 }
                 onChange={(patch) => updateItemState(item.itemId, patch)}
                 onRemoveAfterPhoto={(id) =>
@@ -362,6 +374,8 @@ export function CompletionClient({
           storeInfo: `Toko: ${report.storeName}`,
         }}
       />
+
+      <PhotoGuideDialog {...photoGuideGate.dialogProps} />
 
       {previewUrl && (
         <div

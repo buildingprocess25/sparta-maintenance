@@ -8,6 +8,8 @@ import { DraftDialog } from "./draft-dialog";
 import { submitReport, resubmitReport } from "@/app/reports/actions";
 import { Button } from "@/components/ui/button";
 import { CameraModal } from "@/components/ui/camera-modal";
+import { PhotoGuideDialog } from "@/components/photo-guide/photo-guide-dialog";
+import { usePhotoGuideGate } from "@/components/photo-guide/use-photo-guide-gate";
 import { LoadingOverlay } from "@/components/ui/loading-overlay";
 
 import type { CreateReportFormProps } from "./components/types";
@@ -113,6 +115,8 @@ export default function CreateReportForm({
     if (isEditMode || !selectedStoreCode) return;
     void flushServerDraft("store");
   }, [flushServerDraft, isEditMode, selectedStoreCode]);
+
+  const photoGuideGate = usePhotoGuideGate();
 
   const {
     isCameraOpen,
@@ -295,6 +299,8 @@ export default function CreateReportForm({
         }}
       />
 
+      <PhotoGuideDialog {...photoGuideGate.dialogProps} />
+
       {previewPhoto && (
         <div className="fixed inset-0 z-100 bg-black/90 flex items-center justify-center p-4" onClick={closePreview}>
           <div className="relative max-w-4xl max-h-[90vh] w-full" onClick={(e) => e.stopPropagation()}>
@@ -372,7 +378,12 @@ export default function CreateReportForm({
             onAhoTicketNumberChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "ahoTicketNumber", value)}
             onHandlerChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "handler", value)}
             onSignageChange={updateSignageItem}
-            onOpenCamera={handleOpenCamera}
+            onOpenCamera={(itemId) =>
+              photoGuideGate.requestCamera(itemId, () => {
+                void handleOpenCamera(itemId);
+              })
+            }
+            onShowPhotoGuide={photoGuideGate.showGuide}
             onPreviewPhoto={handlePreviewPhoto}
             onRemovePhoto={removePhoto}
             openCategories={openCategories}

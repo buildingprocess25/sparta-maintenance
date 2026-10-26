@@ -33,6 +33,7 @@ import {
 import { ChecklistPhotoField } from "./checklist-photo-field";
 import { ChecklistDamageFields } from "./checklist-damage-fields";
 import { SignageChecklistItem } from "./signage-checklist-item";
+import { PhotoGuideLink } from "@/components/photo-guide/photo-guide-link";
 
 interface ChecklistStepProps {
   storeCode?: string;
@@ -53,6 +54,7 @@ interface ChecklistStepProps {
     change: SignageChange,
   ) => void;
   onOpenCamera: (itemId: string) => void;
+  onShowPhotoGuide: (itemId: string) => void;
   onPreviewPhoto: (photo: File | string) => void;
   onRemovePhoto: (itemId: string) => void;
   openCategories: Set<string>;
@@ -82,6 +84,7 @@ export function ChecklistStep({
   onHandlerChange,
   onSignageChange,
   onOpenCamera,
+  onShowPhotoGuide,
   onPreviewPhoto,
   onRemovePhoto,
   openCategories,
@@ -342,6 +345,13 @@ export function ChecklistStep({
                                       <p className="text-sm text-muted-foreground">
                                         {item.desc}
                                       </p>
+                                    ) : null}
+                                    {item.photoGuide ? (
+                                      <PhotoGuideLink
+                                        onClick={() =>
+                                          onShowPhotoGuide(item.id)
+                                        }
+                                      />
                                     ) : null}
                                   </div>
 

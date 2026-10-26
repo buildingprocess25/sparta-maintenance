@@ -54,6 +54,7 @@ import {
   toRemotePhoto,
 } from "../completion-utils";
 import { PhotoStrip } from "./photo-strip";
+import { PhotoGuideLink } from "@/components/photo-guide/photo-guide-link";
 
 export function CompletionItemSection({
   item,
@@ -62,6 +63,7 @@ export function CompletionItemSection({
   isComplete,
   onChange,
   onOpenCamera,
+  onShowPhotoGuide,
   onRemoveAfterPhoto,
   onPreview,
 }: {
@@ -71,6 +73,7 @@ export function CompletionItemSection({
   isComplete: boolean;
   onChange: (patch: Partial<CompletionItemState>) => void;
   onOpenCamera: () => void;
+  onShowPhotoGuide?: () => void;
   onRemoveAfterPhoto: (id: string) => void;
   onPreview: (url: string) => void;
 }) {
@@ -196,6 +199,9 @@ export function CompletionItemSection({
               {state.afterPhotos.length > 0 ? "Tambah Foto" : "Kamera"}
             </Button>
           </div>
+          {onShowPhotoGuide ? (
+            <PhotoGuideLink onClick={onShowPhotoGuide} />
+          ) : null}
           <div className="mt-2">
             <PhotoStrip
               photos={state.afterPhotos}
