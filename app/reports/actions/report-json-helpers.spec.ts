@@ -133,4 +133,20 @@ assert.deepEqual(
     ],
 );
 
+assert.deepEqual(
+    buildItemsJson({
+        checklistItems: [
+            {
+                itemId: "I13",
+                itemName: "Kondisi Fisik Pole Sign",
+                categoryName: "I. Preventif Equipment Toko",
+                preventiveCondition: "TIDAK_ADA",
+                signageMaterial: "Acrylic",
+            },
+        ],
+        bmsEstimations: {},
+    }),
+    [{ itemId: "I13", preventiveCondition: "TIDAK_ADA" }],
+);
+
 console.log("report-json-helpers tests passed");

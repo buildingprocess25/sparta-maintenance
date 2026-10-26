@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { MaterialEstimationJson } from "@/types/report";
+import { getSignageConfig } from "@/lib/signage";
 import type { DraftData } from "./types";
 
 function cleanJsonValue(value: unknown): unknown {
@@ -44,6 +45,10 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
                 const isDamaged =
                     item.condition === "RUSAK" ||
                     item.preventiveCondition === "NOT_OK";
+                const hasSignageData =
+                    Boolean(getSignageConfig(item.itemId)) &&
+                    (item.preventiveCondition === "OK" ||
+                        item.preventiveCondition === "NOT_OK");
 
                 return {
                     itemId: item.itemId,
@@ -54,8 +59,12 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
                     photoKey: item.photoKey,
                     notes: isDamaged ? item.notes : undefined,
                     ahoTicketNumber: isDamaged ? item.ahoTicketNumber?.trim() : undefined,
-                    signageMaterial: item.signageMaterial,
-                    signageCondition: item.signageCondition,
+                    signageMaterial: hasSignageData
+                        ? item.signageMaterial
+                        : undefined,
+                    signageCondition: hasSignageData
+                        ? item.signageCondition
+                        : undefined,
                 };
             }),
     );

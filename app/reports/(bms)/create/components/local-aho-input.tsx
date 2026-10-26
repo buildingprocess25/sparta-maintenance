@@ -72,8 +72,8 @@ export function LocalAhoInput({
 
     const trimmedManualInput = manualInput.trim();
     const isManualTicketTaken =
-        selectedTickets.has(trimmedManualInput) &&
-        trimmedManualInput !== localValue;
+        selectedTickets.has(trimmedManualInput.toUpperCase()) &&
+        trimmedManualInput.toUpperCase() !== localValue.toUpperCase();
 
     const handleSelect = (val: string) => {
         setLocalValue(val);
@@ -85,7 +85,7 @@ export function LocalAhoInput({
     const handleManualSubmit = (e?: React.FormEvent) => {
         e?.preventDefault();
         if (trimmedManualInput && !isManualTicketTaken) {
-            handleSelect(trimmedManualInput);
+            handleSelect(trimmedManualInput.toUpperCase());
         }
     };
 
@@ -131,7 +131,8 @@ export function LocalAhoInput({
                     {options.length > 0 ? (
                         <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
                             {options.map((opt) => {
-                                const isSelected = selectedTickets.has(opt) && opt !== localValue;
+                                const isSelected = selectedTickets.has(opt.toUpperCase()) &&
+                                    opt.toUpperCase() !== localValue.toUpperCase();
                                 return (
                                     <div
                                         key={opt}

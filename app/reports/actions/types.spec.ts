@@ -160,4 +160,60 @@ assert.equal(
     true,
 );
 
+// Server tidak boleh memercayai klien untuk item signage.
+assert.equal(
+    isValid([
+        makeSignageItem({
+            preventiveCondition: undefined,
+            signageMaterial: undefined,
+            signageCondition: undefined,
+            condition: "RUSAK",
+            handler: "BMS",
+        }),
+    ]),
+    false,
+);
+assert.equal(
+    isValid([
+        makeSignageItem({
+            itemId: "I13",
+            preventiveCondition: "TIDAK_ADA",
+            signageMaterial: undefined,
+            signageCondition: "RUSAK",
+            handler: undefined,
+            notes: undefined,
+            ahoTicketNumber: undefined,
+        }),
+    ]),
+    false,
+);
+assert.equal(
+    isValid([
+        makeSignageItem({
+            preventiveCondition: "OK",
+            signageCondition: "KOTOR",
+            handler: "BMS",
+            notes: undefined,
+            ahoTicketNumber: undefined,
+        }),
+    ]),
+    false,
+);
+assert.equal(
+    draftAutosaveDataSchema.safeParse(
+        makeDraft([
+            makeSignageItem({
+                preventiveCondition: undefined,
+                signageMaterial: undefined,
+                signageCondition: undefined,
+                condition: "BAIK",
+                handler: undefined,
+                notes: undefined,
+                ahoTicketNumber: undefined,
+            }),
+        ]),
+    ).success,
+    true,
+);
+
 console.log("report action type tests passed");

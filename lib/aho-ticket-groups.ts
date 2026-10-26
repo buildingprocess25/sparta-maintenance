@@ -31,7 +31,7 @@ function getTicketOwner(itemId: string): string {
 }
 
 function normalizeTicket(ticket: string | null | undefined): string {
-    return ticket?.trim() ?? "";
+    return ticket?.trim().toUpperCase() ?? "";
 }
 
 /** Tiket yang tidak boleh dipilih oleh `itemId` karena dimiliki pemilik lain. */
@@ -60,7 +60,7 @@ export function getGroupAhoTicket(
     for (const holder of holders) {
         if (holder.itemId === excludeItemId) continue;
         if (getAhoTicketGroup(holder.itemId) !== group) continue;
-        const ticket = normalizeTicket(holder.ahoTicketNumber);
+        const ticket = holder.ahoTicketNumber?.trim();
         if (ticket) return ticket;
     }
     return undefined;

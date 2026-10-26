@@ -198,9 +198,36 @@ function buildDraftDataSchema(
                 });
             }
 
+            if (
+                signage &&
+                (item.signageMaterial || item.signageCondition) &&
+                item.preventiveCondition !== "OK" &&
+                item.preventiveCondition !== "NOT_OK"
+            ) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["signageCondition"],
+                    message: "Data signage hanya untuk kondisi OK/Not OK",
+                });
+            }
+
             if (!options.requireDamagedDetails) return;
 
             if (signage) {
+                if (item.condition) {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["condition"],
+                        message: `${item.itemName} wajib memakai kondisi preventif`,
+                    });
+                }
+                if (item.handler && item.handler !== "REKANAN") {
+                    ctx.addIssue({
+                        code: "custom",
+                        path: ["handler"],
+                        message: `${item.itemName} wajib ditangani Rekanan`,
+                    });
+                }
                 if (
                     item.preventiveCondition === "TIDAK_ADA" &&
                     !signage.allowNotAvailable

@@ -1,5 +1,4 @@
 // Data checklist berdasarkan FCKT BnM Menu Ceklist
-// Data checklist berdasarkan FCKT BnM Menu Ceklist
 export type ChecklistCondition = "baik" | "rusak" | "tidak_ada" | "";
 export type SignageCondition = "baik" | "kotor" | "pudar" | "rusak";
 export type AhoTicketGroup = "signage";

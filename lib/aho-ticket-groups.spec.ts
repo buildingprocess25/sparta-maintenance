@@ -66,4 +66,26 @@ assert.equal(
     null,
 );
 
+// Perbandingan tiket tidak peka huruf besar/kecil.
+assert.equal(
+    getLockedAhoTickets("A18", [{ itemId: "A22", ahoTicketNumber: "abc" }]).has(
+        "ABC",
+    ),
+    true,
+);
+assert.deepEqual(
+    findAhoTicketConflict([
+        { itemId: "A1", ahoTicketNumber: "x" },
+        { itemId: "A2", ahoTicketNumber: "X" },
+    ]),
+    { itemId: "A2", ticket: "X", reason: "used_by_other_item" },
+);
+assert.equal(
+    findAhoTicketConflict([
+        { itemId: "I11", ahoTicketNumber: "bcd" },
+        { itemId: "I12", ahoTicketNumber: "BCD" },
+    ]),
+    null,
+);
+
 console.log("aho ticket group tests passed");
