@@ -3,6 +3,7 @@
 export type ChecklistCondition = "baik" | "rusak" | "tidak_ada" | "";
 export type SignageCondition = "baik" | "kotor" | "pudar" | "rusak";
 export type AhoTicketGroup = "signage";
+export type PhotoGuideKey = "kwh" | "panel";
 
 export interface SignageConfig {
     materials: readonly string[];
@@ -34,6 +35,8 @@ export interface ChecklistCatalogItem {
     signage?: SignageConfig;
     /** Item dalam grup yang sama berbagi satu nomor tiket AHO. */
     ahoTicketGroup?: AhoTicketGroup;
+    /** Contoh foto benar yang wajib dilihat sebelum memfoto item ini. */
+    photoGuide?: PhotoGuideKey;
 }
 
 export interface ChecklistCategory {
@@ -65,11 +68,11 @@ export const checklistCategories: ChecklistCategory[] = [
             { id: "A15", name: "Folding Gate/Pintu Besi Lipat/Rolling Door" },
             { id: "A16", name: "Lantai Keramik Teras" },
             { id: "A17", name: "Dinding Teras" },
-            { id: "A18", name: "Panel Listrik" },
+            { id: "A18", name: "Panel Listrik", photoGuide: "panel" },
             { id: "A19", name: "Ohm Saklar/COS" },
             { id: "A20", name: "Stabilizer" },
             { id: "A21", name: "Saklar" },
-            { id: "A22", name: "Segel Kwh meter listrik / MCB PLN" },
+            { id: "A22", name: "Segel Kwh meter listrik / MCB PLN", photoGuide: "kwh" },
             { id: "A23", name: "Angkur Genset" },
             { id: "A24", name: "Stop Kontak Genset + Kabel" },
             { id: "A25", name: "Stop kontak Tenan" },
@@ -109,7 +112,7 @@ export const checklistCategories: ChecklistCategory[] = [
             { id: "C3", name: "Manhole dalam (plafon selasar)" },
             { id: "C4", name: "Manhole luar (dak toren air)" },
             { id: "C5", name: "Dinding Selasar" },
-            { id: "C6", name: "Panel Listrik" },
+            { id: "C6", name: "Panel Listrik", photoGuide: "panel" },
             { id: "C7", name: "Ohm Saklar/COS" },
             { id: "C8", name: "Stabilizer" },
             { id: "C9", name: "Saklar" },
@@ -152,7 +155,7 @@ export const checklistCategories: ChecklistCategory[] = [
             { id: "E4", name: "Exhaust Fan" },
             { id: "E5", name: "Dinding Gudang" },
             { id: "E6", name: "Partisi ruang kepala toko (T120)" },
-            { id: "E7", name: "Panel Listrik" },
+            { id: "E7", name: "Panel Listrik", photoGuide: "panel" },
             { id: "E8", name: "Ohm Saklar/COS" },
             { id: "E9", name: "Stabilizer" },
             { id: "E10", name: "Saklar" },
@@ -226,6 +229,7 @@ export const checklistCategories: ChecklistCategory[] = [
                 id: "I3",
                 name: "Panel Listrik",
                 desc: "Pembersihan Panel, Pengencangan baut MCB dan Perapihan Instalasi",
+                photoGuide: "panel",
             },
             {
                 id: "I4",
