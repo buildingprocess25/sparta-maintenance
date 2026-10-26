@@ -74,6 +74,8 @@ export default async function RevisiReportPage({
             images: item.images ?? [],
             notes: item.notes ?? null,
             ahoTicketNumber: item.ahoTicketNumber ?? null,
+            signageMaterial: item.signageMaterial ?? null,
+            signageCondition: item.signageCondition ?? null,
         })),
         estimations: estimations.map((est) => ({
             itemId: est.itemId,

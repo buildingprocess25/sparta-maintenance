@@ -231,6 +231,8 @@ function serializeDraft(draft: DraftRecord): SerializedDraft {
                 images: item.images ?? [],
                 notes: item.notes ?? null,
                 ahoTicketNumber: item.ahoTicketNumber ?? null,
+                signageMaterial: item.signageMaterial ?? null,
+                signageCondition: item.signageCondition ?? null,
             };
         }),
         estimations: estimations.map((est) => ({

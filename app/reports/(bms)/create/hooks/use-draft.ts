@@ -7,6 +7,7 @@ import {
     discardLocalDraftFiles,
 } from "@/app/reports/actions";
 import { useDebounce } from "@/lib/hooks/use-debounce";
+import { fromSignageJsonFields } from "@/lib/signage";
 import { resolvePhotoUrl } from "@/lib/storage/photo-url";
 import {
     checklistCategories,
@@ -304,6 +305,7 @@ export function useDraft({
                             photo: restoredFiles[i],
                             notes: item.notes || undefined,
                             ahoTicketNumber: item.ahoTicketNumber || undefined,
+                            ...fromSignageJsonFields(item),
                         });
                     });
 
@@ -387,6 +389,7 @@ export function useDraft({
                             notes: item.notes || undefined,
                             ahoTicketNumber:
                                 item.ahoTicketNumber || undefined,
+                            ...fromSignageJsonFields(item),
                         });
                     });
 

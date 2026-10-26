@@ -44,6 +44,8 @@ export type SerializedDraft = {
     images?: string[];
     notes?: string | null;
     ahoTicketNumber?: string | null;
+    signageMaterial?: string | null;
+    signageCondition?: string | null;
   }[];
   estimations: {
     itemId: string;

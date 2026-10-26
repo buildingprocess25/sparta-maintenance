@@ -54,4 +54,43 @@ assert.equal(
     undefined,
 );
 
+const signageChecklist = new Map<string, ChecklistItem>([
+    [
+        "I11",
+        {
+            id: "I11",
+            name: "Kondisi Fisik Shop Sign",
+            condition: "rusak",
+            signageMaterial: "Acrylic",
+            signageCondition: "pudar",
+            handler: "Rekanan",
+            notes: "Warna pudar",
+            ahoTicketNumber: "AHO-9",
+        },
+    ],
+    [
+        "I13",
+        {
+            id: "I13",
+            name: "Kondisi Fisik Pole Sign",
+            condition: "tidak_ada",
+            signageMaterial: "TIDAK_ADA",
+            signageCondition: "",
+        },
+    ],
+]);
+const signageResult = serializeChecklistItems(
+    signageChecklist,
+    checklistCategories,
+);
+const shopSign = signageResult.find((item) => item.itemId === "I11");
+assert.equal(shopSign?.preventiveCondition, "NOT_OK");
+assert.equal(shopSign?.handler, "REKANAN");
+assert.equal(shopSign?.signageMaterial, "Acrylic");
+assert.equal(shopSign?.signageCondition, "PUDAR");
+const poleSign = signageResult.find((item) => item.itemId === "I13");
+assert.equal(poleSign?.preventiveCondition, "TIDAK_ADA");
+assert.equal(poleSign?.signageMaterial, undefined);
+assert.equal(poleSign?.signageCondition, undefined);
+
 console.log("draft-data tests passed");

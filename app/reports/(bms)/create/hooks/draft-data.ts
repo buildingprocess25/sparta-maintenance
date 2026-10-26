@@ -1,3 +1,4 @@
+import { toSignageJsonFields } from "@/lib/signage";
 import type { DraftData } from "@/app/reports/actions";
 import type {
     ChecklistCategory,
@@ -64,6 +65,7 @@ export function serializeChecklistItems(
                     item.condition === "rusak"
                         ? item.ahoTicketNumber?.trim() || undefined
                         : undefined,
+                ...toSignageJsonFields(item),
             };
         });
 }
