@@ -341,6 +341,14 @@ export function ChecklistStep({
                                     <h4 className="text-base font-semibold">
                                       {item.name}
                                     </h4>
+                                    {item.standard ? (
+                                      <p className="text-xs text-muted-foreground">
+                                        <span className="font-medium">
+                                          Standar baik:
+                                        </span>{" "}
+                                        {item.standard}
+                                      </p>
+                                    ) : null}
                                     {item.desc ? (
                                       <p className="text-sm text-muted-foreground">
                                         {item.desc}
