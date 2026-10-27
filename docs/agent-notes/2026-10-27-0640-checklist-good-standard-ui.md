@@ -25,8 +25,10 @@ are unchanged.
 
 - `npx tsc --noEmit`: no errors outside `.next/`.
 - `npx eslint` on the file: clean, same as HEAD.
+- Browser check at 375px (local dev, BMS login): all 115 A–H cards show
+  "Standar baik: …", no category I card does; Panel Listrik order is name →
+  standard → "Lihat contoh foto" → condition buttons; buttons do not shift.
 
 ## Remaining Work and Risks
 
-- Browser check at 375px not done yet: the Browser pane session was logged
-  out. Needs a BMS login on the local dev server to confirm layout.
+None.
