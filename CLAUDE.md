@@ -244,6 +244,7 @@ Session is JWT-based, stored in httpOnly cookie, valid for 8 hours.
 - `CLEANUP_PENDING_EXPIRY_DAYS`: TTL for pending reports (default 14)
 - `MAINTENANCE_MODE`: Hard override for maintenance page
 - `REQUEST_LOG_ENABLED`: Enable structured request logging
+- `SIGNAGE_AHO_REQUIRED`: `"true"` makes the AHO ticket mandatory for damaged signage items I11–I13 (default false; server-read at runtime, restart to apply)
 
 ## Important Files
 

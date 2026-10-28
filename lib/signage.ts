@@ -122,3 +122,40 @@ export function describeSignageCondition(item: {
         isDamaged: isSignageDamaged(condition),
     };
 }
+
+export const SIGNAGE_ITEM_IDS: readonly string[] = REPORT_CHECKLIST_ITEMS.filter(
+    (item) => item.signage,
+).map((item) => item.id);
+
+const SIGNAGE_NOTE_PLACEHOLDERS: Partial<Record<SignageCondition, string>> = {
+    kotor: "Contoh: kusam kotor / kotor, lampu redup / ada lampu yang mati. Rekomendasi cleaning.",
+    pudar: "Contoh: rekomendasi rekondisi ke GS karena pudar / warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh.",
+    rusak: "Contoh: rekomendasi rekondisi ke GS karena retak / pecah / rapuh, warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh.",
+};
+
+/** Placeholder contoh catatan per kondisi signage (Baik tidak punya catatan). */
+export function getSignageNotePlaceholder(
+    condition: string | null | undefined,
+): string | undefined {
+    const normalized = normalizeSignageCondition(condition);
+    return normalized ? SIGNAGE_NOTE_PLACEHOLDERS[normalized] : undefined;
+}
+
+/** Catatan signage wajib untuk Kotor, Pudar, dan Rusak (Baik tanpa catatan). */
+export function isSignageNoteRequired(
+    condition: string | null | undefined,
+): boolean {
+    const normalized = normalizeSignageCondition(condition);
+    return normalized !== undefined && normalized !== "baik";
+}
+
+/**
+ * No Tiket AHO wajib untuk item rusak; untuk item signage hanya bila flag
+ * `SIGNAGE_AHO_REQUIRED` aktif.
+ */
+export function isAhoRequiredForItem(
+    itemId: string,
+    signageAhoRequired: boolean,
+): boolean {
+    return signageAhoRequired || !getSignageConfig(itemId);
+}

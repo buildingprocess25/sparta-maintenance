@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { REPORT_CHECKLIST_ITEMS } from "./checklist-data";
 import {
+    SIGNAGE_ITEM_IDS,
     SIGNAGE_NOT_AVAILABLE,
     describeSignageCondition,
     fromSignageJsonFields,
     getSignageConfig,
+    getSignageNotePlaceholder,
+    isAhoRequiredForItem,
     isSignageDamaged,
+    isSignageNoteRequired,
     toChecklistCondition,
     toSignageJsonFields,
 } from "./signage";
@@ -107,5 +111,35 @@ assert.deepEqual(describeSignageCondition({ signageCondition: "kotor" }), {
 });
 assert.equal(describeSignageCondition({}), null);
 assert.equal(describeSignageCondition({ signageCondition: "OK" }), null);
+
+assert.deepEqual(SIGNAGE_ITEM_IDS, ["I11", "I12", "I13"]);
+
+assert.equal(
+    getSignageNotePlaceholder("kotor"),
+    "Contoh: kusam kotor / kotor, lampu redup / ada lampu yang mati. Rekomendasi cleaning.",
+);
+assert.equal(
+    getSignageNotePlaceholder("PUDAR"),
+    "Contoh: rekomendasi rekondisi ke GS karena pudar / warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh.",
+);
+assert.equal(
+    getSignageNotePlaceholder("rusak"),
+    "Contoh: rekomendasi rekondisi ke GS karena retak / pecah / rapuh, warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh.",
+);
+assert.equal(getSignageNotePlaceholder("baik"), undefined);
+assert.equal(getSignageNotePlaceholder(""), undefined);
+assert.equal(getSignageNotePlaceholder(undefined), undefined);
+
+assert.equal(isSignageNoteRequired("kotor"), true);
+assert.equal(isSignageNoteRequired("PUDAR"), true);
+assert.equal(isSignageNoteRequired("rusak"), true);
+assert.equal(isSignageNoteRequired("baik"), false);
+assert.equal(isSignageNoteRequired(""), false);
+assert.equal(isSignageNoteRequired(undefined), false);
+
+assert.equal(isAhoRequiredForItem("A1", false), true);
+assert.equal(isAhoRequiredForItem("A1", true), true);
+assert.equal(isAhoRequiredForItem("I11", false), false);
+assert.equal(isAhoRequiredForItem("I13", true), true);
 
 console.log("signage tests passed");
