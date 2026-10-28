@@ -2,7 +2,10 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
-import { getLastCategoryIDate } from "@/app/reports/actions";
+import {
+    getLastCategoryIDate,
+    getLastSignageDate,
+} from "@/app/reports/actions";
 import {
     getNextJakartaQuarterStart,
     isSameJakartaQuarter,
@@ -12,7 +15,8 @@ import {
     type ChecklistItem,
     type ChecklistCondition,
 } from "@/lib/checklist-data";
-import { getSignageConfig } from "@/lib/signage";
+import { PREVENTIVE_REQUIRED_ITEM_IDS } from "@/lib/report-preventive";
+import { getSignageConfig, isAhoRequiredForItem } from "@/lib/signage";
 import type { StoreOption } from "../components/types";
 import {
     applySignageSelection,
@@ -20,8 +24,14 @@ import {
     propagateGroupAhoTicket,
     type SignageChange,
 } from "./signage-checklist";
+import { filterActiveCategories } from "./preventive-visibility";
 
-export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initialStoreCode?: string) {
+export function useChecklist(
+    stores: StoreOption[],
+    isEditMode?: boolean,
+    initialStoreCode?: string,
+    signageAhoRequired = false,
+) {
     const [checklist, setChecklist] = useState<Map<string, ChecklistItem>>(
         new Map(),
     );
@@ -31,30 +41,21 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
     const [selectedStoreCode, setSelectedStoreCode] = useState("");
     const [store, setStore] = useState("");
     const [isCategoryICoolingDown, setIsCategoryICoolingDown] = useState(false);
+    const [isSignageCoolingDown, setIsSignageCoolingDown] = useState(false);
     const [categoryIAvailableDate, setCategoryIAvailableDate] =
         useState<Date | null>(null);
 
-    const preventiveItemIds = new Set(
-        checklistCategories
-            .filter((cat) => cat.isPreventive)
-            .flatMap((cat) => cat.items.map((item) => item.id)),
+    // Item inti I1–I10 yang sudah ada di checklist (laporan yang sedang diedit).
+    const hasPreventiveItemsInChecklist = PREVENTIVE_REQUIRED_ITEM_IDS.some(
+        (itemId) => checklist.has(itemId),
     );
 
-    const hasPreventiveItemsInChecklist = Array.from(checklist.keys()).some(
-        (itemId) => preventiveItemIds.has(itemId),
-    );
-
-    // During cooldown, preventive category is hidden.
-    // In edit/revisi mode, only keep it visible if the loaded report already
-    // contains preventive items, so existing data can still be revised.
-    const activeCategories = checklistCategories.filter(
-        (cat) =>
-            !(
-                cat.isPreventive &&
-                isCategoryICoolingDown &&
-                (!isEditMode || !hasPreventiveItemsInChecklist)
-            ),
-    );
+    const activeCategories = filterActiveCategories(checklistCategories, {
+        coreCooling: isCategoryICoolingDown,
+        signageCooling: isSignageCoolingDown,
+        isEditMode: Boolean(isEditMode),
+        checklistItemIds: new Set(checklist.keys()),
+    });
 
     const handleStoreChange = useCallback(
         async (storeCode: string) => {
@@ -65,21 +66,25 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
             setStore(selectedStore.name);
 
             try {
-                const lastDate = await getLastCategoryIDate(selectedStore.code);
-                if (lastDate) {
-                    const lastSubmission = new Date(lastDate);
-                    const now = new Date();
-                    const cooling = isSameJakartaQuarter(lastSubmission, now);
-                    setIsCategoryICoolingDown(cooling);
-                    setCategoryIAvailableDate(
-                        cooling ? getNextJakartaQuarterStart(now) : null,
-                    );
-                } else {
-                    setIsCategoryICoolingDown(false);
-                    setCategoryIAvailableDate(null);
-                }
+                const [lastCoreDate, lastSignageDate] = await Promise.all([
+                    getLastCategoryIDate(selectedStore.code),
+                    getLastSignageDate(selectedStore.code),
+                ]);
+                const now = new Date();
+                const coreCooling =
+                    !!lastCoreDate &&
+                    isSameJakartaQuarter(new Date(lastCoreDate), now);
+                setIsCategoryICoolingDown(coreCooling);
+                setIsSignageCoolingDown(
+                    !!lastSignageDate &&
+                        isSameJakartaQuarter(new Date(lastSignageDate), now),
+                );
+                setCategoryIAvailableDate(
+                    coreCooling ? getNextJakartaQuarterStart(now) : null,
+                );
             } catch {
                 setIsCategoryICoolingDown(false);
+                setIsSignageCoolingDown(false);
                 setCategoryIAvailableDate(null);
             }
         },
@@ -163,6 +168,24 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
         };
 
         if (isCategoryICoolingDown) {
+            // Signage I.11–I.13 yang tampil wajib diisi sekali per kuartal.
+            for (const cat of activeCategories) {
+                for (const catalogItem of cat.items) {
+                    if (
+                        !catalogItem.signage ||
+                        checklist.get(catalogItem.id)?.condition
+                    ) {
+                        continue;
+                    }
+                    toast.error(
+                        `Item "${catalogItem.name}" di kategori "${cat.title}" wajib diisi`,
+                    );
+                    if (!openCategories.has(cat.id)) toggleCategory(cat.id);
+                    scrollToItem(catalogItem.id);
+                    return false;
+                }
+            }
+
             // Cooldown aktif: item A–H tidak wajib diisi semua.
             // Namun minimal satu item harus terisi.
             const filledItems = [...checklist.values()].filter(
@@ -208,6 +231,20 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                     return false;
                 }
 
+                if (
+                    item.condition === "baik" &&
+                    item.signageCondition === "kotor" &&
+                    !item.notes?.trim()
+                ) {
+                    toast.error(
+                        `Item "${item.name}" kondisi Kotor wajib isi catatan`,
+                    );
+                    if (cat && !openCategories.has(cat.id))
+                        toggleCategory(cat.id);
+                    scrollToItem(item.id);
+                    return false;
+                }
+
                 if (item.condition === "rusak") {
                     if (!item.notes?.trim()) {
                         toast.error(
@@ -218,7 +255,10 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                         scrollToItem(item.id);
                         return false;
                     }
-                    if (!item.ahoTicketNumber?.trim()) {
+                    if (
+                        isAhoRequiredForItem(item.id, signageAhoRequired) &&
+                        !item.ahoTicketNumber?.trim()
+                    ) {
                         toast.error(
                             `Item "${item.name}" rusak wajib isi nomor tiket AHO`,
                         );
@@ -289,6 +329,20 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                         return false;
                     }
 
+                    if (
+                        checkedItem.condition === "baik" &&
+                        checkedItem.signageCondition === "kotor" &&
+                        !checkedItem.notes?.trim()
+                    ) {
+                        toast.error(
+                            `Item "${item.name}" kondisi Kotor wajib isi catatan`,
+                        );
+                        if (!openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
+
                     if (checkedItem.condition === "rusak") {
                         if (!checkedItem.notes?.trim()) {
                             toast.error(
@@ -299,7 +353,10 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
                             scrollToItem(item.id);
                             return false;
                         }
-                        if (!checkedItem.ahoTicketNumber?.trim()) {
+                        if (
+                            isAhoRequiredForItem(item.id, signageAhoRequired) &&
+                            !checkedItem.ahoTicketNumber?.trim()
+                        ) {
                             toast.error(
                                 `Item "${item.name}" rusak wajib isi nomor tiket AHO`,
                             );
@@ -336,6 +393,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
     }, [
         store,
         isCategoryICoolingDown,
+        signageAhoRequired,
         activeCategories,
         checklist,
         openCategories,
@@ -422,6 +480,7 @@ export function useChecklist(stores: StoreOption[], isEditMode?: boolean, initia
         store,
         setStore,
         isCategoryICoolingDown,
+        isSignageCoolingDown,
         categoryIAvailableDate,
         activeCategories,
         handleStoreChange,
