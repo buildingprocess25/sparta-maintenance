@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import {
+    buildDraftDataSchema,
     createResubmitDataSchema,
     draftAutosaveDataSchema,
     draftDataSchema,
 } from "./types";
+import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
 
 
 function makeItem(overrides: Record<string, unknown> = {}) {
@@ -95,7 +97,7 @@ assert.equal(
             preventiveCondition: "OK",
             signageCondition: "KOTOR",
             handler: undefined,
-            notes: undefined,
+            notes: "Kusam, perlu cleaning",
             ahoTicketNumber: undefined,
         }),
     ]),
@@ -193,7 +195,7 @@ assert.equal(
             preventiveCondition: "OK",
             signageCondition: "KOTOR",
             handler: "BMS",
-            notes: undefined,
+            notes: "Kusam, perlu cleaning",
             ahoTicketNumber: undefined,
         }),
     ]),
@@ -213,6 +215,66 @@ assert.equal(
             }),
         ]),
     ).success,
+    true,
+);
+
+// R3: catatan wajib untuk Kotor (selain Pudar/Rusak); Baik tanpa catatan.
+const kotorBase = {
+    preventiveCondition: "OK",
+    signageCondition: "KOTOR",
+    handler: undefined,
+    ahoTicketNumber: undefined,
+};
+assert.equal(isValid([makeSignageItem({ ...kotorBase, notes: undefined })]), false);
+assert.equal(isValid([makeSignageItem({ ...kotorBase, notes: "   " })]), false);
+assert.equal(
+    isValid([makeSignageItem({ ...kotorBase, notes: "Kusam, perlu cleaning" })]),
+    true,
+);
+assert.equal(
+    isValid([
+        makeSignageItem({
+            ...kotorBase,
+            signageCondition: "BAIK",
+            notes: undefined,
+        }),
+    ]),
+    true,
+);
+// Autosave draft tidak mewajibkan catatan.
+assert.equal(
+    draftAutosaveDataSchema.safeParse(
+        makeDraft([makeSignageItem({ ...kotorBase, notes: undefined })]),
+    ).success,
+    true,
+);
+
+// R1: AHO signage mengikuti flag (default env kosong = tidak wajib).
+const signageNoTicket = makeSignageItem({ ahoTicketNumber: undefined });
+assert.equal(isValid([signageNoTicket]), true);
+assert.equal(
+    isValid([makeItem({ ahoTicketNumber: undefined })]),
+    false,
+    "item non-signage rusak tetap wajib AHO",
+);
+assert.equal(
+    isValid([makeSignageItem({ notes: undefined, ahoTicketNumber: undefined })]),
+    false,
+    "catatan Pudar/Rusak tetap wajib",
+);
+const allItemIds = new Set(REPORT_CHECKLIST_ITEMS.map((item) => item.id));
+const strictSchema = buildDraftDataSchema(allItemIds, {
+    requireDamagedDetails: true,
+    signageAhoRequired: true,
+});
+assert.equal(strictSchema.safeParse(makeDraft([signageNoTicket])).success, false);
+assert.equal(strictSchema.safeParse(makeDraft([makeSignageItem()])).success, true);
+// Tiket grup tetap dicek walau opsional: satu terisi, satu kosong = valid.
+assert.equal(
+    isValid([
+        makeSignageItem(),
+        makeSignageItem({ itemId: "I12", ahoTicketNumber: undefined }),
+    ]),
     true,
 );
 

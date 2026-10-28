@@ -17,10 +17,13 @@ import { getJakartaMonthWindow, getJakartaYearWindow } from "@/lib/time";
 import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
 import {
     getSignageConfig,
+    isAhoRequiredForItem,
     isSignageDamaged,
+    isSignageNoteRequired,
     type SignageConditionJson,
 } from "@/lib/signage";
 import { findAhoTicketConflict } from "@/lib/aho-ticket-groups";
+import { isSignageAhoRequired } from "@/lib/signage-aho-flag";
 
 export type BmsEstimationData = {
     itemName: string;
@@ -146,12 +149,17 @@ const bmsEstimationSchema = z
         totalPrice: z.number().min(0),
     });
 
-function buildDraftDataSchema(
+export function buildDraftDataSchema(
     allowedItemIds: ReadonlySet<string>,
-    options: { requireDamagedDetails: boolean } = {
+    options: {
+        requireDamagedDetails: boolean;
+        signageAhoRequired?: boolean;
+    } = {
         requireDamagedDetails: true,
     },
 ) {
+    const signageAhoRequired =
+        options.signageAhoRequired ?? isSignageAhoRequired();
     const checklistItemSchema = z
         .object({
             itemId: z
@@ -274,14 +282,25 @@ function buildDraftDataSchema(
                 item.condition === "RUSAK" ||
                 item.preventiveCondition === "NOT_OK";
 
-            if (isDamaged && !item.notes?.trim()) {
+            // Signage Kotor juga wajib catatan (berisi rekomendasi cleaning).
+            const isKotorSignage =
+                Boolean(signage) &&
+                item.preventiveCondition === "OK" &&
+                isSignageNoteRequired(item.signageCondition);
+            if ((isDamaged || isKotorSignage) && !item.notes?.trim()) {
                 ctx.addIssue({
                     code: "custom",
                     path: ["notes"],
-                    message: "Catatan wajib diisi untuk item rusak",
+                    message: isDamaged
+                        ? "Catatan wajib diisi untuk item rusak"
+                        : `Catatan ${item.itemName} kondisi Kotor wajib diisi`,
                 });
             }
-            if (isDamaged && !item.ahoTicketNumber?.trim()) {
+            if (
+                isDamaged &&
+                isAhoRequiredForItem(item.itemId, signageAhoRequired) &&
+                !item.ahoTicketNumber?.trim()
+            ) {
                 ctx.addIssue({
                     code: "custom",
                     path: ["ahoTicketNumber"],

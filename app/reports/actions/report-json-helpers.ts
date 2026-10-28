@@ -57,7 +57,13 @@ export function buildItemsJson(data: DraftData): Prisma.InputJsonValue {
                     handler: isDamaged ? item.handler : undefined,
                     photoUrl: item.photoUrl,
                     photoKey: item.photoKey,
-                    notes: isDamaged ? item.notes : undefined,
+                    // Catatan disimpan untuk item rusak dan untuk signage Kotor
+                    // (wajib, berisi rekomendasi cleaning).
+                    notes:
+                        isDamaged ||
+                        (hasSignageData && item.signageCondition === "KOTOR")
+                            ? item.notes
+                            : undefined,
                     ahoTicketNumber: isDamaged ? item.ahoTicketNumber?.trim() : undefined,
                     signageMaterial: hasSignageData
                         ? item.signageMaterial

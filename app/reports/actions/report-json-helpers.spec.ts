@@ -149,4 +149,37 @@ assert.deepEqual(
     [{ itemId: "I13", preventiveCondition: "TIDAK_ADA" }],
 );
 
+// R3: catatan Kotor disimpan, catatan Baik tidak.
+const signageNoteItems = buildItemsJson({
+    checklistItems: [
+        {
+            itemId: "I11",
+            itemName: "Kondisi Fisik Shop Sign",
+            categoryName: "I. Preventif Equipment Toko",
+            preventiveCondition: "OK",
+            signageMaterial: "Embos",
+            signageCondition: "KOTOR",
+            notes: "Kusam, rekomendasi cleaning",
+        },
+        {
+            itemId: "I12",
+            itemName: "Kondisi Fisik List Plank",
+            categoryName: "I. Preventif Equipment Toko",
+            preventiveCondition: "OK",
+            signageMaterial: "Embos",
+            signageCondition: "BAIK",
+            notes: "catatan lama",
+        },
+    ],
+    bmsEstimations: {},
+}) as unknown as Array<{ itemId: string; notes?: string }>;
+assert.equal(
+    signageNoteItems.find((item) => item.itemId === "I11")?.notes,
+    "Kusam, rekomendasi cleaning",
+);
+assert.equal(
+    signageNoteItems.find((item) => item.itemId === "I12")?.notes,
+    undefined,
+);
+
 console.log("report-json-helpers tests passed");

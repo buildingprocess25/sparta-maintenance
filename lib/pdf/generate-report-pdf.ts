@@ -1499,7 +1499,8 @@ function buildReportDocument(
                             ),
                         ),
                         // Sub Row (only shown if there are issues AND handler/notes exist)
-                        hasIssue && hasNotes
+                        (hasIssue || item.signageCondition === "KOTOR") &&
+                        hasNotes
                             ? React.createElement(
                                   View,
                                   { style: ckSubRow },
