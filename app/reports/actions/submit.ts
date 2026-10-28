@@ -17,7 +17,8 @@ import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import type { ReportItemJson } from "@/types/report";
 import { checklistCategories } from "@/lib/checklist-data";
-import { getLastCategoryIDate } from "./queries";
+import { getLastCategoryIDate, getLastSignageDate } from "./queries";
+import { resolvePreventiveSubmission } from "@/lib/preventive-cooldown";
 import { validateEstimationLimit, getBmsActivePeriod, hasBmsRepairItems, createNewBmsPeriod, getBmsActiveReportBlocker } from "@/lib/balance";
 import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
 import { isSameJakartaQuarter } from "@/lib/time";
@@ -108,34 +109,39 @@ export async function submitReport(data: DraftData) {
     }
 
     // ── Server-side cooldown validation (defense-in-depth) ────────────────
-    // Determine if Category I is currently in cooldown for this store.
-    let isCoolingDown = false;
+    // I1–I10 dan I11–I13 punya masa jeda kuartal masing-masing.
+    const cooldown = { core: false, signage: false };
     if (data.storeCode) {
-        const lastDateStr = await getLastCategoryIDate(data.storeCode);
-        if (lastDateStr) {
-            isCoolingDown = isSameJakartaQuarter(
-                new Date(lastDateStr),
-                new Date(),
-            );
-        }
+        const [lastCoreDate, lastSignageDate] = await Promise.all([
+            getLastCategoryIDate(data.storeCode),
+            getLastSignageDate(data.storeCode),
+        ]);
+        const now = new Date();
+        cooldown.core =
+            !!lastCoreDate && isSameJakartaQuarter(new Date(lastCoreDate), now);
+        cooldown.signage =
+            !!lastSignageDate &&
+            isSameJakartaQuarter(new Date(lastSignageDate), now);
     }
 
-    // All Category I item IDs (preventive)
-    const preventiveItemIds = new Set(
-        checklistCategories
-            .filter((cat) => cat.isPreventive)
-            .flatMap((cat) => cat.items.map((i) => i.id)),
+    // Buang item kelompok yang masa jeda (cegah bypass UI) dan wajibkan
+    // kelompok yang tampil.
+    const preventiveSubmission = resolvePreventiveSubmission(
+        data.checklistItems,
+        cooldown,
     );
+    if (preventiveSubmission.error) {
+        return preventiveSubmission.error;
+    }
+    const checklistItems = preventiveSubmission.items;
 
-    // Strip Category I items from payload if cooldown is active.
-    // This prevents a client from bypassing the UI restriction.
-    let checklistItems = data.checklistItems;
-    if (isCoolingDown) {
-        checklistItems = checklistItems.filter(
-            (item) => !preventiveItemIds.has(item.itemId),
-        );
-    } else {
+    if (!cooldown.core) {
         // Quarterly visit: verify all non-preventive items are present.
+        const preventiveItemIds = new Set(
+            checklistCategories
+                .filter((cat) => cat.isPreventive)
+                .flatMap((cat) => cat.items.map((i) => i.id)),
+        );
         const submittedIds = new Set(
             checklistItems
                 .filter((item) => !preventiveItemIds.has(item.itemId))
@@ -153,27 +159,6 @@ export async function submitReport(data: DraftData) {
                 error: "Data laporan tidak lengkap",
                 detail: `Item checklist ${missingItem} tidak ditemukan dalam laporan`,
             };
-        }
-
-        // Laporan preventif triwulan wajib membawa seluruh item kategori I,
-        // termasuk item yang tidak ikut syarat "lengkap" historis (I11–I13).
-        const hasPreventiveItems = checklistItems.some((item) =>
-            preventiveItemIds.has(item.itemId),
-        );
-        if (hasPreventiveItems) {
-            const missingPreventiveItem = [...preventiveItemIds].find(
-                (id) =>
-                    !checklistItems.some(
-                        (item) =>
-                            item.itemId === id && item.preventiveCondition,
-                    ),
-            );
-            if (missingPreventiveItem) {
-                return {
-                    error: "Data laporan tidak lengkap",
-                    detail: `Item preventif ${missingPreventiveItem} wajib diisi`,
-                };
-            }
         }
     }
 

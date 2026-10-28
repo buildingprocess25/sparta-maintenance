@@ -7,7 +7,10 @@ import type { ReportFilters, DateRangeFilter } from "./types";
 import { resolveDateRange } from "./types";
 import { Prisma } from "@prisma/client";
 import { isRecordedPreventiveReport } from "@/lib/report-preventive";
-import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
+import {
+    completePreventiveEvidenceSql,
+    completeSignageEvidenceSql,
+} from "@/lib/report-preventive-sql";
 import { ARCHIVED_PREVENTIVE_STATUS } from "@/lib/report-status";
 import {
     getJakartaCurrentQuarter,
@@ -248,6 +251,24 @@ export async function getLastCategoryIDate(storeCode: string) {
         FROM "Report" r
         WHERE r."storeCode" = ${storeCode}
           AND ${completePreventiveEvidenceSql({
+              statusColumn: Prisma.sql`r."status"`,
+              itemsColumn: Prisma.sql`r."items"`,
+          })}
+        ORDER BY r."createdAt" DESC
+        LIMIT 1
+    `;
+
+    return report?.createdAt.toISOString() ?? null;
+}
+
+export async function getLastSignageDate(storeCode: string) {
+    await requireAuth();
+
+    const [report] = await prisma.$queryRaw<Array<{ createdAt: Date }>>`
+        SELECT r."createdAt"
+        FROM "Report" r
+        WHERE r."storeCode" = ${storeCode}
+          AND ${completeSignageEvidenceSql({
               statusColumn: Prisma.sql`r."status"`,
               itemsColumn: Prisma.sql`r."items"`,
           })}

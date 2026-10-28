@@ -26,5 +26,6 @@ export {
     getAssignedStoresForBms,
     getMyReports,
     getLastCategoryIDate,
+    getLastSignageDate,
     getApprovalReports,
 } from "./actions/queries";
