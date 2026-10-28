@@ -16,6 +16,11 @@ import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
 import { StoreBrandFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import { isRecordedPreventiveReport } from "@/lib/report-preventive";
+import { SIGNAGE_ITEM_IDS } from "@/lib/signage";
+import {
+    toSignageExportRows,
+    type SignageExportRow,
+} from "@/lib/signage-export";
 
 // ─── Filter Types ─────────────────────────────────────────────────────────────
 
@@ -313,6 +318,81 @@ export async function fetchReportExportRows(
                 filter: JSON.stringify(filter),
             },
             "Failed to fetch report export rows",
+            error,
+        );
+        throw error;
+    }
+}
+
+// ─── Query: Sheet 5 — Rekap Signage (I11–I13) ────────────────────────────────
+
+export async function fetchSignageExportRows(
+    filter: ExportFilter,
+): Promise<SignageExportRow[]> {
+    try {
+        // Status PJUM tidak berlaku untuk rekap signage.
+        const where = buildReportWhere({ ...filter, pjumStatus: undefined });
+        (where.AND as Prisma.ReportWhereInput[]).push({
+            OR: SIGNAGE_ITEM_IDS.map((itemId) => ({
+                items: { array_contains: [{ itemId }] },
+            })),
+        });
+
+        const CHUNK_SIZE = 5000;
+        let skip = 0;
+        const rows: SignageExportRow[] = [];
+
+        while (true) {
+            const chunk = await prisma.report.findMany({
+                where,
+                orderBy: [{ createdAt: "asc" }, { reportNumber: "asc" }],
+                skip,
+                take: CHUNK_SIZE,
+                select: {
+                    reportNumber: true,
+                    createdAt: true,
+                    branchName: true,
+                    storeCode: true,
+                    store: { select: { brand: true } },
+                    storeName: true,
+                    createdByNIK: true,
+                    createdBy: { select: { name: true } },
+                    status: true,
+                    items: true,
+                },
+            });
+
+            if (chunk.length === 0) {
+                break;
+            }
+
+            for (const r of chunk) {
+                rows.push(
+                    ...toSignageExportRows({
+                        reportNumber: r.reportNumber,
+                        createdAt: r.createdAt,
+                        branchName: r.branchName,
+                        brand: r.store?.brand ?? null,
+                        storeCode: r.storeCode,
+                        storeName: r.storeName,
+                        bmsNIK: r.createdByNIK,
+                        bmsName: r.createdBy.name,
+                        status: r.status,
+                        items: r.items,
+                    }),
+                );
+            }
+            skip += CHUNK_SIZE;
+        }
+
+        return rows;
+    } catch (error) {
+        logger.error(
+            {
+                operation: "fetchSignageExportRows",
+                filter: JSON.stringify(filter),
+            },
+            "Failed to fetch signage export rows",
             error,
         );
         throw error;

@@ -4,7 +4,8 @@ export type ExportSheet =
     | "reports"
     | "materials"
     | "pjum"
-    | "preventive";
+    | "preventive"
+    | "signage";
 
 type LimitedExportScopeResult =
     | { ok: true; branchNames: string[] }
@@ -22,7 +23,8 @@ export function resolveLimitedExportScope(input: {
     const isAllowedSheet =
         requestedSheet === "reports" ||
         requestedSheet === "pjum" ||
-        requestedSheet === "preventive";
+        requestedSheet === "preventive" ||
+        requestedSheet === "signage";
 
     if (!isAllowedSheet) {
         return { ok: false, status: 403, error: "Forbidden" };

@@ -141,6 +141,42 @@ for (const unsafeBranch of ["all", "HEAD OFFICE"]) {
     );
 }
 
+for (const role of ["BMC", "BNM_MANAGER"] as const) {
+    assert.deepEqual(
+        resolveLimitedExportScope({
+            role,
+            requestedSheets: ["signage"],
+            selectedBranches: [],
+            assignedBranches,
+        }),
+        { ok: true, branchNames: ["BRANCH A", "BRANCH B"] },
+    );
+}
+
+assert.deepEqual(
+    resolveLimitedExportScope({
+        role: "BMC",
+        requestedSheets: ["signage"],
+        selectedBranches: ["FOREIGN BRANCH"],
+        assignedBranches,
+    }),
+    {
+        ok: false,
+        status: 403,
+        error: "Anda tidak punya akses ke cabang ini",
+    },
+);
+
+assert.deepEqual(
+    resolveLimitedExportScope({
+        role: "BNM_MANAGER",
+        requestedSheets: ["reports", "signage"],
+        selectedBranches: [],
+        assignedBranches,
+    }),
+    { ok: false, status: 403, error: "Forbidden" },
+);
+
 console.log("limited export access assertions passed");
 
 import { resolveBranchFilterScope } from "./access";

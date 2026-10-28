@@ -7,6 +7,7 @@ import {
   fetchMaterialExportRows,
   fetchPjumExportRows,
   fetchPreventiveExportRows,
+  fetchSignageExportRows,
   type ExportFilter,
 } from "@/app/admin/export/queries";
 import { toExcelJakartaSerial } from "@/lib/time";
@@ -273,6 +274,53 @@ function buildPreventiveSheet(
   return buildSheet(data, headers.length);
 }
 
+function buildSignageSheet(
+  rows: Awaited<ReturnType<typeof fetchSignageExportRows>>,
+): XLSX.WorkSheet {
+  const headers = [
+    "No. Laporan",
+    "Tanggal Laporan",
+    "Kuartal",
+    "Branch",
+    "Brand",
+    "Kode Toko",
+    "Nama Toko",
+    "NIK BMS",
+    "Nama BMS",
+    "Status Laporan",
+    "Kode Item",
+    "Nama Item",
+    "Material",
+    "Kondisi",
+    "Catatan",
+    "No. Tiket AHO",
+  ];
+
+  const data: XLSX.CellObject[][] = [
+    headers.map((h) => textCell(h)),
+    ...rows.map((r) => [
+      textCell(r.reportNumber),
+      dateCell(r.createdAt),
+      textCell(r.quarter),
+      textCell(r.branchName),
+      textCell(getStoreBrandExportLabel(r.brand)),
+      textCell(r.storeCode),
+      textCell(r.storeName),
+      textCell(r.bmsNIK),
+      textCell(r.bmsName),
+      textCell(getReportStatusLabel(r.status)),
+      textCell(r.itemId),
+      textCell(r.itemName),
+      textCell(r.material),
+      textCell(r.condition),
+      textCell(r.notes),
+      textCell(r.ahoTicketNumber),
+    ]),
+  ];
+
+  return buildSheet(data, headers.length);
+}
+
 /**
  * Konversi array-of-arrays ke WorkSheet dan set auto column width.
  */
@@ -343,7 +391,7 @@ export async function POST(request: NextRequest) {
   // ─ Parse & validate body ─────────────────────────────────────────────────
   let body: {
     filter?: ExportFilter;
-    sheets?: ("reports" | "materials" | "pjum" | "preventive")[];
+    sheets?: ("reports" | "materials" | "pjum" | "preventive" | "signage")[];
     splitFiles?: boolean;
     fileName?: string;
   };
@@ -399,7 +447,7 @@ export async function POST(request: NextRequest) {
   // ─ Fetch data ────────────────────────────────────────────────────────────
   try {
     const branchResolutionMode = user.role === "ADMIN" ? "admin-hierarchy" : "exact";
-    const [reportRows, materialRows, pjumRows, preventiveRows] =
+    const [reportRows, materialRows, pjumRows, preventiveRows, signageRows] =
       await Promise.all([
         requestedSheets.includes("reports")
           ? fetchReportExportRows(filter)
@@ -412,6 +460,9 @@ export async function POST(request: NextRequest) {
           : Promise.resolve([]),
         requestedSheets.includes("preventive")
           ? fetchPreventiveExportRows(filter, branchResolutionMode)
+          : Promise.resolve([]),
+        requestedSheets.includes("signage")
+          ? fetchSignageExportRows(filter)
           : Promise.resolve([]),
       ]);
 
@@ -489,6 +540,23 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      if (requestedSheets.includes("signage") && signageRows.length > 0) {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(
+          wb,
+          buildSignageSheet(signageRows),
+          "Rekap Signage",
+        );
+        const buf = XLSX.write(wb, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
+        files.push({
+          name: `${baseFileName}-signage.xlsx`,
+          data: Buffer.from(buf).toString("base64"),
+        });
+      }
+
       const durationMs = Math.round(performance.now() - start);
       logger.info(
         {
@@ -531,6 +599,13 @@ export async function POST(request: NextRequest) {
         "Rekap Preventif",
       );
     }
+    if (requestedSheets.includes("signage")) {
+      XLSX.utils.book_append_sheet(
+        wb,
+        buildSignageSheet(signageRows),
+        "Rekap Signage",
+      );
+    }
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
 
@@ -545,7 +620,8 @@ export async function POST(request: NextRequest) {
           reportRows.length +
           materialRows.length +
           pjumRows.length +
-          preventiveRows.length,
+          preventiveRows.length +
+          signageRows.length,
       },
       "Export XLSX (combined) completed",
     );
