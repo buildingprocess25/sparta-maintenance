@@ -37,6 +37,13 @@ const STATUS_OPTIONS = [
     ...REPORT_STATUS_OPTIONS,
 ];
 
+type ExportDataType = "reports" | "signage";
+
+const DATA_TYPE_OPTIONS: { value: ExportDataType; label: string }[] = [
+    { value: "reports", label: "Rekap Laporan" },
+    { value: "signage", label: "Kondisi Signage (I.11–I.13)" },
+];
+
 export function ExportReportsDialog({
     branches,
     showBranchFilter = true,
@@ -50,6 +57,8 @@ export function ExportReportsDialog({
     const [isLoading, setIsLoading] = useState(false);
 
     // Filters for export (independent of table filters)
+    const [dataType, setDataType] = useState<ExportDataType>("reports");
+    const isSignage = dataType === "signage";
     const [bmsQuery, setBmsQuery] = useState("");
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [status, setStatus] = useState("all");
@@ -74,8 +83,10 @@ export function ExportReportsDialog({
                                 ? undefined
                                 : selectedBranches,
                         status: status === "all" ? undefined : status,
-                        pjumStatus: 
-                            status === "COMPLETED" && pjumStatus !== "ALL"
+                        pjumStatus:
+                            !isSignage &&
+                            status === "COMPLETED" &&
+                            pjumStatus !== "ALL"
                                 ? pjumStatus
                                 : undefined,
                         brand:
@@ -85,7 +96,7 @@ export function ExportReportsDialog({
                         fromDate: fromDate || undefined,
                         toDate: toDate || undefined,
                     },
-                    sheets: ["reports"], // Only export reports sheet
+                    sheets: [dataType],
                 }),
             });
 
@@ -98,7 +109,10 @@ export function ExportReportsDialog({
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `Rekap_Laporan_Maintenance_${format(new Date(), "yyyyMMdd")}.xlsx`;
+            const filePrefix = isSignage
+                ? "Rekap_Signage"
+                : "Rekap_Laporan_Maintenance";
+            a.download = `${filePrefix}_${format(new Date(), "yyyyMMdd")}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
@@ -135,6 +149,32 @@ export function ExportReportsDialog({
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid gap-4 ">
+                    <div className="grid gap-2">
+                        <Label>Jenis Data</Label>
+                        <Select
+                            value={dataType}
+                            onValueChange={(val) => {
+                                setDataType(val as ExportDataType);
+                                if (val === "signage") {
+                                    setPjumStatus("ALL");
+                                }
+                            }}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Rekap Laporan" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {DATA_TYPE_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                        key={opt.value}
+                                        value={opt.value}
+                                    >
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
                     {showBranchFilter ? (
                         <div className="grid gap-2">
                             <Label>Cabang</Label>
@@ -242,7 +282,7 @@ export function ExportReportsDialog({
                         <Select 
                             value={pjumStatus} 
                             onValueChange={setPjumStatus}
-                            disabled={status !== "COMPLETED"}
+                            disabled={isSignage || status !== "COMPLETED"}
                         >
                             <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Semua PJUM" />
@@ -253,11 +293,15 @@ export function ExportReportsDialog({
                                 <SelectItem value="BELUM">Belum PJUM</SelectItem>
                             </SelectContent>
                         </Select>
-                        {status !== "COMPLETED" && (
+                        {isSignage ? (
+                            <p className="text-[0.8rem] text-muted-foreground">
+                                Tidak berlaku untuk data signage.
+                            </p>
+                        ) : status !== "COMPLETED" ? (
                             <p className="text-[0.8rem] text-muted-foreground">
                                 Pilih status "Selesai" untuk mengaktifkan filter ini.
                             </p>
-                        )}
+                        ) : null}
                     </div>
                     <div className="grid gap-2">
                         <Label>Nama / NIK BMS</Label>
