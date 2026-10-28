@@ -17,7 +17,7 @@
 - Env flag: `SIGNAGE_AHO_REQUIRED`; nilai `"true"` (case-insensitive, di-trim) = wajib; selain itu/kosong = **tidak wajib**. Env server biasa, BUKAN `NEXT_PUBLIC_`.
 - Item non-signage yang rusak tetap wajib No Tiket AHO.
 - Aturan tiket grup signage (auto-fill, satu tiket per grup, terkunci dari item non-signage) tetap berlaku untuk tiket yang diisi.
-- Catatan Pudar/Rusak tetap wajib; Kotor opsional; Baik tanpa catatan. Handler Pudar/Rusak tetap REKANAN.
+- Catatan signage **wajib** untuk Kotor, Pudar, dan Rusak; Baik tanpa catatan. Handler Pudar/Rusak tetap REKANAN.
 - Placeholder catatan (verbatim):
   - Kotor: `Contoh: kusam kotor / kotor, lampu redup / ada lampu yang mati. Rekomendasi cleaning.`
   - Pudar: `Contoh: rekomendasi rekondisi ke GS karena pudar / warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh.`
@@ -64,6 +64,7 @@
   - `isSignageAhoRequired(env?: Record<string, string | undefined>): boolean` (default `process.env`)
   - `SIGNAGE_ITEM_IDS: readonly string[]` (= `["I11","I12","I13"]`, turunan katalog)
   - `getSignageNotePlaceholder(condition: string | null | undefined): string | undefined`
+  - `isSignageNoteRequired(condition: string | null | undefined): boolean` (true untuk Kotor/Pudar/Rusak, case-insensitive)
   - `isAhoRequiredForItem(itemId: string, signageAhoRequired: boolean): boolean`
 
 - [ ] **Step 1: Tulis test yang gagal**
@@ -84,7 +85,7 @@ assert.equal(isSignageAhoRequired({ SIGNAGE_AHO_REQUIRED: " TRUE " }), true);
 console.log("signage aho flag tests passed");
 ```
 
-Di `lib/signage.spec.ts`, tambahkan ke import dari `"./signage"`: `SIGNAGE_ITEM_IDS`, `getSignageNotePlaceholder`, `isAhoRequiredForItem`. Lalu sisipkan sebelum `console.log("signage tests passed");`:
+Di `lib/signage.spec.ts`, tambahkan ke import dari `"./signage"`: `SIGNAGE_ITEM_IDS`, `getSignageNotePlaceholder`, `isSignageNoteRequired`, `isAhoRequiredForItem`. Lalu sisipkan sebelum `console.log("signage tests passed");`:
 
 ```ts
 assert.deepEqual(SIGNAGE_ITEM_IDS, ["I11", "I12", "I13"]);
@@ -104,6 +105,13 @@ assert.equal(
 assert.equal(getSignageNotePlaceholder("baik"), undefined);
 assert.equal(getSignageNotePlaceholder(""), undefined);
 assert.equal(getSignageNotePlaceholder(undefined), undefined);
+
+assert.equal(isSignageNoteRequired("kotor"), true);
+assert.equal(isSignageNoteRequired("PUDAR"), true);
+assert.equal(isSignageNoteRequired("rusak"), true);
+assert.equal(isSignageNoteRequired("baik"), false);
+assert.equal(isSignageNoteRequired(""), false);
+assert.equal(isSignageNoteRequired(undefined), false);
 
 assert.equal(isAhoRequiredForItem("A1", false), true);
 assert.equal(isAhoRequiredForItem("A1", true), true);
@@ -152,6 +160,14 @@ export function getSignageNotePlaceholder(
 ): string | undefined {
     const normalized = normalizeSignageCondition(condition);
     return normalized ? SIGNAGE_NOTE_PLACEHOLDERS[normalized] : undefined;
+}
+
+/** Catatan signage wajib untuk Kotor, Pudar, dan Rusak (Baik tanpa catatan). */
+export function isSignageNoteRequired(
+    condition: string | null | undefined,
+): boolean {
+    const normalized = normalizeSignageCondition(condition);
+    return normalized !== undefined && normalized !== "baik";
 }
 
 /**
@@ -207,7 +223,7 @@ git commit -m "feat(checklist): add signage AHO flag and note placeholders"
 - Modify: `lib/pdf/generate-report-pdf.ts`
 
 **Interfaces:**
-- Consumes: `isSignageAhoRequired()` (Task 1), `isAhoRequiredForItem()` (Task 1).
+- Consumes: `isSignageAhoRequired()` (Task 1), `isAhoRequiredForItem()` (Task 1), `isSignageNoteRequired()` (Task 1).
 - Produces: `buildDraftDataSchema` menjadi **export**, opsi `{ requireDamagedDetails: boolean; signageAhoRequired?: boolean }` (default `signageAhoRequired` = `isSignageAhoRequired()`).
 
 - [ ] **Step 1: Tulis test yang gagal**
@@ -224,9 +240,45 @@ import {
 import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
 ```
 
-Sisipkan sebelum `console.log("report action type tests passed");`:
+Ubah dua assertion lama yang memakai signage KOTOR tanpa catatan (R3: catatan Kotor kini wajib):
+
+1. Assertion `OK + KOTOR` yang saat ini berisi `notes: undefined` dan mengharapkan `true` — ganti `notes: undefined,` menjadi `notes: "Kusam, perlu cleaning",` (tetap mengharapkan `true`).
+2. Assertion `OK + KOTOR + handler: "BMS"` yang mengharapkan `false` — ganti `notes: undefined,` menjadi `notes: "Kusam, perlu cleaning",` agar test tetap hanya menguji aturan handler.
+
+Lalu sisipkan sebelum `console.log("report action type tests passed");`:
 
 ```ts
+// R3: catatan wajib untuk Kotor (selain Pudar/Rusak); Baik tanpa catatan.
+const kotorBase = {
+    preventiveCondition: "OK",
+    signageCondition: "KOTOR",
+    handler: undefined,
+    ahoTicketNumber: undefined,
+};
+assert.equal(isValid([makeSignageItem({ ...kotorBase, notes: undefined })]), false);
+assert.equal(isValid([makeSignageItem({ ...kotorBase, notes: "   " })]), false);
+assert.equal(
+    isValid([makeSignageItem({ ...kotorBase, notes: "Kusam, perlu cleaning" })]),
+    true,
+);
+assert.equal(
+    isValid([
+        makeSignageItem({
+            ...kotorBase,
+            signageCondition: "BAIK",
+            notes: undefined,
+        }),
+    ]),
+    true,
+);
+// Autosave draft tidak mewajibkan catatan.
+assert.equal(
+    draftAutosaveDataSchema.safeParse(
+        makeDraft([makeSignageItem({ ...kotorBase, notes: undefined })]),
+    ).success,
+    true,
+);
+
 // R1: AHO signage mengikuti flag (default env kosong = tidak wajib).
 const signageNoTicket = makeSignageItem({ ahoTicketNumber: undefined });
 assert.equal(isValid([signageNoTicket]), true);
@@ -298,14 +350,14 @@ assert.equal(
 
 - [ ] **Step 2: Jalankan test, pastikan gagal**
 
-Run: `npx tsx app/reports/actions/types.spec.ts` → FAIL (`buildDraftDataSchema` bukan export / signage tanpa tiket ditolak).
+Run: `npx tsx app/reports/actions/types.spec.ts` → FAIL (`buildDraftDataSchema` bukan export / signage tanpa tiket ditolak / Kotor tanpa catatan diterima).
 Run: `npx tsx app/reports/actions/report-json-helpers.spec.ts` → FAIL (catatan Kotor hilang).
 
 - [ ] **Step 3: Implementasi zod**
 
 Di `app/reports/actions/types.ts`:
 
-1. Tambahkan `isAhoRequiredForItem` ke import yang sudah ada dari `"@/lib/signage"`, dan tambahkan import baru:
+1. Tambahkan `isAhoRequiredForItem` dan `isSignageNoteRequired` ke import yang sudah ada dari `"@/lib/signage"`, dan tambahkan import baru:
 
 ```ts
 import { isSignageAhoRequired } from "@/lib/signage-aho-flag";
@@ -329,7 +381,40 @@ export function buildDraftDataSchema(
 
 (baris berikutnya — `const checklistItemSchema = z` — tetap.)
 
-3. Ganti blok pengecekan tiket di superRefine item:
+3. Ganti blok pengecekan catatan di superRefine item:
+
+```ts
+            if (isDamaged && !item.notes?.trim()) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["notes"],
+                    message: "Catatan wajib diisi untuk item rusak",
+                });
+            }
+```
+
+menjadi:
+
+```ts
+            // Signage Kotor juga wajib catatan (berisi rekomendasi cleaning).
+            const isKotorSignage =
+                Boolean(signage) &&
+                item.preventiveCondition === "OK" &&
+                isSignageNoteRequired(item.signageCondition);
+            if ((isDamaged || isKotorSignage) && !item.notes?.trim()) {
+                ctx.addIssue({
+                    code: "custom",
+                    path: ["notes"],
+                    message: isDamaged
+                        ? "Catatan wajib diisi untuk item rusak"
+                        : `Catatan ${item.itemName} kondisi Kotor wajib diisi`,
+                });
+            }
+```
+
+(`signage` adalah `getSignageConfig(item.itemId)` yang sudah dideklarasikan di awal superRefine item.)
+
+4. Ganti blok pengecekan tiket di superRefine item:
 
 ```ts
             if (isDamaged && !item.ahoTicketNumber?.trim()) {
@@ -357,7 +442,7 @@ menjadi:
 
 ```ts
                     // Catatan disimpan untuk item rusak dan untuk signage Kotor
-                    // (opsional, berisi rekomendasi cleaning).
+                    // (wajib, berisi rekomendasi cleaning).
                     notes:
                         isDamaged ||
                         (hasSignageData && item.signageCondition === "KOTOR")
@@ -976,9 +1061,47 @@ export function useChecklist(
                         ) {
 ```
 
-5h. Pada dependency array `validateStep1`, tambahkan `signageAhoRequired,` setelah `isCategoryICoolingDown,`.
+5h. Catatan signage Kotor wajib (kondisi form-nya `"baik"`, jadi tidak tertangkap cek `"rusak"`). Di kedua cabang, sisipkan tepat **setelah** blok cek foto kondisi Baik (`item.condition === "baik" && !item.photo && !item.photoUrl` di cabang masa jeda; `checkedItem.condition === "baik" && ...` di cabang triwulan):
 
-5i. Pada objek return, tambahkan `isSignageCoolingDown,` setelah `isCategoryICoolingDown,`.
+- Cabang masa jeda:
+
+```ts
+                if (
+                    item.condition === "baik" &&
+                    item.signageCondition === "kotor" &&
+                    !item.notes?.trim()
+                ) {
+                    toast.error(
+                        `Item "${item.name}" kondisi Kotor wajib isi catatan`,
+                    );
+                    if (cat && !openCategories.has(cat.id))
+                        toggleCategory(cat.id);
+                    scrollToItem(item.id);
+                    return false;
+                }
+```
+
+- Cabang triwulan:
+
+```ts
+                    if (
+                        checkedItem.condition === "baik" &&
+                        checkedItem.signageCondition === "kotor" &&
+                        !checkedItem.notes?.trim()
+                    ) {
+                        toast.error(
+                            `Item "${item.name}" kondisi Kotor wajib isi catatan`,
+                        );
+                        if (!openCategories.has(cat.id))
+                            toggleCategory(cat.id);
+                        scrollToItem(item.id);
+                        return false;
+                    }
+```
+
+5i. Pada dependency array `validateStep1`, tambahkan `signageAhoRequired,` setelah `isCategoryICoolingDown,`.
+
+5j. Pada objek return, tambahkan `isSignageCoolingDown,` setelah `isCategoryICoolingDown,`.
 
 - [ ] **Step 6: Verifikasi**
 
@@ -1262,7 +1385,7 @@ menjadi:
                     itemId={item.id}
                     itemName={item.name}
                     notes={itemData?.notes}
-                    required={isDamaged}
+                    required
                     alwaysOpen
                     placeholder={getSignageNotePlaceholder(condition)}
                     onNotesChange={onNotesChange}
@@ -1355,8 +1478,9 @@ Run: `npx tsc --noEmit && npx eslint "app/reports/(bms)/create" "app/reports/(bm
 Expected: tsc bersih di luar `.next/`. ESLint: tidak ada error baru; error lama yang boleh ada hanya `react-hooks/set-state-in-effect` di `use-checklist.ts` (~effect initialStoreCode), `local-aho-input.tsx`, dan `store-step.tsx`, plus warning unused import lama.
 
 Browser (dicatat pending, dikerjakan controller/user):
-- Kotor: kolom Catatan "(opsional)" langsung tampil dengan placeholder Kotor; Baik: tanpa catatan.
+- Kotor: kolom Catatan wajib (`*`) langsung tampil dengan placeholder Kotor; tanpa kolom AHO. Baik: tanpa catatan.
 - Pudar/Rusak: Catatan wajib dengan placeholder masing-masing; No Tiket AHO tampil dengan label "(opsional)" saat env kosong.
+- Kotor tanpa catatan → "Lanjutkan" menampilkan toast "kondisi Kotor wajib isi catatan".
 - Toko yang sudah preventif kuartal ini: kategori I hanya berisi I.11–I.13 dan info Mode Perbaikan menyebut signage.
 
 - [ ] **Step 7: Commit**

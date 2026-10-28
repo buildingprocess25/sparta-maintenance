@@ -386,8 +386,8 @@ kuartal berjalan (zona Jakarta):
 
 ### R3 — Contoh catatan signage
 
-- Kotor: kolom Catatan **opsional** tampil. Pudar/Rusak: Catatan wajib (tetap).
-  Baik: tanpa Catatan.
+- Kotor, Pudar, Rusak: kolom Catatan tampil dan **wajib** (revisi user: Kotor
+  juga wajib). Baik: tanpa Catatan.
 - Textarea catatan signage langsung tampil (tanpa tombol "+ Tambah Catatan")
   dengan placeholder per kondisi:
   - Kotor: "Contoh: kusam kotor / kotor, lampu redup / ada lampu yang mati. Rekomendasi cleaning."
