@@ -17,6 +17,7 @@ import { BmsMobilePage } from "@/components/bms-mobile/bms-mobile-page";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import CreateReportForm from "./create-form";
+import { isSignageAhoRequired } from "@/lib/signage-aho-flag";
 
 export default async function CreateReportPage({ searchParams }: { searchParams: Promise<{ restore?: string; storeCode?: string; draft?: string; }> }) {
   const user = await requireRole("BMS");
@@ -84,6 +85,7 @@ export default async function CreateReportPage({ searchParams }: { searchParams:
       forceServerDraftRestore={forceServerDraftRestore}
       initialStoreCode={storeCode}
       balanceInfo={balanceInfo}
+      signageAhoRequired={isSignageAhoRequired()}
     />
   );
 }

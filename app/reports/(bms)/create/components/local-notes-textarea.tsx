@@ -14,14 +14,20 @@ export function LocalNotesTextarea({
     initialValue,
     onCommit,
     required = false,
+    placeholder,
+    alwaysOpen = false,
 }: {
     initialValue: string;
     onCommit: (value: string) => void;
     required?: boolean;
+    /** Ganti placeholder bawaan (mis. contoh catatan signage). */
+    placeholder?: string;
+    /** Tampilkan textarea langsung, tanpa tombol "Tambah Catatan". */
+    alwaysOpen?: boolean;
 }) {
     const [localValue, setLocalValue] = useState(initialValue);
     const [prevInitial, setPrevInitial] = useState(initialValue);
-    const [isEditing, setIsEditing] = useState(!!initialValue);
+    const [isEditing, setIsEditing] = useState(alwaysOpen || !!initialValue);
 
     // Sync initialValue jika berubah dari luar (misal dari draft)
     if (initialValue !== prevInitial) {
@@ -49,18 +55,19 @@ export function LocalNotesTextarea({
         <Textarea
             aria-required={required}
             placeholder={
-                required ? "Tambahkan catatan wajib..." : "Tambahkan catatan..."
+                placeholder ??
+                (required ? "Tambahkan catatan wajib..." : "Tambahkan catatan...")
             }
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             onBlur={() => {
                 onCommit(localValue);
-                if (!required && !localValue.trim()) {
+                if (!alwaysOpen && !required && !localValue.trim()) {
                     setIsEditing(false);
                 }
             }}
             className="resize-none"
-            rows={2}
+            rows={alwaysOpen ? 3 : 2}
         />
     );
 }

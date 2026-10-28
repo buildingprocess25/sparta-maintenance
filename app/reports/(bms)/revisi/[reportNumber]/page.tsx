@@ -4,6 +4,7 @@ import { getAssignedStoresForBms } from "@/app/reports/actions";
 import prisma from "@/lib/prisma";
 import type { ReportItemJson, MaterialEstimationJson } from "@/types/report";
 import CreateReportForm from "@/app/reports/(bms)/create/create-form";
+import { isSignageAhoRequired } from "@/lib/signage-aho-flag";
 import { formatJakartaDateTime } from "@/lib/time";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
 import { loadMaterialNames } from "@/lib/material-master.server";
@@ -100,6 +101,7 @@ export default async function RevisiReportPage({
             }}
             existingDraft={serializedReport}
             editMode={{ reportNumber: report.reportNumber }}
+            signageAhoRequired={isSignageAhoRequired()}
         />
     );
 }

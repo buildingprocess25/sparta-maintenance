@@ -16,11 +16,15 @@ import {
   SIGNAGE_CONDITIONS,
   SIGNAGE_CONDITION_LABELS,
   SIGNAGE_NOT_AVAILABLE,
+  getSignageNotePlaceholder,
   isSignageDamaged,
 } from "@/lib/signage";
 import type { SignageChange } from "../hooks/signage-checklist";
 import { ChecklistPhotoField } from "./checklist-photo-field";
-import { ChecklistDamageFields } from "./checklist-damage-fields";
+import {
+  ChecklistAhoField,
+  ChecklistNotesField,
+} from "./checklist-damage-fields";
 
 const OPTION_CLASS =
   "relative flex h-10 cursor-pointer items-center justify-center gap-0 rounded-lg text-center text-sm leading-none font-semibold transition-colors";
@@ -54,6 +58,7 @@ export function SignageChecklistItem({
   itemData,
   storeCode,
   lockedAhoTickets,
+  signageAhoRequired,
   onSignageChange,
   onNotesChange,
   onAhoTicketNumberChange,
@@ -65,6 +70,8 @@ export function SignageChecklistItem({
   itemData?: ChecklistItem;
   storeCode?: string;
   lockedAhoTickets: Set<string>;
+  /** Flag env SIGNAGE_AHO_REQUIRED: No Tiket AHO wajib untuk Pudar/Rusak. */
+  signageAhoRequired: boolean;
   onSignageChange: (
     itemId: string,
     itemName: string,
@@ -257,17 +264,29 @@ export function SignageChecklistItem({
                 onRemovePhoto={onRemovePhoto}
               />
 
-              {isDamaged ? (
-                <ChecklistDamageFields
-                  itemId={item.id}
-                  itemName={item.name}
-                  storeCode={storeCode}
-                  notes={itemData?.notes}
-                  ahoTicketNumber={itemData?.ahoTicketNumber}
-                  lockedAhoTickets={lockedAhoTickets}
-                  onNotesChange={onNotesChange}
-                  onAhoTicketNumberChange={onAhoTicketNumberChange}
-                />
+              {isDamaged || condition === "kotor" ? (
+                <div className="flex flex-col gap-2">
+                  <ChecklistNotesField
+                    itemId={item.id}
+                    itemName={item.name}
+                    notes={itemData?.notes}
+                    required
+                    alwaysOpen
+                    placeholder={getSignageNotePlaceholder(condition)}
+                    onNotesChange={onNotesChange}
+                  />
+                  {isDamaged ? (
+                    <ChecklistAhoField
+                      itemId={item.id}
+                      itemName={item.name}
+                      storeCode={storeCode}
+                      ahoTicketNumber={itemData?.ahoTicketNumber}
+                      lockedAhoTickets={lockedAhoTickets}
+                      required={signageAhoRequired}
+                      onAhoTicketNumberChange={onAhoTicketNumberChange}
+                    />
+                  ) : null}
+                </div>
               ) : null}
             </div>
           ) : null}

@@ -79,4 +79,6 @@ export interface CreateReportFormProps {
   /** Store code to be auto-selected on mount. */
   initialStoreCode?: string;
   balanceInfo?: BmsBalanceInfo;
+  /** Flag env SIGNAGE_AHO_REQUIRED (dibaca server). */
+  signageAhoRequired?: boolean;
 }

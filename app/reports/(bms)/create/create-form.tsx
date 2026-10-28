@@ -49,6 +49,7 @@ export default function CreateReportForm({
   forceServerDraftRestore,
   initialStoreCode,
   balanceInfo,
+  signageAhoRequired = false,
 }: CreateReportFormProps) {
   const router = useRouter();
   // Default step for create is "store", but for edit it might be "checklist" directly if we already have a store.
@@ -75,7 +76,7 @@ export default function CreateReportForm({
     openCategories,
     devAutofill,
     hasPreventiveItemsInChecklist,
-  } = useChecklist(stores, isEditMode, initialStoreCode);
+  } = useChecklist(stores, isEditMode, initialStoreCode, signageAhoRequired);
 
   const { bmsItems, setBmsItems, grandTotalBms, buildBmsMapFromChecklist, addBmsEntryWithDetails, updateBmsEntryWithDetails, removeBmsEntry, validateStep2, devAutofillBms } = useBmsEstimation();
 
@@ -371,6 +372,7 @@ export default function CreateReportForm({
           <ChecklistStep
             storeCode={selectedStoreCode}
             isRepairOnlyMode={isRepairOnlyMode}
+            signageAhoRequired={signageAhoRequired}
             activeCategories={activeCategories}
             checklist={checklist}
             onConditionChange={(itemId, itemName, value) => updateChecklistItem(itemId, itemName, "condition", value)}

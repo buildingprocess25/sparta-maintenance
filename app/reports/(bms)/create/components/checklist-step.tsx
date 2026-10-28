@@ -38,6 +38,7 @@ import { PhotoGuideLink } from "@/components/photo-guide/photo-guide-link";
 interface ChecklistStepProps {
   storeCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
+  signageAhoRequired: boolean;
   activeCategories: ChecklistCategory[];
   checklist: Map<string, ChecklistItem>;
   onConditionChange: (
@@ -76,6 +77,7 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
 export function ChecklistStep({
   storeCode,
   isRepairOnlyMode,
+  signageAhoRequired,
   activeCategories,
   checklist,
   onConditionChange,
@@ -121,6 +123,11 @@ export function ChecklistStep({
   const progress =
     totalItems > 0 ? Math.round((evaluatedCount / totalItems) * 100) : 0;
   const hasSearch = searchQuery.trim().length > 0;
+
+  // Toko sudah preventif I1–I10 kuartal ini tapi signage belum diisi.
+  const hasPendingSignage =
+    isRepairOnlyMode &&
+    activeCategories.some((cat) => cat.items.some((item) => item.signage));
 
   const ahoTicketHolders = useMemo(
     () => toAhoTicketHolders(checklist),
@@ -188,7 +195,9 @@ export function ChecklistStep({
               </h3>
               <p className="text-xs leading-relaxed text-muted-foreground">
                 {isRepairOnlyMode
-                  ? "Toko sudah mengisi item preventif. Anda cukup memilih item yang rusak dan mengisi detail perbaikannya."
+                  ? hasPendingSignage
+                    ? "Toko sudah mengisi item preventif I.1–I.10 kuartal ini. Item signage I.11–I.13 tetap wajib diisi sekali; item lain cukup pilih yang rusak."
+                    : "Toko sudah mengisi item preventif. Anda cukup memilih item yang rusak dan mengisi detail perbaikannya."
                   : "Toko belum mengisi item preventif. Anda wajib mengevaluasi semua item checklist."}
               </p>
             </div>
@@ -305,6 +314,7 @@ export function ChecklistStep({
                                 item.id,
                                 ahoTicketHolders,
                               )}
+                              signageAhoRequired={signageAhoRequired}
                               onSignageChange={onSignageChange}
                               onNotesChange={onNotesChange}
                               onAhoTicketNumberChange={onAhoTicketNumberChange}
