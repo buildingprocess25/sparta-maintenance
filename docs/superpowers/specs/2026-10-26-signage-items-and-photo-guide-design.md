@@ -343,3 +343,54 @@ Verifikasi manual di dev server:
 - PDF laporan via `/api/preview-pdf` menampilkan "Kondisi · Material".
 - Laporan preventif lama tetap tampil di matriks tahunan dan cooldown toko tetap
   berlaku.
+
+---
+
+## Revisi 2026-10-28
+
+Revisi dari user setelah uji coba. Bagian ini menggantikan aturan di atas bila
+bertentangan.
+
+### R1 — No Tiket AHO signage tidak wajib (feature flag)
+
+- Kolom No Tiket AHO tetap tampil di I11–I13 untuk kondisi Pudar/Rusak.
+- Wajib/tidaknya diatur env server `SIGNAGE_AHO_REQUIRED` (`"true"` = wajib).
+  Default bila kosong/lainnya: **tidak wajib**. Dibaca di server (page + zod),
+  diteruskan ke form sebagai prop, jadi cukup restart server untuk mengubahnya.
+- Item non-signage tidak terpengaruh: rusak tetap wajib AHO.
+- Aturan tiket grup signage tetap berlaku untuk tiket yang diisi (auto-fill,
+  satu tiket untuk grup, terkunci dari item non-signage). Item kosong tidak
+  dipersoalkan.
+- Catatan Pudar/Rusak tetap wajib; handler tetap otomatis REKANAN.
+
+### R2 — Masa jeda kuartal per kelompok item I
+
+Dua status masa jeda per toko, masing-masing berdasarkan laporan non-DRAFT di
+kuartal berjalan (zona Jakarta):
+
+- **Inti I1–I10**: laporan dengan I1–I10 lengkap (aturan lama, `PREVENTIVE_REQUIRED_ITEM_IDS`).
+- **Signage I11–I13**: laporan dengan I11–I13 lengkap (`preventiveCondition` OK/NOT_OK/TIDAK_ADA).
+
+| Inti | Signage | Item I yang tampil | Wajib |
+|---|---|---|---|
+| belum | belum | I1–I13 | semua (Mode Checklist Wajib) |
+| sudah | belum | **I11–I13 saja** | I11–I13 wajib; A–H tetap Mode Perbaikan (minimal satu item) |
+| sudah | sudah | tidak ada | Mode Perbaikan |
+| belum | sudah | I1–I10 | semua yang tampil |
+
+- Edit/revisi: kelompok yang sedang masa jeda tetap tampil bila laporan yang
+  dibuka sudah berisi item kelompok itu (perilaku lama, kini per kelompok).
+- Server submit membuang item kelompok yang sedang masa jeda, dan mewajibkan
+  I11–I13 bila inti masa jeda tapi signage belum.
+- KPI/matriks/export tidak berubah (tetap syarat I1–I10).
+
+### R3 — Contoh catatan signage
+
+- Kotor: kolom Catatan **opsional** tampil. Pudar/Rusak: Catatan wajib (tetap).
+  Baik: tanpa Catatan.
+- Textarea catatan signage langsung tampil (tanpa tombol "+ Tambah Catatan")
+  dengan placeholder per kondisi:
+  - Kotor: "Contoh: kusam kotor / kotor, lampu redup / ada lampu yang mati. Rekomendasi cleaning."
+  - Pudar: "Contoh: rekomendasi rekondisi ke GS karena pudar / warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh."
+  - Rusak: "Contoh: rekomendasi rekondisi ke GS karena retak / pecah / rapuh, warna hilang, ada lampu yang mati / redup. Sekalian vendor cek menyeluruh."
+- Catatan Kotor disimpan ke JSON item dan tampil di baris catatan PDF.
