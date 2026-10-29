@@ -44,6 +44,7 @@ export async function getAdminReportDetail(
             fullPdfDriveUrl: true,
             finishedAt: true,
             pjumExportedAt: true,
+            preventiveSkipped: true,
             createdAt: true,
             updatedAt: true,
             createdBy: {
@@ -115,6 +116,7 @@ export async function getAdminReportDetail(
         storeCode: report.storeCode ?? "",
         branchName: report.branchName,
         status: report.status,
+        preventiveSkipped: report.preventiveSkipped,
         totalEstimation: toNumber(report.totalEstimation),
         totalReal:
             report.totalReal === null ? null : toNumber(report.totalReal),

@@ -117,6 +117,8 @@ export type RawReportDetailInput = {
     storeCode: string;
     branchName: string;
     status: string;
+    /** BMS melewati checklist preventif untuk laporan ini. */
+    preventiveSkipped?: boolean;
     totalEstimation: number;
     totalReal: number | null;
     createdAt: string;

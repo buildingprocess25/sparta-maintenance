@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import {
     AlertTriangle,
+    CalendarX2,
     Check,
     FileCheck,
     Handshake,
@@ -89,6 +90,16 @@ export function ReportHeader({
                         >
                             {statusLabel}
                         </Badge>
+                        {report.preventiveSkipped ? (
+                            <Badge
+                                variant="outline"
+                                className="h-6 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-50"
+                                title="BMS melewati checklist preventif (bulan pertama kuartal). Preventif toko tetap wajib di kunjungan berikutnya."
+                            >
+                                <CalendarX2 data-icon="inline-start" />
+                                Preventif dilewati
+                            </Badge>
+                        ) : null}
                         {isRekananWithoutBmsCost ? (
                             <Badge
                                 variant="outline"
