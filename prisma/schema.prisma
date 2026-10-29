@@ -289,6 +289,9 @@ model Report {
   // Generated on first click of "Laporan Lengkap PDF" button, then cached here.
   fullPdfDriveUrl String?
 
+  // BMS melewati checklist preventif (hanya bulan pertama kuartal, sekali per toko).
+  preventiveSkipped Boolean @default(false)
+
   logs       ApprovalLog[]
   activities ActivityLog[]
 

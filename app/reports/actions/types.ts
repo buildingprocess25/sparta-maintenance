@@ -43,6 +43,8 @@ export type DraftData = {
     totalEstimation?: number;
     /** Waktu BMS pertama kali membuka form (dari browser). Diisi oleh useDraft, dikirim saat submit. */
     draftCreatedAt?: string; // ISO 8601
+    /** BMS memilih lewati preventif (bulan pertama kuartal). Divalidasi ulang di server. */
+    skipPreventive?: boolean;
 };
 
 export type DateRangeFilter =
@@ -324,6 +326,7 @@ export function buildDraftDataSchema(
             ),
             totalEstimation: z.number().min(0).optional(),
             draftCreatedAt: z.string().datetime().optional(),
+            skipPreventive: z.boolean().optional(),
         })
         .superRefine((data, ctx) => {
             const itemIds = new Set<string>();

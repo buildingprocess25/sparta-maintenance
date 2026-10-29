@@ -27,5 +27,6 @@ export {
     getMyReports,
     getLastCategoryIDate,
     getLastSignageDate,
+    hasSkippedPreventiveThisQuarter,
     getApprovalReports,
 } from "./actions/queries";

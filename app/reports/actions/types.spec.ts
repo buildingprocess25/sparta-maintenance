@@ -278,4 +278,28 @@ assert.equal(
     true,
 );
 
+// skipPreventive tidak boleh dibuang oleh schema (dipakai submit & autosave).
+{
+    const parsedSubmit = draftDataSchema.safeParse({
+        ...makeDraft([makeItem()]),
+        skipPreventive: true,
+    });
+    assert.equal(parsedSubmit.success, true);
+    assert.equal(parsedSubmit.data?.skipPreventive, true);
+
+    const parsedAutosave = draftAutosaveDataSchema.safeParse({
+        ...makeDraft([makeItem()]),
+        skipPreventive: true,
+    });
+    assert.equal(parsedAutosave.data?.skipPreventive, true);
+
+    assert.equal(
+        draftDataSchema.safeParse({
+            ...makeDraft([makeItem()]),
+            skipPreventive: "ya",
+        }).success,
+        false,
+    );
+}
+
 console.log("report action type tests passed");
