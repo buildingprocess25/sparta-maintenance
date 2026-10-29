@@ -30,6 +30,7 @@ export type PromoteDriveDraftInput = {
   drivePhotoFileIds: Prisma.InputJsonValue;
   createdAt?: Date;
   balancePeriodId?: string | null;
+  preventiveSkipped?: boolean;
 };
 
 export interface DriveDraftRepository {

@@ -32,6 +32,8 @@ export type SerializedDraft = {
   branchName: string;
   totalEstimation: number;
   updatedAt: string;
+  /** Laporan/draft memakai lewati preventif. */
+  preventiveSkipped?: boolean;
   items: {
     itemId: string;
     itemName: string;

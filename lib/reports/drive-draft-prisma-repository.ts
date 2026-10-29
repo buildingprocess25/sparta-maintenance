@@ -109,6 +109,7 @@ export function createPrismaDriveDraftRepository(client: PrismaTx): DriveDraftRe
           drivePhotoFileIds: input.drivePhotoFileIds,
           ...(input.createdAt ? { createdAt: input.createdAt } : {}),
           ...(input.balancePeriodId !== undefined ? { balancePeriodId: input.balancePeriodId } : {}),
+          ...(input.preventiveSkipped !== undefined ? { preventiveSkipped: input.preventiveSkipped } : {}),
         } satisfies Prisma.ReportUpdateInput,
       });
     },

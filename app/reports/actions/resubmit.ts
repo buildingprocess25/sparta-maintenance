@@ -21,6 +21,7 @@ import {
     hasBmsRepairItems,
 } from "@/lib/balance";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
+import { resolvePreventiveSubmission } from "@/lib/preventive-cooldown";
 import type { ReportItemJson } from "@/types/report";
 
 /**
@@ -42,6 +43,7 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
                 items: true,
                 totalEstimation: true,
                 balancePeriodId: true,
+                preventiveSkipped: true,
             },
         });
 
@@ -83,6 +85,17 @@ export async function resubmitReport(reportNumber: string, data: DraftData) {
             };
         }
         data = parsed.data;
+
+        // Laporan skip tetap tanpa kategori I saat revisi (cegah bypass UI).
+        if (report.preventiveSkipped) {
+            data = {
+                ...data,
+                checklistItems: resolvePreventiveSubmission(
+                    data.checklistItems,
+                    { core: true, signage: true },
+                ).items,
+            };
+        }
 
         const itemsJson = buildItemsJson(data);
         const estimationsJson = buildEstimationsJson(data);

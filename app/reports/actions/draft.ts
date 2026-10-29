@@ -34,6 +34,7 @@ export async function getDraft(): Promise<SerializedDraft | null> {
             items: true,
             estimations: true,
             updatedAt: true,
+            preventiveSkipped: true,
         },
         orderBy: { updatedAt: "desc" },
     });
@@ -61,6 +62,7 @@ export async function getDraftByReportNumber(
             items: true,
             estimations: true,
             updatedAt: true,
+            preventiveSkipped: true,
         },
     });
 
@@ -136,6 +138,7 @@ export async function saveServerDraft(data: DraftData) {
                 totalEstimation: parsed.data.totalEstimation || 0,
                 items: itemsJson,
                 estimations: estimationsJson,
+                preventiveSkipped: parsed.data.skipPreventive ?? false,
             },
         });
 
@@ -203,6 +206,7 @@ type DraftRecord = {
     items: unknown;
     estimations: unknown;
     updatedAt: Date;
+    preventiveSkipped: boolean;
 };
 
 function serializeDraft(draft: DraftRecord): SerializedDraft {
@@ -216,6 +220,7 @@ function serializeDraft(draft: DraftRecord): SerializedDraft {
         branchName: draft.branchName,
         totalEstimation: Number(draft.totalEstimation),
         updatedAt: draft.updatedAt.toISOString(),
+        preventiveSkipped: draft.preventiveSkipped,
         items: items.map((item) => {
             const meta = getChecklistItemMeta(item.itemId);
 

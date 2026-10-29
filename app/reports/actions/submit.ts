@@ -17,8 +17,16 @@ import { buildItemsJson, buildEstimationsJson } from "./report-json-helpers";
 import { isChecklistOnlyReport } from "@/lib/report-utils";
 import type { ReportItemJson } from "@/types/report";
 import { checklistCategories } from "@/lib/checklist-data";
-import { getLastCategoryIDate, getLastSignageDate } from "./queries";
+import {
+    getLastCategoryIDate,
+    getLastSignageDate,
+    hasSkippedPreventiveThisQuarter,
+} from "./queries";
 import { resolvePreventiveSubmission } from "@/lib/preventive-cooldown";
+import {
+    PREVENTIVE_SKIPPED_ACTIVITY_NOTE,
+    getPreventiveSkipBlocker,
+} from "@/lib/preventive-skip";
 import { validateEstimationLimit, getBmsActivePeriod, hasBmsRepairItems, createNewBmsPeriod, getBmsActiveReportBlocker } from "@/lib/balance";
 import { formatBmsActiveReportBlockerMessage } from "@/lib/bms-active-report-blocker";
 import { isSameJakartaQuarter } from "@/lib/time";
@@ -124,18 +132,34 @@ export async function submitReport(data: DraftData) {
             isSameJakartaQuarter(new Date(lastSignageDate), now);
     }
 
+    // ── Lewati preventif: bulan pertama kuartal, sekali per toko ──────────
+    let preventiveSkipped = false;
+    if (data.skipPreventive) {
+        const blocker = getPreventiveSkipBlocker({
+            coreCooling: cooldown.core,
+            alreadySkippedThisQuarter: data.storeCode
+                ? await hasSkippedPreventiveThisQuarter(data.storeCode)
+                : false,
+            now: new Date(),
+        });
+        if (blocker) {
+            return { error: "Preventif tidak dapat dilewati", detail: blocker };
+        }
+        preventiveSkipped = true;
+    }
+
     // Buang item kelompok yang masa jeda (cegah bypass UI) dan wajibkan
-    // kelompok yang tampil.
+    // kelompok yang tampil. Laporan skip diperlakukan seperti keduanya jeda.
     const preventiveSubmission = resolvePreventiveSubmission(
         data.checklistItems,
-        cooldown,
+        preventiveSkipped ? { core: true, signage: true } : cooldown,
     );
     if (preventiveSubmission.error) {
         return preventiveSubmission.error;
     }
     const checklistItems = preventiveSubmission.items;
 
-    if (!cooldown.core) {
+    if (!cooldown.core && !preventiveSkipped) {
         // Quarterly visit: verify all non-preventive items are present.
         const preventiveItemIds = new Set(
             checklistCategories
@@ -230,6 +254,7 @@ export async function submitReport(data: DraftData) {
                     drivePhotoFileIds as unknown as Prisma.InputJsonValue,
                 ...(reportCreatedAt ? { createdAt: reportCreatedAt } : {}),
                 balancePeriodId: activePeriodId,
+                preventiveSkipped,
             });
 
             await tx.activityLog.create({
@@ -237,7 +262,9 @@ export async function submitReport(data: DraftData) {
                     reportNumber: data.draftReportNumber,
                     actorNIK: user.NIK,
                     action: "SUBMITTED",
-                    notes: null,
+                    notes: preventiveSkipped
+                        ? PREVENTIVE_SKIPPED_ACTIVITY_NOTE
+                        : null,
                 },
             });
 
@@ -261,6 +288,7 @@ export async function submitReport(data: DraftData) {
                     drivePhotoFileIds as unknown as Prisma.InputJsonValue,
                 ...(reportCreatedAt ? { createdAt: reportCreatedAt } : {}),
                 balancePeriodId: activePeriodId,
+                preventiveSkipped,
             },
         });
 
@@ -272,7 +300,9 @@ export async function submitReport(data: DraftData) {
                 reportNumber: finalReportId,
                 actorNIK: user.NIK,
                 action: "SUBMITTED",
-                notes: null,
+                notes: preventiveSkipped
+                    ? PREVENTIVE_SKIPPED_ACTIVITY_NOTE
+                    : null,
             },
         });
 
