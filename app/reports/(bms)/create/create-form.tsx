@@ -379,6 +379,9 @@ export default function CreateReportForm({
           <ChecklistStep
             storeCode={selectedStoreCode}
             isRepairOnlyMode={isRepairOnlyMode}
+            canSkipPreventive={canSkipPreventive}
+            isPreventiveSkipped={isPreventiveSkipped}
+            onSkipPreventiveChange={setSkipPreventive}
             signageAhoRequired={signageAhoRequired}
             activeCategories={activeCategories}
             checklist={checklist}

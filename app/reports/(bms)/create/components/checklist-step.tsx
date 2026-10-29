@@ -16,6 +16,17 @@ import {
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
@@ -38,6 +49,10 @@ import { PhotoGuideLink } from "@/components/photo-guide/photo-guide-link";
 interface ChecklistStepProps {
   storeCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
+  /** Opsi lewati preventif tersedia (bulan pertama kuartal, jatah toko belum dipakai). */
+  canSkipPreventive: boolean;
+  isPreventiveSkipped: boolean;
+  onSkipPreventiveChange: (skip: boolean) => void;
   signageAhoRequired: boolean;
   activeCategories: ChecklistCategory[];
   checklist: Map<string, ChecklistItem>;
@@ -77,6 +92,9 @@ const CHECKLIST_ASSIGNEE_LABELS: Record<string, string> = {
 export function ChecklistStep({
   storeCode,
   isRepairOnlyMode,
+  canSkipPreventive,
+  isPreventiveSkipped,
+  onSkipPreventiveChange,
   signageAhoRequired,
   activeCategories,
   checklist,
@@ -127,6 +145,7 @@ export function ChecklistStep({
   // Toko sudah preventif I1–I10 kuartal ini tapi signage belum diisi.
   const hasPendingSignage =
     isRepairOnlyMode &&
+    !isPreventiveSkipped &&
     activeCategories.some((cat) => cat.items.some((item) => item.signage));
 
   const ahoTicketHolders = useMemo(
@@ -189,17 +208,65 @@ export function ChecklistStep({
             <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <InfoIcon className="size-5" />
             </div>
-            <div className="min-w-0">
-              <h3 className="text-sm font-semibold">
-                {isRepairOnlyMode ? "Mode Perbaikan" : "Mode Checklist Wajib"}
-              </h3>
-              <p className="text-xs leading-relaxed text-muted-foreground">
-                {isRepairOnlyMode
-                  ? hasPendingSignage
-                    ? "Toko sudah mengisi item preventif I.1–I.10 kuartal ini. Item signage I.11–I.13 tetap wajib diisi sekali; item lain cukup pilih yang rusak."
-                    : "Toko sudah mengisi item preventif. Anda cukup memilih item yang rusak dan mengisi detail perbaikannya."
-                  : "Toko belum mengisi item preventif. Anda wajib mengevaluasi semua item checklist."}
-              </p>
+            <div className="flex min-w-0 flex-1 flex-col gap-2">
+              <div>
+                <h3 className="text-sm font-semibold">
+                  {isPreventiveSkipped
+                    ? "Mode Perbaikan · Preventif dilewati"
+                    : isRepairOnlyMode
+                      ? "Mode Perbaikan"
+                      : "Mode Checklist Wajib"}
+                </h3>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {isPreventiveSkipped
+                    ? "Preventif toko ini dilewati untuk laporan ini. Cukup pilih item yang rusak. Checklist preventif tetap wajib di kunjungan berikutnya kuartal ini."
+                    : isRepairOnlyMode
+                      ? hasPendingSignage
+                        ? "Toko sudah mengisi item preventif I.1–I.10 kuartal ini. Item signage I.11–I.13 tetap wajib diisi sekali; item lain cukup pilih yang rusak."
+                        : "Toko sudah mengisi item preventif. Anda cukup memilih item yang rusak dan mengisi detail perbaikannya."
+                      : "Toko belum mengisi item preventif. Anda wajib mengevaluasi semua item checklist."}
+                </p>
+              </div>
+
+              {canSkipPreventive && !isPreventiveSkipped ? (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="self-start">
+                      Lewati Preventif
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Lewati checklist preventif?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Gunakan hanya untuk perbaikan urgent/insidentil. Opsi ini
+                        hanya ada di bulan pertama kuartal dan hanya sekali per
+                        toko per kuartal. Laporan akan ditandai &quot;Preventif
+                        dilewati&quot; untuk BMC dan BNM, dan checklist preventif
+                        tetap wajib di kunjungan berikutnya.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onSkipPreventiveChange(true)}>
+                        Lewati Preventif
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              ) : null}
+
+              {canSkipPreventive && isPreventiveSkipped ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => onSkipPreventiveChange(false)}
+                >
+                  Batalkan, isi checklist lengkap
+                </Button>
+              ) : null}
             </div>
           </div>
         </CardContent>
