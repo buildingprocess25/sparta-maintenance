@@ -68,6 +68,9 @@ type UseDraftParams = {
     grandTotalBms: number;
     isSubmitting: boolean;
     handleStoreChange: (storeCode: string) => Promise<void>;
+    /** Pilihan lewati preventif, ikut disimpan di draft. */
+    skipPreventive: boolean;
+    setSkipPreventive: (value: boolean) => void;
     /** Skip the draft dialog and auto-restore the existingDraft on mount (used by edit mode). */
     autoRestore?: boolean;
     /** Ignore localStorage and restore the specific server draft selected from the reports list. */
@@ -106,6 +109,8 @@ export function useDraft({
     grandTotalBms,
     isSubmitting,
     handleStoreChange,
+    skipPreventive,
+    setSkipPreventive,
     autoRestore = false,
     forceServerDraftRestore = false,
     disableAutoSave = false,
@@ -213,6 +218,11 @@ export function useDraft({
                         await handleStoreChange(s.code);
                     }
                 }
+                setSkipPreventive(
+                    isServerSource
+                        ? Boolean(existingDraft?.preventiveSkipped)
+                        : Boolean(localDraftData?.skipPreventive),
+                );
                 if (!isServerSource && localDraftData?.draftReportNumber) {
                     setDraftReportId(localDraftData.draftReportNumber);
                 }
@@ -449,6 +459,7 @@ export function useDraft({
             setOpenCategories,
             setBmsItems,
             handleStoreChange,
+            setSkipPreventive,
             setDraftReportId,
         ],
     );
@@ -544,6 +555,7 @@ export function useDraft({
             bmsEstimations,
             totalEstimation,
             draftCreatedAt,
+            skipPreventive,
         };
 
         try {
@@ -570,6 +582,7 @@ export function useDraft({
         activeCategories,
         draftReportId,
         disableAutoSave,
+        skipPreventive,
     ]);
 
     const buildDraftData = useCallback((): DraftData => {
@@ -603,6 +616,7 @@ export function useDraft({
             bmsEstimations,
             totalEstimation: grandTotalBms,
             draftCreatedAt,
+            skipPreventive,
         };
     }, [
         checklist,
@@ -613,6 +627,7 @@ export function useDraft({
         activeCategories,
         grandTotalBms,
         draftReportId,
+        skipPreventive,
     ]);
 
     return {

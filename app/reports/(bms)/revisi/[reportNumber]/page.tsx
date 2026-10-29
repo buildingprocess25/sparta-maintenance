@@ -35,6 +35,7 @@ export default async function RevisiReportPage({
             items: true,
             estimations: true,
             updatedAt: true,
+            preventiveSkipped: true,
             store: { select: { code: true, name: true } },
         },
     });
@@ -64,6 +65,7 @@ export default async function RevisiReportPage({
         branchName: report.branchName,
         totalEstimation: Number(report.totalEstimation),
         updatedAt: formatJakartaDateTime(report.updatedAt),
+        preventiveSkipped: report.preventiveSkipped,
         items: items.map((item) => ({
             itemId: item.itemId,
             itemName: item.itemName || getChecklistItemMeta(item.itemId)?.itemName || item.itemId,

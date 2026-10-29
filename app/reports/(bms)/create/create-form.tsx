@@ -67,6 +67,9 @@ export default function CreateReportForm({
     selectedStoreCode,
     store,
     isCategoryICoolingDown,
+    canSkipPreventive,
+    isPreventiveSkipped,
+    setSkipPreventive,
     activeCategories,
     handleStoreChange,
     toggleCategory,
@@ -95,6 +98,8 @@ export default function CreateReportForm({
     grandTotalBms,
     isSubmitting,
     handleStoreChange,
+    skipPreventive: isPreventiveSkipped,
+    setSkipPreventive,
     autoRestore: shouldAutoRestore,
     forceServerDraftRestore,
     disableAutoSave: isEditMode,
@@ -110,7 +115,7 @@ export default function CreateReportForm({
   useEffect(() => {
     if (isEditMode) return;
     markDirty();
-  }, [bmsItems, checklist, grandTotalBms, isEditMode, markDirty, selectedStoreCode]);
+  }, [bmsItems, checklist, grandTotalBms, isEditMode, isPreventiveSkipped, markDirty, selectedStoreCode]);
 
   useEffect(() => {
     if (isEditMode || !selectedStoreCode) return;
@@ -262,7 +267,9 @@ export default function CreateReportForm({
     }
   };
 
-  const isRepairOnlyMode = isCategoryICoolingDown && (!isEditMode || !hasPreventiveItemsInChecklist);
+  const isRepairOnlyMode =
+    (isCategoryICoolingDown || isPreventiveSkipped) &&
+    (!isEditMode || !hasPreventiveItemsInChecklist);
 
   // Store data to pass to review step
   const storeObj = stores.find((s) => s.code === selectedStoreCode);

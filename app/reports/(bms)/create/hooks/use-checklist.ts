@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import {
     getLastCategoryIDate,
     getLastSignageDate,
+    hasSkippedPreventiveThisQuarter,
 } from "@/app/reports/actions";
+import { canSkipPreventive as isSkipEligible } from "@/lib/preventive-skip";
 import {
     getNextJakartaQuarterStart,
     isSameJakartaQuarter,
@@ -44,6 +46,14 @@ export function useChecklist(
     const [isSignageCoolingDown, setIsSignageCoolingDown] = useState(false);
     const [categoryIAvailableDate, setCategoryIAvailableDate] =
         useState<Date | null>(null);
+    const [skipPreventive, setSkipPreventive] = useState(false);
+    const [isSkipAllowed, setIsSkipAllowed] = useState(false);
+
+    // Revisi: skip mengikuti flag laporan. Laporan baru: hanya bila masih layak.
+    const isPreventiveSkipped = isEditMode
+        ? skipPreventive
+        : skipPreventive && isSkipAllowed;
+    const canSkipPreventive = !isEditMode && isSkipAllowed;
 
     // Item inti I1–I10 yang sudah ada di checklist (laporan yang sedang diedit).
     const hasPreventiveItemsInChecklist = PREVENTIVE_REQUIRED_ITEM_IDS.some(
@@ -51,8 +61,8 @@ export function useChecklist(
     );
 
     const activeCategories = filterActiveCategories(checklistCategories, {
-        coreCooling: isCategoryICoolingDown,
-        signageCooling: isSignageCoolingDown,
+        coreCooling: isCategoryICoolingDown || isPreventiveSkipped,
+        signageCooling: isSignageCoolingDown || isPreventiveSkipped,
         isEditMode: Boolean(isEditMode),
         checklistItemIds: new Set(checklist.keys()),
     });
@@ -64,12 +74,15 @@ export function useChecklist(
 
             setSelectedStoreCode(selectedStore.code);
             setStore(selectedStore.name);
+            setSkipPreventive(false);
 
             try {
-                const [lastCoreDate, lastSignageDate] = await Promise.all([
-                    getLastCategoryIDate(selectedStore.code),
-                    getLastSignageDate(selectedStore.code),
-                ]);
+                const [lastCoreDate, lastSignageDate, alreadySkipped] =
+                    await Promise.all([
+                        getLastCategoryIDate(selectedStore.code),
+                        getLastSignageDate(selectedStore.code),
+                        hasSkippedPreventiveThisQuarter(selectedStore.code),
+                    ]);
                 const now = new Date();
                 const coreCooling =
                     !!lastCoreDate &&
@@ -82,10 +95,18 @@ export function useChecklist(
                 setCategoryIAvailableDate(
                     coreCooling ? getNextJakartaQuarterStart(now) : null,
                 );
+                setIsSkipAllowed(
+                    isSkipEligible({
+                        coreCooling,
+                        alreadySkippedThisQuarter: alreadySkipped,
+                        now,
+                    }),
+                );
             } catch {
                 setIsCategoryICoolingDown(false);
                 setIsSignageCoolingDown(false);
                 setCategoryIAvailableDate(null);
+                setIsSkipAllowed(false);
             }
         },
         [stores],
@@ -167,7 +188,7 @@ export function useChecklist(
             }, 150);
         };
 
-        if (isCategoryICoolingDown) {
+        if (isCategoryICoolingDown || isPreventiveSkipped) {
             // Signage I.11–I.13 yang tampil wajib diisi sekali per kuartal.
             for (const cat of activeCategories) {
                 for (const catalogItem of cat.items) {
@@ -393,6 +414,7 @@ export function useChecklist(
     }, [
         store,
         isCategoryICoolingDown,
+        isPreventiveSkipped,
         signageAhoRequired,
         activeCategories,
         checklist,
@@ -482,6 +504,9 @@ export function useChecklist(
         isCategoryICoolingDown,
         isSignageCoolingDown,
         categoryIAvailableDate,
+        canSkipPreventive,
+        isPreventiveSkipped,
+        setSkipPreventive,
         activeCategories,
         handleStoreChange,
         toggleCategory,
