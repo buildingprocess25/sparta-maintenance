@@ -69,13 +69,14 @@ berikutnya.
 
 ## Komponen
 
-- **`lib/preventive-skip.ts` (baru, pure).** `isFirstMonthOfJakartaQuarter(now)`
-  dan `canSkipPreventive({ coreCooling, alreadySkippedThisQuarter, isEditMode,
-  now })`. Diuji unit (spec file berdampingan, mengikuti pola
-  `preventive-cooldown.spec.ts`).
-- **`lib/preventive-cooldown.ts`.** `resolvePreventiveSubmission` menerima
-  `skip: boolean`; bila `true`, perlakukan seperti `core` dan `signage` sama-sama
-  dalam masa jeda (buang semua item I, tidak ada item wajib).
+- **`lib/preventive-skip.ts` (baru, pure).** `isFirstMonthOfJakartaQuarter(now)`,
+  `getPreventiveSkipBlocker({ coreCooling, alreadySkippedThisQuarter, now })`
+  (alasan penolakan atau `null`), dan `canSkipPreventive(...)`. Pengecualian
+  mode revisi ditangani di client, bukan di fungsi ini. Diuji unit (spec file
+  berdampingan, mengikuti pola `preventive-cooldown.spec.ts`).
+- **`lib/preventive-cooldown.ts`.** Tidak berubah. Untuk laporan skip,
+  `resolvePreventiveSubmission` dipanggil dengan `{ core: true, signage: true }`
+  (buang semua item I, tidak ada item wajib).
 - **Query `hasSkippedPreventiveThisQuarter(storeCode)`** di
   `app/reports/actions/queries.ts`, dipakai oleh form dan submit.
 - **`submit.ts`.** Hitung kelayakan di server; bila `data.skipPreventive` dan
@@ -100,9 +101,9 @@ berikutnya.
   banner Mode Perbaikan menyebut "Preventif dilewati" dan ada tombol
   "Batalkan skip" untuk kembali ke Mode Checklist Wajib.
 - **Halaman revisi.** Ambil `preventiveSkipped` dan teruskan ke form.
-- **Penanda.** Badge "Preventif dilewati" di halaman detail laporan untuk
-  reviewer (`app/dashboard/reports/[reportNumber]`) dan di
-  `app/reports/[reportNumber]`. Daftar laporan dan export XLSX tidak diubah.
+- **Penanda.** Badge "Preventif dilewati" di header detail laporan reviewer
+  (`app/dashboard/reports/[reportNumber]`, dipakai BMC/BNM/Admin). Tampilan
+  detail milik BMS, daftar laporan, dan export XLSX tidak diubah.
 
 ## Penanganan error
 
@@ -116,8 +117,8 @@ berikutnya.
 ## Testing
 
 - Unit: `preventive-skip.spec.ts` (batas bulan WIB, mis. 31 Okt 23:59 WIB vs
-  1 Nov 00:00 WIB; semua kombinasi kelayakan) dan tambahan kasus `skip` di
-  `preventive-cooldown.spec.ts`.
+  1 Nov 00:00 WIB; semua kombinasi kelayakan) dan `types.spec.ts`
+  (`skipPreventive` tidak dibuang oleh schema).
 - Manual (`npm run dev`, akun BMS): skip di bulan pertama; coba skip kedua untuk
   toko yang sama (opsi hilang); simulasi bulan ke-2 (opsi hilang); revisi
   laporan skip tetap Mode Perbaikan; badge terlihat oleh BMC/BNM.
