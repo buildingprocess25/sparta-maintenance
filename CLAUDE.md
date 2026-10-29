@@ -306,6 +306,7 @@ Session is JWT-based, stored in httpOnly cookie, valid for 8 hours.
 ## Notes
 
 - Preventive Category I items can only be filled once per quarter (server-side validation)
+- In the first month of each quarter (Jan/Apr/Jul/Oct, WIB) a BMS may skip the preventive checklist once per store per quarter (`Report.preventiveSkipped`, `lib/preventive-skip.ts`); permanently rejected skip reports give the quota back, and the store's next report is fully preventive again
 - Zero-cost REKANAN reports can skip BMS work phase (go directly to APPROVED_BMC)
 - BMS can create new reports while a report is in APPROVED_BMC (Review BNM); if BNM misses the 23:59 WIB calendar-day deadline (`lib/bnm-review-deadline.ts`), that BMS is blocked from creating reports until BNM acts
 - Start work requires selfie, receipt, and material store (unless total estimation is zero)
