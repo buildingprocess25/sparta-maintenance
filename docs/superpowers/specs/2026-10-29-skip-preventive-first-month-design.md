@@ -33,9 +33,10 @@ di bulan pertama kuartal.
    rusak A–H; minimal satu item terisi; validasi item rusak tetap sama. Server
    membuang semua item kategori I dari payload laporan yang di-skip.
 3. **Sekali per toko per kuartal.** Toko dianggap sudah memakai jatah skip bila
-   ada laporan **non-DRAFT** untuk toko itu dengan `preventiveSkipped = true`
-   dan `createdAt` di kuartal berjalan (status apa pun, termasuk ditolak
-   permanen). Jatah dihitung per toko, bukan per BMS.
+   ada laporan untuk toko itu dengan `preventiveSkipped = true`, `createdAt` di
+   kuartal berjalan, dan status **bukan** `DRAFT` maupun `ESTIMATION_REJECTED`.
+   Laporan skip yang ditolak permanen mengembalikan jatah. Jatah dihitung per
+   toko, bukan per BMS.
 4. **Laporan skip tidak dihitung preventif.** Karena tidak berisi I1–I10, toko
    tetap "belum preventif". Laporan berikutnya untuk toko itu (bulan ke-1
    setelah jatah habis, atau bulan ke-2/3) kembali Mode Checklist Wajib tanpa
@@ -56,8 +57,10 @@ berikutnya.
 
 ## Data
 
-- Kolom baru `Report.preventiveSkipped Boolean @default(false)` (migrasi
-  Prisma). Disimpan juga pada draft (status DRAFT) agar pilihan skip ikut
+- Kolom baru `Report.preventiveSkipped Boolean @default(false)`. Perubahan
+  `schema.prisma` dikerjakan agent; perintah Prisma (migrate, generate)
+  dijalankan sendiri oleh developer mengikuti tutorial di akhir eksekusi.
+  Disimpan juga pada draft (status DRAFT) agar pilihan skip ikut
   tersimpan saat autosave dan dipulihkan saat draft dibuka lagi.
 - `DraftData` mendapat field opsional `skipPreventive: boolean` (default
   `false`). Server tidak mempercayai nilai ini: pada submit, skip hanya

@@ -13,7 +13,8 @@
 ## Global Constraints
 
 - Bulan pertama kuartal = Januari, April, Juli, Oktober, dihitung dalam zona Asia/Jakarta (pakai helper `lib/time.ts`, jangan `Date#getMonth`).
-- Jatah skip: sekali per **toko** per kuartal. Terpakai bila ada laporan **non-DRAFT** toko itu dengan `preventiveSkipped = true` dan `createdAt` di kuartal berjalan.
+- Jatah skip: sekali per **toko** per kuartal. Terpakai bila ada laporan toko itu dengan `preventiveSkipped = true`, `createdAt` di kuartal berjalan, dan status bukan `DRAFT` maupun `ESTIMATION_REJECTED` (ditolak permanen mengembalikan jatah).
+- **Agent tidak menjalankan perintah Prisma apa pun** (`prisma migrate`, `prisma generate`, `db:generate`, `db:studio`). Agent hanya mengedit `schema.prisma`; developer menjalankan perintahnya sendiri dari tutorial di Task 7. Sampai developer menjalankan `prisma migrate dev`, `tsc` akan melaporkan error "preventiveSkipped does not exist" — error itu diharapkan dan bukan alasan berhenti; error lain tetap harus diperbaiki.
 - Skip menyembunyikan dan membuang **seluruh** kategori I (I1–I13, termasuk signage).
 - Kelayakan di server dihitung dari waktu server saat submit, bukan `draftCreatedAt`.
 - Revisi laporan skip tetap Mode Perbaikan; flag tidak berubah saat resubmit. Opsi skip tidak tersedia di mode revisi.
@@ -289,7 +290,7 @@ Di objek Zod `buildDraftDataSchema` (setelah `draftCreatedAt: z.string().datetim
 Run: `npx tsx app/reports/actions/types.spec.ts`
 Expected: `report action type tests passed`
 
-- [ ] **Step 5: Tambah kolom Prisma dan migrasi**
+- [ ] **Step 5: Tambah kolom di schema Prisma (tanpa menjalankan Prisma)**
 
 Di `prisma/schema.prisma`, model `Report`, setelah baris `fullPdfDriveUrl String?`:
 
@@ -299,22 +300,17 @@ Di `prisma/schema.prisma`, model `Report`, setelah baris `fullPdfDriveUrl String
   preventiveSkipped Boolean @default(false)
 ```
 
-Run: `npx prisma migrate dev --name add_report_preventive_skipped`
-Expected: migrasi baru dibuat dan diterapkan; `migration.sql` berisi:
-
-```sql
--- AlterTable
-ALTER TABLE "Report" ADD COLUMN     "preventiveSkipped" BOOLEAN NOT NULL DEFAULT false;
-```
-
-Lalu `npm run db:generate`. (Bila DB dev tidak bisa dijangkau, buat folder `prisma/migrations/<YYYYMMDDHHMMSS>_add_report_preventive_skipped/migration.sql` dengan SQL di atas secara manual, jalankan `npm run db:generate`, dan catat di agent note bahwa migrasi belum diterapkan.)
+Jangan jalankan `prisma migrate`/`generate`. Folder migrasi dibuat oleh developer lewat tutorial di Task 7.
 
 - [ ] **Step 6: Tambah query jatah skip**
 
 Di `app/reports/actions/queries.ts` setelah `getLastSignageDate` (import `getJakartaCurrentQuarter`, `getJakartaQuarterWindow`, `getJakartaYear` sudah ada):
 
 ```ts
-/** Toko sudah memakai jatah lewati preventif di kuartal berjalan (laporan non-draft). */
+/**
+ * Toko sudah memakai jatah lewati preventif di kuartal berjalan. Draft dan
+ * laporan yang ditolak permanen tidak menghabiskan jatah.
+ */
 export async function hasSkippedPreventiveThisQuarter(storeCode: string) {
     await requireAuth();
 
@@ -328,7 +324,7 @@ export async function hasSkippedPreventiveThisQuarter(storeCode: string) {
         where: {
             storeCode,
             preventiveSkipped: true,
-            status: { not: "DRAFT" },
+            status: { notIn: ["DRAFT", "ESTIMATION_REJECTED"] },
             createdAt: { gte: start, lt: endExclusive },
         },
         select: { reportNumber: true },
@@ -343,14 +339,14 @@ Di `app/reports/actions.ts`, pada blok re-export yang memuat `getLastCategoryIDa
 - [ ] **Step 7: Typecheck**
 
 Run: `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit`
-Expected: tidak ada error baru di luar `.next/`.
+Expected: hanya error "preventiveSkipped does not exist" di `queries.ts` (Prisma Client belum di-generate developer); tidak ada error lain di luar `.next/`.
 
 - [ ] **Step 8: Catatan agent dan commit**
 
 Buat `docs/agent-notes/<YYYY-MM-DD-HHMM>-preventive-skip-data.md`.
 
 ```bash
-git add prisma/schema.prisma prisma/migrations app/reports/actions/types.ts app/reports/actions/types.spec.ts app/reports/actions/queries.ts app/reports/actions.ts docs/agent-notes/
+git add prisma/schema.prisma app/reports/actions/types.ts app/reports/actions/types.spec.ts app/reports/actions/queries.ts app/reports/actions.ts docs/agent-notes/
 git commit -m "feat(reports): store preventive skip flag on report"
 ```
 
@@ -917,11 +913,12 @@ git commit -m "feat(reports): show preventive skipped badge to reviewers"
 
 ---
 
-### Task 7: Verifikasi end-to-end
+### Task 7: Verifikasi, dokumentasi, dan tutorial Prisma
 
-**Files:** tidak ada perubahan kode kecuali perbaikan yang ditemukan (catat di agent note task terkait).
+**Files:**
+- Modify: `CLAUDE.md` (bagian `## Notes`, setelah baris "Preventive Category I items can only be filled once per quarter")
 
-- [ ] **Step 1: Jalankan semua unit test terkait**
+- [ ] **Step 1: Unit test (agent)**
 
 ```bash
 npx tsx lib/preventive-skip.spec.ts
@@ -933,12 +930,59 @@ npx tsx "app/dashboard/reports/[reportNumber]/_lib/detail-data.spec.ts"
 
 Expected: setiap script mencetak pesan "passed".
 
-- [ ] **Step 2: Build**
+- [ ] **Step 2: Typecheck sebelum migrasi (agent)**
 
-Run: `npm run build`
-Expected: build sukses.
+Run: `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit`
+Expected: hanya error yang menyebut `preventiveSkipped` (Prisma Client lama). Error lain diperbaiki.
 
-- [ ] **Step 3: Uji manual di browser (`npm run dev`, login sebagai BMS)**
+- [ ] **Step 3: Dokumentasi kanonis (agent)**
+
+Tambah di `CLAUDE.md` bagian `## Notes`, tepat setelah baris preventive Category I:
+
+```markdown
+- In the first month of each quarter (Jan/Apr/Jul/Oct, WIB) a BMS may skip the preventive checklist once per store per quarter (`Report.preventiveSkipped`, `lib/preventive-skip.ts`); permanently rejected skip reports give the quota back, and the store's next report is fully preventive again
+```
+
+- [ ] **Step 4: Catatan agent dan commit (agent)**
+
+Buat `docs/agent-notes/<YYYY-MM-DD-HHMM>-preventive-skip-verification.md` berisi hasil Step 1–2 dan tutorial Prisma di bawah sebagai Remaining Work.
+
+```bash
+git add CLAUDE.md docs/agent-notes/
+git commit -m "docs: preventive skip notes and verification"
+```
+
+- [ ] **Step 5: Tutorial Prisma (dijalankan developer, bukan agent)**
+
+1. Pastikan `.env` mengarah ke database **dev**, bukan production.
+2. Buat dan terapkan migrasi (sekaligus generate Prisma Client):
+
+   ```bash
+   npx prisma migrate dev --name add_report_preventive_skipped
+   ```
+
+   Hasilnya folder `prisma/migrations/<timestamp>_add_report_preventive_skipped/migration.sql` berisi:
+
+   ```sql
+   -- AlterTable
+   ALTER TABLE "Report" ADD COLUMN     "preventiveSkipped" BOOLEAN NOT NULL DEFAULT false;
+   ```
+
+3. Bila Prisma Client belum ter-generate: `npm run db:generate`.
+4. Commit folder migrasi:
+
+   ```bash
+   git add prisma/migrations
+   git commit -m "chore(db): add report preventiveSkipped migration"
+   ```
+
+5. Production (saat deploy): `npx prisma migrate deploy`.
+
+- [ ] **Step 6: Verifikasi setelah migrasi (agent, setelah developer konfirmasi)**
+
+Run: `NODE_OPTIONS=--max-old-space-size=8192 npx tsc --noEmit` → tanpa error di luar `.next/`; lalu `npm run build` → sukses.
+
+- [ ] **Step 7: Uji manual di browser (`npm run dev`, login BMS)**
 
 Tanggal hari ini harus di bulan pertama kuartal (mis. Oktober). Untuk bulan ke-2/3, sementara ubah `now` lokal (mis. `new Date("2026-11-05T05:00:00Z")`) di `handleStoreChange` dan `submit.ts`, lalu kembalikan.
 
@@ -946,17 +990,9 @@ Tanggal hari ini harus di bulan pertama kuartal (mis. Oktober). Untuk bulan ke-2
 2. Klik → dialog → "Lewati Preventif" → banner "Mode Perbaikan · Preventif dilewati", kategori I hilang, hanya opsi Rusak.
 3. "Batalkan, isi checklist lengkap" → kembali wajib, isian sebelumnya masih ada.
 4. Skip lagi, isi satu item rusak, refresh halaman → lanjutkan draft → skip masih aktif.
-5. Submit → sukses. Cek DB (`npm run db:studio`): `preventiveSkipped = true`, ActivityLog `SUBMITTED` notes `Preventif dilewati (bulan pertama kuartal)`, tidak ada item I.
+5. Submit → sukses. Di DB: `preventiveSkipped = true`, ActivityLog `SUBMITTED` notes `Preventif dilewati (bulan pertama kuartal)`, tidak ada item I.
 6. Buat laporan baru untuk toko yang sama → Mode Checklist Wajib, **tanpa** tombol skip.
-7. Simulasi bulan ke-2 → tombol skip tidak muncul.
-8. Login BMC → detail laporan dari langkah 5 menampilkan badge "Preventif dilewati". Tolak dengan revisi → login BMS → buka revisi → tetap Mode Perbaikan tanpa kategori I → resubmit sukses, flag tetap `true`.
-9. Bypass: kirim `skipPreventive: true` untuk toko yang jatahnya sudah terpakai (mis. via mengubah `now` client saja) → server menolak "Preventif tidak dapat dilewati".
-
-- [ ] **Step 4: Catatan akhir dan commit**
-
-Buat `docs/agent-notes/<YYYY-MM-DD-HHMM>-preventive-skip-verification.md` berisi hasil langkah 1–3.
-
-```bash
-git add docs/agent-notes/
-git commit -m "docs(notes): verify preventive skip flow"
-```
+7. BMC menolak permanen laporan dari langkah 5 → laporan baru untuk toko itu kembali menampilkan tombol skip.
+8. Simulasi bulan ke-2 → tombol skip tidak muncul.
+9. Login BMC → detail laporan skip menampilkan badge "Preventif dilewati". Tolak dengan revisi → login BMS → buka revisi → tetap Mode Perbaikan tanpa kategori I → resubmit sukses, flag tetap `true`.
+10. Bypass: kirim `skipPreventive: true` untuk toko yang jatahnya sudah terpakai → server menolak "Preventif tidak dapat dilewati".
