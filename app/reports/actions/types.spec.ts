@@ -124,11 +124,14 @@ const notAvailable = {
     notes: undefined,
     ahoTicketNumber: undefined,
 };
-assert.equal(isValid([makeSignageItem(notAvailable)]), false);
-assert.equal(
-    isValid([makeSignageItem({ ...notAvailable, itemId: "I13" })]),
-    true,
-);
+// Shop Sign, List Plank, dan Pole Sign boleh "Tidak Ada".
+for (const itemId of ["I11", "I12", "I13"]) {
+    assert.equal(
+        isValid([makeSignageItem({ ...notAvailable, itemId })]),
+        true,
+        itemId,
+    );
+}
 assert.equal(isValid([makeItem({ signageCondition: "BAIK" })]), false);
 
 // Tiket AHO grup signage

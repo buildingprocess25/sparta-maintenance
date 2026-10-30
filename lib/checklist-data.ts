@@ -270,13 +270,19 @@ export const checklistCategories: ChecklistCategory[] = [
             {
                 id: "I11",
                 name: "Kondisi Fisik Shop Sign",
-                signage: { materials: ["Embos", "Acrylic"] },
+                signage: {
+                    materials: ["Embos", "Acrylic"],
+                    allowNotAvailable: true,
+                },
                 ahoTicketGroup: "signage",
             },
             {
                 id: "I12",
                 name: "Kondisi Fisik List Plank",
-                signage: { materials: ["Embos", "Acrylic", "ACP/Alucopan"] },
+                signage: {
+                    materials: ["Embos", "Acrylic", "ACP/Alucopan"],
+                    allowNotAvailable: true,
+                },
                 ahoTicketGroup: "signage",
             },
             {

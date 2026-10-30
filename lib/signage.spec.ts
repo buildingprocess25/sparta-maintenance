@@ -22,8 +22,9 @@ assert.deepEqual(getSignageConfig("I12")?.materials, [
     "ACP/Alucopan",
 ]);
 assert.deepEqual(getSignageConfig("I13")?.materials, ["Acrylic", "Vynil"]);
+assert.equal(getSignageConfig("I11")?.allowNotAvailable, true);
+assert.equal(getSignageConfig("I12")?.allowNotAvailable, true);
 assert.equal(getSignageConfig("I13")?.allowNotAvailable, true);
-assert.equal(getSignageConfig("I11")?.allowNotAvailable, undefined);
 assert.equal(getSignageConfig("A1"), undefined);
 assert.equal(
     REPORT_CHECKLIST_ITEMS.find((item) => item.id === "I11")?.ahoTicketGroup,
