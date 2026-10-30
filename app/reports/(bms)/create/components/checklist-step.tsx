@@ -2,10 +2,13 @@
 
 import { useMemo, useState } from "react";
 import {
+  CalendarX2,
   ChevronDown,
   ClipboardCheck,
   InfoIcon,
   Search,
+  SkipForward,
+  Undo2,
   X,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -202,14 +205,33 @@ export function ChecklistStep({
         </Button>
       )}
 
-      <Card size="sm" className="bg-card/95 shadow-sm ring-1 ring-border/60">
+      <Card
+        size="sm"
+        className={cn(
+          "overflow-hidden shadow-sm ring-1",
+          isPreventiveSkipped
+            ? "bg-amber-50 ring-amber-200 dark:bg-amber-950/30 dark:ring-amber-900"
+            : "bg-gradient-to-br from-primary/10 via-card to-card ring-primary/20",
+        )}
+      >
         <CardContent>
           <div className="flex items-start gap-3">
-            <div className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <InfoIcon className="size-5" />
+            <div
+              className={cn(
+                "flex size-10 shrink-0 items-center justify-center rounded-xl",
+                isPreventiveSkipped
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300"
+                  : "bg-primary/15 text-primary",
+              )}
+            >
+              {isPreventiveSkipped ? (
+                <CalendarX2 className="size-5" />
+              ) : (
+                <InfoIcon className="size-5" />
+              )}
             </div>
-            <div className="flex min-w-0 flex-1 flex-col gap-2">
-              <div>
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <div className="flex flex-col gap-1">
                 <h3 className="text-sm font-semibold">
                   {isPreventiveSkipped
                     ? "Mode Perbaikan · Preventif dilewati"
@@ -230,11 +252,22 @@ export function ChecklistStep({
 
               {canSkipPreventive && !isPreventiveSkipped ? (
                 <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button type="button" variant="outline" size="sm" className="self-start">
-                      Lewati Preventif
-                    </Button>
-                  </AlertDialogTrigger>
+                  <div className="flex flex-col gap-3 rounded-xl border border-dashed border-primary/30 bg-background/70 p-3">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      Sedang ada perbaikan urgent atau insidentil? Anda bisa{" "}
+                      <span className="font-semibold text-foreground">
+                        melewati checklist preventif
+                      </span>{" "}
+                      dan cukup mengisi item yang rusak. Tersedia di bulan
+                      pertama kuartal, sekali per toko.
+                    </p>
+                    <AlertDialogTrigger asChild>
+                      <Button type="button" size="sm" className="w-full">
+                        <SkipForward data-icon="inline-start" />
+                        Lewati Preventif
+                      </Button>
+                    </AlertDialogTrigger>
+                  </div>
                   <AlertDialogContent>
                     <AlertDialogHeader>
                       <AlertDialogTitle>Lewati checklist preventif?</AlertDialogTitle>
@@ -259,11 +292,12 @@ export function ChecklistStep({
               {canSkipPreventive && isPreventiveSkipped ? (
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="self-start"
+                  className="self-start border-amber-300 bg-background text-amber-900 hover:bg-amber-100 hover:text-amber-900 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-950"
                   onClick={() => onSkipPreventiveChange(false)}
                 >
+                  <Undo2 data-icon="inline-start" />
                   Batalkan, isi checklist lengkap
                 </Button>
               ) : null}
