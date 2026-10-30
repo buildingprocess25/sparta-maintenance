@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, Lock } from "lucide-react";
+import { Ban, Check, Lock, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -34,7 +35,6 @@ const SECTION_LABEL_CLASS =
 // "ACP/Alucopan" cukup panjang untuk kolom ketiga di layar HP; beri titik
 // patah setelah "/" agar tidak keluar dari kotak.
 function renderMaterialLabel(value: string) {
-  if (value === SIGNAGE_NOT_AVAILABLE) return "Tidak Ada";
   const [head, ...rest] = value.split("/");
   if (rest.length === 0) return value;
   return (
@@ -92,9 +92,7 @@ export function SignageChecklistItem({
   const isNotAvailable = material === SIGNAGE_NOT_AVAILABLE;
   const isDamaged = isSignageDamaged(condition);
   const hasPhoto = !!itemData?.photo || !!itemData?.photoUrl;
-  const materialOptions = item.signage.allowNotAvailable
-    ? [...item.signage.materials, SIGNAGE_NOT_AVAILABLE]
-    : [...item.signage.materials];
+  const materialOptions = item.signage.materials;
 
   const handleMaterialChange = (value: string) => {
     if (value === SIGNAGE_NOT_AVAILABLE && hasPhoto) onRemovePhoto(item.id);
@@ -108,7 +106,7 @@ export function SignageChecklistItem({
       className={cn(
         "bg-card/95 shadow-sm ring-1 ring-border/60",
         isDamaged && "ring-destructive/45",
-        isNotAvailable && "opacity-75",
+        isNotAvailable && "bg-muted/40",
       )}
     >
       <CardContent>
@@ -116,47 +114,73 @@ export function SignageChecklistItem({
           <div className="flex flex-col gap-3">
             <h4 className="text-base font-semibold">{item.name}</h4>
 
-            <div className="flex flex-col gap-2">
-              <p className={SECTION_LABEL_CLASS}>
-                Material <span className="text-destructive">*</span>
-              </p>
-              <RadioGroup
-                value={material}
-                onValueChange={handleMaterialChange}
-                className={cn(
-                  "grid gap-1 rounded-xl bg-muted",
-                  materialOptions.length > 2 ? "grid-cols-3" : "grid-cols-2",
-                )}
+            {!isNotAvailable ? (
+              <div className="flex flex-col gap-2">
+                <p className={SECTION_LABEL_CLASS}>
+                  Material <span className="text-destructive">*</span>
+                </p>
+                <RadioGroup
+                  value={material}
+                  onValueChange={handleMaterialChange}
+                  className={cn(
+                    "grid gap-1 rounded-xl bg-muted",
+                    materialOptions.length > 2 ? "grid-cols-3" : "grid-cols-2",
+                  )}
+                >
+                  {materialOptions.map((value) => {
+                    const isSelected = material === value;
+                    return (
+                      <Label
+                        key={value}
+                        htmlFor={`${item.id}-material-${value}`}
+                        className={cn(
+                          OPTION_CLASS,
+                          isSelected
+                            ? "bg-primary text-primary-foreground shadow-sm"
+                            : "text-muted-foreground",
+                        )}
+                      >
+                        <RadioGroupItem
+                          id={`${item.id}-material-${value}`}
+                          value={value}
+                          className="pointer-events-none absolute opacity-0"
+                        />
+                        <span className="min-w-0 leading-tight break-words">
+                          {renderMaterialLabel(value)}
+                        </span>
+                      </Label>
+                    );
+                  })}
+                </RadioGroup>
+              </div>
+            ) : null}
+
+            {item.signage.allowNotAvailable ? (
+              <Button
+                type="button"
+                variant={isNotAvailable ? "secondary" : "outline"}
+                size="sm"
+                aria-pressed={isNotAvailable}
+                className="w-full"
+                onClick={() =>
+                  handleMaterialChange(
+                    isNotAvailable ? "" : SIGNAGE_NOT_AVAILABLE,
+                  )
+                }
               >
-                {materialOptions.map((value) => {
-                  const isSelected = material === value;
-                  return (
-                    <Label
-                      key={value}
-                      htmlFor={`${item.id}-material-${value}`}
-                      className={cn(
-                        OPTION_CLASS,
-                        materialOptions.length > 2 && "text-xs",
-                        isSelected
-                          ? value === SIGNAGE_NOT_AVAILABLE
-                            ? "bg-neutral-400 text-foreground shadow-sm dark:bg-neutral-700 dark:text-white"
-                            : "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      <RadioGroupItem
-                        id={`${item.id}-material-${value}`}
-                        value={value}
-                        className="pointer-events-none absolute opacity-0"
-                      />
-                      <span className="min-w-0 leading-tight break-words">
-                        {renderMaterialLabel(value)}
-                      </span>
-                    </Label>
-                  );
-                })}
-              </RadioGroup>
-            </div>
+                {isNotAvailable ? (
+                  <>
+                    <Undo2 data-icon="inline-start" />
+                    Tidak ada di toko · Batalkan
+                  </>
+                ) : (
+                  <>
+                    <Ban data-icon="inline-start" />
+                    Tidak ada di toko
+                  </>
+                )}
+              </Button>
+            ) : null}
 
             {material && !isNotAvailable ? (
               <div className="flex flex-col gap-2">
