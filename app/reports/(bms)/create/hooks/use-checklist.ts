@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import {
     getLastCategoryIDate,
     getLastSignageDate,
-    hasSkippedPreventiveThisQuarter,
 } from "@/app/reports/actions";
 import { canSkipPreventive as isSkipEligible } from "@/lib/preventive-skip";
 import {
@@ -77,12 +76,10 @@ export function useChecklist(
             setSkipPreventive(false);
 
             try {
-                const [lastCoreDate, lastSignageDate, alreadySkipped] =
-                    await Promise.all([
-                        getLastCategoryIDate(selectedStore.code),
-                        getLastSignageDate(selectedStore.code),
-                        hasSkippedPreventiveThisQuarter(selectedStore.code),
-                    ]);
+                const [lastCoreDate, lastSignageDate] = await Promise.all([
+                    getLastCategoryIDate(selectedStore.code),
+                    getLastSignageDate(selectedStore.code),
+                ]);
                 const now = new Date();
                 const coreCooling =
                     !!lastCoreDate &&
@@ -96,11 +93,7 @@ export function useChecklist(
                     coreCooling ? getNextJakartaQuarterStart(now) : null,
                 );
                 setIsSkipAllowed(
-                    isSkipEligible({
-                        coreCooling,
-                        alreadySkippedThisQuarter: alreadySkipped,
-                        now,
-                    }),
+                    isSkipEligible({ coreCooling, now }),
                 );
             } catch {
                 setIsCategoryICoolingDown(false);

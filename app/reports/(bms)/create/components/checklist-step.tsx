@@ -52,7 +52,7 @@ import { PhotoGuideLink } from "@/components/photo-guide/photo-guide-link";
 interface ChecklistStepProps {
   storeCode?: string;
   isRepairOnlyMode: boolean; // mapped from isCategoryICoolingDown (or similar intent)
-  /** Opsi lewati preventif tersedia (bulan pertama kuartal, jatah toko belum dipakai). */
+  /** Opsi lewati preventif tersedia (bulan pertama kuartal, toko belum preventif). */
   canSkipPreventive: boolean;
   isPreventiveSkipped: boolean;
   onSkipPreventiveChange: (skip: boolean) => void;
@@ -241,7 +241,7 @@ export function ChecklistStep({
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">
                   {isPreventiveSkipped
-                    ? "Preventif toko ini dilewati untuk laporan ini. Cukup pilih item yang rusak. Checklist preventif tetap wajib di kunjungan berikutnya kuartal ini."
+                    ? "Preventif toko ini dilewati untuk laporan ini. Cukup pilih item yang rusak. Preventif toko tetap belum tercatat; mulai bulan ke-2 kuartal checklist lengkap kembali wajib."
                     : isRepairOnlyMode
                       ? hasPendingSignage
                         ? "Toko sudah mengisi item preventif I.1–I.10 kuartal ini. Item signage I.11–I.13 tetap wajib diisi sekali; item lain cukup pilih yang rusak."
@@ -258,8 +258,8 @@ export function ChecklistStep({
                       <span className="font-semibold text-foreground">
                         melewati checklist preventif
                       </span>{" "}
-                      dan cukup mengisi item yang rusak. Tersedia di bulan
-                      pertama kuartal, sekali per toko.
+                      dan cukup mengisi item yang rusak. Tersedia selama bulan
+                      pertama kuartal.
                     </p>
                     <AlertDialogTrigger asChild>
                       <Button type="button" size="sm" className="w-full">
@@ -273,10 +273,10 @@ export function ChecklistStep({
                       <AlertDialogTitle>Lewati checklist preventif?</AlertDialogTitle>
                       <AlertDialogDescription>
                         Gunakan hanya untuk perbaikan urgent/insidentil. Opsi ini
-                        hanya ada di bulan pertama kuartal dan hanya sekali per
-                        toko per kuartal. Laporan akan ditandai &quot;Preventif
-                        dilewati&quot; untuk BMC dan BNM, dan checklist preventif
-                        tetap wajib di kunjungan berikutnya.
+                        hanya ada di bulan pertama kuartal. Laporan akan ditandai
+                        &quot;Preventif dilewati&quot; untuk BMC dan BNM, dan
+                        preventif toko tetap belum tercatat, jadi mulai bulan ke-2
+                        kuartal checklist lengkap kembali wajib.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

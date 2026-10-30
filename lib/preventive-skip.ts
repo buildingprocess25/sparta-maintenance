@@ -6,8 +6,6 @@ export const PREVENTIVE_SKIPPED_ACTIVITY_NOTE =
 export type PreventiveSkipInput = {
     /** I1–I10 sudah tercatat di kuartal berjalan. */
     coreCooling: boolean;
-    /** Toko sudah memakai jatah lewati preventif di kuartal berjalan. */
-    alreadySkippedThisQuarter: boolean;
     now: Date;
 };
 
@@ -28,9 +26,6 @@ export function getPreventiveSkipBlocker(
     }
     if (!isFirstMonthOfJakartaQuarter(input.now)) {
         return "Lewati preventif hanya bisa di bulan pertama kuartal (Januari, April, Juli, Oktober).";
-    }
-    if (input.alreadySkippedThisQuarter) {
-        return "Toko ini sudah pernah melewati preventif di kuartal ini.";
     }
     return null;
 }

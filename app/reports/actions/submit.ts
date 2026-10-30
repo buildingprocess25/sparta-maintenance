@@ -20,7 +20,6 @@ import { checklistCategories } from "@/lib/checklist-data";
 import {
     getLastCategoryIDate,
     getLastSignageDate,
-    hasSkippedPreventiveThisQuarter,
 } from "./queries";
 import { resolvePreventiveSubmission } from "@/lib/preventive-cooldown";
 import {
@@ -132,14 +131,11 @@ export async function submitReport(data: DraftData) {
             isSameJakartaQuarter(new Date(lastSignageDate), now);
     }
 
-    // ── Lewati preventif: bulan pertama kuartal, sekali per toko ──────────
+    // ── Lewati preventif: bulan pertama kuartal, tanpa batas per toko ─────
     let preventiveSkipped = false;
     if (data.skipPreventive) {
         const blocker = getPreventiveSkipBlocker({
             coreCooling: cooldown.core,
-            alreadySkippedThisQuarter: data.storeCode
-                ? await hasSkippedPreventiveThisQuarter(data.storeCode)
-                : false,
             now: new Date(),
         });
         if (blocker) {

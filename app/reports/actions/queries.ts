@@ -279,32 +279,6 @@ export async function getLastSignageDate(storeCode: string) {
     return report?.createdAt.toISOString() ?? null;
 }
 
-/**
- * Toko sudah memakai jatah lewati preventif di kuartal berjalan. Draft dan
- * laporan yang ditolak permanen tidak menghabiskan jatah.
- */
-export async function hasSkippedPreventiveThisQuarter(storeCode: string) {
-    await requireAuth();
-
-    const now = new Date();
-    const { start, endExclusive } = getJakartaQuarterWindow(
-        getJakartaYear(now),
-        getJakartaCurrentQuarter(now),
-    );
-
-    const report = await prisma.report.findFirst({
-        where: {
-            storeCode,
-            preventiveSkipped: true,
-            status: { notIn: ["DRAFT", "ESTIMATION_REJECTED"] },
-            createdAt: { gte: start, lt: endExclusive },
-        },
-        select: { reportNumber: true },
-    });
-
-    return report !== null;
-}
-
 export async function getApprovalReports(params: {
     status?: string;
     search?: string;

@@ -3,6 +3,11 @@
 Tanggal: 2026-10-29
 Role terdampak: BMS (pembuat laporan), BMC/BNM/Admin (melihat penanda)
 
+> **Revisi 2026-10-30:** batas sekali per toko per kuartal (aturan 3) dihapus.
+> BMS boleh melewati preventif berkali-kali untuk toko yang sama selama bulan
+> pertama kuartal dan toko belum preventif. Query `hasSkippedPreventiveThisQuarter`
+> dihapus; aturan lain tetap.
+
 ## Latar belakang
 
 Saat ini mode checklist ditentukan per **toko** per **kuartal kalender (WIB)**:

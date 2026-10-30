@@ -45,7 +45,6 @@ const october = new Date("2026-10-29T05:00:00Z");
 const november = new Date("2026-11-02T05:00:00Z");
 const eligible = {
     coreCooling: false,
-    alreadySkippedThisQuarter: false,
     now: october,
 };
 
@@ -59,14 +58,6 @@ assert.equal(
 assert.equal(
     getPreventiveSkipBlocker({ ...eligible, now: november }),
     "Lewati preventif hanya bisa di bulan pertama kuartal (Januari, April, Juli, Oktober).",
-);
-assert.equal(
-    getPreventiveSkipBlocker({ ...eligible, alreadySkippedThisQuarter: true }),
-    "Toko ini sudah pernah melewati preventif di kuartal ini.",
-);
-assert.equal(
-    canSkipPreventive({ ...eligible, alreadySkippedThisQuarter: true }),
-    false,
 );
 
 assert.equal(
