@@ -48,7 +48,12 @@ dan endpoint preview dev.
 - Mengubah urutan data yang tersimpan di database (JSONB `items`/`estimations`).
 - Meregenerasi PDF yang sudah diarsipkan di Google Drive. Hanya PDF yang
   di-generate setelah perubahan ini yang berurutan.
-- `generateReportPdfFull` / halaman foto Laporan Lengkap — sudah berurutan.
+- Halaman foto Laporan Lengkap — sudah berurutan (`report-pdf-full-builder.ts`).
+
+> **Revisi 2026-11-02 (saat implementasi):** `generateReportPdfFull` ternyata
+> juga merender tabel checklist/estimasi/Detail Penyelesaian lewat
+> `buildReportDocument` tanpa pengurutan. Sesuai keputusan "semua PDF",
+> `orderReportPdfContent` juga dipanggil di awal `generateReportPdfFull`.
 
 ## Desain
 

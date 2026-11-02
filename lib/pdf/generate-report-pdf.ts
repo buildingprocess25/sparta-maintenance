@@ -21,6 +21,7 @@ import { logger } from "@/lib/logger";
 import { buildRealisasiDanaTaktisSummary } from "@/lib/realisasi";
 import { getReportStatusLabel } from "@/lib/report-status";
 import { getChecklistItemMeta } from "@/lib/checklist-data";
+import { orderReportPdfContent } from "@/lib/pdf/report-pdf-order";
 import { describeSignageCondition } from "@/lib/signage";
 import {
     CHECKLIST_PHOTO_COLS,
@@ -2634,8 +2635,10 @@ function buildReportDocument(
 }
 
 export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
+    const ordered = orderReportPdfContent(data);
     const normalizedData: ReportPdfData = {
         ...data,
+        estimations: ordered.estimations,
         completionSelfieUrls: normalizePhotoUrls(data.completionSelfieUrls),
         startReceiptUrls: normalizePhotoUrls(data.startReceiptUrls),
         startMaterialStores: data.startMaterialStores.map((store) => {
@@ -2649,7 +2652,7 @@ export async function generateReportPdf(data: ReportPdfData): Promise<Buffer> {
         completionAdditionalPhotos: normalizePhotoUrls(
             data.completionAdditionalPhotos,
         ),
-        items: data.items.map((item) => ({
+        items: ordered.items.map((item) => ({
             ...item,
             photoUrl: normalizePhotoUrl(item.photoUrl),
             images: item.images ? normalizePhotoUrls(item.images) : undefined,
@@ -3113,8 +3116,10 @@ export async function generateReportPdfFull(
     data: ReportPdfData,
     checklistPhotos: ChecklistItemWithPhotos[],
 ): Promise<Buffer> {
+    const ordered = orderReportPdfContent(data);
     const normalizedData: ReportPdfData = {
         ...data,
+        estimations: ordered.estimations,
         completionSelfieUrls: normalizePhotoUrls(data.completionSelfieUrls),
         startReceiptUrls: normalizePhotoUrls(data.startReceiptUrls),
         startMaterialStores: data.startMaterialStores.map((store) => {
@@ -3128,7 +3133,7 @@ export async function generateReportPdfFull(
         completionAdditionalPhotos: normalizePhotoUrls(
             data.completionAdditionalPhotos,
         ),
-        items: data.items.map((item) => ({
+        items: ordered.items.map((item) => ({
             ...item,
             photoUrl: normalizePhotoUrl(item.photoUrl),
             images: item.images ? normalizePhotoUrls(item.images) : undefined,

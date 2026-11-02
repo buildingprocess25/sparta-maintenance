@@ -96,40 +96,8 @@ function buildMockData(mode: "completed" | "pending"): ReportPdfData {
                           },
                       ],
         },
+        // Sengaja tidak urut: PDF harus tetap menampilkan A1, A2, B1.
         items: [
-            {
-                itemId: "A1",
-                itemName: "Pintu Kaca Utama",
-                categoryName: "A. Bagian Depan Bangunan",
-                condition: "RUSAK",
-                preventiveCondition: "NOT_OK",
-                handler: "REKANAN",
-                photoUrl: null,
-                images: mode === "completed" ? [beforeA1] : [],
-                afterImages: mode === "completed" ? [afterA1] : [],
-                notes: "Engsel longgar dan pintu tidak menutup rapat.",
-                realisasiItems:
-                    mode === "completed"
-                        ? [
-                              {
-                                  materialName: "Engsel Lantai Dorma",
-                                  quantity: 1,
-                                  unit: "pcs",
-                                  price: 1180000,
-                                  totalPrice: 1180000,
-                              },
-                          ]
-                        : [],
-            },
-            {
-                itemId: "A2",
-                itemName: "Lantai Teras",
-                categoryName: "A. Bagian Depan Bangunan",
-                condition: "BAIK",
-                preventiveCondition: "OK",
-                handler: null,
-                photoUrl: null,
-            },
             {
                 itemId: "B1",
                 itemName: "Lampu Neon Box",
@@ -154,16 +122,41 @@ function buildMockData(mode: "completed" | "pending"): ReportPdfData {
                           ]
                         : [],
             },
-        ],
-        estimations: [
+            {
+                itemId: "A2",
+                itemName: "Lantai Teras",
+                categoryName: "A. Bagian Depan Bangunan",
+                condition: "BAIK",
+                preventiveCondition: "OK",
+                handler: null,
+                photoUrl: null,
+            },
             {
                 itemId: "A1",
-                materialName: "Engsel Lantai Dorma",
-                quantity: 1,
-                unit: "pcs",
-                price: 1200000,
-                totalPrice: 1200000,
+                itemName: "Pintu Kaca Utama",
+                categoryName: "A. Bagian Depan Bangunan",
+                condition: "RUSAK",
+                preventiveCondition: "NOT_OK",
+                handler: "REKANAN",
+                photoUrl: null,
+                images: mode === "completed" ? [beforeA1] : [],
+                afterImages: mode === "completed" ? [afterA1] : [],
+                notes: "Engsel longgar dan pintu tidak menutup rapat.",
+                realisasiItems:
+                    mode === "completed"
+                        ? [
+                              {
+                                  materialName: "Engsel Lantai Dorma",
+                                  quantity: 1,
+                                  unit: "pcs",
+                                  price: 1180000,
+                                  totalPrice: 1180000,
+                              },
+                          ]
+                        : [],
             },
+        ],
+        estimations: [
             {
                 itemId: "B1",
                 materialName: "Starter Lampu TL",
@@ -171,6 +164,14 @@ function buildMockData(mode: "completed" | "pending"): ReportPdfData {
                 unit: "pcs",
                 price: 150000,
                 totalPrice: 300000,
+            },
+            {
+                itemId: "A1",
+                materialName: "Engsel Lantai Dorma",
+                quantity: 1,
+                unit: "pcs",
+                price: 1200000,
+                totalPrice: 1200000,
             },
         ],
     };
