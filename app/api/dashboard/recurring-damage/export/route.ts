@@ -76,8 +76,8 @@ function buildStoreSummarySheet(stores: RecurringDamageStore[]): XLSX.WorkSheet 
         "Cabang",
         "Kode Toko",
         "Nama Toko",
-        "Frekuensi Rusak Maks",
-        "Item Rusak Tersering",
+        "Item Paling Sering Rusak",
+        "Rusak (x)",
         "Jumlah Item Rusak Berulang",
     ];
     const rows = stores.map((store, index) => [
@@ -85,8 +85,8 @@ function buildStoreSummarySheet(stores: RecurringDamageStore[]): XLSX.WorkSheet 
         textCell(store.branchName),
         textCell(store.storeCode),
         textCell(store.storeName),
-        numCell(store.maxFrequency),
         textCell(`${store.topItemId} - ${store.topItemName}`),
+        numCell(store.maxFrequency),
         numCell(store.recurringItemCount),
     ]);
 
