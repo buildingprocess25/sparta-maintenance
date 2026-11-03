@@ -27,7 +27,7 @@ export function ExportRecurringDamageButton({
 
     const handleExport = async () => {
         setIsExporting(true);
-        const toastId = toast.loading("Menyiapkan file kerusakan berulang...");
+        const toastId = toast.loading("Menyiapkan file analisa kerusakan...");
 
         try {
             const res = await fetch("/api/dashboard/recurring-damage/export", {
@@ -38,7 +38,7 @@ export function ExportRecurringDamageButton({
 
             if (!res.ok) {
                 const data = await res.json().catch(() => null);
-                throw new Error(data?.error || "Gagal mengekspor kerusakan berulang");
+                throw new Error(data?.error || "Gagal mengekspor analisa kerusakan");
             }
 
             const blob = await res.blob();
@@ -47,18 +47,18 @@ export function ExportRecurringDamageButton({
             a.href = url;
             a.download =
                 getFileNameFromDisposition(res.headers.get("Content-Disposition")) ??
-                "Kerusakan_Berulang.xlsx";
+                "Analisa_Kerusakan.xlsx";
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             a.remove();
 
-            toast.success("File kerusakan berulang berhasil diunduh", { id: toastId });
+            toast.success("File analisa kerusakan berhasil diunduh", { id: toastId });
         } catch (error) {
             const message =
                 error instanceof Error
                     ? error.message
-                    : "Gagal mengekspor kerusakan berulang";
+                    : "Gagal mengekspor analisa kerusakan";
             toast.error(message, { id: toastId });
         } finally {
             setIsExporting(false);

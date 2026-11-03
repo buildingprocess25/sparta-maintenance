@@ -3,12 +3,13 @@ import "server-only";
 import { unstable_cache } from "next/cache";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
-import type {
-    DamagedItemRank,
-    DamagedItemSummary,
-    RecurringDamageData,
-    RecurringDamageFilters,
-    RecurringDamagePeriod,
+import {
+    summarizeDamagedItems,
+    type DamagedItemRank,
+    type DamagedItemSummary,
+    type RecurringDamageData,
+    type RecurringDamageFilters,
+    type RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
 import {
     computeDamagedItemSummary,
@@ -132,12 +133,6 @@ export async function loadRecurringDamage(
 
 const DAMAGED_ITEM_RANKING_LIMIT = 5;
 
-const EMPTY_DAMAGED_ITEM_SUMMARY: DamagedItemSummary = {
-    items: [],
-    totalDamageCount: 0,
-    affectedItemCount: 0,
-    affectedStoreCount: 0,
-};
 
 /** Ringkasan seluruh item kecil (±128 baris), jadi aman di-cache untuk semua cabang. */
 const getDamagedItemSummaryCached = unstable_cache(
@@ -154,7 +149,8 @@ export async function loadDamagedItemSummary(
     filters: RecurringDamageFilters,
 ): Promise<DamagedItemSummary> {
     const scope = await resolveRecurringDamageScope(filters);
-    if (!scope) return EMPTY_DAMAGED_ITEM_SUMMARY;
+    // User tanpa cabang tetap melihat 128 item dengan angka 0.
+    if (!scope) return summarizeDamagedItems([], []);
 
     try {
         return await getDamagedItemSummaryCached(scope, toPeriod(filters));

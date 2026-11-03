@@ -8,6 +8,7 @@ import { MetricColumn } from "@/components/dashboard/metric-column";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { REPORT_CHECKLIST_ITEMS } from "@/lib/checklist-data";
 import {
     formatRecurringDamagePeriod,
     type DamagedItemSummary,
@@ -71,6 +72,9 @@ export function RecurringDamageView({
     const navigate = useCallback(
         (change: RecurringDamageFilterChange) => {
             const params = new URLSearchParams(searchParams.toString());
+            // Tulis tab aktif secara eksplisit agar tautan lama (tanpa `view`) tetap di tabnya
+            // setelah `item`/`store` terhapus.
+            params.set("view", view);
             for (const [key, value] of Object.entries(change)) {
                 if (value === undefined || value === "all" || value === "ALL") {
                     params.delete(key);
@@ -88,7 +92,7 @@ export function RecurringDamageView({
                 });
             });
         },
-        [router, searchParams],
+        [router, searchParams, view],
     );
 
     // Data toko sudah ada di klien; panel cukup memperbarui URL tanpa render ulang.
@@ -168,7 +172,7 @@ export function RecurringDamageView({
                                     label="Item terdampak"
                                     value={
                                         itemSummary
-                                            ? `${itemSummary.affectedItemCount.toLocaleString("id-ID")} dari ${itemSummary.items.length.toLocaleString("id-ID")} item`
+                                            ? `${itemSummary.affectedItemCount.toLocaleString("id-ID")} dari ${REPORT_CHECKLIST_ITEMS.length.toLocaleString("id-ID")} item`
                                             : "-"
                                     }
                                 />
@@ -219,6 +223,7 @@ export function RecurringDamageView({
                             : { view: "store" },
                     )
                 }
+                activationMode="manual"
                 className="gap-0"
             >
                 <div className="border-b bg-background px-4 pt-2 lg:px-6">

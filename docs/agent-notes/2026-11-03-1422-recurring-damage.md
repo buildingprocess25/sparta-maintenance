@@ -46,7 +46,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Export tetap tanpa cache dan memuat toko semua cabang.
 - Baris tabel cabang/toko punya tombol nama agar bisa dibuka dengan keyboard; panel toko tidak dibuka pada tampilan semua cabang.
 - `?store=` di luar daftar tetap membuka panel dengan pesan kosong; konten terakhir dipertahankan saat panel ditutup.
-- Nama file export memakai nama cabang dari data (bukan dari body) bila datanya satu cabang; body non-objek ditolak 400.
+- Nama file export memakai nama cabang dari cakupan user di server (`resolveRecurringDamageBranchName`), bukan dari body; body non-objek ditolak 400.
 - Widget mengurutkan item berdasarkan jumlah laporan rusak (keputusan user), dengan keterangan jumlah toko berulang agar sesuai dengan halaman tujuan; klik item membuka halaman dengan filter item.
 - Rekap 128 item ditaruh sebagai tab di halaman yang ada (keputusan user) dan halaman diganti nama "Analisa Kerusakan"; route tetap `/dashboard/recurring-damage`. Tab Per item jadi default; tautan lama berisi `item`/`store` tetap membuka tab toko.
 
@@ -67,6 +67,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Widget + filter item: spec lulus, eslint bersih pada file fitur (error/warning lama di admin-dashboard-v2.tsx dan manager-dashboard.tsx tidak disentuh), scoped tsc lulus; belum dicek di browser.
 - Review widget/filter item: respons lama widget tidak lagi menimpa hasil filter baru (key per request), label kartu angka/panel/export menyesuaikan filter item; eslint, scoped tsc, spec lulus. Pola race yang sama di widget Checklist Preventif juga diperbaiki atas permintaan user (`preventive-kpi-widget.tsx`, flag ignore di cleanup effect); eslint pada file itu tetap hanya menampilkan 1 error + 2 warning lama.
 - Tab Per item: spec, eslint (hanya warning `Image` lama di sidebar), scoped tsc lulus; belum dicek di browser.
+- Review tab Per item: tautan lama tetap di tab toko setelah filter berubah (`view` selalu ditulis saat navigasi), user tanpa cabang tetap melihat 128 item, tab berpindah hanya saat diklik (`activationMode="manual"`), teks export disesuaikan.
 
 ## Remaining Work and Risks
 

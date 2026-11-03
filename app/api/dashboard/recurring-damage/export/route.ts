@@ -327,7 +327,7 @@ export async function POST(request: NextRequest) {
             {
                 error:
                     status === 500
-                        ? "Gagal mengekspor kerusakan berulang. Silakan coba lagi."
+                        ? "Gagal mengekspor analisa kerusakan. Silakan coba lagi."
                         : "Anda tidak punya akses untuk ekspor ini",
             },
             { status },
