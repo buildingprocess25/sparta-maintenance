@@ -22,6 +22,8 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `app/dashboard/preventive/_components/admin-preventive-table.tsx`: memakai komponen bersama, salinan lokal dihapus.
 - `app/dashboard/recurring-damage/detections-query.ts`: query JSONB item rusak per toko/periode (`fetchDamageDetections`, filter toko lewat satu parameter array `= ANY(...::text[])`) dan `computeRecurringDamage(scope, period)` yang memuat toko aktif sesuai cakupan lalu menghitung toko problematik dan ringkasan cabang. Tanpa cek akses dan tanpa cache.
 - `app/dashboard/recurring-damage/queries.ts`: resolusi cakupan dengan cek role; `loadRecurringDamageView` untuk halaman (via `unstable_cache` 300 s, tag `recurring-damage`) dan `loadRecurringDamage` untuk export (tanpa cache, data lengkap).
+- `app/dashboard/recurring-damage/page.tsx` dan `_components/*`: halaman Kerusakan Berulang (filter Tahun → Triwulan → Bulan, tabel cabang, tabel toko, panel toko).
+- `components/app-sidebar.tsx`: menu "Kerusakan Berulang" di grup Monitoring untuk Admin, BMC, BNM.
 
 ## Decisions
 
@@ -41,6 +43,8 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Script verifikasi sementara di DB lokal (2026): 22150 toko aktif, 45374 deteksi, 1431 toko problematik, durasi 3329 ms (run pertama, cache dingin) dan 2232 ms (run kedua), signage Pudar/Rusak di luar NOT_OK = 0. Script dihapus.
 - Perbaikan cache + parameter array: tsc terscope exit 0, eslint `app/dashboard/recurring-damage` bersih, spec lulus. Script sementara (dihapus) memanggil `computeRecurringDamage` untuk 2026: semua cabang 6080 ms (run pertama) dan 3424 ms (run kedua), 29 cabang, 1431 toko problematik, 7180 deteksi di toko problematik; payload ringkasan saja 1.539 byte (data lengkap semua cabang 1.981.582 byte, nyaris 2 MB). Satu cabang (cabang dengan toko problematik terbanyak, 208 toko): 349 ms, 1228 deteksi, payload 331.349 byte.
 - Cross-check manual (SQL terpisah, toko teratas cabang tersebut dan item teratasnya): cocok, 4 laporan terhitung = maxFrequency 4.
+- Task 5: tsc terscope (halaman, `_components/*`, sidebar, komponen dashboard, modul data) exit 0; eslint `app/dashboard/recurring-damage` bersih, `components/app-sidebar.tsx` hanya warning lama (`Image` tidak terpakai, bukan dari perubahan ini).
+- Cek browser: dilakukan terpisah setelah Task 6.
 
 ## Remaining Work and Risks
 

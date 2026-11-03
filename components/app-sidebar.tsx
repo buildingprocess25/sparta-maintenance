@@ -26,6 +26,7 @@ import {
     IconSquareCheck,
     IconBuildingCommunity,
     IconUserCog,
+    IconRepeat,
 } from "@tabler/icons-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -97,6 +98,11 @@ const data = {
                     title: "Performa BMS",
                     url: "/dashboard/bms-performance",
                     icon: IconUserCog,
+                },
+                {
+                    title: "Kerusakan Berulang",
+                    url: "/dashboard/recurring-damage",
+                    icon: IconRepeat,
                 },
                 {
                     title: "Aktivitas User",
@@ -205,6 +211,7 @@ export function AppSidebar({
                 "Checklist Preventif",
                 "Dokumen PJUM",
                 "Performa BMS",
+                "Kerusakan Berulang",
             ];
 
             if (
