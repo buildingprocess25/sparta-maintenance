@@ -1,7 +1,8 @@
 # Baris "Belum di-assign" di Tabel Coverage BMS — Design
 
 Tanggal: 2026-11-03
-Halaman terdampak: `/dashboard/preventive` tab Coverage BMS (Admin, BMC, BNM)
+Halaman terdampak: `/dashboard/preventive` tab Coverage BMS (Admin, BMC, BNM);
+hapus user di `/dashboard/users` dan `/bmc/database`
 
 ## Latar belakang
 
@@ -40,6 +41,8 @@ dua assignment aktif terhitung dua kali di total cabang.
    laporannya sebagai petunjuk untuk penugasan.
 4. Admin/BMC bisa langsung membuka halaman Data Toko untuk toko unassigned agar
    bisa meng-assign BMS.
+5. Saat user BMS dihapus, semua tokonya otomatis menjadi vacant. Data lama
+   dibereskan dengan script dry-run/execute.
 
 ## Lapisan data
 
@@ -178,6 +181,70 @@ BMC, sesuai akses halaman `/dashboard/stores`.
 Angka cabang mengikuti data baru (CIANJUR: 610 / 334 / 276). Badge tetap
 "{bmsCount} BMS" dan menampilkan "0 BMS" untuk cabang tanpa assignment.
 
+## Toko otomatis vacant saat user BMS dihapus
+
+### Latar belakang
+
+Hapus user adalah soft delete: `deletedAt` diisi, `passwordHash` dikosongkan,
+dan `userPresence` dihapus. `BmsStoreAssignment` tidak disentuh, sehingga toko
+milik BMS yang sudah dihapus tetap tercatat ter-assign. BMS tersebut juga tetap
+muncul di tabel Coverage BMS.
+
+Ada dua jalur hapus:
+
+- `adminDeleteUser` (`app/admin/database/actions.ts`), dipanggil dari
+  `/dashboard/users`
+- `deleteUser` (`app/bmc/database/actions.ts`), dipanggil dari `/bmc/database`
+
+### Perubahan
+
+Di kedua jalur, jika `existing.role === "BMS"`, tambahkan langkah ini ke
+`prisma.$transaction` yang sama dengan update `deletedAt`:
+
+```ts
+prisma.bmsStoreAssignment.updateMany({
+    where: { bmsNIK: NIK, isActive: true },
+    data: {
+        isActive: false,
+        unassignedAt: new Date(),
+        unassignedByNIK: <NIK pelaku>,
+        notes: "User BMS dihapus",
+    },
+});
+```
+
+Polanya sama dengan penonaktifan assignment saat toko dinonaktifkan
+(`updateStore` di `app/admin/database/actions.ts`). Karena berada di satu
+transaksi, hapus user dan pengosongan assignment selalu berhasil atau gagal
+bersama. Log `logger.info` yang sudah ada ditambah field
+`vacatedAssignments` (jumlah baris yang di-update). Dengan `$transaction`
+bentuk array, hasil `updateMany` diambil dari elemen yang sesuai.
+
+Perilaku turunan:
+
+- Role selain BMS tidak terpengaruh.
+- User BMS yang dipulihkan (create ulang dengan NIK sama) **tidak** mendapat
+  assignment lamanya kembali. BMC perlu meng-assign ulang lewat Data Toko.
+- Toko yang di-vacate langsung tampil di baris "Belum di-assign BMS" di tabel
+  Coverage BMS.
+
+### Script pembersihan data lama
+
+BMS yang dihapus sebelum perubahan ini mungkin masih memegang assignment aktif.
+Untuk itu dibuat script sekali jalan `scripts/vacate-deleted-bms-assignments.ts`:
+
+- Target: `BmsStoreAssignment` dengan `isActive: true` yang BMS-nya
+  `deletedAt` tidak null.
+- Default **dry-run**: cetak jumlah per BMS (NIK, nama, cabang, jumlah toko,
+  tanggal dihapus) dan total, tanpa mengubah data.
+- Dengan flag `--execute`: jalankan `updateMany` dengan `isActive: false`,
+  `unassignedAt: now`, `unassignedByNIK: null`,
+  `notes: "Pembersihan: BMS sudah dihapus"`, lalu cetak jumlah baris yang
+  di-update.
+- Command di `package.json`:
+  - `"vacate:deleted-bms": "tsx scripts/vacate-deleted-bms-assignments.ts"`
+  - `"vacate:deleted-bms:execute": "tsx scripts/vacate-deleted-bms-assignments.ts --execute"`
+
 ## Kasus tepi
 
 | Kasus | Perilaku |
@@ -207,12 +274,19 @@ Angka cabang mengikuti data baru (CIANJUR: 610 / 334 / 276). Badge tetap
     sesuai selisih sebelumnya
   - tautan kode toko muncul untuk Admin dan BMC, dan tidak muncul untuk BNM
   - pencarian kode toko unassigned dan sort tetap berperilaku seperti di atas
+- Cek manual hapus user BMS: hapus BMS uji dari `/dashboard/users` (Admin) dan
+  dari `/bmc/database` (BMC). Pastikan semua assignment aktifnya jadi
+  `isActive: false` dengan `notes` yang benar (Prisma Studio), dan tokonya
+  pindah ke baris "Belum di-assign BMS". Hapus user non-BMS tidak mengubah
+  assignment.
+- Script pembersihan: jalankan `npm run vacate:deleted-bms` (dry-run) dan
+  pastikan tidak ada data yang berubah. Eksekusi di production adalah keputusan
+  terpisah setelah hasil dry-run ditinjau.
 - `npm run lint`.
 
 ## Di luar scope
 
 - Unique constraint `BmsStoreAssignment` per toko dan pembersihan data ganda
   (perlu perubahan schema dan migrasi data).
-- Filter "belum di-assign" di halaman Data Toko.
 - Perubahan pada card ringkasan, tab lain, atau ekspor XLSX.
 - Mengisi assignment yang kurang. Itu pekerjaan data oleh BMC.
