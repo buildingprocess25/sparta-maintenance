@@ -30,6 +30,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Perbaikan review akhir: export BMC/BNM tanpa cabang, nama file "Semua_Cabang" saat Admin memilih semua cabang, label handler dipusatkan di lib/recurring-damage.ts, newline akhir CLAUDE.md.
 - Revisi UI dari user: label "Toko problematik" diganti "Toko rusak berulang"; kolom tabel toko jadi "Item rusak tersering", "Frekuensi rusak maks", "Item rusak berulang" (header export ikut); panel toko diberi judul "Item rusak berulang" dan penanda "Item rusak tersering"; no. laporan dibuka di tab baru.
 - Revisi UI tabel toko: tombol "Lihat detail" per baris + petunjuk klik; kolom digabung jadi "Item paling sering rusak" (badge "rusak Nx") dan "Jumlah item rusak berulang" ("N item") dengan tooltip penjelasan; header export disamakan.
+- Revisi UI tabel cabang: kolom "Jumlah toko dengan kerusakan berulang" ("N toko") dengan tooltip, tombol "Lihat toko", petunjuk klik; kartu angka ikut berlabel sama dengan satuan toko. `HeaderWithInfo` dipisah ke `_components/header-with-info.tsx`.
 
 ## Decisions
 

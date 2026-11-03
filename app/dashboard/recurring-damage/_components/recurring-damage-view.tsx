@@ -145,8 +145,12 @@ export function RecurringDamageView({
                     <div className="overflow-hidden rounded-lg border bg-background">
                         <div className="grid">
                             <MetricColumn
-                                label="Toko rusak berulang"
-                                value={loadError ? "-" : problematicCount.toString()}
+                                label="Jumlah toko dengan kerusakan berulang"
+                                value={
+                                    loadError
+                                        ? "-"
+                                        : `${problematicCount.toLocaleString("id-ID")} toko`
+                                }
                                 tone={
                                     loadError
                                         ? "default"

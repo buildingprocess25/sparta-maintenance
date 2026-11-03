@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronRight, Info, Repeat, Search } from "lucide-react";
+import { ChevronRight, Repeat, Search } from "lucide-react";
 import { EmptyTable } from "@/components/dashboard/empty-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,33 +14,9 @@ import {
     TableHeader,
     TableRow,
 } from "@/components/ui/table";
-import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import type { RecurringDamageStore } from "@/lib/recurring-damage";
-
-function HeaderWithInfo({ label, info }: { label: string; info: string }) {
-    return (
-        <div className="flex items-center gap-1">
-            {label}
-            <Tooltip>
-                <TooltipTrigger asChild>
-                    <button
-                        type="button"
-                        aria-label={`Info ${label}`}
-                        className="text-muted-foreground"
-                    >
-                        <Info className="h-3.5 w-3.5" />
-                    </button>
-                </TooltipTrigger>
-                <TooltipContent>{info}</TooltipContent>
-            </Tooltip>
-        </div>
-    );
-}
+import { HeaderWithInfo } from "./header-with-info";
 
 export function RecurringStoreTable({
     stores,
