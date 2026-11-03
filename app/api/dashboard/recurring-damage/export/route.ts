@@ -173,22 +173,30 @@ function parseFilters(body: RequestBody): RecurringDamageFilters | null {
         return null;
     }
 
-    return { ...period, branchName: body.branchName, brand };
+    return { ...period, branchName: body.branchName?.trim(), brand };
 }
 
 export async function POST(request: NextRequest) {
     const correlationId = crypto.randomUUID();
     const start = performance.now();
 
-    let body: RequestBody;
+    let raw: unknown;
     try {
-        body = await request.json();
+        raw = await request.json();
     } catch {
         return NextResponse.json(
             { error: "Filter export tidak valid" },
             { status: 400 },
         );
     }
+
+    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+        return NextResponse.json(
+            { error: "Filter export tidak valid" },
+            { status: 400 },
+        );
+    }
+    const body = raw as RequestBody;
 
     const filters = parseFilters(body);
     if (!filters) {
@@ -213,12 +221,14 @@ export async function POST(request: NextRequest) {
         );
 
         const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-        // BMC/BNM selalu satu cabang; pakai nama dari data, bukan dari body.
+        // Satu cabang di data (BMC/BNM, atau Admin memilih cabang) → pakai nama dari data.
+        // Admin memilih cabang tanpa toko aktif → pakai filter; selain itu semua cabang.
         const branchSegment = sanitizeFileSegment(
-            data.branches.length === 1 &&
-                (filters.branchName ?? "all") !== "all"
+            data.branches.length === 1
                 ? data.branches[0].branchName
-                : "Semua_Cabang",
+                : filters.branchName && filters.branchName !== "all"
+                  ? filters.branchName
+                  : "Semua_Cabang",
         );
         const quarterSegment = filters.quarter ? `_TW${filters.quarter}` : "";
         const monthSegment = filters.month

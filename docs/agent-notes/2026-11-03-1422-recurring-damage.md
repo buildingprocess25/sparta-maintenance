@@ -38,6 +38,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Export tetap tanpa cache dan memuat toko semua cabang.
 - Baris tabel cabang/toko punya tombol nama agar bisa dibuka dengan keyboard; panel toko tidak dibuka pada tampilan semua cabang.
 - `?store=` di luar daftar tetap membuka panel dengan pesan kosong; konten terakhir dipertahankan saat panel ditutup.
+- Nama file export memakai nama cabang dari data (bukan dari body) bila datanya satu cabang; body non-objek ditolak 400.
 
 ## Verification
 
