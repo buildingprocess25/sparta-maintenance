@@ -122,8 +122,9 @@ Semua state disimpan di URL: `year`, `quarter`, `month`, `brand` (Admin),
 ### Layer 1 — Cabang
 
 - **Admin tanpa `branch`**: tabel cabang berisi nama cabang dan **jumlah toko
-  problematik**. Cabang dengan nol toko problematik tetap tampil dengan angka
-  0. Klik baris mengatur `?branch=`.
+  problematik**, diurutkan dari jumlah terbanyak lalu nama cabang. Cabang
+  dengan nol toko problematik tetap tampil dengan angka 0. Klik baris
+  mengatur `?branch=`.
 - **Admin dengan `branch`**, **BMC**, **BNM**: satu angka ringkasan "N toko
   problematik" untuk cabang itu, diikuti Layer 2. Admin mendapat tautan
   kembali ke daftar cabang.
@@ -164,8 +165,9 @@ toko lain tidak dibocorkan.
 
 ## Export XLSX
 
-Tombol **"Export XLSX"** di header halaman mengunduh file sesuai filter aktif
-(`year`, `quarter`, `month`, `brand`, `branch`). Tidak ada dialog terpisah.
+Tombol **"Ekspor XLSX"** (label yang sama dengan export lain) di header
+halaman mengunduh file sesuai filter aktif (`year`, `quarter`, `month`,
+`brand`, `branch`). Tidak ada dialog terpisah.
 
 Endpoint baru: `app/api/dashboard/recurring-damage/export/route.ts`. Polanya
 mengikuti `app/api/dashboard/preventive/annual-matrix-export/route.ts`:
@@ -182,57 +184,72 @@ Isi file:
   Kolom: cabang, kode toko, nama toko, ID item, nama item, kategori, nomor
   laporan, tanggal laporan, status, handler, kondisi asli signage, catatan.
 
-Tanggal memakai `toExcelJakartaSerial`. Nama file:
-`kerusakan-berulang-<cabang|semua>-<tahun>[-Q<n>][-<bulan>].xlsx`.
+Tanggal memakai `toExcelJakartaSerial`. Nama file mengikuti pola export
+matriks preventif:
+`Kerusakan_Berulang_<Cabang|Semua_Cabang>_<tahun>[_TW<n>][_<MM>].xlsx`.
 
 ## Arsitektur
 
-Tanpa tabel baru dan tanpa migrasi. Logic murni dipisah dari query.
+Tanpa tabel baru dan tanpa migrasi. Logic murni dipisah dari query, dan query
+dipisah dari pengecekan akses.
 
 ### `lib/recurring-damage.ts` (murni, tanpa I/O)
 
 - `isDamagedItem(item)`: aturan deteksi rusak.
-- `RECURRING_DAMAGE_EXCLUDED_STATUSES`: `DRAFT`, `ARCHIVED_PREVENTIVE`,
-  `ESTIMATION_REJECTED`.
-- `buildRecurringDamage(detections)`: menerima daftar deteksi
+- `RECURRING_DAMAGE_EXCLUDED_STATUSES` dan `isRecurringDamageCountedStatus`:
+  `DRAFT`, `ARCHIVED_PREVENTIVE`, `ESTIMATION_REJECTED` tidak dihitung.
+- `isValidRecurringDamagePeriod`, `normalizeRecurringDamagePeriod`,
+  `getRecurringDamageWindow`, `formatRecurringDamagePeriod`: validasi filter
+  periode, rentang `[start, endExclusive)` WIB, dan label periode.
+- `buildRecurringDamageStores(detections)`: menerima daftar deteksi
   `{ branchName, storeCode, storeName, itemId, reportNumber, createdAt,
-  status, handler, notes, signageCondition }` (`branchName` dan `storeName`
-  dari `Store`), mengembalikan toko problematik beserta ukurannya, item
-  berulang, dan deteksinya, sudah dalam urutan yang ditetapkan.
-- `resolveRecurringDamagePeriod({ year, quarter, month })`: memvalidasi
-  kombinasi filter dan mengembalikan rentang `[start, end)` WIB.
+  status, condition, preventiveCondition, handler, notes, signageCondition,
+  signageMaterial }` (`branchName` dan `storeName` dari `Store`),
+  mengembalikan toko problematik beserta ukurannya, item berulang, dan
+  deteksinya, sudah dalam urutan yang ditetapkan.
+- `summarizeRecurringDamageBranches(branchNames, stores)`: jumlah toko
+  problematik per cabang untuk Layer 1.
+
+### `app/dashboard/recurring-damage/detections-query.ts`
+
+`fetchDamageDetections({ stores, start, endExclusive })`: satu query SQL
+mentah (`prisma.$queryRaw`) yang membuka `jsonb_array_elements(r."items")`,
+dibatasi ke `storeCode` toko yang diberikan, rentang `createdAt`, dan status
+yang dihitung. Query hanya mengembalikan entri yang rusak. Nama toko dan
+cabang diambil dari daftar `Store` yang diberikan. File ini tidak mengecek
+akses, sehingga bisa dijalankan dari script verifikasi.
 
 ### `app/dashboard/recurring-damage/queries.ts` (server-only)
 
-Satu query SQL mentah (`prisma.$queryRaw`) yang membuka
-`jsonb_array_elements(r."items")`. Query dibatasi ke `storeCode` toko aktif
-di cakupan, rentang `createdAt`, dan status yang dihitung. Query hanya
-mengembalikan entri yang rusak. Nama toko dan cabang diambil dari `Store`.
-Untuk tampilan Admin tanpa `branch`, query yang sama dikelompokkan per cabang
-setelah `buildRecurringDamage`.
+`loadRecurringDamage(filters)`: mengecek user dan role (`getAuthUser`,
+melempar `Unauthorized`), menentukan cakupan toko, memanggil
+`fetchDamageDetections`, lalu `buildRecurringDamageStores` dan
+`summarizeRecurringDamageBranches`. Dipakai oleh halaman dan endpoint export.
 
 Cakupan toko berupa `Prisma.StoreWhereInput` dengan `isActive: true` dan:
 
-- Admin: `NOT branchName = EXCLUDED_ADMIN_BRANCH_NAME`, ditambah
+- Admin: `branchName` bukan `EXCLUDED_ADMIN_BRANCH_NAME`, ditambah
   `branchName = branch` bila `branch` dipilih, ditambah
   `getStoreBrandWhere(brand)`.
 - BMC dan BNM: `branchName = branchNames[0]`.
 
-Pilihan cabang untuk Admin memakai `getPreventiveBranchOptions` yang sudah
-ada.
-
-### `app/dashboard/recurring-damage/actions.ts`
-
-Server action yang memanggil `requireAuth` dan mengecek role, menentukan
-cakupan, memanggil query, lalu `buildRecurringDamage`. Hasilnya dipakai oleh
-halaman dan oleh endpoint export.
+Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
+`getReportYears` yang sudah ada.
 
 ### UI
 
 - `app/dashboard/recurring-damage/page.tsx`: server component. Membaca
-  `searchParams`, mengecek role, dan memuat data awal.
-- `app/dashboard/recurring-damage/_components/`: tabel cabang, tabel toko,
-  panel toko, filter periode, dan tombol export.
+  `searchParams`, mengecek role, dan memanggil `loadRecurringDamage`.
+  Perubahan filter memakai `router.replace` sehingga halaman dirender ulang di
+  server. Tidak ada server action tambahan.
+- Panel toko dibuka/ditutup dengan `window.history.replaceState` (`?store=`)
+  karena datanya sudah ada di klien; tidak perlu memuat ulang dari server.
+- `app/dashboard/recurring-damage/_components/`: filter, tabel cabang, tabel
+  toko, panel toko, dan tombol export.
+- Komponen kecil yang dipakai halaman Preventif dan halaman ini dipindahkan ke
+  `components/dashboard/` (`MetricColumn`, `EmptyTable`,
+  `ReportStatusBadge`) tanpa perubahan tampilan, agar kedua halaman memakai
+  komponen yang sama.
 
 ## Pengujian
 
@@ -243,8 +260,10 @@ halaman dan oleh endpoint export.
   - ukuran per toko dan urutan tie-break
   - validasi periode: bulan di luar kuartal ditolak, bulan tanpa kuartal
     ditolak
-- Cek `EXPLAIN ANALYZE` query utama di database dev untuk cakupan satu cabang
-  dan cakupan semua cabang selama satu tahun.
+- Script verifikasi sementara di database lokal: ukur durasi
+  `fetchDamageDetections` untuk semua cabang selama satu tahun, dan pastikan
+  tidak ada signage Pudar/Rusak yang tersimpan selain `NOT_OK`. Bila durasi
+  lebih dari 2 detik, jalankan `EXPLAIN ANALYZE` dan catat temuannya.
 - Cek manual di browser sebagai Admin, BMC, dan BNM:
   - filter tahun, kuartal, dan bulan
   - drill-down cabang → toko → panel
