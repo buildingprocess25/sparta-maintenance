@@ -23,6 +23,7 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - `app/dashboard/preventive/_components/admin-preventive-table.tsx`: kirim `canManageStores` (Admin/BMC).
 - `lib/bms-store-assignment.ts` (+ spec): helper `vacateBmsAssignments`.
 - `app/admin/database/actions.ts` (`adminDeleteUser`), `app/bmc/database/actions.ts` (`deleteUser`): hapus user BMS menonaktifkan assignment tokonya dalam transaksi yang sama.
+- `scripts/vacate-deleted-bms-assignments.ts`, `package.json`: script dry-run/execute untuk assignment milik BMS yang sudah dihapus.
 
 ## Decisions
 
@@ -37,9 +38,11 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - Cek data read-only di DB lokal via script sementara (`getBmsCoverageHierarchy`): total cabang CIANJUR = jumlah toko aktif cabang (sama dengan card) di Q1–Q4 2026; completed cabang = hitung ulang toko unik selesai; semua toko unassigned yang selesai punya `doneByName`; jumlah total semua cabang = jumlah toko aktif non-HEAD OFFICE.
 - `npx tsx lib/bms-store-assignment.spec.ts`: lulus.
 - Helper dijalankan di DB lokal di dalam transaksi yang di-rollback: semua assignment aktif satu BMS jadi nonaktif dengan `notes` benar; setelah rollback data kembali utuh.
+- `npm run vacate:deleted-bms` (dry-run) di DB lokal: 0 assignment aktif milik BMS terhapus; tidak ada data berubah.
 - Cek hapus user lewat UI belum dilakukan (tidak ada akun uji lokal).
 - Cek visual di browser belum dilakukan: tidak ada akun uji lokal dengan password yang diketahui.
 
 ## Remaining Work and Risks
 
-- Task 5–6 di plan belum dikerjakan.
+- Task 6 di plan belum dikerjakan.
+- Eksekusi npm run vacate:deleted-bms:execute menunggu keputusan user setelah meninjau dry-run.

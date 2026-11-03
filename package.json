@@ -37,6 +37,8 @@
     "audit:bms-balance-cutover": "tsx scripts/audit-bms-balance-cutover.ts",
     "export:preventive-photos": "tsx scripts/export-preventive-photos.ts",
     "export:unassigned-stores": "tsx scripts/export-unassigned-stores.ts",
+    "vacate:deleted-bms": "tsx scripts/vacate-deleted-bms-assignments.ts",
+    "vacate:deleted-bms:execute": "tsx scripts/vacate-deleted-bms-assignments.ts --execute",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
