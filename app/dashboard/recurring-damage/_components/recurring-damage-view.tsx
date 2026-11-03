@@ -94,10 +94,16 @@ export function RecurringDamageView({
         window.history.replaceState(null, "", query ? `${PAGE_PATH}?${query}` : PAGE_PATH);
     }, []);
 
+    // Tampilan semua cabang tidak memiliki data toko, jadi panel tidak dibuka.
+    const activeStoreCode = showBranchList ? null : selectedStoreCode;
     const selectedStore = useMemo(
-        () => stores.find((store) => store.storeCode === selectedStoreCode) ?? null,
-        [stores, selectedStoreCode],
+        () => stores.find((store) => store.storeCode === activeStoreCode) ?? null,
+        [stores, activeStoreCode],
     );
+
+    // Pertahankan toko terakhir agar isi panel tidak berkedip saat animasi tutup.
+    const [lastStore, setLastStore] = useState<RecurringDamageStore | null>(null);
+    if (selectedStore && selectedStore !== lastStore) setLastStore(selectedStore);
 
     const problematicCount = showBranchList
         ? branches.reduce((total, branch) => total + branch.problematicStoreCount, 0)
@@ -187,14 +193,18 @@ export function RecurringDamageView({
                                 </Button>
                             </div>
                         ) : null}
-                        <RecurringStoreTable stores={stores} onSelectStore={selectStore} />
+                        <RecurringStoreTable
+                            key={branchName}
+                            stores={stores}
+                            onSelectStore={selectStore}
+                        />
                     </div>
                 )}
             </div>
 
             <RecurringStoreSheet
-                open={selectedStoreCode !== null}
-                store={selectedStore}
+                open={selectedStore !== null}
+                store={selectedStore ?? lastStore}
                 period={period}
                 onOpenChange={(open) => {
                     if (!open) selectStore(null);

@@ -115,7 +115,7 @@ export function RecurringStoreSheet({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="w-full sm:max-w-xl">
+            <SheetContent side="right" className="data-[side=right]:w-full data-[side=right]:sm:max-w-xl">
                 <SheetHeader>
                     <SheetTitle>{store ? store.storeName : "Detail toko"}</SheetTitle>
                     <SheetDescription>

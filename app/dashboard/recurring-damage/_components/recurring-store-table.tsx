@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Repeat, Search } from "lucide-react";
 import { EmptyTable } from "@/components/dashboard/empty-table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
     Table,
@@ -92,7 +93,17 @@ export function RecurringStoreTable({
                                         {index + 1}
                                     </TableCell>
                                     <TableCell className="text-xs">
-                                        <div className="font-medium">{store.storeName}</div>
+                                        <Button
+                                            type="button"
+                                            variant="link"
+                                            className="h-auto p-0 text-xs font-medium text-foreground"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                onSelectStore(store.storeCode);
+                                            }}
+                                        >
+                                            {store.storeName}
+                                        </Button>
                                         <div className="text-[11px] text-muted-foreground">
                                             {store.storeCode}
                                         </div>

@@ -2,6 +2,7 @@
 
 import { ChevronRight, Store } from "lucide-react";
 import { EmptyTable } from "@/components/dashboard/empty-table";
+import { Button } from "@/components/ui/button";
 import {
     Table,
     TableBody,
@@ -51,7 +52,17 @@ export function RecurringBranchTable({
                                 onClick={() => onSelectBranch(branch.branchName)}
                             >
                                 <TableCell className="text-xs font-medium">
-                                    {branch.branchName}
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        className="h-auto p-0 text-xs font-medium text-foreground"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onSelectBranch(branch.branchName);
+                                        }}
+                                    >
+                                        {branch.branchName}
+                                    </Button>
                                 </TableCell>
                                 <TableCell
                                     className={cn(
