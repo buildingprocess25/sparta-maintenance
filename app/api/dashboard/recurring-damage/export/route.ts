@@ -5,6 +5,7 @@ import { loadRecurringDamage } from "@/app/dashboard/recurring-damage/queries";
 import { compareChecklistItemIds } from "@/lib/checklist-data";
 import { logger } from "@/lib/logger";
 import {
+    RECURRING_DAMAGE_HANDLER_LABELS,
     isValidRecurringDamagePeriod,
     type RecurringDamageFilters,
     type RecurringDamageStore,
@@ -25,11 +26,6 @@ type RequestBody = {
 const CONTENT_TYPE =
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const DATE_FORMAT = "DD/MM/YYYY HH.mm";
-
-const HANDLER_LABELS: Record<string, string> = {
-    BMS: "BMS",
-    REKANAN: "Rekanan",
-};
 
 function textCell(value: string | null | undefined): XLSX.CellObject {
     return { t: "s", v: value ?? "" };
@@ -139,7 +135,7 @@ function buildDetectionSheet(stores: RecurringDamageStore[]): XLSX.WorkSheet {
                     textCell(getReportStatusLabel(detection.status)),
                     textCell(
                         detection.handler
-                            ? (HANDLER_LABELS[detection.handler] ?? detection.handler)
+                            ? (RECURRING_DAMAGE_HANDLER_LABELS[detection.handler] ?? detection.handler)
                             : "",
                     ),
                     textCell(describeSignageCondition(detection)?.text),
@@ -221,14 +217,17 @@ export async function POST(request: NextRequest) {
         );
 
         const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-        // Satu cabang di data (BMC/BNM, atau Admin memilih cabang) → pakai nama dari data.
-        // Admin memilih cabang tanpa toko aktif → pakai filter; selain itu semua cabang.
+        // Admin memilih "Semua Cabang" (branchName "all") → "Semua_Cabang".
+        // Selain itu, satu cabang di data (BMC/BNM, atau brand menyisakan satu cabang)
+        // → nama dari data; lalu filter cabang bila ada; terakhir "Semua_Cabang".
         const branchSegment = sanitizeFileSegment(
-            data.branches.length === 1
-                ? data.branches[0].branchName
-                : filters.branchName && filters.branchName !== "all"
-                  ? filters.branchName
-                  : "Semua_Cabang",
+            filters.branchName === "all"
+                ? "Semua_Cabang"
+                : data.branches.length === 1
+                  ? data.branches[0].branchName
+                  : filters.branchName
+                    ? filters.branchName
+                    : "Semua_Cabang",
         );
         const quarterSegment = filters.quarter ? `_TW${filters.quarter}` : "";
         const monthSegment = filters.month

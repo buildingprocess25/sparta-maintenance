@@ -27,6 +27,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `app/api/dashboard/recurring-damage/export/route.ts`: export XLSX (sheet Ringkasan Toko dan Detail Deteksi), akses sama dengan halaman.
 - `app/dashboard/recurring-damage/_components/export-recurring-damage-button.tsx`, `page.tsx`: tombol Ekspor XLSX di header.
 - `CLAUDE.md`: catatan perilaku halaman Kerusakan Berulang.
+- Perbaikan review akhir: export BMC/BNM tanpa cabang, nama file "Semua_Cabang" saat Admin memilih semua cabang, label handler dipusatkan di lib/recurring-damage.ts, newline akhir CLAUDE.md.
 
 ## Decisions
 

@@ -62,7 +62,11 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
             breadcrumbs={[{ label: "Kerusakan Berulang" }]}
             headerActions={
                 <ExportRecurringDamageButton
-                    filters={{ ...period, branchName, brand }}
+                    filters={{
+                        ...period,
+                        branchName: isAdmin ? branchName : undefined,
+                        brand,
+                    }}
                 />
             }
             contentClassName="h-full gap-0 p-0 lg:p-0"

@@ -18,6 +18,7 @@ import {
     SheetTitle,
 } from "@/components/ui/sheet";
 import {
+    RECURRING_DAMAGE_HANDLER_LABELS,
     formatRecurringDamagePeriod,
     type RecurringDamageItem,
     type RecurringDamagePeriod,
@@ -25,11 +26,6 @@ import {
 } from "@/lib/recurring-damage";
 import { describeSignageCondition } from "@/lib/signage";
 import { formatJakartaDate } from "@/lib/time";
-
-const HANDLER_LABELS: Record<string, string> = {
-    BMS: "BMS",
-    REKANAN: "Rekanan",
-};
 
 function RecurringItemSection({
     item,
@@ -80,7 +76,7 @@ function RecurringItemSection({
                                     <span>
                                         Handler:{" "}
                                         {detection.handler
-                                            ? (HANDLER_LABELS[detection.handler] ??
+                                            ? (RECURRING_DAMAGE_HANDLER_LABELS[detection.handler] ??
                                               detection.handler)
                                             : "-"}
                                     </span>

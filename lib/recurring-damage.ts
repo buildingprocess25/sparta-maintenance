@@ -56,6 +56,11 @@ export const RECURRING_DAMAGE_QUARTER_MONTHS: Record<
     4: [10, 11, 12],
 };
 
+export const RECURRING_DAMAGE_HANDLER_LABELS: Record<string, string> = {
+    BMS: "BMS",
+    REKANAN: "Rekanan",
+};
+
 export const RECURRING_DAMAGE_MONTH_LABELS: readonly string[] = [
     "Januari",
     "Februari",
