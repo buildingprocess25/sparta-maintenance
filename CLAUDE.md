@@ -34,6 +34,8 @@ npm run backup:db        # Backup database to local/Drive
 npm run cleanup:pending  # Clean up pending reports older than CLEANUP_PENDING_EXPIRY_DAYS
 npm run cleanup-photos-v2        # Dry-run: archive approved PJUM photos
 npm run cleanup-photos-v2:execute # Execute: archive approved PJUM photos
+npm run vacate:deleted-bms        # Dry-run: list active store assignments of deleted BMS users
+npm run vacate:deleted-bms:execute # Execute: deactivate those assignments (stores become vacant)
 ```
 
 ## Project Overview
@@ -313,3 +315,4 @@ Session is JWT-based, stored in httpOnly cookie, valid for 8 hours.
 - Completion captures actual costs in `totalReal` and item-level realization
 - PJUM (weekly accountability document) requires BMC creation and BNM approval
 - All PDF snapshots are archived to Google Drive for compliance
+- Deleting a BMS user (`adminDeleteUser`, BMC `deleteUser`) deactivates all their active `BmsStoreAssignment` rows in the same transaction (`lib/bms-store-assignment.ts`); the stores become vacant and appear under "Belum di-assign BMS" in the Coverage BMS table, whose branch totals count every active store (same population as the preventive summary card)

@@ -24,6 +24,7 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - `lib/bms-store-assignment.ts` (+ spec): helper `vacateBmsAssignments`.
 - `app/admin/database/actions.ts` (`adminDeleteUser`), `app/bmc/database/actions.ts` (`deleteUser`): hapus user BMS menonaktifkan assignment tokonya dalam transaksi yang sama.
 - `scripts/vacate-deleted-bms-assignments.ts`, `package.json`: script dry-run/execute untuk assignment milik BMS yang sudah dihapus.
+- `CLAUDE.md`: command script baru dan catatan perilaku hapus user BMS + total coverage.
 
 ## Decisions
 
@@ -39,10 +40,13 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - `npx tsx lib/bms-store-assignment.spec.ts`: lulus.
 - Helper dijalankan di DB lokal di dalam transaksi yang di-rollback: semua assignment aktif satu BMS jadi nonaktif dengan `notes` benar; setelah rollback data kembali utuh.
 - `npm run vacate:deleted-bms` (dry-run) di DB lokal: 0 assignment aktif milik BMS terhapus; tidak ada data berubah.
+- Final: ketiga spec preventif/assignment lulus; `npm run lint` tidak ada error baru di file yang disentuh (error yang tersisa sudah ada sebelumnya); `npm run build` sukses dengan `NODE_OPTIONS=--max-old-space-size=8192` (tanpa itu worker build kehabisan memori di mesin lokal).
 - Cek hapus user lewat UI belum dilakukan (tidak ada akun uji lokal).
 - Cek visual di browser belum dilakukan: tidak ada akun uji lokal dengan password yang diketahui.
 
 ## Remaining Work and Risks
 
-- Task 6 di plan belum dikerjakan.
-- Eksekusi npm run vacate:deleted-bms:execute menunggu keputusan user setelah meninjau dry-run.
+- Eksekusi `npm run vacate:deleted-bms:execute` menunggu keputusan user setelah meninjau dry-run di environment production.
+- Cek visual tabel dan hapus user lewat UI belum dilakukan karena tidak ada akun uji lokal.
+- `BmsStoreAssignment` tetap tanpa unique constraint per toko; toko ber-assignment ganda tampil di beberapa BMS (total cabang sudah dihitung unik).
+- Toko unassigned di CIANJUR (dan cabang lain) perlu di-assign oleh BMC; itu pekerjaan data, bukan kode.
