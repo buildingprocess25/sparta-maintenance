@@ -28,6 +28,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `app/dashboard/recurring-damage/_components/export-recurring-damage-button.tsx`, `page.tsx`: tombol Ekspor XLSX di header.
 - `CLAUDE.md`: catatan perilaku halaman Kerusakan Berulang.
 - Perbaikan review akhir: export BMC/BNM tanpa cabang, nama file "Semua_Cabang" saat Admin memilih semua cabang, label handler dipusatkan di lib/recurring-damage.ts, newline akhir CLAUDE.md.
+- Revisi UI dari user: label "Toko problematik" diganti "Toko rusak berulang"; kolom tabel toko jadi "Item rusak tersering", "Frekuensi rusak maks", "Item rusak berulang" (header export ikut); panel toko diberi judul "Item rusak berulang" dan penanda "Item rusak tersering"; no. laporan dibuka di tab baru.
 
 ## Decisions
 
@@ -55,6 +56,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Cek export di browser: dilakukan controller setelah Task 6.
 - Task 7: `npx tsx lib/recurring-damage.spec.ts` dan `lib/report-preventive.spec.ts` lulus (exit 0). `npx tsc --noEmit` penuh OOM di mesin ini; diganti tsc terscope (modul, spec, komponen dashboard, sidebar, halaman + `_components`, route export, admin-preventive-table): exit 0. eslint pada file perintah brief: hanya masalah lama (error `react-hooks/set-state-in-effect` dan 3 warning `no-unused-expressions` di admin-preventive-table.tsx, warning `Image` tidak terpakai di app-sidebar.tsx); file fitur ini bersih.
 - Task 7 build: `NODE_OPTIONS=--max-old-space-size=8192 npm run build` dua kali. Percobaan 1: gagal alokasi memori native (Turbopack). Percobaan 2: "Compiled successfully in 89s", lalu JavaScript heap out of memory setelah kompilasi (tahap berikutnya); daftar route tidak tercetak. Bukan kesalahan kode; verifikasi build penuh perlu mesin dengan memori lebih besar.
+- Revisi UI: eslint dan scoped tsc bersih; belum dicek ulang di browser.
 
 ## Remaining Work and Risks
 

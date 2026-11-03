@@ -53,13 +53,13 @@ export function RecurringStoreTable({
                             <TableHead className="w-[54px] text-[11px]">No</TableHead>
                             <TableHead className="min-w-[260px] text-[11px]">Toko</TableHead>
                             <TableHead className="min-w-[240px] text-[11px]">
-                                Item tersering
+                                Item rusak tersering
                             </TableHead>
                             <TableHead className="min-w-[120px] text-[11px]">
-                                Frekuensi maks
+                                Frekuensi rusak maks
                             </TableHead>
                             <TableHead className="min-w-[120px] text-[11px]">
-                                Item berulang
+                                Item rusak berulang
                             </TableHead>
                         </TableRow>
                     </TableHeader>
@@ -71,7 +71,7 @@ export function RecurringStoreTable({
                                         icon={Repeat}
                                         title={
                                             stores.length === 0
-                                                ? "Tidak ada toko problematik"
+                                                ? "Tidak ada toko rusak berulang"
                                                 : "Toko tidak ditemukan"
                                         }
                                         description={

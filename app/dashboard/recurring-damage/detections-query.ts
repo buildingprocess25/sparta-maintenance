@@ -110,7 +110,7 @@ export async function fetchDamageDetections(input: {
 }
 
 /**
- * Hitung toko problematik untuk cakupan dan periode yang sudah diresolusi.
+ * Hitung toko rusak berulang untuk cakupan dan periode yang sudah diresolusi.
  * Tidak mengecek akses dan tidak di-cache; pemanggil wajib meresolusi
  * cakupan sesuai user.
  */

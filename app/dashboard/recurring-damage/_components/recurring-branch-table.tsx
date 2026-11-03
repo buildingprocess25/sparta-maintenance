@@ -28,7 +28,7 @@ export function RecurringBranchTable({
                     <TableRow className="bg-muted/50">
                         <TableHead className="min-w-[180px] text-[11px]">Cabang</TableHead>
                         <TableHead className="min-w-[140px] text-[11px]">
-                            Toko problematik
+                            Toko rusak berulang
                         </TableHead>
                         <TableHead className="w-[48px] text-[11px]" />
                     </TableRow>

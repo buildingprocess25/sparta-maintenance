@@ -30,14 +30,21 @@ import { formatJakartaDate } from "@/lib/time";
 function RecurringItemSection({
     item,
     defaultOpen,
+    isMostFrequent,
 }: {
     item: RecurringDamageItem;
     defaultOpen: boolean;
+    isMostFrequent: boolean;
 }) {
     return (
         <Collapsible defaultOpen={defaultOpen} className="rounded-lg border bg-background">
             <CollapsibleTrigger className="group flex w-full items-center gap-3 px-3 py-2 text-left">
                 <div className="min-w-0 flex-1">
+                    {isMostFrequent ? (
+                        <p className="text-[11px] font-medium text-red-700">
+                            Item rusak tersering
+                        </p>
+                    ) : null}
                     <p className="truncate text-sm font-medium">
                         {item.itemId} · {item.itemName}
                     </p>
@@ -62,6 +69,8 @@ function RecurringItemSection({
                                 <div className="flex flex-wrap items-center gap-2">
                                     <Link
                                         href={`/dashboard/reports/${detection.reportNumber}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
                                         className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
                                     >
                                         {detection.reportNumber}
@@ -122,13 +131,24 @@ export function RecurringStoreSheet({
                 </SheetHeader>
                 <div className="no-scrollbar grid gap-3 overflow-y-auto px-4 pb-4">
                     {store ? (
-                        store.items.map((item, index) => (
-                            <RecurringItemSection
-                                key={item.itemId}
-                                item={item}
-                                defaultOpen={index === 0}
-                            />
-                        ))
+                        <>
+                            <div>
+                                <p className="text-[11px] font-medium uppercase text-muted-foreground">
+                                    Item rusak berulang
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    Diurutkan dari yang paling sering rusak.
+                                </p>
+                            </div>
+                            {store.items.map((item, index) => (
+                                <RecurringItemSection
+                                    key={item.itemId}
+                                    item={item}
+                                    defaultOpen={index === 0}
+                                    isMostFrequent={item.count === store.maxFrequency}
+                                />
+                            ))}
+                        </>
                     ) : (
                         <EmptyTable
                             icon={Repeat}
