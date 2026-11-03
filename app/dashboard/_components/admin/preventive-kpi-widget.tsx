@@ -27,9 +27,16 @@ export function PreventiveKpiWidget() {
     }, []);
 
     useEffect(() => {
+        // Abaikan respons dari filter sebelumnya agar tidak menimpa hasil terbaru.
+        let ignore = false;
         startTransition(() => {
-            getAdminPreventiveKpiData(getJakartaYear(), quarter, branchName).then(setData);
+            getAdminPreventiveKpiData(getJakartaYear(), quarter, branchName).then((result) => {
+                if (!ignore) setData(result);
+            });
         });
+        return () => {
+            ignore = true;
+        };
     }, [quarter, branchName]);
 
     const pieData = data ? [

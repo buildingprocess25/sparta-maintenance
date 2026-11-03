@@ -62,7 +62,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Task 7 build: `NODE_OPTIONS=--max-old-space-size=8192 npm run build` dua kali. Percobaan 1: gagal alokasi memori native (Turbopack). Percobaan 2: "Compiled successfully in 89s", lalu JavaScript heap out of memory setelah kompilasi (tahap berikutnya); daftar route tidak tercetak. Bukan kesalahan kode; verifikasi build penuh perlu mesin dengan memori lebih besar.
 - Revisi UI: eslint dan scoped tsc bersih; belum dicek ulang di browser.
 - Widget + filter item: spec lulus, eslint bersih pada file fitur (error/warning lama di admin-dashboard-v2.tsx dan manager-dashboard.tsx tidak disentuh), scoped tsc lulus; belum dicek di browser.
-- Review widget/filter item: respons lama widget tidak lagi menimpa hasil filter baru (key per request), label kartu angka/panel/export menyesuaikan filter item; eslint, scoped tsc, spec lulus. Pola race yang sama masih ada di widget Checklist Preventif (tidak diubah).
+- Review widget/filter item: respons lama widget tidak lagi menimpa hasil filter baru (key per request), label kartu angka/panel/export menyesuaikan filter item; eslint, scoped tsc, spec lulus. Pola race yang sama di widget Checklist Preventif juga diperbaiki atas permintaan user (`preventive-kpi-widget.tsx`, flag ignore di cleanup effect); eslint pada file itu tetap hanya menampilkan 1 error + 2 warning lama.
 
 ## Remaining Work and Risks
 
