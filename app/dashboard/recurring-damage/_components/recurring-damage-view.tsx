@@ -101,9 +101,9 @@ export function RecurringDamageView({
         [stores, activeStoreCode],
     );
 
-    // Pertahankan toko terakhir agar isi panel tidak berkedip saat animasi tutup.
+    // Pertahankan isi panel terakhir (termasuk kondisi kosong) agar tidak berkedip saat animasi tutup.
     const [lastStore, setLastStore] = useState<RecurringDamageStore | null>(null);
-    if (selectedStore && selectedStore !== lastStore) setLastStore(selectedStore);
+    if (activeStoreCode !== null && selectedStore !== lastStore) setLastStore(selectedStore);
 
     const problematicCount = showBranchList
         ? branches.reduce((total, branch) => total + branch.problematicStoreCount, 0)
@@ -203,8 +203,8 @@ export function RecurringDamageView({
             </div>
 
             <RecurringStoreSheet
-                open={selectedStore !== null}
-                store={selectedStore ?? lastStore}
+                open={activeStoreCode !== null}
+                store={activeStoreCode !== null ? selectedStore : lastStore}
                 period={period}
                 onOpenChange={(open) => {
                     if (!open) selectStore(null);

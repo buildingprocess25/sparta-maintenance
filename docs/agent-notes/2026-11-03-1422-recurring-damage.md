@@ -35,6 +35,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Halaman memakai `unstable_cache` (revalidate 300 s, tag `recurring-damage`, staleness 5 menit diterima, tanpa `revalidateTag`). Data cache Next menolak entri di atas ~2 MB, jadi entri semua cabang hanya menyimpan ringkasan cabang (`stores: []`); entri satu cabang menyimpan toko cabang itu. Cek auth dilakukan di luar cache.
 - Export tetap tanpa cache dan memuat toko semua cabang.
 - Baris tabel cabang/toko punya tombol nama agar bisa dibuka dengan keyboard; panel toko tidak dibuka pada tampilan semua cabang.
+- `?store=` di luar daftar tetap membuka panel dengan pesan kosong; konten terakhir dipertahankan saat panel ditutup.
 
 ## Verification
 
