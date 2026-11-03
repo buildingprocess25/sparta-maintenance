@@ -147,7 +147,11 @@ export function RecurringDamageView({
                     <div className="overflow-hidden rounded-lg border bg-background">
                         <div className="grid">
                             <MetricColumn
-                                label="Jumlah toko dengan kerusakan berulang"
+                                label={
+                                    focusItem
+                                        ? `Jumlah toko dengan ${focusItem.itemId} rusak berulang`
+                                        : "Jumlah toko dengan kerusakan berulang"
+                                }
                                 value={
                                     loadError
                                         ? "-"
@@ -230,6 +234,7 @@ export function RecurringDamageView({
                 open={activeStoreCode !== null}
                 store={activeStoreCode !== null ? selectedStore : lastStore}
                 period={period}
+                itemFocused={focusItem !== null}
                 onOpenChange={(open) => {
                     if (!open) selectStore(null);
                 }}

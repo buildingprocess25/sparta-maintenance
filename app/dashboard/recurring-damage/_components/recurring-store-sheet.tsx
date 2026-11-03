@@ -109,9 +109,11 @@ export function RecurringStoreSheet({
     open,
     store,
     period,
+    itemFocused,
     onOpenChange,
 }: {
     open: boolean;
+    itemFocused: boolean;
     store: RecurringDamageStore | null;
     period: RecurringDamagePeriod;
     onOpenChange: (open: boolean) => void;
@@ -141,7 +143,9 @@ export function RecurringStoreSheet({
                                     Item rusak berulang
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    Diurutkan dari yang paling sering rusak.
+                                    {itemFocused
+                                        ? "Item terpilih di paling atas, sisanya dari yang paling sering rusak."
+                                        : "Diurutkan dari yang paling sering rusak."}
                                 </p>
                             </div>
                             {store.items.map((item, index) => (

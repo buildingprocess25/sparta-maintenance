@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,34 +28,46 @@ export function DamagedItemsWidget() {
     const [quarter, setQuarter] = useState<QuarterFilter>("all");
     const [branchName, setBranchName] = useState<string>("all");
     const [availableBranches, setAvailableBranches] = useState<string[]>([]);
-    const [items, setItems] = useState<DamagedItemRank[] | null>(null);
-    const [hasError, setHasError] = useState(false);
-    const [isPending, startTransition] = useTransition();
+    // Hasil disimpan bersama key filternya agar respons lama tidak menimpa yang baru.
+    const [result, setResult] = useState<{
+        key: string;
+        items: DamagedItemRank[] | null;
+    } | null>(null);
+    const requestKey = `${branchName}|${quarter}`;
 
     useEffect(() => {
-        getPreventiveBranchOptions().then((branches) => {
-            setAvailableBranches(branches);
-            if (branches.length === 1) {
-                setBranchName(branches[0]);
-            }
-        });
+        getPreventiveBranchOptions()
+            .then((branches) => {
+                setAvailableBranches(branches);
+                if (branches.length === 1) {
+                    setBranchName(branches[0]);
+                }
+            })
+            .catch(() => setAvailableBranches([]));
     }, []);
 
     useEffect(() => {
-        startTransition(() => {
-            getDamagedItemRanking({
-                year: getJakartaYear(),
-                quarter: quarter === "all" ? undefined : quarter,
-                branchName,
+        let ignore = false;
+        const key = `${branchName}|${quarter}`;
+        getDamagedItemRanking({
+            year: getJakartaYear(),
+            quarter: quarter === "all" ? undefined : quarter,
+            branchName,
+        })
+            .then((ranking) => {
+                if (!ignore) setResult({ key, items: ranking });
             })
-                .then((result) => {
-                    setItems(result);
-                    setHasError(false);
-                })
-                .catch(() => setHasError(true));
-        });
+            .catch(() => {
+                if (!ignore) setResult({ key, items: null });
+            });
+        return () => {
+            ignore = true;
+        };
     }, [quarter, branchName]);
 
+    const isLoading = result?.key !== requestKey;
+    const items = result?.items;
+    const hasError = result !== null && result.items === null;
     const maxCount = items?.[0]?.damageCount ?? 0;
 
     return (
@@ -107,11 +119,11 @@ export function DamagedItemsWidget() {
                 </div>
             </div>
 
-            <div className={isPending ? "opacity-60 transition-opacity" : undefined}>
-                {hasError ? (
-                    <div className="text-sm text-muted-foreground text-center py-4">Gagal memuat data.</div>
-                ) : items === null ? (
+            <div className={isLoading && result ? "opacity-60 transition-opacity" : undefined}>
+                {result === null ? (
                     <div className="text-sm text-muted-foreground">Memuat data...</div>
+                ) : hasError || !items ? (
+                    <div className="text-sm text-muted-foreground text-center py-4">Gagal memuat data.</div>
                 ) : items.length === 0 ? (
                     <div className="text-sm text-muted-foreground text-center py-4">
                         Belum ada item rusak di periode ini.

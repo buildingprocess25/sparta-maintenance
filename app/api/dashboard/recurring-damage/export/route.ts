@@ -72,13 +72,17 @@ function buildSheet(
     return ws;
 }
 
-function buildStoreSummarySheet(stores: RecurringDamageStore[]): XLSX.WorkSheet {
+function buildStoreSummarySheet(
+    stores: RecurringDamageStore[],
+    itemId: string | undefined,
+): XLSX.WorkSheet {
     const headers = [
         "No",
         "Cabang",
         "Kode Toko",
         "Nama Toko",
-        "Item Paling Sering Rusak",
+        // Dengan filter item, kolom ini berisi item terpilih.
+        itemId ? "Item Terpilih" : "Item Paling Sering Rusak",
         "Rusak (x)",
         "Jumlah Item Rusak Berulang",
     ];
@@ -220,7 +224,7 @@ export async function POST(request: NextRequest) {
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(
             wb,
-            buildStoreSummarySheet(data.stores),
+            buildStoreSummarySheet(data.stores, filters.itemId),
             "Ringkasan Toko",
         );
         XLSX.utils.book_append_sheet(
