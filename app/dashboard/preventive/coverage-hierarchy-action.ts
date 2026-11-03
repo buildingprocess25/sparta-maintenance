@@ -5,34 +5,11 @@ import { getJakartaQuarterWindow, getJakartaYear, getJakartaCurrentQuarter } fro
 import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import { type StoreBrandFilter, getStoreBrandWhere } from "@/lib/store-brand-filter";
 import { isRecordedPreventiveReport } from "@/lib/report-preventive";
-
-export type StoreCoverageHierarchyItem = {
-    storeCode: string;
-    storeName: string;
-    isCompleted: boolean;
-    doneAt?: string;
-    reportNumber?: string;
-};
-
-export type BmsCoverageHierarchyItem = {
-    nik: string;
-    name: string;
-    totalStores: number;
-    completedStores: number;
-    pendingStores: number;
-    kpiRate: number;
-    stores: StoreCoverageHierarchyItem[];
-};
-
-export type BranchCoverageHierarchy = {
-    branchName: string;
-    bmsCount: number;
-    totalStores: number;
-    completedStores: number;
-    pendingStores: number;
-    coverageRate: number;
-    bmsList: BmsCoverageHierarchyItem[];
-};
+import {
+    buildCoverageHierarchy,
+    type BranchCoverageHierarchy,
+    type CoverageReportInfo,
+} from "./coverage-hierarchy";
 
 export async function getBmsCoverageHierarchy(params?: {
     year?: number;
@@ -53,50 +30,40 @@ export async function getBmsCoverageHierarchy(params?: {
             ? getStoreBrandWhere(brandFilter)
             : {};
 
-    // 1. Ambil semua penugasan aktif
-    const assignments = await prisma.bmsStoreAssignment.findMany({
+    // 1. Ambil semua toko aktif (sama dengan populasi card) beserta penugasan aktifnya
+    const stores = await prisma.store.findMany({
         where: {
             isActive: true,
-            store: {
-                isActive: true,
-                branchName: {
-                    not: EXCLUDED_ADMIN_BRANCH_NAME,
-                    ...(branchFilter && branchFilter !== "all"
-                        ? { equals: branchFilter }
-                        : {}),
-                },
-                ...brandWhere,
+            branchName: {
+                not: EXCLUDED_ADMIN_BRANCH_NAME,
+                ...(branchFilter && branchFilter !== "all"
+                    ? { equals: branchFilter }
+                    : {}),
             },
+            ...brandWhere,
         },
         select: {
-            storeCode: true,
-            bmsNIK: true,
-            store: {
+            code: true,
+            name: true,
+            branchName: true,
+            storeAssignments: {
+                where: { isActive: true },
                 select: {
-                    code: true,
-                    name: true,
-                    branchName: true,
-                },
-            },
-            bms: {
-                select: {
-                    NIK: true,
-                    name: true,
+                    bmsNIK: true,
+                    bms: { select: { name: true } },
                 },
             },
         },
     });
 
-    if (assignments.length === 0) {
+    if (stores.length === 0) {
         return [];
     }
-
-    const uniqueStoreCodes = Array.from(new Set(assignments.map((a) => a.storeCode)));
 
     // 2. Query laporan preventif selesai pada kuartal tersebut
     const completedReports = await prisma.report.findMany({
         where: {
-            storeCode: { in: uniqueStoreCodes },
+            storeCode: { in: stores.map((s) => s.code) },
             createdAt: {
                 gte: start,
                 lt: endExclusive,
@@ -109,126 +76,36 @@ export async function getBmsCoverageHierarchy(params?: {
             createdAt: true,
             status: true,
             items: true,
+            createdByNIK: true,
+            createdBy: { select: { name: true } },
         },
         orderBy: { createdAt: "desc" },
     });
 
-    const storeReportMap = new Map<string, { reportNumber: string; doneAt: string }>();
+    const reportByStore = new Map<string, CoverageReportInfo>();
     for (const rep of completedReports) {
-        if (rep.storeCode && isRecordedPreventiveReport(rep)) {
-            if (
-                !storeReportMap.has(rep.storeCode) ||
-                new Date(rep.createdAt) >
-                    new Date(storeReportMap.get(rep.storeCode)!.doneAt)
-            ) {
-                storeReportMap.set(rep.storeCode, {
-                    reportNumber: rep.reportNumber,
-                    doneAt: rep.createdAt.toISOString(),
-                });
-            }
-        }
-    }
-
-    // 3. Kelompokkan berdasarkan Cabang -> BMS -> Toko
-    type BmsAccumulator = {
-        nik: string;
-        name: string;
-        stores: StoreCoverageHierarchyItem[];
-    };
-
-    const branchMap = new Map<string, Map<string, BmsAccumulator>>();
-
-    for (const a of assignments) {
-        const branchName = a.store.branchName || "TANPA CABANG";
-        if (!branchMap.has(branchName)) {
-            branchMap.set(branchName, new Map());
-        }
-        const bmsMap = branchMap.get(branchName)!;
-
-        const bmsNik = a.bmsNIK;
-        const bmsName = a.bms?.name || bmsNik;
-
-        if (!bmsMap.has(bmsNik)) {
-            bmsMap.set(bmsNik, {
-                nik: bmsNik,
-                name: bmsName,
-                stores: [],
-            });
-        }
-
-        const bmsEntry = bmsMap.get(bmsNik)!;
-        const report = storeReportMap.get(a.storeCode);
-        const isCompleted = !!report;
-
-        // Hindari duplikasi store per BMS
-        if (!bmsEntry.stores.some((s) => s.storeCode === a.storeCode)) {
-            bmsEntry.stores.push({
-                storeCode: a.store.code,
-                storeName: a.store.name,
-                isCompleted,
-                doneAt: report?.doneAt,
-                reportNumber: report?.reportNumber,
+        if (!rep.storeCode || !isRecordedPreventiveReport(rep)) continue;
+        const existing = reportByStore.get(rep.storeCode);
+        if (!existing || rep.createdAt > new Date(existing.doneAt)) {
+            reportByStore.set(rep.storeCode, {
+                reportNumber: rep.reportNumber,
+                doneAt: rep.createdAt.toISOString(),
+                doneByName: rep.createdBy?.name || rep.createdByNIK,
             });
         }
     }
 
-    // 4. Transformasi ke format BranchCoverageHierarchy[]
-    const results: BranchCoverageHierarchy[] = [];
-
-    for (const [bName, bmsMap] of branchMap.entries()) {
-        const bmsList: BmsCoverageHierarchyItem[] = [];
-        let branchTotalStores = 0;
-        let branchCompletedStores = 0;
-
-        for (const bms of bmsMap.values()) {
-            bms.stores.sort((a, b) => a.storeName.localeCompare(b.storeName));
-
-            const totalStores = bms.stores.length;
-            const completedStores = bms.stores.filter((s) => s.isCompleted).length;
-            const pendingStores = Math.max(0, totalStores - completedStores);
-            const kpiRate =
-                totalStores > 0
-                    ? Math.round((completedStores / totalStores) * 1000) / 10
-                    : 0;
-
-            branchTotalStores += totalStores;
-            branchCompletedStores += completedStores;
-
-            bmsList.push({
-                nik: bms.nik,
-                name: bms.name,
-                totalStores,
-                completedStores,
-                pendingStores,
-                kpiRate,
-                stores: bms.stores,
-            });
-        }
-
-        bmsList.sort((a, b) => a.name.localeCompare(b.name));
-
-        const branchPendingStores = Math.max(
-            0,
-            branchTotalStores - branchCompletedStores,
-        );
-        const branchCoverageRate =
-            branchTotalStores > 0
-                ? Math.round((branchCompletedStores / branchTotalStores) * 1000) /
-                  10
-                : 0;
-
-        results.push({
-            branchName: bName,
-            bmsCount: bmsList.length,
-            totalStores: branchTotalStores,
-            completedStores: branchCompletedStores,
-            pendingStores: branchPendingStores,
-            coverageRate: branchCoverageRate,
-            bmsList,
-        });
-    }
-
-    results.sort((a, b) => a.branchName.localeCompare(b.branchName));
-
-    return results;
+    // 3. Kelompokkan Cabang -> BMS -> Toko, toko tanpa BMS ke grup unassigned
+    return buildCoverageHierarchy(
+        stores.map((s) => ({
+            code: s.code,
+            name: s.name,
+            branchName: s.branchName,
+            assignments: s.storeAssignments.map((a) => ({
+                bmsNIK: a.bmsNIK,
+                bmsName: a.bms?.name ?? null,
+            })),
+        })),
+        reportByStore,
+    );
 }

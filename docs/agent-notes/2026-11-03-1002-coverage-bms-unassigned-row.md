@@ -16,6 +16,8 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 
 - `app/dashboard/preventive/coverage-hierarchy.ts`: fungsi murni `buildCoverageHierarchy` dan tipe hierarki coverage.
 - `app/dashboard/preventive/coverage-hierarchy.spec.ts`: spec fungsi murni.
+- `app/dashboard/preventive/coverage-hierarchy-action.ts`: query berangkat dari `Store` aktif + assignment aktif, laporan ikut membawa nama pembuat.
+- `app/dashboard/preventive/_components/admin-preventive-table.tsx`, `bms-coverage-hierarchy-table.tsx`: import tipe dari `../coverage-hierarchy`.
 
 ## Decisions
 
@@ -24,7 +26,9 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 ## Verification
 
 - `npx tsx app/dashboard/preventive/coverage-hierarchy.spec.ts`: lulus.
+- `npx tsc --noEmit`: bersih.
+- `npx eslint` pada file yang disentuh: 0 error; 3 warning lama (unused `Button`, `quarter`, `year`) di `bms-coverage-hierarchy-table.tsx`.
 
 ## Remaining Work and Risks
 
-- Task 2–6 di plan belum dikerjakan.
+- Task 3–6 di plan belum dikerjakan.

@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { BmsCoverageHierarchyTable } from "./bms-coverage-hierarchy-table";
-import type { BranchCoverageHierarchy } from "../coverage-hierarchy-action";
+import type { BranchCoverageHierarchy } from "../coverage-hierarchy";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";

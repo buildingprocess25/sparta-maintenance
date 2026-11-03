@@ -29,7 +29,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import type { BranchCoverageHierarchy } from "../coverage-hierarchy-action";
+import type { BranchCoverageHierarchy } from "../coverage-hierarchy";
 
 type Props = {
     initialHierarchy: BranchCoverageHierarchy[];
