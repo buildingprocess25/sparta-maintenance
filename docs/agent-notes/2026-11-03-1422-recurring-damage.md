@@ -1,0 +1,34 @@
+# Kerusakan Berulang
+
+## Scope
+
+Halaman baru `/dashboard/recurring-damage` (Admin, BMC, BNM): toko dengan
+item checklist yang sama rusak ≥ 2x per periode, drill-down Cabang → Toko →
+Item → Laporan, dan export XLSX. Tanpa perubahan schema. Akses BMS, Branch
+Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
+
+## Context and Sources
+
+- Spec: `docs/superpowers/specs/2026-11-03-recurring-damage-design.md`
+- Plan: `docs/superpowers/plans/2026-11-03-recurring-damage.md`
+- Pola acuan: `app/dashboard/preventive/` dan
+  `app/api/dashboard/preventive/annual-matrix-export/route.ts`
+
+## Changed Files
+
+- `lib/recurring-damage.ts`: aturan deteksi rusak, status yang dihitung, filter periode.
+- `lib/recurring-damage.spec.ts`: spec fungsi murni.
+
+## Decisions
+
+- Deteksi rusak memakai aturan yang sama dengan seluruh aplikasi
+  (`RUSAK` / `NOT_OK`); signage Pudar ikut rusak.
+- `ESTIMATION_REJECTED` dan `ARCHIVED_PREVENTIVE` tidak dihitung.
+
+## Verification
+
+- `npx tsx lib/recurring-damage.spec.ts`: lulus.
+
+## Remaining Work and Risks
+
+- Agregasi, query, halaman, dan export belum dibuat (task berikutnya).
