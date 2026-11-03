@@ -18,6 +18,8 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 
 - `lib/recurring-damage.ts`: aturan deteksi rusak, status yang dihitung, filter periode, agregasi toko problematik, dan ringkasan cabang.
 - `lib/recurring-damage.spec.ts`: spec fungsi murni.
+- `components/dashboard/metric-column.tsx`, `empty-table.tsx`, `report-status-badge.tsx`: komponen dipindah dari halaman Preventif tanpa perubahan markup.
+- `app/dashboard/preventive/_components/admin-preventive-table.tsx`: memakai komponen bersama, salinan lokal dihapus.
 
 ## Decisions
 
@@ -29,6 +31,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 ## Verification
 
 - `npx tsx lib/recurring-damage.spec.ts`: lulus.
+- `npx tsc --noEmit` (dicek terscope: 4 file TSX yang diubah/dibuat) dan eslint pada file Preventif: tanpa error baru.
 
 ## Remaining Work and Risks
 

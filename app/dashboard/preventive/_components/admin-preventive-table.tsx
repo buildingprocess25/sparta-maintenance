@@ -21,19 +21,14 @@ import {
     Store,
     Users,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { BmsCoverageHierarchyTable } from "./bms-coverage-hierarchy-table";
+import { EmptyTable } from "@/components/dashboard/empty-table";
+import { MetricColumn } from "@/components/dashboard/metric-column";
+import { ReportStatusBadge } from "@/components/dashboard/report-status-badge";
 import type { BranchCoverageHierarchy } from "../coverage-hierarchy";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-    Empty,
-    EmptyDescription,
-    EmptyHeader,
-    EmptyMedia,
-    EmptyTitle,
-} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import {
     Select,
@@ -52,10 +47,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import {
-    getReportStatusBadgeClass,
-    getReportStatusLabel,
-} from "@/lib/report-status";
 import {
     formatJakartaDate,
     formatJakartaDateTime,
@@ -131,45 +122,6 @@ function formatTiming(summary: AdminPreventiveResult["summary"]) {
     return "Belum masuk periode";
 }
 
-function MetricColumn({
-    label,
-    value,
-    tone = "default",
-}: {
-    label: string;
-    value: string;
-    tone?: "default" | "good" | "warn" | "bad";
-}) {
-    return (
-        <div className="min-w-0 border-b px-3 py-2 md:border-b-0 md:border-r last:md:border-r-0">
-            <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                {label}
-            </p>
-            <p
-                className={cn(
-                    "mt-0.5 truncate text-lg font-semibold",
-                    tone === "good" && "text-emerald-700",
-                    tone === "warn" && "text-amber-700",
-                    tone === "bad" && "text-red-700",
-                )}
-            >
-                {value}
-            </p>
-        </div>
-    );
-}
-
-function ReportStatusBadge({ status }: { status: string }) {
-    return (
-        <Badge
-            variant="secondary"
-            className={cn("h-5 text-[11px]", getReportStatusBadgeClass(status))}
-        >
-            {getReportStatusLabel(status)}
-        </Badge>
-    );
-}
-
 function CompletionBadge({ done }: { done: boolean }) {
     return done ? (
         <Badge className="h-5 bg-emerald-100 text-[11px] text-emerald-700 hover:bg-emerald-100">
@@ -204,28 +156,6 @@ function QuarterCell({
                 {info.bmsName || info.bmsNIK || "-"}
             </span>
         </Link>
-    );
-}
-
-function EmptyTable({
-    icon: Icon,
-    title,
-    description,
-}: {
-    icon: LucideIcon;
-    title: string;
-    description: string;
-}) {
-    return (
-        <Empty className="border-0 py-12">
-            <EmptyHeader>
-                <EmptyMedia variant="icon">
-                    <Icon />
-                </EmptyMedia>
-                <EmptyTitle>{title}</EmptyTitle>
-                <EmptyDescription>{description}</EmptyDescription>
-            </EmptyHeader>
-        </Empty>
     );
 }
 
