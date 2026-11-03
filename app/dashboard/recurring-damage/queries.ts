@@ -5,12 +5,13 @@ import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import type {
     DamagedItemRank,
+    DamagedItemSummary,
     RecurringDamageData,
     RecurringDamageFilters,
     RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
 import {
-    computeDamagedItemRanking,
+    computeDamagedItemSummary,
     computeRecurringDamage,
     type RecurringDamageScope,
 } from "./detections-query";
@@ -131,34 +132,59 @@ export async function loadRecurringDamage(
 
 const DAMAGED_ITEM_RANKING_LIMIT = 5;
 
-const getDamagedItemRankingCached = unstable_cache(
+const EMPTY_DAMAGED_ITEM_SUMMARY: DamagedItemSummary = {
+    items: [],
+    totalDamageCount: 0,
+    affectedItemCount: 0,
+    affectedStoreCount: 0,
+};
+
+/** Ringkasan seluruh item kecil (±128 baris), jadi aman di-cache untuk semua cabang. */
+const getDamagedItemSummaryCached = unstable_cache(
     async (
         scope: RecurringDamageScope,
         period: RecurringDamagePeriod,
-    ): Promise<DamagedItemRank[]> =>
-        computeDamagedItemRanking(scope, period, DAMAGED_ITEM_RANKING_LIMIT),
-    ["recurring-damage-item-ranking"],
+    ): Promise<DamagedItemSummary> => computeDamagedItemSummary(scope, period),
+    ["recurring-damage-item-summary"],
     { revalidate: 300, tags: ["recurring-damage"] },
 );
 
-/** 5 item dengan kejadian rusak terbanyak untuk widget dashboard (di-cache 5 menit). */
-export async function loadDamagedItemRanking(
+/** Ringkasan kerusakan per item untuk tab "Per item" dan export-nya (di-cache 5 menit). */
+export async function loadDamagedItemSummary(
     filters: RecurringDamageFilters,
-): Promise<DamagedItemRank[]> {
+): Promise<DamagedItemSummary> {
     const scope = await resolveRecurringDamageScope(filters);
-    if (!scope) return [];
+    if (!scope) return EMPTY_DAMAGED_ITEM_SUMMARY;
 
     try {
-        return await getDamagedItemRankingCached(scope, toPeriod(filters));
+        return await getDamagedItemSummaryCached(scope, toPeriod(filters));
     } catch (error) {
         logger.error(
             {
-                operation: "loadDamagedItemRanking",
+                operation: "loadDamagedItemSummary",
                 filters: JSON.stringify(filters),
             },
-            "Failed to load damaged item ranking",
+            "Failed to load damaged item summary",
             error,
         );
         throw error;
     }
+}
+
+/** 5 item dengan kejadian rusak terbanyak untuk widget dashboard; memakai cache ringkasan yang sama. */
+export async function loadDamagedItemRanking(
+    filters: RecurringDamageFilters,
+): Promise<DamagedItemRank[]> {
+    const summary = await loadDamagedItemSummary(filters);
+    return summary.items
+        .filter((item) => item.damageCount > 0)
+        .slice(0, DAMAGED_ITEM_RANKING_LIMIT);
+}
+
+/** Nama cabang cakupan user untuk label/nama file; `null` = semua cabang. */
+export async function resolveRecurringDamageBranchName(
+    filters: RecurringDamageFilters,
+): Promise<string | null> {
+    const scope = await resolveRecurringDamageScope(filters);
+    return scope?.branchName ?? null;
 }

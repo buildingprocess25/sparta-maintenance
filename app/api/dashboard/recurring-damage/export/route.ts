@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 
-import { loadRecurringDamage } from "@/app/dashboard/recurring-damage/queries";
+import {
+    loadDamagedItemSummary,
+    loadRecurringDamage,
+    resolveRecurringDamageBranchName,
+} from "@/app/dashboard/recurring-damage/queries";
 import { compareChecklistItemIds } from "@/lib/checklist-data";
 import { logger } from "@/lib/logger";
 import {
     RECURRING_DAMAGE_HANDLER_LABELS,
     isChecklistItemId,
     isValidRecurringDamagePeriod,
+    type DamagedItemSummary,
     type RecurringDamageFilters,
+    type RecurringDamageViewMode,
     type RecurringDamageStore,
 } from "@/lib/recurring-damage";
 import { getReportStatusLabel } from "@/lib/report-status";
@@ -23,6 +29,7 @@ type RequestBody = {
     branchName?: string;
     brand?: string;
     itemId?: string;
+    view?: string;
 };
 
 const CONTENT_TYPE =
@@ -158,6 +165,35 @@ function buildDetectionSheet(
     return buildSheet([headers.map(textCell), ...rows], headers.length);
 }
 
+function buildItemSummarySheet(summary: DamagedItemSummary): XLSX.WorkSheet {
+    const headers = [
+        "No",
+        "Kode Item",
+        "Nama Item",
+        "Kategori",
+        "Kali Rusak",
+        "Toko Terdampak",
+        "Toko Rusak Berulang",
+    ];
+    const rows = summary.items.map((item, index) => [
+        numCell(index + 1),
+        textCell(item.itemId),
+        textCell(item.itemName),
+        textCell(item.categoryName),
+        numCell(item.damageCount),
+        numCell(item.affectedStoreCount),
+        numCell(item.recurringStoreCount),
+    ]);
+
+    return buildSheet([headers.map(textCell), ...rows], headers.length);
+}
+
+function parseView(value: unknown): RecurringDamageViewMode | null {
+    if (value === undefined || value === "store") return "store";
+    if (value === "item") return "item";
+    return null;
+}
+
 function sanitizeFileSegment(value: string) {
     return value.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_");
 }
@@ -212,7 +248,8 @@ export async function POST(request: NextRequest) {
     const body = raw as RequestBody;
 
     const filters = parseFilters(body);
-    if (!filters) {
+    const view = parseView(body.view);
+    if (!filters || !view) {
         return NextResponse.json(
             { error: "Filter export tidak valid" },
             { status: 400 },
@@ -220,45 +257,47 @@ export async function POST(request: NextRequest) {
     }
 
     try {
-        const data = await loadRecurringDamage(filters);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(
-            wb,
-            buildStoreSummarySheet(data.stores, filters.itemId),
-            "Ringkasan Toko",
-        );
-        XLSX.utils.book_append_sheet(
-            wb,
-            buildDetectionSheet(data.stores, filters.itemId),
-            "Detail Deteksi",
-        );
+        let rowCount: number;
+        if (view === "item") {
+            const summary = await loadDamagedItemSummary(filters);
+            XLSX.utils.book_append_sheet(wb, buildItemSummarySheet(summary), "Per Item");
+            rowCount = summary.items.length;
+        } else {
+            const data = await loadRecurringDamage(filters);
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildStoreSummarySheet(data.stores, filters.itemId),
+                "Ringkasan Toko",
+            );
+            XLSX.utils.book_append_sheet(
+                wb,
+                buildDetectionSheet(data.stores, filters.itemId),
+                "Detail Deteksi",
+            );
+            rowCount = data.stores.length;
+        }
 
         const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-        // Admin memilih "Semua Cabang" (branchName "all") → "Semua_Cabang".
-        // Selain itu, satu cabang di data (BMC/BNM, atau brand menyisakan satu cabang)
-        // → nama dari data; lalu filter cabang bila ada; terakhir "Semua_Cabang".
+        // Nama cabang dari cakupan user di server (BMC/BNM selalu cabangnya sendiri).
         const branchSegment = sanitizeFileSegment(
-            filters.branchName === "all"
-                ? "Semua_Cabang"
-                : data.branches.length === 1
-                  ? data.branches[0].branchName
-                  : filters.branchName
-                    ? filters.branchName
-                    : "Semua_Cabang",
+            (await resolveRecurringDamageBranchName(filters)) ?? "Semua_Cabang",
         );
         const quarterSegment = filters.quarter ? `_TW${filters.quarter}` : "";
         const monthSegment = filters.month
             ? `_${String(filters.month).padStart(2, "0")}`
             : "";
         const itemSegment = filters.itemId ? `_${filters.itemId}` : "";
-        const fileName = `Kerusakan_Berulang_${branchSegment}_${filters.year}${quarterSegment}${monthSegment}${itemSegment}.xlsx`;
+        const filePrefix = view === "item" ? "Kerusakan_Per_Item" : "Toko_Rusak_Berulang";
+        const fileName = `${filePrefix}_${branchSegment}_${filters.year}${quarterSegment}${monthSegment}${view === "store" ? itemSegment : ""}.xlsx`;
 
         logger.info(
             {
                 operation: "recurringDamageExportXlsx",
                 correlationId,
                 durationMs: Math.round(performance.now() - start),
-                stores: data.stores.length,
+                view,
+                rows: rowCount,
             },
             "Recurring damage export completed",
         );

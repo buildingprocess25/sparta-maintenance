@@ -2,13 +2,16 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, ChevronLeft, Loader2, X } from "lucide-react";
+import { AlertCircle, ChevronLeft, ListChecks, Loader2, Store, X } from "lucide-react";
 import { EmptyTable } from "@/components/dashboard/empty-table";
 import { MetricColumn } from "@/components/dashboard/metric-column";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     formatRecurringDamagePeriod,
+    type DamagedItemSummary,
+    type RecurringDamageViewMode,
     type RecurringDamageBranchSummary,
     type RecurringDamagePeriod,
     type RecurringDamageStore,
@@ -19,6 +22,7 @@ import {
     RecurringDamageFilters,
     type RecurringDamageFilterChange,
 } from "./recurring-damage-filters";
+import { DamagedItemTable } from "./damaged-item-table";
 import { RecurringBranchTable } from "./recurring-branch-table";
 import { RecurringStoreSheet } from "./recurring-store-sheet";
 import { RecurringStoreTable } from "./recurring-store-table";
@@ -26,6 +30,8 @@ import { RecurringStoreTable } from "./recurring-store-table";
 const PAGE_PATH = "/dashboard/recurring-damage";
 
 export function RecurringDamageView({
+    view,
+    itemSummary,
     isAdmin,
     branchOptions,
     availableYears,
@@ -39,6 +45,8 @@ export function RecurringDamageView({
     loadError,
     initialStoreCode,
 }: {
+    view: RecurringDamageViewMode;
+    itemSummary: DamagedItemSummary | null;
     isAdmin: boolean;
     branchOptions: string[];
     availableYears: number[];
@@ -96,8 +104,8 @@ export function RecurringDamageView({
         window.history.replaceState(null, "", query ? `${PAGE_PATH}?${query}` : PAGE_PATH);
     }, []);
 
-    // Tampilan semua cabang tidak memiliki data toko, jadi panel tidak dibuka.
-    const activeStoreCode = showBranchList ? null : selectedStoreCode;
+    // Tab per item dan tampilan semua cabang tidak memiliki data toko, jadi panel tidak dibuka.
+    const activeStoreCode = view === "item" || showBranchList ? null : selectedStoreCode;
     const selectedStore = useMemo(
         () => stores.find((store) => store.storeCode === activeStoreCode) ?? null,
         [stores, activeStoreCode],
@@ -121,7 +129,7 @@ export function RecurringDamageView({
                                 <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">
                                     {formatRecurringDamagePeriod(period)}
                                 </Badge>
-                                {!showBranchList && branchName ? (
+                                {branchName && branchName !== "all" ? (
                                     <Badge variant="outline">{branchName}</Badge>
                                 ) : null}
                                 {isPending ? (
@@ -129,8 +137,9 @@ export function RecurringDamageView({
                                 ) : null}
                             </div>
                             <p className="mt-1 text-sm text-muted-foreground">
-                                Toko dengan item checklist yang sama rusak lebih dari
-                                1x pada periode terpilih.
+                                {view === "item"
+                                    ? "Jumlah kejadian rusak per item checklist pada periode terpilih."
+                                    : "Toko dengan item checklist yang sama rusak lebih dari 1x pada periode terpilih."}
                             </p>
                         </div>
                         <RecurringDamageFilters
@@ -144,91 +153,167 @@ export function RecurringDamageView({
                         />
                     </div>
 
-                    <div className="overflow-hidden rounded-lg border bg-background">
-                        <div className="grid">
-                            <MetricColumn
-                                label={
-                                    focusItem
-                                        ? `Jumlah toko dengan ${focusItem.itemId} rusak berulang`
-                                        : "Jumlah toko dengan kerusakan berulang"
-                                }
-                                value={
-                                    loadError
-                                        ? "-"
-                                        : `${problematicCount.toLocaleString("id-ID")} toko`
-                                }
-                                tone={
-                                    loadError
-                                        ? "default"
-                                        : problematicCount > 0
-                                          ? "bad"
-                                          : "good"
-                                }
-                            />
+                    {view === "item" ? (
+                        <div className="overflow-hidden rounded-lg border bg-background">
+                            <div className="grid md:grid-cols-3">
+                                <MetricColumn
+                                    label="Total kejadian rusak"
+                                    value={
+                                        itemSummary
+                                            ? `${itemSummary.totalDamageCount.toLocaleString("id-ID")} kali`
+                                            : "-"
+                                    }
+                                />
+                                <MetricColumn
+                                    label="Item terdampak"
+                                    value={
+                                        itemSummary
+                                            ? `${itemSummary.affectedItemCount.toLocaleString("id-ID")} dari ${itemSummary.items.length.toLocaleString("id-ID")} item`
+                                            : "-"
+                                    }
+                                />
+                                <MetricColumn
+                                    label="Toko terdampak"
+                                    value={
+                                        itemSummary
+                                            ? `${itemSummary.affectedStoreCount.toLocaleString("id-ID")} toko`
+                                            : "-"
+                                    }
+                                />
+                            </div>
                         </div>
-                    </div>
+                    ) : (
+                        <div className="overflow-hidden rounded-lg border bg-background">
+                            <div className="grid">
+                                <MetricColumn
+                                    label={
+                                        focusItem
+                                            ? `Jumlah toko dengan ${focusItem.itemId} rusak berulang`
+                                            : "Jumlah toko dengan kerusakan berulang"
+                                    }
+                                    value={
+                                        loadError
+                                            ? "-"
+                                            : `${problematicCount.toLocaleString("id-ID")} toko`
+                                    }
+                                    tone={
+                                        loadError
+                                            ? "default"
+                                            : problematicCount > 0
+                                              ? "bad"
+                                              : "good"
+                                    }
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
-            <div
-                className={cn(
-                    "p-4 lg:p-6",
-                    isPending && "pointer-events-none opacity-60",
-                )}
+            <Tabs
+                value={view}
+                onValueChange={(value) =>
+                    navigate(
+                        value === "item"
+                            ? { view: "item", item: undefined }
+                            : { view: "store" },
+                    )
+                }
+                className="gap-0"
             >
-                {focusItem && !loadError ? (
-                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs">
-                        <span className="text-muted-foreground">Filter item:</span>
-                        <Badge variant="outline">
-                            {focusItem.itemId} · {focusItem.itemName}
-                        </Badge>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate({ item: undefined })}
-                        >
-                            <X data-icon="inline-start" />
-                            Hapus filter
-                        </Button>
-                    </div>
-                ) : null}
-                {loadError ? (
-                    <div className="overflow-hidden rounded-lg border bg-background">
-                        <EmptyTable
-                            icon={AlertCircle}
-                            title="Gagal memuat data"
-                            description="Data kerusakan berulang tidak dapat dimuat. Silakan coba lagi."
-                        />
-                    </div>
-                ) : showBranchList ? (
-                    <RecurringBranchTable
-                        branches={branches}
-                        itemFocused={focusItem !== null}
-                        onSelectBranch={(name) => navigate({ branch: name })}
-                    />
-                ) : (
-                    <div className="flex flex-col gap-3">
-                        {isAdmin ? (
-                            <div>
+                <div className="border-b bg-background px-4 pt-2 lg:px-6">
+                    <TabsList variant="line" className="h-8 w-max justify-start rounded-none p-0">
+                        <TabsTrigger value="item" className="h-8 flex-none px-3 text-xs">
+                            <ListChecks data-icon="inline-start" />
+                            Per item
+                        </TabsTrigger>
+                        <TabsTrigger value="store" className="h-8 flex-none px-3 text-xs">
+                            <Store data-icon="inline-start" />
+                            Toko rusak berulang
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+
+                <div
+                    className={cn(
+                        "p-4 lg:p-6",
+                        isPending && "pointer-events-none opacity-60",
+                    )}
+                >
+                    <TabsContent value="item" className="mt-0">
+                        {loadError || !itemSummary ? (
+                            <div className="overflow-hidden rounded-lg border bg-background">
+                                <EmptyTable
+                                    icon={AlertCircle}
+                                    title="Gagal memuat data"
+                                    description="Data kerusakan per item tidak dapat dimuat. Silakan coba lagi."
+                                />
+                            </div>
+                        ) : (
+                            <DamagedItemTable
+                                items={itemSummary.items}
+                                onSelectItem={(itemId) =>
+                                    navigate({ view: "store", item: itemId })
+                                }
+                            />
+                        )}
+                    </TabsContent>
+                    <TabsContent value="store" className="mt-0">
+                        {focusItem && !loadError ? (
+                            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs">
+                                <span className="text-muted-foreground">Filter item:</span>
+                                <Badge variant="outline">
+                                    {focusItem.itemId} · {focusItem.itemName}
+                                </Badge>
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => navigate({ branch: "all" })}
+                                    onClick={() => navigate({ item: undefined })}
                                 >
-                                    <ChevronLeft data-icon="inline-start" />
-                                    Semua cabang
+                                    <X data-icon="inline-start" />
+                                    Hapus filter
                                 </Button>
                             </div>
                         ) : null}
-                        <RecurringStoreTable
-                            key={branchName}
-                            stores={stores}
-                            itemFocused={focusItem !== null}
-                            onSelectStore={selectStore}
-                        />
-                    </div>
-                )}
-            </div>
+                        {loadError ? (
+                            <div className="overflow-hidden rounded-lg border bg-background">
+                                <EmptyTable
+                                    icon={AlertCircle}
+                                    title="Gagal memuat data"
+                                    description="Data kerusakan berulang tidak dapat dimuat. Silakan coba lagi."
+                                />
+                            </div>
+                        ) : showBranchList ? (
+                            <RecurringBranchTable
+                                branches={branches}
+                                itemFocused={focusItem !== null}
+                                onSelectBranch={(name) => navigate({ branch: name })}
+                            />
+                        ) : (
+                            <div className="flex flex-col gap-3">
+                                {isAdmin ? (
+                                    <div>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => navigate({ branch: "all" })}
+                                        >
+                                            <ChevronLeft data-icon="inline-start" />
+                                            Semua cabang
+                                        </Button>
+                                    </div>
+                                ) : null}
+                                <RecurringStoreTable
+                                    key={branchName}
+                                    stores={stores}
+                                    itemFocused={focusItem !== null}
+                                    onSelectStore={selectStore}
+                                />
+                            </div>
+                        )}
+                    </TabsContent>
+                </div>
+            </Tabs>
 
             <RecurringStoreSheet
                 open={activeStoreCode !== null}

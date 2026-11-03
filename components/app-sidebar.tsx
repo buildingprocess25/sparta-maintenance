@@ -100,7 +100,7 @@ const data = {
                     icon: IconUserCog,
                 },
                 {
-                    title: "Kerusakan Berulang",
+                    title: "Analisa Kerusakan",
                     url: "/dashboard/recurring-damage",
                     icon: IconRepeat,
                 },
@@ -211,7 +211,7 @@ export function AppSidebar({
                 "Checklist Preventif",
                 "Dokumen PJUM",
                 "Performa BMS",
-                "Kerusakan Berulang",
+                "Analisa Kerusakan",
             ];
 
             if (

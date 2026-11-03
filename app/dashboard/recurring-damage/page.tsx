@@ -4,6 +4,8 @@ import { getChecklistItemMeta } from "@/lib/checklist-data";
 import {
     isChecklistItemId,
     normalizeRecurringDamagePeriod,
+    resolveRecurringDamageViewMode,
+    type DamagedItemSummary,
     type RecurringDamageData,
 } from "@/lib/recurring-damage";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
@@ -12,7 +14,7 @@ import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell"
 import { getPreventiveBranchOptions, getReportYears } from "../preventive/actions";
 import { RecurringDamageView } from "./_components/recurring-damage-view";
 import { ExportRecurringDamageButton } from "./_components/export-recurring-damage-button";
-import { loadRecurringDamageView } from "./queries";
+import { loadDamagedItemSummary, loadRecurringDamageView } from "./queries";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ type Props = {
         brand?: string;
         store?: string;
         item?: string;
+        view?: string;
     }>;
 };
 
@@ -46,7 +49,8 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
     const branchName = isAdmin
         ? params.branch?.trim() || "all"
         : (user.branchNames[0] ?? "");
-    const showBranchList = isAdmin && branchName === "all";
+    const view = resolveRecurringDamageViewMode(params);
+    const showBranchList = view === "store" && isAdmin && branchName === "all";
     const rawItemId = params.item?.trim().toUpperCase() ?? "";
     const itemId = isChecklistItemId(rawItemId) ? rawItemId : undefined;
     const itemMeta = itemId ? getChecklistItemMeta(itemId) : undefined;
@@ -56,37 +60,47 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
         getReportYears(),
     ]);
 
+    // Hanya data tab yang aktif yang dimuat. Error sudah dicatat oleh loader;
+    // halaman menampilkan pesan gagal memuat.
     let data: RecurringDamageData | null = null;
+    let itemSummary: DamagedItemSummary | null = null;
+    let loadError = false;
     try {
-        data = await loadRecurringDamageView({
-            ...period,
-            branchName,
-            brand,
-            itemId,
-        });
+        if (view === "item") {
+            itemSummary = await loadDamagedItemSummary({ ...period, branchName, brand });
+        } else {
+            data = await loadRecurringDamageView({
+                ...period,
+                branchName,
+                brand,
+                itemId,
+            });
+        }
     } catch {
-        // Sudah dicatat oleh loadRecurringDamageView; tampilkan pesan gagal memuat.
-        data = null;
+        loadError = true;
     }
 
     return (
         <AdminDashboardShell
             user={user}
-            title="Kerusakan Berulang"
-            breadcrumbs={[{ label: "Kerusakan Berulang" }]}
+            title="Analisa Kerusakan"
+            breadcrumbs={[{ label: "Analisa Kerusakan" }]}
             headerActions={
                 <ExportRecurringDamageButton
+                    view={view}
                     filters={{
                         ...period,
                         branchName: isAdmin ? branchName : undefined,
                         brand,
-                        itemId,
+                        itemId: view === "store" ? itemId : undefined,
                     }}
                 />
             }
             contentClassName="h-full gap-0 p-0 lg:p-0"
         >
             <RecurringDamageView
+                view={view}
+                itemSummary={itemSummary}
                 isAdmin={isAdmin}
                 branchOptions={branchOptions}
                 availableYears={availableYears}
@@ -97,11 +111,11 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
                 stores={showBranchList ? [] : (data?.stores ?? [])}
                 showBranchList={showBranchList}
                 focusItem={
-                    itemId && itemMeta
+                    view === "store" && itemId && itemMeta
                         ? { itemId, itemName: itemMeta.itemName }
                         : null
                 }
-                loadError={data === null}
+                loadError={loadError}
                 initialStoreCode={params.store?.trim() || null}
             />
         </AdminDashboardShell>

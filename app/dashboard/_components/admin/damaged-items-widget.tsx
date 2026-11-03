@@ -16,12 +16,12 @@ function buildRecurringDamageHref(input: {
     quarter: QuarterFilter;
     itemId?: string;
 }) {
-    const params = new URLSearchParams();
+    // Tanpa item → tab "Per item"; dengan item → tab toko yang difilter item itu.
+    const params = new URLSearchParams({ view: input.itemId ? "store" : "item" });
     if (input.branchName !== "all") params.set("branch", input.branchName);
     if (input.quarter !== "all") params.set("quarter", String(input.quarter));
     if (input.itemId) params.set("item", input.itemId);
-    const query = params.toString();
-    return query ? `/dashboard/recurring-damage?${query}` : "/dashboard/recurring-damage";
+    return `/dashboard/recurring-damage?${params.toString()}`;
 }
 
 export function DamagedItemsWidget() {
@@ -114,7 +114,7 @@ export function DamagedItemsWidget() {
                         href={buildRecurringDamageHref({ branchName, quarter })}
                         className="text-xs text-primary hover:underline flex items-center ml-2"
                     >
-                        Detail Kerusakan Berulang <ArrowUpRight className="h-3 w-3 ml-0.5" />
+                        Lihat semua item <ArrowUpRight className="h-3 w-3 ml-0.5" />
                     </Link>
                 </div>
             </div>

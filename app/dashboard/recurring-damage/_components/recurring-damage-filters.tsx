@@ -11,6 +11,7 @@ import {
     RECURRING_DAMAGE_MONTH_LABELS,
     RECURRING_DAMAGE_QUARTER_MONTHS,
     type RecurringDamagePeriod,
+    type RecurringDamageViewMode,
 } from "@/lib/recurring-damage";
 import { STORE_BRAND_OPTIONS, type StoreBrandFilter } from "@/lib/store-brand-filter";
 
@@ -29,6 +30,7 @@ export type RecurringDamageFilterChange = {
     month?: number;
     branch?: string;
     item?: string;
+    view?: RecurringDamageViewMode;
     brand?: StoreBrandFilter;
 };
 

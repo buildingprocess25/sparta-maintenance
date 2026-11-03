@@ -327,3 +327,30 @@ Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
   hanya deteksi item itu, nama file diberi akhiran `_<ID>`.
 - Fungsi murni: `rankDamagedItems`, `isChecklistItemId`,
   `filterRecurringDamageByItem` di `lib/recurring-damage.ts`.
+
+## Tambahan: tab "Per item" dan nama "Analisa Kerusakan" (2026-11-03)
+
+- Halaman `/dashboard/recurring-damage` berganti judul dan menu menjadi
+  **"Analisa Kerusakan"** (route tidak berubah agar tautan lama tetap jalan).
+- Dua tab di URL `?view=`:
+  - **Per item** (`item`, default): seluruh 128 item katalog dengan kolom
+    Kali rusak, Toko terdampak (≥ 1 laporan), Toko rusak berulang (≥ 2
+    laporan); item tanpa kerusakan tetap tampil dengan 0 di bawah. Filter
+    kategori A–I dan pencarian. Kartu: total kejadian rusak, item terdampak
+    (N dari 128), toko terdampak. Admin langsung melihat angka nasional;
+    filter cabang mempersempit.
+  - **Toko rusak berulang** (`store`): tampilan yang sudah ada (tabel
+    cabang/toko, filter item, panel toko).
+- Tanpa `view`, tautan lama yang membawa `item` atau `store` membuka tab toko
+  (`resolveRecurringDamageViewMode`).
+- Klik item di tab Per item (hanya bila ada toko berulang) → tab toko dengan
+  `?item=`.
+- Widget dashboard: "Lihat semua item" → `?view=item`; klik item →
+  `?view=store&item=<ID>`.
+- Data tab Per item dan widget memakai satu cache ringkasan
+  (`summarizeDamagedItems` → `loadDamagedItemSummary`, 300 detik, tag
+  `recurring-damage`); widget mengambil 5 teratas dari cache yang sama.
+- Export mengikuti tab: Per item → sheet "Per Item" (128 baris), nama file
+  `Kerusakan_Per_Item_<Cabang>_<tahun>...`; tab toko → nama file
+  `Toko_Rusak_Berulang_<Cabang>_<tahun>...`. Nama cabang di file diambil dari
+  cakupan user di server.

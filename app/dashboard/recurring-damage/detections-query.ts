@@ -6,10 +6,10 @@ import {
     buildRecurringDamageStores,
     filterRecurringDamageByItem,
     getRecurringDamageWindow,
-    rankDamagedItems,
+    summarizeDamagedItems,
     summarizeRecurringDamageBranches,
     type DamageDetection,
-    type DamagedItemRank,
+    type DamagedItemSummary,
     type RecurringDamageData,
     type RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
@@ -162,18 +162,13 @@ export async function computeRecurringDamage(
 }
 
 /**
- * Item dengan kejadian rusak terbanyak untuk cakupan dan periode. Tidak
- * mengecek akses dan tidak di-cache.
+ * Ringkasan kerusakan per item (seluruh katalog) untuk cakupan dan periode.
+ * Tidak mengecek akses dan tidak di-cache.
  */
-export async function computeDamagedItemRanking(
+export async function computeDamagedItemSummary(
     scope: RecurringDamageScope,
     period: RecurringDamagePeriod,
-    limit: number,
-): Promise<DamagedItemRank[]> {
+): Promise<DamagedItemSummary> {
     const { detections } = await loadScopeDetections(scope, period);
-    return rankDamagedItems(
-        detections,
-        buildRecurringDamageStores(detections),
-        limit,
-    );
+    return summarizeDamagedItems(detections, buildRecurringDamageStores(detections));
 }

@@ -1,4 +1,5 @@
 import {
+    REPORT_CHECKLIST_ITEMS,
     compareChecklistItemIds,
     getChecklistItemMeta,
     resolveChecklistItemMeta,
@@ -325,20 +326,33 @@ export type DamagedItemRank = {
     categoryName: string;
     /** Jumlah laporan yang menandai item ini rusak. */
     damageCount: number;
+    /** Jumlah toko yang item ini pernah rusak (≥ 1 laporan). */
+    affectedStoreCount: number;
     /** Jumlah toko yang item ini rusak berulang (≥ 2 laporan). */
     recurringStoreCount: number;
 };
 
+export type DamagedItemSummary = {
+    /** Seluruh item katalog (termasuk yang tidak pernah rusak), urut paling sering rusak. */
+    items: DamagedItemRank[];
+    totalDamageCount: number;
+    affectedItemCount: number;
+    affectedStoreCount: number;
+};
+
 /**
- * Item dengan kejadian rusak terbanyak, termasuk yang baru rusak sekali.
- * Urut jumlah laporan rusak, jumlah toko berulang, lalu urutan katalog.
+ * Ringkasan kerusakan per item untuk seluruh katalog. Urut jumlah laporan
+ * rusak, jumlah toko berulang, lalu urutan katalog; item tanpa kerusakan
+ * berada di akhir dengan angka 0.
  */
-export function rankDamagedItems(
+export function summarizeDamagedItems(
     detections: readonly DamageDetection[],
     recurringStores: readonly RecurringDamageStore[],
-    limit: number,
-): DamagedItemRank[] {
+): DamagedItemSummary {
     const reportsByItem = new Map<string, Set<string>>();
+    const storesByItem = new Map<string, Set<string>>();
+    const affectedStores = new Set<string>();
+
     for (const detection of detections) {
         if (!isDamagedItem(detection)) continue;
         if (!isRecurringDamageCountedStatus(detection.status)) continue;
@@ -349,6 +363,14 @@ export function rankDamagedItems(
             reportsByItem.set(detection.itemId, reports);
         }
         reports.add(detection.reportNumber);
+
+        let itemStores = storesByItem.get(detection.itemId);
+        if (!itemStores) {
+            itemStores = new Set();
+            storesByItem.set(detection.itemId, itemStores);
+        }
+        itemStores.add(detection.storeCode);
+        affectedStores.add(detection.storeCode);
     }
 
     const recurringStoresByItem = new Map<string, number>();
@@ -361,14 +383,21 @@ export function rankDamagedItems(
         }
     }
 
-    return [...reportsByItem]
-        .map(([itemId, reports]) => {
+    // Item katalog lebih dulu, lalu ID di luar katalog yang tercatat rusak.
+    const itemIds = [
+        ...REPORT_CHECKLIST_ITEMS.map((item) => item.id),
+        ...[...reportsByItem.keys()].filter((itemId) => !isChecklistItemId(itemId)),
+    ];
+
+    const items = itemIds
+        .map((itemId) => {
             const meta = resolveChecklistItemMeta({ itemId });
             return {
                 itemId,
                 itemName: meta.itemName,
                 categoryName: meta.categoryName,
-                damageCount: reports.size,
+                damageCount: reportsByItem.get(itemId)?.size ?? 0,
+                affectedStoreCount: storesByItem.get(itemId)?.size ?? 0,
                 recurringStoreCount: recurringStoresByItem.get(itemId) ?? 0,
             };
         })
@@ -377,8 +406,14 @@ export function rankDamagedItems(
                 b.damageCount - a.damageCount ||
                 b.recurringStoreCount - a.recurringStoreCount ||
                 compareChecklistItemIds(a.itemId, b.itemId),
-        )
-        .slice(0, limit);
+        );
+
+    return {
+        items,
+        totalDamageCount: items.reduce((total, item) => total + item.damageCount, 0),
+        affectedItemCount: items.filter((item) => item.damageCount > 0).length,
+        affectedStoreCount: affectedStores.size,
+    };
 }
 
 /** ID ada di katalog 128 item checklist. */
@@ -415,4 +450,22 @@ export function filterRecurringDamageByItem(
                 b.recurringItemCount - a.recurringItemCount ||
                 a.storeCode.localeCompare(b.storeCode),
         );
+}
+
+/** Tab halaman: "Per item" atau "Toko rusak berulang". */
+export type RecurringDamageViewMode = "item" | "store";
+
+/**
+ * `view` di URL menang. Tanpa `view`, tautan lama yang membawa `item` atau
+ * `store` membuka tab toko; selain itu tab per item.
+ */
+export function resolveRecurringDamageViewMode(params: {
+    view?: string;
+    item?: string;
+    store?: string;
+    branch?: string;
+}): RecurringDamageViewMode {
+    if (params.view === "item" || params.view === "store") return params.view;
+    if (params.view === undefined && (params.item || params.store)) return "store";
+    return "item";
 }

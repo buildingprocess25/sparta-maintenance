@@ -33,6 +33,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Revisi UI tabel cabang: kolom "Jumlah toko dengan kerusakan berulang" ("N toko") dengan tooltip, tombol "Lihat toko", petunjuk klik; kartu angka ikut berlabel sama dengan satuan toko. `HeaderWithInfo` dipisah ke `_components/header-with-info.tsx`.
 - Widget dashboard "Item Paling Sering Rusak" (`app/dashboard/_components/admin/damaged-items-widget.tsx`, dipasang di dashboard Admin dan BMC/BNM), server action `app/dashboard/recurring-damage/actions.ts`, ranking item ter-cache di `queries.ts`, filter `?item=` di halaman dan export; fungsi murni `rankDamagedItems`, `isChecklistItemId`, `filterRecurringDamageByItem` (+ spec).
 - Revisi tampilan widget atas permintaan user: progress bar merah diganti layout sorotan item #1 (kotak amber lembut, angka besar, berulang di N toko) + daftar peringkat 2–5 netral dengan jumlah kali rusak dan toko berulang.
+- Tab "Per item" (128 item) dan "Toko rusak berulang" di halaman yang diganti nama menjadi "Analisa Kerusakan": `damaged-item-table.tsx`, `summarizeDamagedItems`/`resolveRecurringDamageViewMode` (+ spec), `loadDamagedItemSummary` (cache dipakai bersama widget), export per tab, `resolveRecurringDamageBranchName` untuk nama file, tautan widget ke `?view=item`.
 
 ## Decisions
 
@@ -47,6 +48,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `?store=` di luar daftar tetap membuka panel dengan pesan kosong; konten terakhir dipertahankan saat panel ditutup.
 - Nama file export memakai nama cabang dari data (bukan dari body) bila datanya satu cabang; body non-objek ditolak 400.
 - Widget mengurutkan item berdasarkan jumlah laporan rusak (keputusan user), dengan keterangan jumlah toko berulang agar sesuai dengan halaman tujuan; klik item membuka halaman dengan filter item.
+- Rekap 128 item ditaruh sebagai tab di halaman yang ada (keputusan user) dan halaman diganti nama "Analisa Kerusakan"; route tetap `/dashboard/recurring-damage`. Tab Per item jadi default; tautan lama berisi `item`/`store` tetap membuka tab toko.
 
 ## Verification
 
@@ -64,6 +66,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Revisi UI: eslint dan scoped tsc bersih; belum dicek ulang di browser.
 - Widget + filter item: spec lulus, eslint bersih pada file fitur (error/warning lama di admin-dashboard-v2.tsx dan manager-dashboard.tsx tidak disentuh), scoped tsc lulus; belum dicek di browser.
 - Review widget/filter item: respons lama widget tidak lagi menimpa hasil filter baru (key per request), label kartu angka/panel/export menyesuaikan filter item; eslint, scoped tsc, spec lulus. Pola race yang sama di widget Checklist Preventif juga diperbaiki atas permintaan user (`preventive-kpi-widget.tsx`, flag ignore di cleanup effect); eslint pada file itu tetap hanya menampilkan 1 error + 2 warning lama.
+- Tab Per item: spec, eslint (hanya warning `Image` lama di sidebar), scoped tsc lulus; belum dicek di browser.
 
 ## Remaining Work and Risks
 

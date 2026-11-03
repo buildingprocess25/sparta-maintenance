@@ -4,7 +4,10 @@ import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import type { RecurringDamageFilters } from "@/lib/recurring-damage";
+import type {
+    RecurringDamageFilters,
+    RecurringDamageViewMode,
+} from "@/lib/recurring-damage";
 
 function getFileNameFromDisposition(disposition: string | null) {
     if (!disposition) return null;
@@ -14,8 +17,10 @@ function getFileNameFromDisposition(disposition: string | null) {
 }
 
 export function ExportRecurringDamageButton({
+    view,
     filters,
 }: {
+    view: RecurringDamageViewMode;
     filters: RecurringDamageFilters;
 }) {
     const [isExporting, setIsExporting] = useState(false);
@@ -28,7 +33,7 @@ export function ExportRecurringDamageButton({
             const res = await fetch("/api/dashboard/recurring-damage/export", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(filters),
+                body: JSON.stringify({ ...filters, view }),
             });
 
             if (!res.ok) {

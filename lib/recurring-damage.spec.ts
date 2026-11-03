@@ -4,7 +4,8 @@ import {
     buildRecurringDamageStores,
     filterRecurringDamageByItem,
     isChecklistItemId,
-    rankDamagedItems,
+    resolveRecurringDamageViewMode,
+    summarizeDamagedItems,
     formatRecurringDamagePeriod,
     getRecurringDamageWindow,
     isDamagedItem,
@@ -246,29 +247,57 @@ const rankingDetections: DamageDetection[] = [
     detection({ storeCode: "TX", storeName: "Toko X", reportNumber: "R-1" }),
 ];
 
+const summary = summarizeDamagedItems(rankingDetections, stores);
+
+// Semua 128 item katalog ikut, termasuk yang tidak pernah rusak.
+assert.equal(summary.items.length, 128);
+assert.equal(summary.totalDamageCount, 21);
+assert.equal(summary.affectedItemCount, 7);
+assert.equal(summary.affectedStoreCount, 5);
+
 assert.deepEqual(
-    rankDamagedItems(rankingDetections, stores, 5).map((item) => [
+    summary.items.slice(0, 5).map((item) => [
         item.itemId,
         item.damageCount,
+        item.affectedStoreCount,
         item.recurringStoreCount,
     ]),
     [
-        ["A5", 8, 3],
-        ["A1", 3, 1],
-        ["A2", 3, 1],
-        ["A6", 2, 1],
-        ["B3", 2, 1],
+        ["A5", 8, 3, 3],
+        ["A1", 3, 1, 1],
+        ["A2", 3, 1, 1],
+        ["A6", 2, 1, 1],
+        ["B3", 2, 1, 1],
     ],
 );
-const [topRanked] = rankDamagedItems(rankingDetections, stores, 1);
-assert.equal(topRanked.itemName, "Lampu Shop Sign");
-assert.equal(topRanked.categoryName, "A. Bagian Depan Bangunan");
+assert.equal(summary.items[0].itemName, "Lampu Shop Sign");
+assert.equal(summary.items[0].categoryName, "A. Bagian Depan Bangunan");
 
-// Item yang rusak sekali tetap masuk ranking dengan 0 toko berulang.
-const rankedE1 = rankDamagedItems(rankingDetections, stores, 10).find(
-    (item) => item.itemId === "E1",
+// Item yang rusak sekali tetap masuk dengan 0 toko berulang.
+const summaryE1 = summary.items.find((item) => item.itemId === "E1");
+assert.deepEqual(
+    summaryE1 && [summaryE1.damageCount, summaryE1.affectedStoreCount, summaryE1.recurringStoreCount],
+    [1, 1, 0],
 );
-assert.deepEqual(rankedE1 && [rankedE1.damageCount, rankedE1.recurringStoreCount], [1, 0]);
+
+// Item tanpa kerusakan di akhir, urut katalog.
+const zeroItems = summary.items.filter((item) => item.damageCount === 0);
+assert.equal(zeroItems.length, 121);
+assert.deepEqual(
+    zeroItems.slice(0, 2).map((item) => item.itemId),
+    ["A3", "A4"],
+);
+assert.deepEqual(
+    summary.items.slice(7, 9).map((item) => item.itemId),
+    ["A3", "A4"],
+);
+assert.equal(summary.items.at(-1)?.itemId, "I13");
+
+// Ringkasan kosong tetap berisi 128 item dengan angka 0.
+const emptySummary = summarizeDamagedItems([], []);
+assert.equal(emptySummary.items.length, 128);
+assert.equal(emptySummary.totalDamageCount, 0);
+assert.equal(emptySummary.items[0].itemId, "A1");
 
 // ── Filter item ───────────────────────────────────────────────────────────
 assert.equal(isChecklistItemId("A5"), true);
@@ -301,3 +330,13 @@ assert.deepEqual(
     ["B3", "A5", "D1"],
 );
 assert.deepEqual(filterRecurringDamageByItem(stores, "E1"), []);
+
+// ── Tab halaman ───────────────────────────────────────────────────────────
+// Default "Per item"; tautan lama dengan item/store membuka "Toko rusak berulang".
+assert.equal(resolveRecurringDamageViewMode({}), "item");
+assert.equal(resolveRecurringDamageViewMode({ view: "store" }), "store");
+assert.equal(resolveRecurringDamageViewMode({ view: "item", item: "A5" }), "item");
+assert.equal(resolveRecurringDamageViewMode({ item: "A5" }), "store");
+assert.equal(resolveRecurringDamageViewMode({ store: "TX" }), "store");
+assert.equal(resolveRecurringDamageViewMode({ branch: "CIANJUR" }), "item");
+assert.equal(resolveRecurringDamageViewMode({ view: "lain" }), "item");
