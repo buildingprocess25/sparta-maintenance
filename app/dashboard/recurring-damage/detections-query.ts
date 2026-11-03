@@ -1,9 +1,25 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
+import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import {
     RECURRING_DAMAGE_EXCLUDED_STATUSES,
+    buildRecurringDamageStores,
+    getRecurringDamageWindow,
+    summarizeRecurringDamageBranches,
     type DamageDetection,
+    type RecurringDamageData,
+    type RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
+import {
+    getStoreBrandWhere,
+    type StoreBrandFilter,
+} from "@/lib/store-brand-filter";
+
+/** Cakupan toko yang sudah diresolusi; `branchName: null` = semua cabang. */
+export type RecurringDamageScope = {
+    branchName: string | null;
+    brand: StoreBrandFilter;
+};
 
 export type DetectionStoreRef = {
     code: string;
@@ -59,7 +75,7 @@ export async function fetchDamageDetections(input: {
                 ELSE '[]'::jsonb
             END
         ) AS item
-        WHERE r."storeCode" IN (${Prisma.join(input.stores.map((store) => store.code))})
+        WHERE r."storeCode" = ANY(${input.stores.map((store) => store.code)}::text[])
           AND r."createdAt" >= ${input.start}
           AND r."createdAt" < ${input.endExclusive}
           AND r."status"::text NOT IN (${Prisma.join([...RECURRING_DAMAGE_EXCLUDED_STATUSES])})
@@ -91,4 +107,40 @@ export async function fetchDamageDetections(input: {
             },
         ];
     });
+}
+
+/**
+ * Hitung toko problematik untuk cakupan dan periode yang sudah diresolusi.
+ * Tidak mengecek akses dan tidak di-cache; pemanggil wajib meresolusi
+ * cakupan sesuai user.
+ */
+export async function computeRecurringDamage(
+    scope: RecurringDamageScope,
+    period: RecurringDamagePeriod,
+): Promise<RecurringDamageData> {
+    const stores = await prisma.store.findMany({
+        where: {
+            isActive: true,
+            branchName: {
+                not: EXCLUDED_ADMIN_BRANCH_NAME,
+                ...(scope.branchName ? { equals: scope.branchName } : {}),
+            },
+            ...(getStoreBrandWhere(scope.brand) ?? {}),
+        },
+        select: { code: true, name: true, branchName: true },
+    });
+
+    const { start, endExclusive } = getRecurringDamageWindow(period);
+    const detections = await fetchDamageDetections({
+        stores,
+        start,
+        endExclusive,
+    });
+    const recurringStores = buildRecurringDamageStores(detections);
+    const branchNames = [...new Set(stores.map((store) => store.branchName))];
+
+    return {
+        branches: summarizeRecurringDamageBranches(branchNames, recurringStores),
+        stores: recurringStores,
+    };
 }

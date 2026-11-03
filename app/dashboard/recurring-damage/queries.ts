@@ -1,51 +1,25 @@
 import "server-only";
 
-import type { Prisma } from "@prisma/client";
-import prisma from "@/lib/prisma";
-import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
-import { getAuthUser, type AuthUser } from "@/lib/authorization";
+import { unstable_cache } from "next/cache";
+import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
-import {
-    buildRecurringDamageStores,
-    getRecurringDamageWindow,
-    summarizeRecurringDamageBranches,
-    type RecurringDamageData,
-    type RecurringDamageFilters,
+import type {
+    RecurringDamageData,
+    RecurringDamageFilters,
+    RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
-import { getStoreBrandWhere } from "@/lib/store-brand-filter";
-import { fetchDamageDetections } from "./detections-query";
+import {
+    computeRecurringDamage,
+    type RecurringDamageScope,
+} from "./detections-query";
 
-/** Cakupan toko aktif per role; `null` berarti user tidak punya cabang. */
-function getStoreScope(
-    user: AuthUser,
+/**
+ * Cek user dan role, lalu tentukan cakupan toko. `null` berarti user tidak
+ * punya cabang.
+ */
+async function resolveRecurringDamageScope(
     filters: RecurringDamageFilters,
-): Prisma.StoreWhereInput | null {
-    if (user.role === "ADMIN") {
-        const branchName =
-            filters.branchName && filters.branchName !== "all"
-                ? filters.branchName
-                : undefined;
-        const brandWhere = filters.brand
-            ? getStoreBrandWhere(filters.brand)
-            : undefined;
-
-        return {
-            branchName: {
-                not: EXCLUDED_ADMIN_BRANCH_NAME,
-                ...(branchName ? { equals: branchName } : {}),
-            },
-            ...(brandWhere ?? {}),
-        };
-    }
-
-    // BMC/BNM terikat ke satu cabang; filter cabang dari klien diabaikan.
-    const branchName = user.branchNames[0];
-    return branchName ? { branchName } : null;
-}
-
-export async function loadRecurringDamage(
-    filters: RecurringDamageFilters,
-): Promise<RecurringDamageData> {
+): Promise<RecurringDamageScope | null> {
     const user = await getAuthUser();
     if (
         !user ||
@@ -56,28 +30,81 @@ export async function loadRecurringDamage(
         throw new Error("Unauthorized");
     }
 
-    const scope = getStoreScope(user, filters);
+    if (user.role === "ADMIN") {
+        return {
+            branchName:
+                filters.branchName && filters.branchName !== "all"
+                    ? filters.branchName
+                    : null,
+            brand: filters.brand ?? "ALL",
+        };
+    }
+
+    // BMC/BNM terikat ke satu cabang; filter cabang dan brand dari klien diabaikan.
+    const branchName = user.branchNames[0];
+    return branchName ? { branchName, brand: "ALL" } : null;
+}
+
+/** Periode hanya dengan key yang terisi agar key cache stabil. */
+function toPeriod(filters: RecurringDamageFilters): RecurringDamagePeriod {
+    return {
+        year: filters.year,
+        ...(filters.quarter !== undefined ? { quarter: filters.quarter } : {}),
+        ...(filters.month !== undefined ? { month: filters.month } : {}),
+    };
+}
+
+/**
+ * Data cache Next menolak entri di atas ~2 MB, sedangkan daftar toko semua
+ * cabang jauh lebih besar. Entri semua cabang hanya menyimpan ringkasan
+ * cabang; entri satu cabang menyimpan toko cabang tersebut.
+ */
+const getRecurringDamageViewCached = unstable_cache(
+    async (
+        scope: RecurringDamageScope,
+        period: RecurringDamagePeriod,
+    ): Promise<RecurringDamageData> => {
+        const data = await computeRecurringDamage(scope, period);
+        return scope.branchName ? data : { branches: data.branches, stores: [] };
+    },
+    ["recurring-damage-view"],
+    { revalidate: 300, tags: ["recurring-damage"] },
+);
+
+/**
+ * Data untuk halaman (di-cache 5 menit). Untuk semua cabang, `stores` selalu
+ * kosong; daftar toko hanya tersedia setelah satu cabang dipilih.
+ */
+export async function loadRecurringDamageView(
+    filters: RecurringDamageFilters,
+): Promise<RecurringDamageData> {
+    const scope = await resolveRecurringDamageScope(filters);
     if (!scope) return { branches: [], stores: [] };
 
     try {
-        const stores = await prisma.store.findMany({
-            where: { isActive: true, ...scope },
-            select: { code: true, name: true, branchName: true },
-        });
+        return await getRecurringDamageViewCached(scope, toPeriod(filters));
+    } catch (error) {
+        logger.error(
+            {
+                operation: "loadRecurringDamageView",
+                filters: JSON.stringify(filters),
+            },
+            "Failed to load recurring damage",
+            error,
+        );
+        throw error;
+    }
+}
 
-        const { start, endExclusive } = getRecurringDamageWindow(filters);
-        const detections = await fetchDamageDetections({
-            stores,
-            start,
-            endExclusive,
-        });
-        const recurringStores = buildRecurringDamageStores(detections);
-        const branchNames = [...new Set(stores.map((store) => store.branchName))];
+/** Data lengkap untuk export (tanpa cache), termasuk toko semua cabang. */
+export async function loadRecurringDamage(
+    filters: RecurringDamageFilters,
+): Promise<RecurringDamageData> {
+    const scope = await resolveRecurringDamageScope(filters);
+    if (!scope) return { branches: [], stores: [] };
 
-        return {
-            branches: summarizeRecurringDamageBranches(branchNames, recurringStores),
-            stores: recurringStores,
-        };
+    try {
+        return await computeRecurringDamage(scope, toPeriod(filters));
     } catch (error) {
         logger.error(
             {

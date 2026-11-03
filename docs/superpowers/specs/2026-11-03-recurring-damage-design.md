@@ -215,23 +215,40 @@ dipisah dari pengecekan akses.
 `fetchDamageDetections({ stores, start, endExclusive })`: satu query SQL
 mentah (`prisma.$queryRaw`) yang membuka `jsonb_array_elements(r."items")`,
 dibatasi ke `storeCode` toko yang diberikan, rentang `createdAt`, dan status
-yang dihitung. Query hanya mengembalikan entri yang rusak. Nama toko dan
-cabang diambil dari daftar `Store` yang diberikan. File ini tidak mengecek
-akses, sehingga bisa dijalankan dari script verifikasi.
+yang dihitung. Kode toko dikirim sebagai satu parameter array
+(`r."storeCode" = ANY($1::text[])`), bukan daftar `IN` per toko yang bisa
+melewati batas 65.535 parameter Postgres. Query hanya mengembalikan entri yang
+rusak. Nama toko dan cabang diambil dari daftar `Store` yang diberikan.
+
+`computeRecurringDamage(scope, period)`: `scope` berupa
+`{ branchName: string | null; brand }` (`null` = semua cabang). Memuat toko
+aktif (`isActive: true`, `branchName` bukan `EXCLUDED_ADMIN_BRANCH_NAME`,
+ditambah `branchName = scope.branchName` bila ada, ditambah
+`getStoreBrandWhere(brand)`), memanggil `fetchDamageDetections`, lalu
+`buildRecurringDamageStores` dan `summarizeRecurringDamageBranches`.
+
+File ini tidak mengecek akses dan tidak memakai cache, sehingga bisa
+dijalankan dari script verifikasi.
 
 ### `app/dashboard/recurring-damage/queries.ts` (server-only)
 
-`loadRecurringDamage(filters)`: mengecek user dan role (`getAuthUser`,
-melempar `Unauthorized`), menentukan cakupan toko, memanggil
-`fetchDamageDetections`, lalu `buildRecurringDamageStores` dan
-`summarizeRecurringDamageBranches`. Dipakai oleh halaman dan endpoint export.
+Kedua fungsi publik mengecek user dan role lebih dulu (`getAuthUser`,
+melempar `Unauthorized`, di luar cache) dan menentukan cakupan:
 
-Cakupan toko berupa `Prisma.StoreWhereInput` dengan `isActive: true` dan:
+- Admin: `branchName` = cabang yang dipilih, atau `null` untuk semua cabang;
+  `brand` dari filter (default `ALL`).
+- BMC dan BNM: `branchName = branchNames[0]`, `brand = ALL`; filter cabang dan
+  brand dari klien diabaikan. Tanpa cabang → data kosong.
 
-- Admin: `branchName` bukan `EXCLUDED_ADMIN_BRANCH_NAME`, ditambah
-  `branchName = branch` bila `branch` dipilih, ditambah
-  `getStoreBrandWhere(brand)`.
-- BMC dan BNM: `branchName = branchNames[0]`.
+`loadRecurringDamageView(filters)`: untuk halaman. Memanggil
+`computeRecurringDamage` lewat `unstable_cache` (revalidate 300 detik, tag
+`recurring-damage`, key dari cakupan dan periode). Data cache Next menolak
+entri di atas ~2 MB, sehingga entri semua cabang hanya menyimpan ringkasan
+cabang (`stores` kosong); entri satu cabang menyimpan toko cabang tersebut.
+
+`loadRecurringDamage(filters)`: untuk endpoint export. Memanggil
+`computeRecurringDamage` tanpa cache dan mengembalikan data lengkap, termasuk
+toko semua cabang.
 
 Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
 `getReportYears` yang sudah ada.
@@ -239,7 +256,7 @@ Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
 ### UI
 
 - `app/dashboard/recurring-damage/page.tsx`: server component. Membaca
-  `searchParams`, mengecek role, dan memanggil `loadRecurringDamage`.
+  `searchParams`, mengecek role, dan memanggil `loadRecurringDamageView`.
   Perubahan filter memakai `router.replace` sehingga halaman dirender ulang di
   server. Tidak ada server action tambahan.
 - Panel toko dibuka/ditutup dengan `window.history.replaceState` (`?store=`)
@@ -277,5 +294,5 @@ Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
 - Akses Branch Admin.
 - Definisi "rusak lagi setelah diperbaiki" sebagai metrik terpisah.
 - Perbandingan dengan total toko aktif atau persentase di Layer 1.
-- Tabel ringkasan atau cache untuk deteksi.
+- Tabel ringkasan untuk deteksi.
 - Tautan dari halaman lain (detail laporan, master toko) ke halaman ini.
