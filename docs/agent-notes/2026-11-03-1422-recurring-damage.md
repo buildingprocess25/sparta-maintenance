@@ -26,6 +26,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `components/app-sidebar.tsx`: menu "Kerusakan Berulang" di grup Monitoring untuk Admin, BMC, BNM.
 - `app/api/dashboard/recurring-damage/export/route.ts`: export XLSX (sheet Ringkasan Toko dan Detail Deteksi), akses sama dengan halaman.
 - `app/dashboard/recurring-damage/_components/export-recurring-damage-button.tsx`, `page.tsx`: tombol Ekspor XLSX di header.
+- `CLAUDE.md`: catatan perilaku halaman Kerusakan Berulang.
 
 ## Decisions
 
@@ -51,8 +52,12 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Task 5: tsc terscope (halaman, `_components/*`, sidebar, komponen dashboard, modul data) exit 0; eslint `app/dashboard/recurring-damage` bersih, `components/app-sidebar.tsx` hanya warning lama (`Image` tidak terpakai, bukan dari perubahan ini).
 - Task 6: tsc terscope (route export, tombol, halaman, `_components/*`, komponen dashboard, modul data) exit 0; eslint `app/dashboard/recurring-damage app/api/dashboard/recurring-damage` bersih.
 - Cek export di browser: dilakukan controller setelah Task 6.
+- Task 7: `npx tsx lib/recurring-damage.spec.ts` dan `lib/report-preventive.spec.ts` lulus (exit 0). `npx tsc --noEmit` penuh OOM di mesin ini; diganti tsc terscope (modul, spec, komponen dashboard, sidebar, halaman + `_components`, route export, admin-preventive-table): exit 0. eslint pada file perintah brief: hanya masalah lama (error `react-hooks/set-state-in-effect` dan 3 warning `no-unused-expressions` di admin-preventive-table.tsx, warning `Image` tidak terpakai di app-sidebar.tsx); file fitur ini bersih.
+- Task 7 build: `NODE_OPTIONS=--max-old-space-size=8192 npm run build` dua kali. Percobaan 1: gagal alokasi memori native (Turbopack). Percobaan 2: "Compiled successfully in 89s", lalu JavaScript heap out of memory setelah kompilasi (tahap berikutnya); daftar route tidak tercetak. Bukan kesalahan kode; verifikasi build penuh perlu mesin dengan memori lebih besar.
 
 ## Remaining Work and Risks
 
-- Halaman dan export belum dibuat (task berikutnya).
+- Akses BMS dan Branch Admin, metrik "rusak lagi setelah diperbaiki", dan persentase di Layer 1 sengaja di luar cakupan.
+- Cek browser (halaman dan export) belum dilakukan; dilakukan controller setelah Task 7 dan catatan ini akan diperbarui bila dijalankan.
+- Build produksi belum terverifikasi sampai selesai: OOM di mesin ini setelah kompilasi sukses (lihat Verification); route belum terlihat di output build.
 - Durasi query deteksi setahun penuh untuk semua toko 2,2-3,4 s di DB lokal (run pertama sampai ~6 s), di atas target 2 s. Load pertama Admin semua cabang (cache belum terisi atau kedaluwarsa) tetap selama itu; latensi produksi belum diukur. EXPLAIN ANALYZE: Parallel Seq Scan `Report` (~21,9 ribu laporan setahun) + nested loop `jsonb_array_elements`; eksekusi 1,68 s, sebagian besar waktu di pembacaan halaman TOAST kolom `items` (read ~23,7 ribu buffer, cache dingin). Filter kode toko tidak selektif untuk Admin semua cabang. Opsi lanjutan bila perlu: tabel ringkasan deteksi.
