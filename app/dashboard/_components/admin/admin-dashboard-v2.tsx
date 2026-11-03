@@ -16,6 +16,7 @@ import { LeaderboardList, type LeaderboardItem } from "./leaderboard-list";
 import { SlaStatusGuide } from "./sla-status-guide";
 import { StatusDistributionKpis } from "./status-distribution";
 import { PreventiveKpiWidget } from "./preventive-kpi-widget";
+import { DamagedItemsWidget } from "./damaged-items-widget";
 import { ProcessDurationWidget } from "./process-duration-widget";
 import { RealisasiChartWidget } from "./realisasi-chart-widget";
 import {
@@ -178,6 +179,7 @@ export function AdminDashboardV2({
 
       {/* Row 3: Preventif */}
       <PreventiveKpiWidget />
+      <DamagedItemsWidget />
       <ProcessDurationWidget />
 
       {/* Row 4: Dana Taktis Line Chart */}

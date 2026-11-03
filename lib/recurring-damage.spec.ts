@@ -2,6 +2,9 @@ import assert from "node:assert/strict";
 import {
     RECURRING_DAMAGE_EXCLUDED_STATUSES,
     buildRecurringDamageStores,
+    filterRecurringDamageByItem,
+    isChecklistItemId,
+    rankDamagedItems,
     formatRecurringDamagePeriod,
     getRecurringDamageWindow,
     isDamagedItem,
@@ -233,3 +236,68 @@ assert.deepEqual(
         { branchName: "SUKABUMI", problematicStoreCount: 0 },
     ],
 );
+
+// ── Ranking item paling sering rusak ──────────────────────────────────────
+// Laporan dikecualikan dan item yang sama dua kali di satu laporan tidak
+// menambah hitungan.
+const rankingDetections: DamageDetection[] = [
+    ...detections,
+    detection({ storeCode: "TX", storeName: "Toko X", reportNumber: "R-99", status: "DRAFT" }),
+    detection({ storeCode: "TX", storeName: "Toko X", reportNumber: "R-1" }),
+];
+
+assert.deepEqual(
+    rankDamagedItems(rankingDetections, stores, 5).map((item) => [
+        item.itemId,
+        item.damageCount,
+        item.recurringStoreCount,
+    ]),
+    [
+        ["A5", 8, 3],
+        ["A1", 3, 1],
+        ["A2", 3, 1],
+        ["A6", 2, 1],
+        ["B3", 2, 1],
+    ],
+);
+const [topRanked] = rankDamagedItems(rankingDetections, stores, 1);
+assert.equal(topRanked.itemName, "Lampu Shop Sign");
+assert.equal(topRanked.categoryName, "A. Bagian Depan Bangunan");
+
+// Item yang rusak sekali tetap masuk ranking dengan 0 toko berulang.
+const rankedE1 = rankDamagedItems(rankingDetections, stores, 10).find(
+    (item) => item.itemId === "E1",
+);
+assert.deepEqual(rankedE1 && [rankedE1.damageCount, rankedE1.recurringStoreCount], [1, 0]);
+
+// ── Filter item ───────────────────────────────────────────────────────────
+assert.equal(isChecklistItemId("A5"), true);
+assert.equal(isChecklistItemId("I13"), true);
+assert.equal(isChecklistItemId("Z99"), false);
+assert.equal(isChecklistItemId(""), false);
+
+// Hanya toko dengan item terpilih yang berulang, urut jumlah rusak item itu.
+const byA5 = filterRecurringDamageByItem(stores, "A5");
+assert.deepEqual(
+    byA5.map((store) => [
+        store.storeCode,
+        store.topItemId,
+        store.maxFrequency,
+        store.recurringItemCount,
+    ]),
+    [
+        ["TX", "A5", 4, 1],
+        ["TY", "A5", 2, 3],
+        ["TW", "A5", 2, 1],
+    ],
+);
+
+// Item terpilih ditaruh paling atas; item lain tetap ada.
+const byB3 = filterRecurringDamageByItem(stores, "B3");
+assert.deepEqual(byB3.map((store) => store.storeCode), ["TY"]);
+assert.equal(byB3[0].topItemName, "Dinding Sales");
+assert.deepEqual(
+    byB3[0].items.map((item) => item.itemId),
+    ["B3", "A5", "D1"],
+);
+assert.deepEqual(filterRecurringDamageByItem(stores, "E1"), []);

@@ -28,6 +28,7 @@ export type RecurringDamageFilterChange = {
     quarter?: number;
     month?: number;
     branch?: string;
+    item?: string;
     brand?: StoreBrandFilter;
 };
 

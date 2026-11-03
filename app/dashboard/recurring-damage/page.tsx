@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
-import { normalizeRecurringDamagePeriod, type RecurringDamageData } from "@/lib/recurring-damage";
+import { getChecklistItemMeta } from "@/lib/checklist-data";
+import {
+    isChecklistItemId,
+    normalizeRecurringDamagePeriod,
+    type RecurringDamageData,
+} from "@/lib/recurring-damage";
 import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
 import { getJakartaYear } from "@/lib/time";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
@@ -19,6 +24,7 @@ type Props = {
         branch?: string;
         brand?: string;
         store?: string;
+        item?: string;
     }>;
 };
 
@@ -41,6 +47,9 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
         ? params.branch?.trim() || "all"
         : (user.branchNames[0] ?? "");
     const showBranchList = isAdmin && branchName === "all";
+    const rawItemId = params.item?.trim().toUpperCase() ?? "";
+    const itemId = isChecklistItemId(rawItemId) ? rawItemId : undefined;
+    const itemMeta = itemId ? getChecklistItemMeta(itemId) : undefined;
 
     const [branchOptions, availableYears] = await Promise.all([
         isAdmin ? getPreventiveBranchOptions() : Promise.resolve<string[]>([]),
@@ -49,7 +58,12 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
 
     let data: RecurringDamageData | null = null;
     try {
-        data = await loadRecurringDamageView({ ...period, branchName, brand });
+        data = await loadRecurringDamageView({
+            ...period,
+            branchName,
+            brand,
+            itemId,
+        });
     } catch {
         // Sudah dicatat oleh loadRecurringDamageView; tampilkan pesan gagal memuat.
         data = null;
@@ -66,6 +80,7 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
                         ...period,
                         branchName: isAdmin ? branchName : undefined,
                         brand,
+                        itemId,
                     }}
                 />
             }
@@ -81,6 +96,11 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
                 branches={data?.branches ?? []}
                 stores={showBranchList ? [] : (data?.stores ?? [])}
                 showBranchList={showBranchList}
+                focusItem={
+                    itemId && itemMeta
+                        ? { itemId, itemName: itemMeta.itemName }
+                        : null
+                }
                 loadError={data === null}
                 initialStoreCode={params.store?.trim() || null}
             />

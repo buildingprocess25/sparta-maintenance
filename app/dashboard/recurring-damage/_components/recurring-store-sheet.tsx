@@ -117,6 +117,10 @@ export function RecurringStoreSheet({
     onOpenChange: (open: boolean) => void;
 }) {
     const periodLabel = formatRecurringDamagePeriod(period);
+    // Dihitung dari item, karena pada filter item maxFrequency mengacu ke item terpilih.
+    const mostFrequentCount = store
+        ? Math.max(...store.items.map((item) => item.count))
+        : 0;
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
@@ -145,7 +149,7 @@ export function RecurringStoreSheet({
                                     key={item.itemId}
                                     item={item}
                                     defaultOpen={index === 0}
-                                    isMostFrequent={item.count === store.maxFrequency}
+                                    isMostFrequent={item.count === mostFrequentCount}
                                 />
                             ))}
                         </>

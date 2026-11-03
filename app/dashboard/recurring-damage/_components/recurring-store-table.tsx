@@ -20,9 +20,11 @@ import { HeaderWithInfo } from "./header-with-info";
 
 export function RecurringStoreTable({
     stores,
+    itemFocused,
     onSelectStore,
 }: {
     stores: RecurringDamageStore[];
+    itemFocused: boolean;
     onSelectStore: (storeCode: string) => void;
 }) {
     const [search, setSearch] = useState("");
@@ -62,10 +64,17 @@ export function RecurringStoreTable({
                                 <TableHead className="w-[54px] text-[11px]">No</TableHead>
                                 <TableHead className="min-w-[240px] text-[11px]">Toko</TableHead>
                                 <TableHead className="min-w-[280px] text-[11px]">
-                                    <HeaderWithInfo
-                                        label="Item paling sering rusak"
-                                        info="Item checklist yang paling banyak tercatat rusak di toko ini pada periode terpilih."
-                                    />
+                                    {itemFocused ? (
+                                        <HeaderWithInfo
+                                            label="Item terpilih"
+                                            info="Item dari filter item dan berapa kali item itu tercatat rusak di toko ini pada periode terpilih."
+                                        />
+                                    ) : (
+                                        <HeaderWithInfo
+                                            label="Item paling sering rusak"
+                                            info="Item checklist yang paling banyak tercatat rusak di toko ini pada periode terpilih."
+                                        />
+                                    )}
                                 </TableHead>
                                 <TableHead className="min-w-[180px] text-[11px]">
                                     <HeaderWithInfo
@@ -89,7 +98,9 @@ export function RecurringStoreTable({
                                             }
                                             description={
                                                 stores.length === 0
-                                                    ? "Tidak ada toko dengan item rusak berulang di periode ini."
+                                                    ? itemFocused
+                                                        ? "Tidak ada toko yang item ini rusak berulang di periode ini."
+                                                        : "Tidak ada toko dengan item rusak berulang di periode ini."
                                                     : "Tidak ada toko yang cocok dengan pencarian."
                                             }
                                         />

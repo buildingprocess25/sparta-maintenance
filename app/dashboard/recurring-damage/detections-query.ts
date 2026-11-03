@@ -4,9 +4,12 @@ import { EXCLUDED_ADMIN_BRANCH_NAME } from "@/lib/admin-branch-scope";
 import {
     RECURRING_DAMAGE_EXCLUDED_STATUSES,
     buildRecurringDamageStores,
+    filterRecurringDamageByItem,
     getRecurringDamageWindow,
+    rankDamagedItems,
     summarizeRecurringDamageBranches,
     type DamageDetection,
+    type DamagedItemRank,
     type RecurringDamageData,
     type RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
@@ -109,15 +112,11 @@ export async function fetchDamageDetections(input: {
     });
 }
 
-/**
- * Hitung toko rusak berulang untuk cakupan dan periode yang sudah diresolusi.
- * Tidak mengecek akses dan tidak di-cache; pemanggil wajib meresolusi
- * cakupan sesuai user.
- */
-export async function computeRecurringDamage(
+/** Toko aktif dalam cakupan beserta deteksi rusaknya pada periode. */
+async function loadScopeDetections(
     scope: RecurringDamageScope,
     period: RecurringDamagePeriod,
-): Promise<RecurringDamageData> {
+): Promise<{ stores: DetectionStoreRef[]; detections: DamageDetection[] }> {
     const stores = await prisma.store.findMany({
         where: {
             isActive: true,
@@ -136,11 +135,45 @@ export async function computeRecurringDamage(
         start,
         endExclusive,
     });
+    return { stores, detections };
+}
+
+/**
+ * Hitung toko rusak berulang untuk cakupan dan periode yang sudah diresolusi,
+ * opsional dibatasi ke satu item. Tidak mengecek akses dan tidak di-cache;
+ * pemanggil wajib meresolusi cakupan sesuai user.
+ */
+export async function computeRecurringDamage(
+    scope: RecurringDamageScope,
+    period: RecurringDamagePeriod,
+    itemId: string | null = null,
+): Promise<RecurringDamageData> {
+    const { stores, detections } = await loadScopeDetections(scope, period);
     const recurringStores = buildRecurringDamageStores(detections);
+    const visibleStores = itemId
+        ? filterRecurringDamageByItem(recurringStores, itemId)
+        : recurringStores;
     const branchNames = [...new Set(stores.map((store) => store.branchName))];
 
     return {
-        branches: summarizeRecurringDamageBranches(branchNames, recurringStores),
-        stores: recurringStores,
+        branches: summarizeRecurringDamageBranches(branchNames, visibleStores),
+        stores: visibleStores,
     };
+}
+
+/**
+ * Item dengan kejadian rusak terbanyak untuk cakupan dan periode. Tidak
+ * mengecek akses dan tidak di-cache.
+ */
+export async function computeDamagedItemRanking(
+    scope: RecurringDamageScope,
+    period: RecurringDamagePeriod,
+    limit: number,
+): Promise<DamagedItemRank[]> {
+    const { detections } = await loadScopeDetections(scope, period);
+    return rankDamagedItems(
+        detections,
+        buildRecurringDamageStores(detections),
+        limit,
+    );
 }

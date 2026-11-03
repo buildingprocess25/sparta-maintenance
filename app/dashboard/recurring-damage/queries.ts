@@ -4,11 +4,13 @@ import { unstable_cache } from "next/cache";
 import { getAuthUser } from "@/lib/authorization";
 import { logger } from "@/lib/logger";
 import type {
+    DamagedItemRank,
     RecurringDamageData,
     RecurringDamageFilters,
     RecurringDamagePeriod,
 } from "@/lib/recurring-damage";
 import {
+    computeDamagedItemRanking,
     computeRecurringDamage,
     type RecurringDamageScope,
 } from "./detections-query";
@@ -63,8 +65,9 @@ const getRecurringDamageViewCached = unstable_cache(
     async (
         scope: RecurringDamageScope,
         period: RecurringDamagePeriod,
+        itemId: string | null,
     ): Promise<RecurringDamageData> => {
-        const data = await computeRecurringDamage(scope, period);
+        const data = await computeRecurringDamage(scope, period, itemId);
         return scope.branchName ? data : { branches: data.branches, stores: [] };
     },
     ["recurring-damage-view"],
@@ -82,7 +85,11 @@ export async function loadRecurringDamageView(
     if (!scope) return { branches: [], stores: [] };
 
     try {
-        return await getRecurringDamageViewCached(scope, toPeriod(filters));
+        return await getRecurringDamageViewCached(
+            scope,
+            toPeriod(filters),
+            filters.itemId ?? null,
+        );
     } catch (error) {
         logger.error(
             {
@@ -104,7 +111,11 @@ export async function loadRecurringDamage(
     if (!scope) return { branches: [], stores: [] };
 
     try {
-        return await computeRecurringDamage(scope, toPeriod(filters));
+        return await computeRecurringDamage(
+            scope,
+            toPeriod(filters),
+            filters.itemId ?? null,
+        );
     } catch (error) {
         logger.error(
             {
@@ -112,6 +123,40 @@ export async function loadRecurringDamage(
                 filters: JSON.stringify(filters),
             },
             "Failed to load recurring damage",
+            error,
+        );
+        throw error;
+    }
+}
+
+const DAMAGED_ITEM_RANKING_LIMIT = 5;
+
+const getDamagedItemRankingCached = unstable_cache(
+    async (
+        scope: RecurringDamageScope,
+        period: RecurringDamagePeriod,
+    ): Promise<DamagedItemRank[]> =>
+        computeDamagedItemRanking(scope, period, DAMAGED_ITEM_RANKING_LIMIT),
+    ["recurring-damage-item-ranking"],
+    { revalidate: 300, tags: ["recurring-damage"] },
+);
+
+/** 5 item dengan kejadian rusak terbanyak untuk widget dashboard (di-cache 5 menit). */
+export async function loadDamagedItemRanking(
+    filters: RecurringDamageFilters,
+): Promise<DamagedItemRank[]> {
+    const scope = await resolveRecurringDamageScope(filters);
+    if (!scope) return [];
+
+    try {
+        return await getDamagedItemRankingCached(scope, toPeriod(filters));
+    } catch (error) {
+        logger.error(
+            {
+                operation: "loadDamagedItemRanking",
+                filters: JSON.stringify(filters),
+            },
+            "Failed to load damaged item ranking",
             error,
         );
         throw error;

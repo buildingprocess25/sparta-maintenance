@@ -6,6 +6,7 @@ import { compareChecklistItemIds } from "@/lib/checklist-data";
 import { logger } from "@/lib/logger";
 import {
     RECURRING_DAMAGE_HANDLER_LABELS,
+    isChecklistItemId,
     isValidRecurringDamagePeriod,
     type RecurringDamageFilters,
     type RecurringDamageStore,
@@ -21,6 +22,7 @@ type RequestBody = {
     month?: number;
     branchName?: string;
     brand?: string;
+    itemId?: string;
 };
 
 const CONTENT_TYPE =
@@ -93,7 +95,10 @@ function buildStoreSummarySheet(stores: RecurringDamageStore[]): XLSX.WorkSheet 
     return buildSheet([headers.map(textCell), ...rows], headers.length);
 }
 
-function buildDetectionSheet(stores: RecurringDamageStore[]): XLSX.WorkSheet {
+function buildDetectionSheet(
+    stores: RecurringDamageStore[],
+    itemId: string | undefined,
+): XLSX.WorkSheet {
     const headers = [
         "No",
         "Cabang",
@@ -117,9 +122,10 @@ function buildDetectionSheet(stores: RecurringDamageStore[]): XLSX.WorkSheet {
     const rows: XLSX.CellObject[][] = [];
 
     for (const store of orderedStores) {
-        const items = [...store.items].sort((a, b) =>
-            compareChecklistItemIds(a.itemId, b.itemId),
-        );
+        // Dengan filter item, detail hanya berisi deteksi item tersebut.
+        const items = store.items
+            .filter((item) => !itemId || item.itemId === itemId)
+            .sort((a, b) => compareChecklistItemIds(a.itemId, b.itemId));
         for (const item of items) {
             for (const detection of item.detections) {
                 rows.push([
@@ -169,7 +175,14 @@ function parseFilters(body: RequestBody): RecurringDamageFilters | null {
         return null;
     }
 
-    return { ...period, branchName: body.branchName?.trim(), brand };
+    let itemId: string | undefined;
+    if (body.itemId !== undefined) {
+        if (typeof body.itemId !== "string") return null;
+        itemId = body.itemId.trim().toUpperCase();
+        if (!isChecklistItemId(itemId)) return null;
+    }
+
+    return { ...period, branchName: body.branchName?.trim(), brand, itemId };
 }
 
 export async function POST(request: NextRequest) {
@@ -212,7 +225,7 @@ export async function POST(request: NextRequest) {
         );
         XLSX.utils.book_append_sheet(
             wb,
-            buildDetectionSheet(data.stores),
+            buildDetectionSheet(data.stores, filters.itemId),
             "Detail Deteksi",
         );
 
@@ -233,7 +246,8 @@ export async function POST(request: NextRequest) {
         const monthSegment = filters.month
             ? `_${String(filters.month).padStart(2, "0")}`
             : "";
-        const fileName = `Kerusakan_Berulang_${branchSegment}_${filters.year}${quarterSegment}${monthSegment}.xlsx`;
+        const itemSegment = filters.itemId ? `_${filters.itemId}` : "";
+        const fileName = `Kerusakan_Berulang_${branchSegment}_${filters.year}${quarterSegment}${monthSegment}${itemSegment}.xlsx`;
 
         logger.info(
             {

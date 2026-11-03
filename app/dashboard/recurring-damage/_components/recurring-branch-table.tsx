@@ -18,9 +18,11 @@ import { HeaderWithInfo } from "./header-with-info";
 
 export function RecurringBranchTable({
     branches,
+    itemFocused,
     onSelectBranch,
 }: {
     branches: RecurringDamageBranchSummary[];
+    itemFocused: boolean;
     onSelectBranch: (branchName: string) => void;
 }) {
     return (
@@ -37,7 +39,11 @@ export function RecurringBranchTable({
                                 <TableHead className="min-w-[260px] text-[11px]">
                                     <HeaderWithInfo
                                         label="Jumlah toko dengan kerusakan berulang"
-                                        info="Banyaknya toko di cabang ini yang punya minimal 1 item checklist rusak 2 kali atau lebih pada periode terpilih."
+                                        info={
+                                            itemFocused
+                                                ? "Banyaknya toko di cabang ini yang item terpilih rusak 2 kali atau lebih pada periode terpilih."
+                                                : "Banyaknya toko di cabang ini yang punya minimal 1 item checklist rusak 2 kali atau lebih pada periode terpilih."
+                                        }
                                     />
                                 </TableHead>
                                 <TableHead className="w-[130px] text-[11px]" />

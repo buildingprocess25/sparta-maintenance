@@ -31,6 +31,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Revisi UI dari user: label "Toko problematik" diganti "Toko rusak berulang"; kolom tabel toko jadi "Item rusak tersering", "Frekuensi rusak maks", "Item rusak berulang" (header export ikut); panel toko diberi judul "Item rusak berulang" dan penanda "Item rusak tersering"; no. laporan dibuka di tab baru.
 - Revisi UI tabel toko: tombol "Lihat detail" per baris + petunjuk klik; kolom digabung jadi "Item paling sering rusak" (badge "rusak Nx") dan "Jumlah item rusak berulang" ("N item") dengan tooltip penjelasan; header export disamakan.
 - Revisi UI tabel cabang: kolom "Jumlah toko dengan kerusakan berulang" ("N toko") dengan tooltip, tombol "Lihat toko", petunjuk klik; kartu angka ikut berlabel sama dengan satuan toko. `HeaderWithInfo` dipisah ke `_components/header-with-info.tsx`.
+- Widget dashboard "Item Paling Sering Rusak" (`app/dashboard/_components/admin/damaged-items-widget.tsx`, dipasang di dashboard Admin dan BMC/BNM), server action `app/dashboard/recurring-damage/actions.ts`, ranking item ter-cache di `queries.ts`, filter `?item=` di halaman dan export; fungsi murni `rankDamagedItems`, `isChecklistItemId`, `filterRecurringDamageByItem` (+ spec).
 
 ## Decisions
 
@@ -44,6 +45,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Baris tabel cabang/toko punya tombol nama agar bisa dibuka dengan keyboard; panel toko tidak dibuka pada tampilan semua cabang.
 - `?store=` di luar daftar tetap membuka panel dengan pesan kosong; konten terakhir dipertahankan saat panel ditutup.
 - Nama file export memakai nama cabang dari data (bukan dari body) bila datanya satu cabang; body non-objek ditolak 400.
+- Widget mengurutkan item berdasarkan jumlah laporan rusak (keputusan user), dengan keterangan jumlah toko berulang agar sesuai dengan halaman tujuan; klik item membuka halaman dengan filter item.
 
 ## Verification
 
@@ -59,6 +61,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Task 7: `npx tsx lib/recurring-damage.spec.ts` dan `lib/report-preventive.spec.ts` lulus (exit 0). `npx tsc --noEmit` penuh OOM di mesin ini; diganti tsc terscope (modul, spec, komponen dashboard, sidebar, halaman + `_components`, route export, admin-preventive-table): exit 0. eslint pada file perintah brief: hanya masalah lama (error `react-hooks/set-state-in-effect` dan 3 warning `no-unused-expressions` di admin-preventive-table.tsx, warning `Image` tidak terpakai di app-sidebar.tsx); file fitur ini bersih.
 - Task 7 build: `NODE_OPTIONS=--max-old-space-size=8192 npm run build` dua kali. Percobaan 1: gagal alokasi memori native (Turbopack). Percobaan 2: "Compiled successfully in 89s", lalu JavaScript heap out of memory setelah kompilasi (tahap berikutnya); daftar route tidak tercetak. Bukan kesalahan kode; verifikasi build penuh perlu mesin dengan memori lebih besar.
 - Revisi UI: eslint dan scoped tsc bersih; belum dicek ulang di browser.
+- Widget + filter item: spec lulus, eslint bersih pada file fitur (error/warning lama di admin-dashboard-v2.tsx dan manager-dashboard.tsx tidak disentuh), scoped tsc lulus; belum dicek di browser.
 
 ## Remaining Work and Risks
 

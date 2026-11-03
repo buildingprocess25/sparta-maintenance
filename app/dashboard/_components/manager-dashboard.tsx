@@ -50,6 +50,7 @@ import { KpiGrid } from "./admin/kpi-cards";
 import { StatusDistributionKpis } from "./admin/status-distribution";
 import { SlaStatusGuide } from "./admin/sla-status-guide";
 import { PreventiveKpiWidget } from "./admin/preventive-kpi-widget";
+import { DamagedItemsWidget } from "./admin/damaged-items-widget";
 import { ProcessDurationWidget } from "./admin/process-duration-widget";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
 import { getPjumStatusBadgeClass, getPjumStatusLabel } from "@/lib/pjum-status";
@@ -433,6 +434,10 @@ async function ManagerDashboardContent({
             
             <div className="mt-6">
                 <PreventiveKpiWidget />
+            </div>
+
+            <div className="mt-6">
+                <DamagedItemsWidget />
             </div>
             
             <ProcessDurationWidget />

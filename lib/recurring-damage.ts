@@ -1,5 +1,6 @@
 import {
     compareChecklistItemIds,
+    getChecklistItemMeta,
     resolveChecklistItemMeta,
 } from "@/lib/checklist-data";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
@@ -20,6 +21,8 @@ export type RecurringDamagePeriod = {
 export type RecurringDamageFilters = RecurringDamagePeriod & {
     branchName?: string;
     brand?: StoreBrandFilter;
+    /** Batasi ke toko yang item ini rusak berulang. */
+    itemId?: string;
 };
 
 /** Laporan dengan status ini tidak dihitung sebagai deteksi kerusakan. */
@@ -294,7 +297,7 @@ export function buildRecurringDamageStores(
     );
 }
 
-/** Jumlah toko problematik per cabang; cabang tanpa toko problematik tetap 0. */
+/** Jumlah toko rusak berulang per cabang; cabang tanpa toko tetap 0. */
 export function summarizeRecurringDamageBranches(
     branchNames: readonly string[],
     stores: readonly RecurringDamageStore[],
@@ -313,5 +316,103 @@ export function summarizeRecurringDamageBranches(
             (a, b) =>
                 b.problematicStoreCount - a.problematicStoreCount ||
                 a.branchName.localeCompare(b.branchName),
+        );
+}
+
+export type DamagedItemRank = {
+    itemId: string;
+    itemName: string;
+    categoryName: string;
+    /** Jumlah laporan yang menandai item ini rusak. */
+    damageCount: number;
+    /** Jumlah toko yang item ini rusak berulang (≥ 2 laporan). */
+    recurringStoreCount: number;
+};
+
+/**
+ * Item dengan kejadian rusak terbanyak, termasuk yang baru rusak sekali.
+ * Urut jumlah laporan rusak, jumlah toko berulang, lalu urutan katalog.
+ */
+export function rankDamagedItems(
+    detections: readonly DamageDetection[],
+    recurringStores: readonly RecurringDamageStore[],
+    limit: number,
+): DamagedItemRank[] {
+    const reportsByItem = new Map<string, Set<string>>();
+    for (const detection of detections) {
+        if (!isDamagedItem(detection)) continue;
+        if (!isRecurringDamageCountedStatus(detection.status)) continue;
+
+        let reports = reportsByItem.get(detection.itemId);
+        if (!reports) {
+            reports = new Set();
+            reportsByItem.set(detection.itemId, reports);
+        }
+        reports.add(detection.reportNumber);
+    }
+
+    const recurringStoresByItem = new Map<string, number>();
+    for (const store of recurringStores) {
+        for (const item of store.items) {
+            recurringStoresByItem.set(
+                item.itemId,
+                (recurringStoresByItem.get(item.itemId) ?? 0) + 1,
+            );
+        }
+    }
+
+    return [...reportsByItem]
+        .map(([itemId, reports]) => {
+            const meta = resolveChecklistItemMeta({ itemId });
+            return {
+                itemId,
+                itemName: meta.itemName,
+                categoryName: meta.categoryName,
+                damageCount: reports.size,
+                recurringStoreCount: recurringStoresByItem.get(itemId) ?? 0,
+            };
+        })
+        .sort(
+            (a, b) =>
+                b.damageCount - a.damageCount ||
+                b.recurringStoreCount - a.recurringStoreCount ||
+                compareChecklistItemIds(a.itemId, b.itemId),
+        )
+        .slice(0, limit);
+}
+
+/** ID ada di katalog 128 item checklist. */
+export function isChecklistItemId(itemId: string): boolean {
+    return getChecklistItemMeta(itemId) !== undefined;
+}
+
+/**
+ * Toko yang `itemId`-nya rusak berulang, urut jumlah rusak item itu. Pada
+ * hasilnya, `topItemId`/`topItemName`/`maxFrequency` mengacu ke item terpilih
+ * dan item itu ditaruh paling atas di `items`.
+ */
+export function filterRecurringDamageByItem(
+    stores: readonly RecurringDamageStore[],
+    itemId: string,
+): RecurringDamageStore[] {
+    return stores
+        .flatMap((store) => {
+            const focus = store.items.find((item) => item.itemId === itemId);
+            if (!focus) return [];
+            return [
+                {
+                    ...store,
+                    topItemId: focus.itemId,
+                    topItemName: focus.itemName,
+                    maxFrequency: focus.count,
+                    items: [focus, ...store.items.filter((item) => item !== focus)],
+                },
+            ];
+        })
+        .sort(
+            (a, b) =>
+                b.maxFrequency - a.maxFrequency ||
+                b.recurringItemCount - a.recurringItemCount ||
+                a.storeCode.localeCompare(b.storeCode),
         );
 }

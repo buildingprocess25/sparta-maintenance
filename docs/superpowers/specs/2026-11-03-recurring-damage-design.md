@@ -296,3 +296,34 @@ Pilihan cabang dan tahun memakai `getPreventiveBranchOptions` dan
 - Perbandingan dengan total toko aktif atau persentase di Layer 1.
 - Tabel ringkasan untuk deteksi.
 - Tautan dari halaman lain (detail laporan, master toko) ke halaman ini.
+
+## Tambahan: widget dashboard dan filter item (2026-11-03)
+
+### Widget "Item Paling Sering Rusak"
+
+- Ada di dashboard Admin (`admin-dashboard-v2.tsx`) dan BMC/BNM
+  (`manager-dashboard.tsx`), di bawah widget Checklist Preventif, dengan gaya
+  yang sama.
+- Filter Cabang (Admin; BMC/BNM terkunci ke cabangnya) dan Triwulan, default
+  Semua Triwulan = tahun berjalan.
+- Menampilkan 5 item dengan **jumlah laporan yang menandai item itu rusak**
+  terbanyak (termasuk yang baru rusak sekali; aturan deteksi dan status sama
+  dengan halaman). Keterangan sekunder: jumlah toko yang item itu rusak
+  berulang, supaya jelas apa yang muncul saat item diklik.
+- Urutan: jumlah laporan rusak, jumlah toko berulang, lalu urutan katalog.
+- Klik item → `/dashboard/recurring-damage?item=<ID>` dengan cabang dan
+  triwulan ikut. "Detail Kerusakan Berulang" → halaman tanpa filter item.
+- Data dari `loadDamagedItemRanking` (server action `getDamagedItemRanking`),
+  di-cache `unstable_cache` 300 detik, tag `recurring-damage`.
+
+### Filter item di halaman
+
+- `?item=<ID>` diterima hanya bila ID ada di katalog (`isChecklistItemId`).
+- Banner "Filter item: <ID> · <nama>" dengan tombol "Hapus filter".
+- Tabel cabang menghitung toko yang item itu rusak berulang; tabel toko hanya
+  berisi toko tersebut, urut jumlah rusak item itu, dengan kolom "Item
+  terpilih". Panel toko menaruh item terpilih paling atas.
+- Export ikut filter item: Ringkasan Toko berisi toko tersebut, Detail Deteksi
+  hanya deteksi item itu, nama file diberi akhiran `_<ID>`.
+- Fungsi murni: `rankDamagedItems`, `isChecklistItemId`,
+  `filterRecurringDamageByItem` di `lib/recurring-damage.ts`.

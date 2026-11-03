@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, ChevronLeft, Loader2 } from "lucide-react";
+import { AlertCircle, ChevronLeft, Loader2, X } from "lucide-react";
 import { EmptyTable } from "@/components/dashboard/empty-table";
 import { MetricColumn } from "@/components/dashboard/metric-column";
 import { Badge } from "@/components/ui/badge";
@@ -35,6 +35,7 @@ export function RecurringDamageView({
     branches,
     stores,
     showBranchList,
+    focusItem,
     loadError,
     initialStoreCode,
 }: {
@@ -47,6 +48,7 @@ export function RecurringDamageView({
     branches: RecurringDamageBranchSummary[];
     stores: RecurringDamageStore[];
     showBranchList: boolean;
+    focusItem: { itemId: string; itemName: string } | null;
     loadError: boolean;
     initialStoreCode: string | null;
 }) {
@@ -170,6 +172,22 @@ export function RecurringDamageView({
                     isPending && "pointer-events-none opacity-60",
                 )}
             >
+                {focusItem && !loadError ? (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs">
+                        <span className="text-muted-foreground">Filter item:</span>
+                        <Badge variant="outline">
+                            {focusItem.itemId} · {focusItem.itemName}
+                        </Badge>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate({ item: undefined })}
+                        >
+                            <X data-icon="inline-start" />
+                            Hapus filter
+                        </Button>
+                    </div>
+                ) : null}
                 {loadError ? (
                     <div className="overflow-hidden rounded-lg border bg-background">
                         <EmptyTable
@@ -181,6 +199,7 @@ export function RecurringDamageView({
                 ) : showBranchList ? (
                     <RecurringBranchTable
                         branches={branches}
+                        itemFocused={focusItem !== null}
                         onSelectBranch={(name) => navigate({ branch: name })}
                     />
                 ) : (
@@ -200,6 +219,7 @@ export function RecurringDamageView({
                         <RecurringStoreTable
                             key={branchName}
                             stores={stores}
+                            itemFocused={focusItem !== null}
                             onSelectStore={selectStore}
                         />
                     </div>
