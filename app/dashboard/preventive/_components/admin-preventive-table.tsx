@@ -791,6 +791,7 @@ export function AdminPreventiveTable({
                             initialHierarchy={coverageHierarchyData}
                             defaultBranch={branchName}
                             isBmc={isBmc}
+                            canManageStores={showBranchControls || isBmc}
                             quarter={quarter}
                             year={year}
                         />

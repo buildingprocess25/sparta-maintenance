@@ -18,6 +18,9 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - `app/dashboard/preventive/coverage-hierarchy.spec.ts`: spec fungsi murni.
 - `app/dashboard/preventive/coverage-hierarchy-action.ts`: query berangkat dari `Store` aktif + assignment aktif, laporan ikut membawa nama pembuat.
 - `app/dashboard/preventive/_components/admin-preventive-table.tsx`, `bms-coverage-hierarchy-table.tsx`: import tipe dari `../coverage-hierarchy`.
+- `app/dashboard/preventive/_components/unassigned-coverage-rows.tsx`: baris "Belum di-assign BMS" dan rincian tokonya.
+- `app/dashboard/preventive/_components/bms-coverage-hierarchy-table.tsx`: prop `canManageStores`, pencarian toko unassigned, render baris unassigned.
+- `app/dashboard/preventive/_components/admin-preventive-table.tsx`: kirim `canManageStores` (Admin/BMC).
 
 ## Decisions
 
@@ -28,7 +31,9 @@ mengosongkan assignment tokonya. Tidak ada perubahan schema.
 - `npx tsx app/dashboard/preventive/coverage-hierarchy.spec.ts`: lulus.
 - `npx tsc --noEmit`: bersih.
 - `npx eslint` pada file yang disentuh: 0 error; 3 warning lama (unused `Button`, `quarter`, `year`) di `bms-coverage-hierarchy-table.tsx`.
+- Cek data read-only di DB lokal via script sementara (`getBmsCoverageHierarchy`): total cabang CIANJUR = jumlah toko aktif cabang (sama dengan card) di Q1–Q4 2026; completed cabang = hitung ulang toko unik selesai; semua toko unassigned yang selesai punya `doneByName`; jumlah total semua cabang = jumlah toko aktif non-HEAD OFFICE.
+- Cek visual di browser belum dilakukan: tidak ada akun uji lokal dengan password yang diketahui.
 
 ## Remaining Work and Risks
 
-- Task 3–6 di plan belum dikerjakan.
+- Task 4–6 di plan belum dikerjakan.

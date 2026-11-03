@@ -30,11 +30,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import type { BranchCoverageHierarchy } from "../coverage-hierarchy";
+import { UnassignedCoverageRows } from "./unassigned-coverage-rows";
 
 type Props = {
     initialHierarchy: BranchCoverageHierarchy[];
     defaultBranch?: string;
     isBmc?: boolean;
+    // Admin/BMC: kode toko unassigned jadi tautan ke Data Toko
+    canManageStores?: boolean;
     quarter?: number;
     year?: number;
 };
@@ -43,6 +46,7 @@ export function BmsCoverageHierarchyTable({
     initialHierarchy,
     defaultBranch,
     isBmc = false,
+    canManageStores = false,
     quarter,
     year,
 }: Props) {
@@ -121,10 +125,29 @@ export function BmsCoverageHierarchyTable({
                         })
                         .filter(Boolean) as typeof branch.bmsList;
 
-                    if (branchMatch || matchedBmsList.length > 0) {
+                    const matchedUnassignedStores =
+                        branch.unassigned?.stores.filter(
+                            (s) =>
+                                s.storeName.toLowerCase().includes(query) ||
+                                s.storeCode.toLowerCase().includes(query),
+                        ) ?? [];
+
+                    const unassigned =
+                        branch.unassigned &&
+                        (branchMatch || matchedUnassignedStores.length > 0)
+                            ? {
+                                  ...branch.unassigned,
+                                  stores: branchMatch
+                                      ? branch.unassigned.stores
+                                      : matchedUnassignedStores,
+                              }
+                            : null;
+
+                    if (branchMatch || matchedBmsList.length > 0 || unassigned) {
                         return {
                             ...branch,
                             bmsList: matchedBmsList,
+                            unassigned,
                         };
                     }
                     return null;
@@ -420,6 +443,20 @@ export function BmsCoverageHierarchyTable({
                                                     </Fragment>
                                                 );
                                             })}
+
+                                        {/* LEVEL 2b: Toko tanpa BMS, selalu paling bawah */}
+                                        {isBranchExpanded && branch.unassigned && (
+                                            <UnassignedCoverageRows
+                                                branchName={branch.branchName}
+                                                unassigned={branch.unassigned}
+                                                isExpanded={
+                                                    expandedBms.has(`unassigned:${branch.branchName}`) ||
+                                                    !!search.trim()
+                                                }
+                                                onToggle={() => toggleBms(`unassigned:${branch.branchName}`)}
+                                                canManageStores={canManageStores}
+                                            />
+                                        )}
                                     </Fragment>
                                 );
                             })
