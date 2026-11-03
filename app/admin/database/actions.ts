@@ -15,6 +15,7 @@ import * as XLSX from "xlsx";
 import { z } from "zod";
 import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
 import { normalizeStoreOwnershipForBrand } from "@/lib/store-ownership";
+import { vacateBmsAssignments } from "@/lib/bms-store-assignment";
 
 // ─── Error helper ─────────────────────────────────────────────────────────────
 
@@ -365,9 +366,9 @@ export async function adminDeleteUser(NIK: string) {
             }
         }
 
-        await prisma.$transaction([
-            prisma.userPresence.deleteMany({ where: { userId: NIK } }),
-            prisma.user.update({
+        const vacatedAssignments = await prisma.$transaction(async (tx) => {
+            await tx.userPresence.deleteMany({ where: { userId: NIK } });
+            await tx.user.update({
                 where: { NIK },
                 data: {
                     deletedAt: new Date(),
@@ -375,8 +376,12 @@ export async function adminDeleteUser(NIK: string) {
                     passwordHash: null,
                     mustChangePassword: true,
                 },
-            }),
-        ]);
+            });
+            // Toko milik BMS yang dihapus otomatis jadi vacant
+            if (existing.role !== "BMS") return 0;
+            const { count } = await vacateBmsAssignments(tx, NIK, admin.NIK);
+            return count;
+        });
 
         if (existing.email) {
             await syncDeleteUserToSso(existing.email);
@@ -388,6 +393,7 @@ export async function adminDeleteUser(NIK: string) {
                 operation: "adminDeleteUser",
                 targetNIK: NIK,
                 targetRole: existing.role,
+                vacatedAssignments,
                 userId: admin.NIK,
                 duration: Date.now() - startTime,
             },

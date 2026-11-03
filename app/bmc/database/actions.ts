@@ -14,6 +14,7 @@ import { getLegacyBranchMessage } from "@/lib/branch-merges";
 import { z } from "zod";
 import { syncUserToSso, syncDeleteUserToSso } from "@/lib/sso";
 import { normalizeStoreOwnershipForBrand } from "@/lib/store-ownership";
+import { vacateBmsAssignments } from "@/lib/bms-store-assignment";
 
 function getLegacyStoreBranchError(branchName: string) {
     return getLegacyBranchMessage(branchName);
@@ -250,9 +251,9 @@ export async function deleteUser(NIK: string) {
             return { error: "User ini bukan dari cabang Anda" };
         }
 
-        await prisma.$transaction([
-            prisma.userPresence.deleteMany({ where: { userId: NIK } }),
-            prisma.user.update({
+        const vacatedAssignments = await prisma.$transaction(async (tx) => {
+            await tx.userPresence.deleteMany({ where: { userId: NIK } });
+            await tx.user.update({
                 where: { NIK },
                 data: {
                     deletedAt: new Date(),
@@ -260,8 +261,12 @@ export async function deleteUser(NIK: string) {
                     passwordHash: null,
                     mustChangePassword: true,
                 },
-            }),
-        ]);
+            });
+            // Toko milik BMS yang dihapus otomatis jadi vacant
+            if (existingUser.role !== "BMS") return 0;
+            const { count } = await vacateBmsAssignments(tx, NIK, user.NIK);
+            return count;
+        });
 
         if (existingUser.email) {
             await syncDeleteUserToSso(existingUser.email);
@@ -272,6 +277,7 @@ export async function deleteUser(NIK: string) {
             {
                 operation: "deleteUser",
                 targetNIK: NIK,
+                vacatedAssignments,
                 userId: user.NIK,
                 duration: Date.now() - startTime,
             },
