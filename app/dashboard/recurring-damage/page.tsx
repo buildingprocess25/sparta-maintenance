@@ -6,6 +6,7 @@ import { getJakartaYear } from "@/lib/time";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { getPreventiveBranchOptions, getReportYears } from "../preventive/actions";
 import { RecurringDamageView } from "./_components/recurring-damage-view";
+import { ExportRecurringDamageButton } from "./_components/export-recurring-damage-button";
 import { loadRecurringDamageView } from "./queries";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,11 @@ export default async function RecurringDamagePage({ searchParams }: Props) {
             user={user}
             title="Kerusakan Berulang"
             breadcrumbs={[{ label: "Kerusakan Berulang" }]}
+            headerActions={
+                <ExportRecurringDamageButton
+                    filters={{ ...period, branchName, brand }}
+                />
+            }
             contentClassName="h-full gap-0 p-0 lg:p-0"
         >
             <RecurringDamageView

@@ -24,6 +24,8 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - `app/dashboard/recurring-damage/queries.ts`: resolusi cakupan dengan cek role; `loadRecurringDamageView` untuk halaman (via `unstable_cache` 300 s, tag `recurring-damage`) dan `loadRecurringDamage` untuk export (tanpa cache, data lengkap).
 - `app/dashboard/recurring-damage/page.tsx` dan `_components/*`: halaman Kerusakan Berulang (filter Tahun → Triwulan → Bulan, tabel cabang, tabel toko, panel toko).
 - `components/app-sidebar.tsx`: menu "Kerusakan Berulang" di grup Monitoring untuk Admin, BMC, BNM.
+- `app/api/dashboard/recurring-damage/export/route.ts`: export XLSX (sheet Ringkasan Toko dan Detail Deteksi), akses sama dengan halaman.
+- `app/dashboard/recurring-damage/_components/export-recurring-damage-button.tsx`, `page.tsx`: tombol Ekspor XLSX di header.
 
 ## Decisions
 
@@ -46,7 +48,8 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Perbaikan cache + parameter array: tsc terscope exit 0, eslint `app/dashboard/recurring-damage` bersih, spec lulus. Script sementara (dihapus) memanggil `computeRecurringDamage` untuk 2026: semua cabang 6080 ms (run pertama) dan 3424 ms (run kedua), 29 cabang, 1431 toko problematik, 7180 deteksi di toko problematik; payload ringkasan saja 1.539 byte (data lengkap semua cabang 1.981.582 byte, nyaris 2 MB). Satu cabang (cabang dengan toko problematik terbanyak, 208 toko): 349 ms, 1228 deteksi, payload 331.349 byte.
 - Cross-check manual (SQL terpisah, toko teratas cabang tersebut dan item teratasnya): cocok, 4 laporan terhitung = maxFrequency 4.
 - Task 5: tsc terscope (halaman, `_components/*`, sidebar, komponen dashboard, modul data) exit 0; eslint `app/dashboard/recurring-damage` bersih, `components/app-sidebar.tsx` hanya warning lama (`Image` tidak terpakai, bukan dari perubahan ini).
-- Cek browser: dilakukan terpisah setelah Task 6.
+- Task 6: tsc terscope (route export, tombol, halaman, `_components/*`, komponen dashboard, modul data) exit 0; eslint `app/dashboard/recurring-damage app/api/dashboard/recurring-damage` bersih.
+- Cek export di browser: dilakukan controller setelah Task 6.
 
 ## Remaining Work and Risks
 
