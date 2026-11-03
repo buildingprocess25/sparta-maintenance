@@ -32,6 +32,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Revisi UI tabel toko: tombol "Lihat detail" per baris + petunjuk klik; kolom digabung jadi "Item paling sering rusak" (badge "rusak Nx") dan "Jumlah item rusak berulang" ("N item") dengan tooltip penjelasan; header export disamakan.
 - Revisi UI tabel cabang: kolom "Jumlah toko dengan kerusakan berulang" ("N toko") dengan tooltip, tombol "Lihat toko", petunjuk klik; kartu angka ikut berlabel sama dengan satuan toko. `HeaderWithInfo` dipisah ke `_components/header-with-info.tsx`.
 - Widget dashboard "Item Paling Sering Rusak" (`app/dashboard/_components/admin/damaged-items-widget.tsx`, dipasang di dashboard Admin dan BMC/BNM), server action `app/dashboard/recurring-damage/actions.ts`, ranking item ter-cache di `queries.ts`, filter `?item=` di halaman dan export; fungsi murni `rankDamagedItems`, `isChecklistItemId`, `filterRecurringDamageByItem` (+ spec).
+- Revisi tampilan widget atas permintaan user: progress bar merah diganti layout sorotan item #1 (kotak amber lembut, angka besar, berulang di N toko) + daftar peringkat 2–5 netral dengan jumlah kali rusak dan toko berulang.
 
 ## Decisions
 
