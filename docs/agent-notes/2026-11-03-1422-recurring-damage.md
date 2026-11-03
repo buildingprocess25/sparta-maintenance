@@ -16,7 +16,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 
 ## Changed Files
 
-- `lib/recurring-damage.ts`: aturan deteksi rusak, status yang dihitung, filter periode.
+- `lib/recurring-damage.ts`: aturan deteksi rusak, status yang dihitung, filter periode, agregasi toko problematik, dan ringkasan cabang.
 - `lib/recurring-damage.spec.ts`: spec fungsi murni.
 
 ## Decisions
@@ -24,6 +24,7 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 - Deteksi rusak memakai aturan yang sama dengan seluruh aplikasi
   (`RUSAK` / `NOT_OK`); signage Pudar ikut rusak.
 - `ESTIMATION_REJECTED` dan `ARCHIVED_PREVENTIVE` tidak dihitung.
+- Item teratas saat seri memakai urutan katalog (compareChecklistItemIds); ringkasan cabang diurutkan dari jumlah toko problematik terbanyak.
 
 ## Verification
 
@@ -31,4 +32,4 @@ Admin, dan metrik "rusak lagi setelah diperbaiki" di luar cakupan.
 
 ## Remaining Work and Risks
 
-- Agregasi, query, halaman, dan export belum dibuat (task berikutnya).
+- Query, halaman, dan export belum dibuat (task berikutnya).

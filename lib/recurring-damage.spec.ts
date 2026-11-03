@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import {
     RECURRING_DAMAGE_EXCLUDED_STATUSES,
+    buildRecurringDamageStores,
     formatRecurringDamagePeriod,
     getRecurringDamageWindow,
     isDamagedItem,
     isRecurringDamageCountedStatus,
     isValidRecurringDamagePeriod,
     normalizeRecurringDamagePeriod,
+    summarizeRecurringDamageBranches,
+    type DamageDetection,
 } from "./recurring-damage";
 import {
     getJakartaMonthWindow,
@@ -99,3 +102,134 @@ assert.deepEqual(
 assert.equal(formatRecurringDamagePeriod({ year: 2026 }), "Tahun 2026");
 assert.equal(formatRecurringDamagePeriod({ year: 2026, quarter: 2 }), "Triwulan 2 2026");
 assert.equal(formatRecurringDamagePeriod({ year: 2026, quarter: 2, month: 5 }), "Mei 2026");
+
+// ── Agregasi ──────────────────────────────────────────────────────────────
+const baseDetection: DamageDetection = {
+    branchName: "CIANJUR",
+    storeCode: "T001",
+    storeName: "Toko Satu",
+    reportNumber: "R-1",
+    createdAt: "2026-02-01T03:00:00.000Z",
+    status: "COMPLETED",
+    itemId: "A5",
+    condition: "RUSAK",
+    preventiveCondition: null,
+    handler: "BMS",
+    notes: null,
+    signageCondition: null,
+    signageMaterial: null,
+};
+const detection = (overrides: Partial<DamageDetection>): DamageDetection => ({
+    ...baseDetection,
+    ...overrides,
+});
+
+// Rusak 1x bukan berulang.
+assert.deepEqual(buildRecurringDamageStores([detection({})]), []);
+
+// Item yang sama dua kali di satu laporan tetap 1 deteksi.
+assert.deepEqual(buildRecurringDamageStores([detection({}), detection({})]), []);
+
+// Status dikecualikan dan item tidak rusak diabaikan.
+assert.deepEqual(
+    buildRecurringDamageStores([
+        detection({}),
+        detection({ reportNumber: "R-2", status: "ESTIMATION_REJECTED" }),
+        detection({ reportNumber: "R-3", status: "DRAFT" }),
+        detection({ reportNumber: "R-4", status: "ARCHIVED_PREVENTIVE" }),
+        detection({ reportNumber: "R-5", condition: "BAIK" }),
+    ]),
+    [],
+);
+
+// TX: A5 4x (input sengaja terbalik untuk menguji urutan tanggal).
+// TZ: A2 3x dan A1 3x (seri → A1 jadi item teratas).
+// TY: A5, B3, D1 masing-masing 2x, E1 1x (tidak tampil).
+// TV: A6 2x, TW: A5 2x (seri penuh → urut kode toko).
+const detections: DamageDetection[] = [
+    ...["R-4", "R-3", "R-2", "R-1"].map((reportNumber, index) =>
+        detection({
+            storeCode: "TX",
+            storeName: "Toko X",
+            reportNumber,
+            createdAt: `2026-0${4 - index}-01T03:00:00.000Z`,
+            handler: index === 0 ? "REKANAN" : "BMS",
+        }),
+    ),
+    ...["A2", "A1"].flatMap((itemId) =>
+        ["R-20", "R-21", "R-22"].map((reportNumber) =>
+            detection({
+                branchName: "BOGOR",
+                storeCode: "TZ",
+                storeName: "Toko Z",
+                itemId,
+                reportNumber,
+            }),
+        ),
+    ),
+    ...["A5", "B3", "D1"].flatMap((itemId) =>
+        ["R-10", "R-11"].map((reportNumber) =>
+            detection({ storeCode: "TY", storeName: "Toko Y", itemId, reportNumber }),
+        ),
+    ),
+    detection({ storeCode: "TY", storeName: "Toko Y", itemId: "E1", reportNumber: "R-12" }),
+    ...["R-30", "R-31"].map((reportNumber) =>
+        detection({ storeCode: "TW", storeName: "Toko W", reportNumber }),
+    ),
+    ...["R-40", "R-41"].map((reportNumber) =>
+        detection({ storeCode: "TV", storeName: "Toko V", itemId: "A6", reportNumber }),
+    ),
+];
+
+const stores = buildRecurringDamageStores(detections);
+
+assert.deepEqual(
+    stores.map((store) => [
+        store.storeCode,
+        store.maxFrequency,
+        store.recurringItemCount,
+        store.topItemId,
+    ]),
+    [
+        ["TX", 4, 1, "A5"],
+        ["TZ", 3, 2, "A1"],
+        ["TY", 2, 3, "A5"],
+        ["TV", 2, 1, "A6"],
+        ["TW", 2, 1, "A5"],
+    ],
+);
+
+const storeX = stores[0];
+assert.equal(storeX.branchName, "CIANJUR");
+assert.equal(storeX.storeName, "Toko X");
+assert.equal(storeX.topItemName, "Lampu Shop Sign");
+assert.equal(storeX.items[0].itemName, "Lampu Shop Sign");
+assert.equal(storeX.items[0].categoryName, "A. Bagian Depan Bangunan");
+assert.equal(storeX.items[0].count, 4);
+assert.deepEqual(
+    storeX.items[0].detections.map((item) => item.reportNumber),
+    ["R-1", "R-2", "R-3", "R-4"],
+);
+assert.equal(storeX.items[0].detections[3].handler, "REKANAN");
+
+assert.deepEqual(
+    stores[1].items.map((item) => [item.itemId, item.count]),
+    [
+        ["A1", 3],
+        ["A2", 3],
+    ],
+);
+assert.deepEqual(
+    stores[2].items.map((item) => item.itemId),
+    ["A5", "B3", "D1"],
+);
+
+// Ringkasan cabang: urut jumlah toko problematik turun, lalu nama cabang.
+assert.deepEqual(
+    summarizeRecurringDamageBranches(["SUKABUMI", "BOGOR", "CIANJUR"], stores),
+    [
+        { branchName: "CIANJUR", problematicStoreCount: 4 },
+        { branchName: "BOGOR", problematicStoreCount: 1 },
+        { branchName: "SUKABUMI", problematicStoreCount: 0 },
+    ],
+);

@@ -1,3 +1,7 @@
+import {
+    compareChecklistItemIds,
+    resolveChecklistItemMeta,
+} from "@/lib/checklist-data";
 import type { StoreBrandFilter } from "@/lib/store-brand-filter";
 import {
     getJakartaMonthWindow,
@@ -131,4 +135,178 @@ export function formatRecurringDamagePeriod(period: RecurringDamagePeriod): stri
         return `Triwulan ${period.quarter} ${period.year}`;
     }
     return `Tahun ${period.year}`;
+}
+
+/** Satu entri item rusak dari satu laporan (hasil query). */
+export type DamageDetection = {
+    branchName: string;
+    storeCode: string;
+    storeName: string;
+    reportNumber: string;
+    createdAt: string;
+    status: string;
+    itemId: string;
+    condition: string | null;
+    preventiveCondition: string | null;
+    handler: string | null;
+    notes: string | null;
+    signageCondition: string | null;
+    signageMaterial: string | null;
+};
+
+export type RecurringDamageDetection = {
+    reportNumber: string;
+    createdAt: string;
+    status: string;
+    handler: string | null;
+    notes: string | null;
+    signageCondition: string | null;
+    signageMaterial: string | null;
+};
+
+export type RecurringDamageItem = {
+    itemId: string;
+    itemName: string;
+    categoryName: string;
+    count: number;
+    detections: RecurringDamageDetection[];
+};
+
+export type RecurringDamageStore = {
+    branchName: string;
+    storeCode: string;
+    storeName: string;
+    maxFrequency: number;
+    topItemId: string;
+    topItemName: string;
+    recurringItemCount: number;
+    items: RecurringDamageItem[];
+};
+
+export type RecurringDamageBranchSummary = {
+    branchName: string;
+    problematicStoreCount: number;
+};
+
+export type RecurringDamageData = {
+    branches: RecurringDamageBranchSummary[];
+    stores: RecurringDamageStore[];
+};
+
+type StoreAccumulator = {
+    branchName: string;
+    storeName: string;
+    reportsByItem: Map<string, Map<string, RecurringDamageDetection>>;
+};
+
+/**
+ * Kelompokkan deteksi per toko dan item, ambil item dengan ≥ 2 laporan, lalu
+ * urutkan toko: frekuensi maksimum, jumlah item berulang, kode toko.
+ */
+export function buildRecurringDamageStores(
+    detections: readonly DamageDetection[],
+): RecurringDamageStore[] {
+    const byStore = new Map<string, StoreAccumulator>();
+
+    for (const detection of detections) {
+        if (!isDamagedItem(detection)) continue;
+        if (!isRecurringDamageCountedStatus(detection.status)) continue;
+
+        let store = byStore.get(detection.storeCode);
+        if (!store) {
+            store = {
+                branchName: detection.branchName,
+                storeName: detection.storeName,
+                reportsByItem: new Map(),
+            };
+            byStore.set(detection.storeCode, store);
+        }
+
+        let reports = store.reportsByItem.get(detection.itemId);
+        if (!reports) {
+            reports = new Map();
+            store.reportsByItem.set(detection.itemId, reports);
+        }
+
+        if (!reports.has(detection.reportNumber)) {
+            reports.set(detection.reportNumber, {
+                reportNumber: detection.reportNumber,
+                createdAt: detection.createdAt,
+                status: detection.status,
+                handler: detection.handler,
+                notes: detection.notes,
+                signageCondition: detection.signageCondition,
+                signageMaterial: detection.signageMaterial,
+            });
+        }
+    }
+
+    const stores: RecurringDamageStore[] = [];
+
+    for (const [storeCode, store] of byStore) {
+        const items: RecurringDamageItem[] = [...store.reportsByItem]
+            .filter(([, reports]) => reports.size >= 2)
+            .map(([itemId, reports]) => {
+                const meta = resolveChecklistItemMeta({ itemId });
+                const itemDetections = [...reports.values()].sort(
+                    (a, b) =>
+                        a.createdAt.localeCompare(b.createdAt) ||
+                        a.reportNumber.localeCompare(b.reportNumber),
+                );
+                return {
+                    itemId,
+                    itemName: meta.itemName,
+                    categoryName: meta.categoryName,
+                    count: itemDetections.length,
+                    detections: itemDetections,
+                };
+            })
+            .sort(
+                (a, b) =>
+                    b.count - a.count || compareChecklistItemIds(a.itemId, b.itemId),
+            );
+
+        if (items.length === 0) continue;
+
+        const [topItem] = items;
+        stores.push({
+            branchName: store.branchName,
+            storeCode,
+            storeName: store.storeName,
+            maxFrequency: topItem.count,
+            topItemId: topItem.itemId,
+            topItemName: topItem.itemName,
+            recurringItemCount: items.length,
+            items,
+        });
+    }
+
+    return stores.sort(
+        (a, b) =>
+            b.maxFrequency - a.maxFrequency ||
+            b.recurringItemCount - a.recurringItemCount ||
+            a.storeCode.localeCompare(b.storeCode),
+    );
+}
+
+/** Jumlah toko problematik per cabang; cabang tanpa toko problematik tetap 0. */
+export function summarizeRecurringDamageBranches(
+    branchNames: readonly string[],
+    stores: readonly RecurringDamageStore[],
+): RecurringDamageBranchSummary[] {
+    const counts = new Map<string, number>(branchNames.map((name) => [name, 0]));
+    for (const store of stores) {
+        counts.set(store.branchName, (counts.get(store.branchName) ?? 0) + 1);
+    }
+
+    return [...counts]
+        .map(([branchName, problematicStoreCount]) => ({
+            branchName,
+            problematicStoreCount,
+        }))
+        .sort(
+            (a, b) =>
+                b.problematicStoreCount - a.problematicStoreCount ||
+                a.branchName.localeCompare(b.branchName),
+        );
 }
