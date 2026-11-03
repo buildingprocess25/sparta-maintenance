@@ -217,8 +217,10 @@ Polanya sama dengan penonaktifan assignment saat toko dinonaktifkan
 (`updateStore` di `app/admin/database/actions.ts`). Karena berada di satu
 transaksi, hapus user dan pengosongan assignment selalu berhasil atau gagal
 bersama. Log `logger.info` yang sudah ada ditambah field
-`vacatedAssignments` (jumlah baris yang di-update). Dengan `$transaction`
-bentuk array, hasil `updateMany` diambil dari elemen yang sesuai.
+`vacatedAssignments` (jumlah baris yang di-update). Transaksi diubah ke bentuk
+interactive (`$transaction(async (tx) => ...)`) agar jumlah itu bisa
+dikembalikan. Logika update ada di helper `vacateBmsAssignments`
+(`lib/bms-store-assignment.ts`) yang dipakai kedua jalur.
 
 Perilaku turunan:
 
