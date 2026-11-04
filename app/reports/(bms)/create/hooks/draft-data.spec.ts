@@ -61,7 +61,7 @@ const signageChecklist = new Map<string, ChecklistItem>([
             id: "I11",
             name: "Kondisi Fisik Shop Sign",
             condition: "rusak",
-            signageMaterial: "Acrylic",
+            signageMaterial: "Acrylic Flat",
             signageCondition: "pudar",
             handler: "Rekanan",
             notes: "Warna pudar",
@@ -86,7 +86,7 @@ const signageResult = serializeChecklistItems(
 const shopSign = signageResult.find((item) => item.itemId === "I11");
 assert.equal(shopSign?.preventiveCondition, "NOT_OK");
 assert.equal(shopSign?.handler, "REKANAN");
-assert.equal(shopSign?.signageMaterial, "Acrylic");
+assert.equal(shopSign?.signageMaterial, "Acrylic Flat");
 assert.equal(shopSign?.signageCondition, "PUDAR");
 const poleSign = signageResult.find((item) => item.itemId === "I13");
 assert.equal(poleSign?.preventiveCondition, "TIDAK_ADA");

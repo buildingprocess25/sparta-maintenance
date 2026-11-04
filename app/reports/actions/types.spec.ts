@@ -75,7 +75,7 @@ function makeSignageItem(overrides: Record<string, unknown> = {}) {
         itemName: "Kondisi Fisik Shop Sign",
         categoryName: "I. Preventif Equipment Toko",
         preventiveCondition: "NOT_OK",
-        signageMaterial: "Acrylic",
+        signageMaterial: "Acrylic Flat",
         signageCondition: "RUSAK",
         handler: "REKANAN",
         notes: "Huruf lepas",

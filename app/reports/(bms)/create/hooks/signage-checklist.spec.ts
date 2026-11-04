@@ -14,8 +14,8 @@ const base: ChecklistItem = {
     condition: "",
 };
 
-let item = applySignageSelection(base, { field: "material", value: "Acrylic" });
-assert.equal(item.signageMaterial, "Acrylic");
+let item = applySignageSelection(base, { field: "material", value: "Acrylic Flat" });
+assert.equal(item.signageMaterial, "Acrylic Flat");
 assert.equal(item.condition, "");
 
 item = applySignageSelection(item, { field: "condition", value: "kotor" });
@@ -28,7 +28,7 @@ assert.equal(item.condition, "rusak");
 assert.equal(item.handler, "Rekanan");
 
 // Ganti material tidak menghapus kondisi.
-item = applySignageSelection(item, { field: "material", value: "Embos" });
+item = applySignageSelection(item, { field: "material", value: "Acrylic Embos" });
 assert.equal(item.signageCondition, "pudar");
 assert.equal(item.condition, "rusak");
 
@@ -60,10 +60,10 @@ assert.equal(pole.ahoTicketNumber, undefined);
 // Kembali dari Tidak Ada mengosongkan kondisi.
 const poleBack = applySignageSelection(pole, {
     field: "material",
-    value: "Acrylic",
+    value: "Acrylic Flat",
 });
 assert.equal(poleBack.condition, "");
-assert.equal(poleBack.signageMaterial, "Acrylic");
+assert.equal(poleBack.signageMaterial, "Acrylic Flat");
 
 // Tiket grup
 const checklist = new Map<string, ChecklistItem>([
@@ -83,7 +83,7 @@ const checklist = new Map<string, ChecklistItem>([
             id: "I11",
             name: "Shop Sign",
             condition: "rusak",
-            signageMaterial: "Acrylic",
+            signageMaterial: "Acrylic Flat",
             signageCondition: "rusak",
             handler: "Rekanan",
             ahoTicketNumber: "BCD",

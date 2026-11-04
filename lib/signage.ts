@@ -77,6 +77,21 @@ export function toSignageJsonFields(item: {
     };
 }
 
+/** Nama material lama (sebelum rename) → nama baru. */
+const LEGACY_SIGNAGE_MATERIALS: Record<string, string> = {
+    acrylic: "Acrylic Flat",
+    embos: "Acrylic Embos",
+};
+
+/** Petakan nama material lama yang sudah tersimpan ke nama yang berlaku. */
+export function normalizeSignageMaterial(
+    material: string | null | undefined,
+): string | undefined {
+    const trimmed = material?.trim();
+    if (!trimmed) return undefined;
+    return LEGACY_SIGNAGE_MATERIALS[trimmed.toLowerCase()] ?? trimmed;
+}
+
 /** JSON → form. Signage Tidak Ada disimpan sebagai `preventiveCondition: TIDAK_ADA`. */
 export function fromSignageJsonFields(item: {
     itemId: string;
@@ -89,7 +104,7 @@ export function fromSignageJsonFields(item: {
         return { signageMaterial: SIGNAGE_NOT_AVAILABLE };
     }
     return {
-        signageMaterial: item.signageMaterial || undefined,
+        signageMaterial: normalizeSignageMaterial(item.signageMaterial),
         signageCondition: normalizeSignageCondition(item.signageCondition),
     };
 }
@@ -97,7 +112,7 @@ export function fromSignageJsonFields(item: {
 export type SignageConditionDescription = {
     label: string;
     material?: string;
-    /** Label siap tampil, mis. "Rusak · Acrylic". */
+    /** Label siap tampil, mis. "Rusak · Acrylic Flat". */
     text: string;
     isDamaged: boolean;
 };
@@ -114,7 +129,7 @@ export function describeSignageCondition(item: {
     if (!condition) return null;
 
     const label = SIGNAGE_CONDITION_LABELS[condition];
-    const material = item.signageMaterial?.trim() || undefined;
+    const material = normalizeSignageMaterial(item.signageMaterial);
     return {
         label,
         material,

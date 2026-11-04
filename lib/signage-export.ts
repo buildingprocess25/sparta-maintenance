@@ -1,5 +1,9 @@
 import { getChecklistItemMeta } from "@/lib/checklist-data";
-import { SIGNAGE_ITEM_IDS, describeSignageCondition } from "@/lib/signage";
+import {
+    SIGNAGE_ITEM_IDS,
+    describeSignageCondition,
+    normalizeSignageMaterial,
+} from "@/lib/signage";
 import { getJakartaCurrentQuarter, getJakartaYear } from "@/lib/time";
 import type { ReportItemJson } from "@/types/report";
 
@@ -51,7 +55,7 @@ function getSignageConditionLabel(item: ReportItemJson): string {
 
 function getSignageMaterialLabel(item: ReportItemJson): string {
     if (item.preventiveCondition === "TIDAK_ADA") return "-";
-    return item.signageMaterial?.trim() || "-";
+    return normalizeSignageMaterial(item.signageMaterial) ?? "-";
 }
 
 /** Laporan → baris ekspor signage, urut I11 → I13. */
