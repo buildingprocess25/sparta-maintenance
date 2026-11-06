@@ -47,7 +47,7 @@ export async function AdminReportsContent({
             initialBrand={initialBrand}
             initialFromDate={initialFromDate}
             initialToDate={initialToDate}
-            showBrandFilter={isAdmin}
+            showBrandFilter
         />
     );
 

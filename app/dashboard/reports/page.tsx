@@ -71,9 +71,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
     const isAdmin = user.role === "ADMIN";
     // Ambil semua cabang untuk dropdown filter ekspor (hanya ADMIN butuh daftar lengkap)
     const allBranchesForExport = isAdmin ? await fetchAllBranchNames() : [];
-    const initialBrand = isAdmin
-        ? normalizeStoreBrandFilter(params.brand)
-        : "ALL";
+    const initialBrand = normalizeStoreBrandFilter(params.brand);
     const initialStatus = normalizeStatus(params.status);
     const initialPjumStatus = normalizePjumStatus(params.pjumStatus);
     const scopedBranches =
@@ -108,7 +106,7 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                 <ExportReportsDialog
                     branches={isAdmin ? allBranchesForExport : (scopedBranches ?? [])}
                     showBranchFilter={isAdmin}
-                    showBrandFilter={isAdmin}
+                    showBrandFilter
                 />
             }
             contentClassName="h-full flex flex-col p-0 gap-0 overflow-hidden"
