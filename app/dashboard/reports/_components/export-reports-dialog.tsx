@@ -30,7 +30,13 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { Label } from "@/components/ui/label";
 import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
-import { StoreBrandFilter, STORE_BRAND_OPTIONS } from "@/lib/store-brand-filter";
+import {
+    StoreBrandFilter,
+    StoreTypeFilter,
+    STORE_BRAND_OPTIONS,
+    STORE_TYPE_OPTIONS,
+} from "@/lib/store-brand-filter";
+import { ReportCostFilter, REPORT_COST_OPTIONS } from "@/lib/report-cost-filter";
 
 const STATUS_OPTIONS = [
     { value: "all", label: "Semua Status" },
@@ -64,6 +70,8 @@ export function ExportReportsDialog({
     const [status, setStatus] = useState("all");
     const [pjumStatus, setPjumStatus] = useState<string>("ALL");
     const [brand, setBrand] = useState<StoreBrandFilter>("ALL");
+    const [storeType, setStoreType] = useState<StoreTypeFilter>("ALL");
+    const [cost, setCost] = useState<ReportCostFilter>("ALL");
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
 
@@ -93,6 +101,13 @@ export function ExportReportsDialog({
                             showBrandFilter && brand !== "ALL"
                                 ? brand
                                 : undefined,
+                        storeType:
+                            showBrandFilter &&
+                            brand === "ALFAMART" &&
+                            storeType !== "ALL"
+                                ? storeType
+                                : undefined,
+                        cost: cost === "ALL" ? undefined : cost,
                         fromDate: fromDate || undefined,
                         toDate: toDate || undefined,
                     },
@@ -234,12 +249,42 @@ export function ExportReportsDialog({
                     {showBrandFilter ? (
                         <div className="grid gap-2">
                             <Label>Brand</Label>
-                            <Select value={brand} onValueChange={(v) => setBrand(v as StoreBrandFilter)}>
+                            <Select
+                                value={brand}
+                                onValueChange={(v) => {
+                                    setBrand(v as StoreBrandFilter);
+                                    if (v !== "ALFAMART") setStoreType("ALL");
+                                }}
+                            >
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Semua Brand" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {STORE_BRAND_OPTIONS.map((opt) => (
+                                        <SelectItem
+                                            key={opt.value}
+                                            value={opt.value}
+                                        >
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    ) : null}
+                    {showBrandFilter && brand === "ALFAMART" ? (
+                        <div className="grid gap-2">
+                            <Label>Tipe Toko</Label>
+                            <Select
+                                value={storeType}
+                                onValueChange={(v) => setStoreType(v as StoreTypeFilter)}
+                            >
+                                <SelectTrigger className="w-full">
+                                    <SelectValue placeholder="Semua Tipe" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="ALL">Semua</SelectItem>
+                                    {STORE_TYPE_OPTIONS.map((opt) => (
                                         <SelectItem
                                             key={opt.value}
                                             value={opt.value}
@@ -302,6 +347,28 @@ export function ExportReportsDialog({
                                 Pilih status "Selesai" untuk mengaktifkan filter ini.
                             </p>
                         ) : null}
+                    </div>
+                    <div className="grid gap-2">
+                        <Label>Biaya</Label>
+                        <Select
+                            value={cost}
+                            onValueChange={(v) => setCost(v as ReportCostFilter)}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Semua Biaya" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ALL">Semua</SelectItem>
+                                {REPORT_COST_OPTIONS.map((opt) => (
+                                    <SelectItem
+                                        key={opt.value}
+                                        value={opt.value}
+                                    >
+                                        {opt.label}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="grid gap-2">
                         <Label>Nama / NIK BMS</Label>

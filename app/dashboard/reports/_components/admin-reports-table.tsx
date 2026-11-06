@@ -18,10 +18,12 @@ import {
     Building2,
     CalendarDays,
     CircleDot,
+    Coins,
     Loader2,
     ReceiptText,
     Search,
     Store,
+    Tags,
 } from "lucide-react";
 import { getAdminReports, AdminReportFilters } from "../actions";
 import { toast } from "sonner";
@@ -29,7 +31,14 @@ import { formatJakartaDate, formatJakartaDateTime } from "@/lib/time";
 import { StatusBadge } from "@/app/reports/[reportNumber]/_components/status-badge";
 import { Badge } from "@/components/ui/badge";
 import { REPORT_STATUS_OPTIONS } from "@/lib/report-status";
-import { STORE_BRAND_OPTIONS, normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
+import {
+    STORE_BRAND_OPTIONS,
+    STORE_TYPE_OPTIONS,
+    normalizeStoreBrandFilter,
+    normalizeStoreTypeFilter,
+    resolveStoreTypeFilter,
+} from "@/lib/store-brand-filter";
+import { REPORT_COST_OPTIONS, normalizeReportCostFilter } from "@/lib/report-cost-filter";
 import {
     createFilter,
     Filters,
@@ -38,6 +47,16 @@ import {
 } from "@/components/reui/filters";
 
 type ReportItem = Awaited<ReturnType<typeof getAdminReports>>["reports"][0];
+
+/** Filter "Tipe Toko" hanya valid saat Brand = Alfamart; buang bila brand berubah. */
+function dropOrphanStoreTypeFilter(filters: Filter<string>[]) {
+    const brand = normalizeStoreBrandFilter(
+        String(filters.find((f) => f.field === "brand")?.values[0] ?? ""),
+    );
+    return brand === "ALFAMART"
+        ? filters
+        : filters.filter((f) => f.field !== "storeType");
+}
 
 const PJUM_OPTIONS = [
     { value: "exported", label: "Sudah PJUM" },
@@ -183,6 +202,8 @@ export function AdminReportsTable({
     initialBranchName = "all",
     initialAreaName = "all",
     initialBrand = "ALL",
+    initialStoreType = "ALL",
+    initialCost = "ALL",
     initialFromDate,
     initialToDate,
     showBrandFilter = false,
@@ -198,6 +219,8 @@ export function AdminReportsTable({
     initialBranchName?: string;
     initialAreaName?: string;
     initialBrand?: string;
+    initialStoreType?: string;
+    initialCost?: string;
     initialFromDate?: string;
     initialToDate?: string;
     showBrandFilter?: boolean;
@@ -244,6 +267,18 @@ export function AdminReportsTable({
                 : createFilter<string>("areaName", "is", [initialAreaName]),
             showBrandFilter && normalizeStoreBrandFilter(initialBrand) !== "ALL"
                 ? createFilter<string>("brand", "is", [normalizeStoreBrandFilter(initialBrand)])
+                : null,
+            showBrandFilter &&
+            resolveStoreTypeFilter(
+                normalizeStoreBrandFilter(initialBrand),
+                normalizeStoreTypeFilter(initialStoreType),
+            ) !== "ALL"
+                ? createFilter<string>("storeType", "is", [
+                      normalizeStoreTypeFilter(initialStoreType),
+                  ])
+                : null,
+            normalizeReportCostFilter(initialCost) !== "ALL"
+                ? createFilter<string>("cost", "is", [normalizeReportCostFilter(initialCost)])
                 : null,
             initialFromDate
                 ? createFilter<string>("fromDate", "is", [initialFromDate])
@@ -304,6 +339,8 @@ export function AdminReportsTable({
                 const statusFilter = String(getVal("status"));
                 const pjumFilter = String(getVal("pjumStatus"));
                 const brandFilter = String(getVal("brand"));
+                const storeTypeFilter = normalizeStoreTypeFilter(String(getVal("storeType")));
+                const costFilter = normalizeReportCostFilter(String(getVal("cost")));
                 const fromDateFilter = String(getVal("fromDate"));
                 const toDateFilter = String(getVal("toDate"));
 
@@ -316,6 +353,10 @@ export function AdminReportsTable({
                 brandFilter && brandFilter !== "ALL"
                     ? params.set("brand", brandFilter)
                     : params.delete("brand");
+                if (storeTypeFilter !== "ALL") params.set("storeType", storeTypeFilter);
+                else params.delete("storeType");
+                if (costFilter !== "ALL") params.set("cost", costFilter);
+                else params.delete("cost");
                 fromDateFilter ? params.set("fromDate", fromDateFilter) : params.delete("fromDate");
                 toDateFilter ? params.set("toDate", toDateFilter) : params.delete("toDate");
 
@@ -329,6 +370,11 @@ export function AdminReportsTable({
 
     const observerTarget = useRef<HTMLDivElement>(null);
     const timeoutRef = useRef<NodeJS.Timeout>(null);
+
+    const isAlfamartSelected =
+        normalizeStoreBrandFilter(
+            String(activeFilters.find((f) => f.field === "brand")?.values[0] ?? ""),
+        ) === "ALFAMART";
 
     const filterFields = useMemo<FilterFieldConfig<string>[]>(
         () => [
@@ -368,6 +414,16 @@ export function AdminReportsTable({
                     options: STORE_BRAND_OPTIONS,
                 }]
                 : []),
+            ...(showBrandFilter && isAlfamartSelected
+                ? [{
+                    key: "storeType",
+                    label: "Tipe Toko",
+                    type: "select" as const,
+                    placeholder: "Pilih tipe toko",
+                    icon: <Tags className="h-3.5 w-3.5" />,
+                    options: STORE_TYPE_OPTIONS,
+                }]
+                : []),
             {
                 key: "status",
                 label: "Status",
@@ -385,6 +441,14 @@ export function AdminReportsTable({
                 options: PJUM_OPTIONS,
             },
             {
+                key: "cost",
+                label: "Biaya",
+                type: "select",
+                placeholder: "Pilih biaya",
+                icon: <Coins className="h-3.5 w-3.5" />,
+                options: REPORT_COST_OPTIONS,
+            },
+            {
                 key: "fromDate",
                 label: "Dari",
                 type: "date",
@@ -397,7 +461,7 @@ export function AdminReportsTable({
                 icon: <CalendarDays className="h-3.5 w-3.5" />,
             },
         ],
-        [branches, areaNames, showBrandFilter],
+        [branches, areaNames, showBrandFilter, isAlfamartSelected],
     );
 
     const getFilterValue = useCallback(
@@ -415,6 +479,11 @@ export function AdminReportsTable({
     const toDate = String(getFilterValue("toDate"));
     const pjumStatus = String(getFilterValue("pjumStatus"));
     const brand = normalizeStoreBrandFilter(String(getFilterValue("brand")));
+    const storeType = resolveStoreTypeFilter(
+        brand,
+        normalizeStoreTypeFilter(String(getFilterValue("storeType"))),
+    );
+    const cost = normalizeReportCostFilter(String(getFilterValue("cost")));
     const hasActiveFilter =
         searchValue.length > 0 ||
         activeFilters.length > 0 ||
@@ -428,6 +497,9 @@ export function AdminReportsTable({
                 areaName: areaName || undefined,
                 status: status || undefined,
                 brand: showBrandFilter && brand !== "ALL" ? brand : undefined,
+                storeType:
+                    showBrandFilter && storeType !== "ALL" ? storeType : undefined,
+                cost: cost !== "ALL" ? cost : undefined,
                 scope:
                     quickFilter !== "all" &&
                     quickFilter !== "completed" &&
@@ -484,6 +556,8 @@ export function AdminReportsTable({
             toDate,
             pjumStatus,
             brand,
+            storeType,
+            cost,
             showBrandFilter,
             quickFilter,
         ],
@@ -532,6 +606,8 @@ export function AdminReportsTable({
         toDate,
         pjumStatus,
         brand,
+        storeType,
+        cost,
         showBrandFilter,
         quickFilter,
         loadData,
@@ -616,8 +692,9 @@ export function AdminReportsTable({
                     filters={activeFilters}
                     fields={filterFields}
                     onChange={(newFilters) => {
-                        setActiveFilters(newFilters);
-                        pushFilterToUrl({ activeFilters: newFilters });
+                        const nextFilters = dropOrphanStoreTypeFilter(newFilters);
+                        setActiveFilters(nextFilters);
+                        pushFilterToUrl({ activeFilters: nextFilters });
                     }}
                     size="sm"
                     allowMultiple={false}

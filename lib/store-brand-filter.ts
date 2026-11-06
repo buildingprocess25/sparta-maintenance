@@ -51,14 +51,56 @@ export function buildPjumBrandWhere(
   if (brandFilter === "ALL") return baseWhere;
   return { ...baseWhere, reportNumbers: { hasSome: reportNumbers } };
 }
-export function getReportBrandWhere(brandFilter: StoreBrandFilter): Prisma.ReportWhereInput | undefined {
+/**
+ * Tipe toko Alfamart (Store.ownershipType). Hanya berlaku bersama brand ALFAMART;
+ * untuk brand lain filter ini diabaikan.
+ */
+export type StoreTypeFilter = 'ALL' | 'REGULAR' | 'FRANCHISE' | 'UNKNOWN';
+
+export const STORE_TYPE_OPTIONS: { value: Exclude<StoreTypeFilter, 'ALL'>; label: string }[] = [
+  { value: 'REGULAR', label: 'Reguler' },
+  { value: 'FRANCHISE', label: 'Franchise' },
+  { value: 'UNKNOWN', label: 'Belum diketahui' },
+];
+
+export function parseStoreTypeFilter(value: unknown): StoreTypeFilter | null {
+  if (value === undefined || value === null || value === '') return 'ALL';
+  if (typeof value !== 'string') return null;
+  const upper = value.toUpperCase();
+  return upper === 'ALL' || upper === 'REGULAR' || upper === 'FRANCHISE' || upper === 'UNKNOWN'
+    ? upper
+    : null;
+}
+
+export function normalizeStoreTypeFilter(value?: string | null): StoreTypeFilter {
+  return parseStoreTypeFilter(value) ?? 'ALL';
+}
+
+/** Tipe toko hanya bermakna untuk brand Alfamart. */
+export function resolveStoreTypeFilter(
+  brandFilter: StoreBrandFilter,
+  storeType: StoreTypeFilter,
+): StoreTypeFilter {
+  return brandFilter === 'ALFAMART' ? storeType : 'ALL';
+}
+
+export function getReportBrandWhere(
+  brandFilter: StoreBrandFilter,
+  storeType: StoreTypeFilter = 'ALL',
+): Prisma.ReportWhereInput | undefined {
   if (brandFilter === 'ALL') {
     return undefined;
   }
-  
+
+  const brandWhere = getStoreBrandWhere(brandFilter);
+  const effectiveStoreType = resolveStoreTypeFilter(brandFilter, storeType);
+
   return {
     storeCode: { not: null },
-    store: getStoreBrandWhere(brandFilter)
+    store:
+      effectiveStoreType === 'ALL'
+        ? brandWhere
+        : { AND: [brandWhere ?? {}, { ownershipType: effectiveStoreType }] },
   };
 }
 

@@ -15,8 +15,11 @@ import { resolveLimitedExportScope } from "./access";
 import {
   getStoreBrandExportLabel,
   parseStoreBrandFilter,
+  parseStoreTypeFilter,
+  resolveStoreTypeFilter,
 } from "@/lib/store-brand-filter";
 import { getReportStatusLabel } from "@/lib/report-status";
+import { parseReportCostFilter } from "@/lib/report-cost-filter";
 
 // ─── XLSX cell type constants ─────────────────────────────────────────────────
 
@@ -408,6 +411,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid brand filter" }, { status: 400 });
   }
   filter.brand = brand;
+  const storeType = parseStoreTypeFilter(filter.storeType);
+  if (storeType === null) {
+    return NextResponse.json({ error: "Invalid store type filter" }, { status: 400 });
+  }
+  filter.storeType = resolveStoreTypeFilter(brand, storeType);
+  const cost = parseReportCostFilter(filter.cost);
+  if (cost === null) {
+    return NextResponse.json({ error: "Invalid cost filter" }, { status: 400 });
+  }
+  filter.cost = cost;
   const preventiveQuarter = normalizePreventiveQuarter(
     filter.preventiveQuarter,
   );

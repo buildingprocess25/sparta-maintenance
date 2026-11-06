@@ -21,7 +21,18 @@ import {
     ReportRetentionConflictError,
     resolvePjumDetachments,
 } from "@/lib/report-retention";
-import { StoreBrandFilter, getReportBrandWhere, parseStoreBrandFilter } from "@/lib/store-brand-filter";
+import {
+    StoreBrandFilter,
+    StoreTypeFilter,
+    getReportBrandWhere,
+    parseStoreBrandFilter,
+    parseStoreTypeFilter,
+} from "@/lib/store-brand-filter";
+import {
+    ReportCostFilter,
+    getReportCostWhere,
+    parseReportCostFilter,
+} from "@/lib/report-cost-filter";
 
 export type AdminReportFilters = {
     search?: string;
@@ -33,6 +44,8 @@ export type AdminReportFilters = {
     toDate?: string;
     pjumStatus?: string;
     brand?: StoreBrandFilter;
+    storeType?: StoreTypeFilter;
+    cost?: ReportCostFilter;
 };
 
 const ACTIVE_REPORT_STATUSES = [
@@ -166,6 +179,10 @@ export async function getAdminReports(
 
         const brand = parseStoreBrandFilter(filters.brand);
         if (brand === null) throw new Error("Invalid brand filter");
+        const storeType = parseStoreTypeFilter(filters.storeType);
+        if (storeType === null) throw new Error("Invalid store type filter");
+        const cost = parseReportCostFilter(filters.cost);
+        if (cost === null) throw new Error("Invalid cost filter");
 
         const slaDaysByStatus = await getReportSlaDays();
 
@@ -283,10 +300,15 @@ export async function getAdminReports(
         }
 
         if (brand !== "ALL") {
-            const brandWhere = getReportBrandWhere(brand);
+            const brandWhere = getReportBrandWhere(brand, storeType);
             if (brandWhere) {
                 andFilters.push(brandWhere);
             }
+        }
+
+        const costWhere = getReportCostWhere(cost);
+        if (costWhere) {
+            andFilters.push(costWhere);
         }
 
         if (andFilters.length > 0) {

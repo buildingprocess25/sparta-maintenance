@@ -14,6 +14,8 @@ export async function AdminReportsContent({
     initialBranchName,
     initialAreaName,
     initialBrand,
+    initialStoreType,
+    initialCost,
     initialFromDate,
     initialToDate,
     areaOptions,
@@ -27,6 +29,8 @@ export async function AdminReportsContent({
             branchName: initialBranchName,
             areaName: initialAreaName,
             brand: initialBrand,
+            storeType: initialStoreType,
+            cost: initialCost,
             fromDate: initialFromDate,
             toDate: initialToDate,
         }),
@@ -45,6 +49,8 @@ export async function AdminReportsContent({
             initialBranchName={initialBranchName ?? "all"}
             initialAreaName={initialAreaName ?? "all"}
             initialBrand={initialBrand}
+            initialStoreType={initialStoreType}
+            initialCost={initialCost}
             initialFromDate={initialFromDate}
             initialToDate={initialToDate}
             showBrandFilter

@@ -2,7 +2,12 @@ import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/authorization";
 import { AdminDashboardShell } from "../_components/admin/admin-dashboard-shell";
 import { ExportReportsDialog } from "./_components/export-reports-dialog";
-import { normalizeStoreBrandFilter } from "@/lib/store-brand-filter";
+import {
+    normalizeStoreBrandFilter,
+    normalizeStoreTypeFilter,
+    resolveStoreTypeFilter,
+} from "@/lib/store-brand-filter";
+import { normalizeReportCostFilter } from "@/lib/report-cost-filter";
 import { isReportStatusKey } from "@/lib/report-status";
 import { Suspense } from "react";
 import { AdminReportsContent } from "./_components/admin-reports-content";
@@ -22,6 +27,8 @@ type Props = {
         review?: string;
         revision?: string;
         brand?: string;
+        storeType?: string;
+        cost?: string;
         fromDate?: string;
         toDate?: string;
     }>;
@@ -72,6 +79,11 @@ export default async function AdminReportsPage({ searchParams }: Props) {
     // Ambil semua cabang untuk dropdown filter ekspor (hanya ADMIN butuh daftar lengkap)
     const allBranchesForExport = isAdmin ? await fetchAllBranchNames() : [];
     const initialBrand = normalizeStoreBrandFilter(params.brand);
+    const initialStoreType = resolveStoreTypeFilter(
+        initialBrand,
+        normalizeStoreTypeFilter(params.storeType),
+    );
+    const initialCost = normalizeReportCostFilter(params.cost);
     const initialStatus = normalizeStatus(params.status);
     const initialPjumStatus = normalizePjumStatus(params.pjumStatus);
     const scopedBranches =
@@ -121,6 +133,8 @@ export default async function AdminReportsPage({ searchParams }: Props) {
                     initialBranchName={initialBranchName}
                     initialAreaName={initialAreaName}
                     initialBrand={initialBrand}
+                    initialStoreType={initialStoreType}
+                    initialCost={initialCost}
                     initialFromDate={initialFromDate}
                     initialToDate={initialToDate}
                     areaOptions={areaOptions}

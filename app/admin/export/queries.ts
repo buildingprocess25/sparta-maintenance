@@ -14,7 +14,8 @@ import {
 } from "@/lib/time";
 import { completePreventiveEvidenceSql } from "@/lib/report-preventive-sql";
 import { OPERATIONAL_EXCLUDED_REPORT_STATUSES } from "@/lib/report-status";
-import { StoreBrandFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
+import { StoreBrandFilter, StoreTypeFilter, getReportBrandWhere, getStoreBrandWhere } from "@/lib/store-brand-filter";
+import { type ReportCostFilter, getReportCostWhere } from "@/lib/report-cost-filter";
 import { isRecordedPreventiveReport } from "@/lib/report-preventive";
 import { SIGNAGE_ITEM_IDS } from "@/lib/signage";
 import {
@@ -35,6 +36,8 @@ export type ExportFilter = {
     year?: number;
     preventiveQuarter?: "all" | 1 | 2 | 3 | 4;
     brand?: StoreBrandFilter;
+    storeType?: StoreTypeFilter;
+    cost?: ReportCostFilter;
     pjumStatus?: "ALL" | "SUDAH" | "BELUM";
 };
 
@@ -157,10 +160,15 @@ function buildReportWhere(filter: ExportFilter): Prisma.ReportWhereInput {
     }
 
     if (filter.brand && filter.brand !== "ALL") {
-        const brandWhere = getReportBrandWhere(filter.brand);
+        const brandWhere = getReportBrandWhere(filter.brand, filter.storeType);
         if (brandWhere) {
             (where.AND as Prisma.ReportWhereInput[]).push(brandWhere);
         }
+    }
+
+    const costWhere = filter.cost ? getReportCostWhere(filter.cost) : undefined;
+    if (costWhere) {
+        (where.AND as Prisma.ReportWhereInput[]).push(costWhere);
     }
 
     if (filter.branchName) {
